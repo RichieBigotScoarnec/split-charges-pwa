@@ -423,6 +423,74 @@
       color: var(--primary-color);
     }
 
+    /* ===== BILAN FINAL ===== */
+    .bilan-final {
+      background: linear-gradient(135deg, rgba(255, 87, 34, 0.1), rgba(255, 152, 0, 0.1));
+      border: 2px solid var(--primary-color);
+      border-radius: 15px;
+      padding: 25px;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .bilan-final-header {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .bilan-final-amount {
+      font-size: 32px;
+      font-weight: 800;
+      margin: 15px 0;
+      color: var(--text-primary);
+    }
+
+    .bilan-final-direction {
+      font-size: 16px;
+      color: var(--text-secondary);
+      margin-bottom: 15px;
+    }
+
+    .bilan-final-balanced {
+      color: var(--success-color);
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .bilan-final-action {
+      margin-top: 15px;
+    }
+
+    .bilan-final-details {
+      background: var(--dark-bg);
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 15px;
+      text-align: left;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .bilan-final-details-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .bilan-final-details-row:last-child {
+      margin-bottom: 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
     /* ===== REIMBURSEMENT ===== */
     .reimbursement-item {
       background: var(--dark-bg);
@@ -609,6 +677,184 @@
     .empty-state-text {
       font-size: 16px;
     }
+
+    /* ===== FLOATING ACTION BUTTON (FAB) ===== */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      font-size: 28px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(255, 87, 34, 0.4);
+      z-index: 9998;
+      transition: all 0.3s ease;
+    }
+
+    .fab:hover {
+      transform: scale(1.1);
+      box-shadow: 0 8px 28px rgba(255, 87, 34, 0.6);
+    }
+
+    .fab:active {
+      transform: scale(0.95);
+    }
+
+    /* ===== QUICK ADD MODAL ===== */
+    .quick-add-modal .modal {
+      max-width: 400px;
+    }
+
+    .quick-add-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .quick-add-location {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 15px;
+      min-height: 20px;
+    }
+
+    .quick-add-location.loading {
+      color: var(--warning-color);
+    }
+
+    .quick-add-location.success {
+      color: var(--success-color);
+    }
+
+    /* Category Grid */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .category-btn {
+      aspect-ratio: 1;
+      border: 2px solid var(--border-color);
+      background: var(--dark-bg);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      padding: 12px;
+    }
+
+    .category-btn .category-icon {
+      font-size: 32px;
+    }
+
+    .category-btn:hover {
+      border-color: var(--primary-color);
+      background: rgba(255, 87, 34, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .category-btn.selected {
+      border-color: var(--primary-color);
+      background: linear-gradient(135deg, rgba(255, 87, 34, 0.2), rgba(255, 152, 0, 0.2));
+      box-shadow: 0 4px 12px rgba(255, 87, 34, 0.3);
+    }
+
+    /* Amount Input Large */
+    .amount-input-large {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .amount-input-large input {
+      width: 100%;
+      padding: 16px 40px 16px 16px;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      border-radius: 12px;
+      border: 2px solid var(--border-color);
+      background: var(--dark-bg);
+      color: var(--text-primary);
+    }
+
+    .amount-input-large input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 4px rgba(255, 87, 34, 0.1);
+    }
+
+    .amount-input-large .currency-symbol {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+
+    /* Payer Toggle */
+    .payer-toggle {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .payer-toggle button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: 2px solid var(--border-color);
+      background: var(--dark-bg);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .payer-toggle button:hover {
+      border-color: var(--primary-color);
+    }
+
+    .payer-toggle button.selected {
+      border-color: var(--primary-color);
+      background: linear-gradient(135deg, rgba(255, 87, 34, 0.2), rgba(255, 152, 0, 0.2));
+    }
+
+    @media (max-width: 600px) {
+      .fab {
+        width: 56px;
+        height: 56px;
+        font-size: 24px;
+        bottom: 20px;
+        right: 20px;
+      }
+
+      .category-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
   </style>
 </head>
 <body>
@@ -715,6 +961,11 @@
           <div class="summary-value" id="summaryReimbursements">0.00€</div>
         </div>
       </div>
+
+      <!-- Bilan Final -->
+      <div id="bilanFinal" class="bilan-final" style="display: none;">
+        <!-- Populated dynamically -->
+      </div>
     </div>
   </div>
 
@@ -796,6 +1047,54 @@
     </div>
   </div>
 
+  <!-- Modal: Quick Add (Saisie Express) -->
+  <div id="modalQuickAdd" class="modal-overlay quick-add-modal">
+    <div class="modal">
+      <div class="modal-header">⚡ Saisie Rapide</div>
+      <div class="quick-add-location" id="quickAddLocation">
+        <!-- GPS status will be shown here -->
+      </div>
+
+      <div class="quick-add-header">
+        <strong>Catégorie</strong>
+      </div>
+      <div class="category-grid" id="categoryGrid">
+        <!-- Categories will be populated by JavaScript -->
+      </div>
+
+      <div class="amount-input-large">
+        <input
+          type="number"
+          id="quickAddAmount"
+          placeholder="Montant"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          autofocus
+        />
+        <span class="currency-symbol">€</span>
+      </div>
+
+      <div class="quick-add-header">
+        <strong>Payé par</strong>
+      </div>
+      <div class="payer-toggle">
+        <button type="button" id="quickPayerVous" class="selected">Vous</button>
+        <button type="button" id="quickPayerConjointe">Conjointe</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modalQuickAdd')">Annuler</button>
+        <button class="btn btn-primary" id="btnQuickAdd" onclick="addQuickCharge()" disabled>✓ Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button class="fab" onclick="showQuickAddModal()" title="Saisie rapide">
+    ➕
+  </button>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -818,12 +1117,27 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
+    // ===== CATEGORIES DEFINITIONS =====
+    const CATEGORIES = [
+      { id: 'courses', icon: '🛒', label: 'Courses', color: '#4caf50' },
+      { id: 'maison', icon: '🏠', label: 'Maison', color: '#2196f3' },
+      { id: 'essence', icon: '🚗', label: 'Essence', color: '#ff9800' },
+      { id: 'restaurant', icon: '🍕', label: 'Restaurant', color: '#e91e63' },
+      { id: 'sante', icon: '💊', label: 'Santé', color: '#9c27b0' },
+      { id: 'autre', icon: '⚡', label: 'Autre', color: '#607d8b' }
+    ];
+
     // ===== GLOBAL STATE =====
     let currentPeriod = getCurrentPeriodString();
     let salaries = { vous: 0, conjointe: 0 };
     let fixedCharges = [];
     let variableCharges = [];
     let reimbursements = [];
+    let quickAddState = {
+      selectedCategory: null,
+      selectedPayer: 'vous',
+      gpsLocation: null
+    };
 
     // ===== UTILITY FUNCTIONS =====
     function getCurrentPeriodString() {
@@ -1115,16 +1429,22 @@
         return;
       }
 
-      list.innerHTML = variableCharges.map(charge => `
-        <div class="charge-item">
-          <div class="charge-info">
-            <div class="charge-name">${charge.name}</div>
-            <div class="charge-amount">${formatCurrency(charge.amount)}</div>
-            <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
+      list.innerHTML = variableCharges.map(charge => {
+        const icon = charge.categoryIcon || '⚡';
+        const locationInfo = charge.location?.place ? ` - ${charge.location.place}` : '';
+        const gpsIndicator = charge.location ? ' 📍' : '';
+
+        return `
+          <div class="charge-item">
+            <div class="charge-info">
+              <div class="charge-name">${icon} ${charge.name}${locationInfo}${gpsIndicator}</div>
+              <div class="charge-amount">${formatCurrency(charge.amount)}</div>
+              <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
+            </div>
+            <button type="button" class="btn-delete" onclick="deleteCharge('variable', ${charge.id})">🗑️</button>
           </div>
-          <button class="btn-delete" onclick="deleteCharge('variable', ${charge.id})">🗑️</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       calculateSummary();
     }
@@ -1184,20 +1504,30 @@
         document.getElementById('summaryYourShare').textContent = formatCurrency(0);
         document.getElementById('summaryPartnerShare').textContent = formatCurrency(0);
         document.getElementById('summaryReimbursements').textContent = formatCurrency(0);
+        document.getElementById('bilanFinal').style.display = 'none';
         return {};
       }
 
       // Calculate total charges
       const totalCharges = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
 
-      // Calculate prorata shares
+      // Calculate prorata shares (théorique)
       const yourRatio = salaries.vous / totalSalaries;
       const partnerRatio = salaries.conjointe / totalSalaries;
 
-      const yourShare = totalCharges * yourRatio;
-      const partnerShare = totalCharges * partnerRatio;
+      const yourTheoricalShare = totalCharges * yourRatio;
+      const partnerTheoricalShare = totalCharges * partnerRatio;
 
-      // Calculate net reimbursements (positive = you owe partner, negative = partner owes you)
+      // Calculate actual payments
+      const yourActualPayments = [...fixedCharges, ...variableCharges]
+        .filter(c => c.payeur === 'vous')
+        .reduce((sum, c) => sum + c.amount, 0);
+
+      const partnerActualPayments = [...fixedCharges, ...variableCharges]
+        .filter(c => c.payeur === 'conjointe')
+        .reduce((sum, c) => sum + c.amount, 0);
+
+      // Calculate net reimbursements already made
       const netReimbursement = reimbursements.reduce((sum, r) => {
         if (r.direction === 'vous-to-conjointe') {
           return sum + r.amount;
@@ -1206,13 +1536,135 @@
         }
       }, 0);
 
+      // Calculate final balance
+      // If positive: you paid more than your share, partner owes you
+      // If negative: you paid less than your share, you owe partner
+      const yourBalance = yourActualPayments - yourTheoricalShare - netReimbursement;
+
       // Update UI
       document.getElementById('summaryTotal').textContent = formatCurrency(totalCharges);
-      document.getElementById('summaryYourShare').textContent = formatCurrency(yourShare);
-      document.getElementById('summaryPartnerShare').textContent = formatCurrency(partnerShare);
+      document.getElementById('summaryYourShare').textContent = formatCurrency(yourTheoricalShare);
+      document.getElementById('summaryPartnerShare').textContent = formatCurrency(partnerTheoricalShare);
       document.getElementById('summaryReimbursements').textContent = formatCurrency(Math.abs(netReimbursement));
 
-      return { totalCharges, yourShare, partnerShare, netReimbursement };
+      // Render Bilan Final
+      renderBilanFinal({
+        totalCharges,
+        yourTheoricalShare,
+        partnerTheoricalShare,
+        yourActualPayments,
+        partnerActualPayments,
+        netReimbursement,
+        yourBalance
+      });
+
+      return {
+        totalCharges,
+        yourTheoricalShare,
+        partnerTheoricalShare,
+        yourActualPayments,
+        partnerActualPayments,
+        netReimbursement,
+        yourBalance
+      };
+    }
+
+    function renderBilanFinal(data) {
+      const bilanEl = document.getElementById('bilanFinal');
+      const { yourBalance, yourTheoricalShare, yourActualPayments, partnerActualPayments } = data;
+
+      // Hide if no charges
+      if (data.totalCharges === 0) {
+        bilanEl.style.display = 'none';
+        return;
+      }
+
+      bilanEl.style.display = 'block';
+
+      const absBalance = Math.abs(yourBalance);
+      const isBalanced = absBalance < 1; // Équilibré si différence < 1€
+
+      if (isBalanced) {
+        bilanEl.innerHTML = `
+          <div class="bilan-final-header">
+            💰 Bilan Final
+          </div>
+          <div class="bilan-final-balanced">
+            ✓ Comptes équilibrés ce mois
+          </div>
+          <div class="bilan-final-details">
+            <div class="bilan-final-details-row">
+              <span>Vous avez payé :</span>
+              <strong>${formatCurrency(yourActualPayments)}</strong>
+            </div>
+            <div class="bilan-final-details-row">
+              <span>Conjointe a payé :</span>
+              <strong>${formatCurrency(partnerActualPayments)}</strong>
+            </div>
+            <div class="bilan-final-details-row">
+              <span>Différence :</span>
+              <strong>${formatCurrency(absBalance)}</strong>
+            </div>
+          </div>
+        `;
+      } else {
+        const direction = yourBalance > 0
+          ? { from: 'Conjointe', to: 'Vous', arrow: '→' }
+          : { from: 'Vous', to: 'Conjointe', arrow: '→' };
+
+        bilanEl.innerHTML = `
+          <div class="bilan-final-header">
+            💰 Bilan Final
+          </div>
+          <div class="bilan-final-direction">
+            <strong>${direction.from}</strong> ${direction.arrow} <strong>${direction.to}</strong>
+          </div>
+          <div class="bilan-final-amount">
+            ${formatCurrency(absBalance)}
+          </div>
+          <div class="bilan-final-details">
+            <div class="bilan-final-details-row">
+              <span>Vous avez payé :</span>
+              <strong>${formatCurrency(yourActualPayments)}</strong>
+            </div>
+            <div class="bilan-final-details-row">
+              <span>Conjointe a payé :</span>
+              <strong>${formatCurrency(partnerActualPayments)}</strong>
+            </div>
+            <div class="bilan-final-details-row">
+              <span>Votre part théorique :</span>
+              <strong>${formatCurrency(yourTheoricalShare)}</strong>
+            </div>
+            <div class="bilan-final-details-row">
+              <span>Solde final :</span>
+              <strong>${formatCurrency(absBalance)}</strong>
+            </div>
+          </div>
+          <div class="bilan-final-action">
+            <button class="btn btn-primary" onclick="markAsReimbursed(${absBalance}, '${direction.from === 'Vous' ? 'vous-to-conjointe' : 'conjointe-to-vous'}')">
+              ✓ Marquer comme remboursé
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    function markAsReimbursed(amount, direction) {
+      if (!confirm(`Confirmer le remboursement de ${formatCurrency(amount)} ?`)) {
+        return;
+      }
+
+      reimbursements.push({
+        id: Date.now(),
+        direction: direction,
+        amount: amount,
+        note: 'Remboursement automatique (bilan final)',
+        date: new Date().toISOString()
+      });
+
+      savePeriodData();
+      renderReimbursements();
+      showToast(`✓ Remboursement de ${formatCurrency(amount)} enregistré`, 'success');
     }
 
     function renderAll() {
@@ -1237,6 +1689,18 @@
     // Real-time validation for Reimbursement modal
     document.getElementById('reimbursementAmount').addEventListener('input', validateReimbursementForm);
 
+    // Quick Add event listeners
+    document.getElementById('quickAddAmount').addEventListener('input', validateQuickAddForm);
+    document.getElementById('quickAddAmount').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !document.getElementById('btnQuickAdd').disabled) {
+        addQuickCharge();
+      }
+    });
+
+    // Payer toggle buttons
+    document.getElementById('quickPayerVous').addEventListener('click', () => updatePayerToggle('vous'));
+    document.getElementById('quickPayerConjointe').addEventListener('click', () => updatePayerToggle('conjointe'));
+
     // Close modal on overlay click
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
       overlay.addEventListener('click', (e) => {
@@ -1255,6 +1719,246 @@
         }
       }
     });
+
+    // ===== QUICK ADD (SAISIE EXPRESS) =====
+
+    // Show Quick Add Modal
+    function showQuickAddModal() {
+      // Reset state
+      quickAddState.selectedCategory = null;
+      quickAddState.selectedPayer = 'vous';
+      quickAddState.gpsLocation = null;
+
+      // Reset UI
+      document.getElementById('quickAddAmount').value = '';
+      document.getElementById('btnQuickAdd').disabled = true;
+      updatePayerToggle('vous');
+
+      // Populate categories
+      populateCategories();
+
+      // Show modal
+      showModal('modalQuickAdd');
+
+      // Focus amount input
+      setTimeout(() => {
+        document.getElementById('quickAddAmount').focus();
+      }, 100);
+
+      // Start GPS detection in background (non-blocking)
+      startGPSDetection();
+    }
+
+    // Populate category grid
+    function populateCategories() {
+      const grid = document.getElementById('categoryGrid');
+      grid.innerHTML = CATEGORIES.map(cat => `
+        <button type="button" class="category-btn" data-category-id="${cat.id}" onclick="selectCategory('${cat.id}')">
+          <div class="category-icon">${cat.icon}</div>
+          <div>${cat.label}</div>
+        </button>
+      `).join('');
+    }
+
+    // Select category
+    function selectCategory(categoryId) {
+      const category = CATEGORIES.find(c => c.id === categoryId);
+      if (!category) return;
+
+      quickAddState.selectedCategory = category;
+
+      // Update UI
+      document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
+      });
+
+      // Validate form
+      validateQuickAddForm();
+    }
+
+    // Update payer toggle
+    function updatePayerToggle(payer) {
+      quickAddState.selectedPayer = payer;
+      document.getElementById('quickPayerVous').classList.toggle('selected', payer === 'vous');
+      document.getElementById('quickPayerConjointe').classList.toggle('selected', payer === 'conjointe');
+    }
+
+    // Validate quick add form
+    function validateQuickAddForm() {
+      const amount = parseFloat(document.getElementById('quickAddAmount').value) || 0;
+      const hasCategory = quickAddState.selectedCategory !== null;
+      const hasAmount = amount > 0;
+
+      document.getElementById('btnQuickAdd').disabled = !(hasCategory && hasAmount);
+    }
+
+    // GPS Detection (Phase 1 - Basic)
+    function startGPSDetection() {
+      const locationEl = document.getElementById('quickAddLocation');
+      locationEl.textContent = '📍 Détection position...';
+      locationEl.className = 'quick-add-location loading';
+
+      if (!navigator.geolocation) {
+        locationEl.textContent = '';
+        locationEl.className = 'quick-add-location';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          quickAddState.gpsLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: Date.now()
+          };
+
+          // Try reverse geocoding
+          try {
+            const place = await reverseGeocode(quickAddState.gpsLocation.lat, quickAddState.gpsLocation.lng);
+            if (place && place.name) {
+              locationEl.textContent = `✓ ${place.name}`;
+              locationEl.className = 'quick-add-location success';
+
+              // Auto-detect category
+              const detectedCategory = detectCategoryFromPlace(place);
+              if (detectedCategory && !quickAddState.selectedCategory) {
+                selectCategory(detectedCategory.id);
+                showToast(`📍 ${detectedCategory.label} détecté`, 'info');
+              }
+            } else {
+              locationEl.textContent = '✓ Position enregistrée';
+              locationEl.className = 'quick-add-location success';
+            }
+          } catch (error) {
+            locationEl.textContent = '✓ Position enregistrée';
+            locationEl.className = 'quick-add-location success';
+          }
+        },
+        (error) => {
+          console.log('GPS error:', error);
+          locationEl.textContent = '';
+          locationEl.className = 'quick-add-location';
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 60000
+        }
+      );
+    }
+
+    // Reverse Geocoding (Nominatim API - Free)
+    async function reverseGeocode(lat, lng) {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+          {
+            headers: {
+              'User-Agent': 'FairSplit/1.0'
+            }
+          }
+        );
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        return {
+          name: data.name || data.address?.shop || data.address?.amenity || data.address?.building,
+          address: data.display_name,
+          city: data.address?.city || data.address?.town,
+          postcode: data.address?.postcode,
+          type: data.type,
+          rawAddress: data.address
+        };
+      } catch (error) {
+        console.error('Reverse geocoding failed:', error);
+        return null;
+      }
+    }
+
+    // Detect category from place type
+    function detectCategoryFromPlace(place) {
+      if (!place) return null;
+
+      // Map OSM types to categories
+      const typeMapping = {
+        'supermarket': CATEGORIES.find(c => c.id === 'courses'),
+        'fuel': CATEGORIES.find(c => c.id === 'essence'),
+        'restaurant': CATEGORIES.find(c => c.id === 'restaurant'),
+        'pharmacy': CATEGORIES.find(c => c.id === 'sante')
+      };
+
+      if (place.type && typeMapping[place.type]) {
+        return typeMapping[place.type];
+      }
+
+      // Fallback: analyze name
+      const name = (place.name || '').toLowerCase();
+      const address = (place.address || '').toLowerCase();
+      const fullText = name + ' ' + address;
+
+      if (fullText.includes('leclerc') || fullText.includes('carrefour') || fullText.includes('intermarché') || fullText.includes('auchan')) {
+        return CATEGORIES.find(c => c.id === 'courses');
+      }
+      if (fullText.includes('total') || fullText.includes('esso') || fullText.includes('shell') || fullText.includes('bp')) {
+        return CATEGORIES.find(c => c.id === 'essence');
+      }
+      if (fullText.includes('restaurant') || fullText.includes('pizzeria') || fullText.includes('brasserie')) {
+        return CATEGORIES.find(c => c.id === 'restaurant');
+      }
+      if (fullText.includes('pharmacie')) {
+        return CATEGORIES.find(c => c.id === 'sante');
+      }
+
+      return null;
+    }
+
+    // Add Quick Charge
+    async function addQuickCharge() {
+      const amount = parseFloat(document.getElementById('quickAddAmount').value);
+      const category = quickAddState.selectedCategory;
+      const payer = quickAddState.selectedPayer;
+      const location = quickAddState.gpsLocation;
+
+      if (!category || !amount || amount <= 0) {
+        showToast('Veuillez sélectionner une catégorie et entrer un montant', 'error');
+        return;
+      }
+
+      // Get place name if GPS available
+      let placeName = null;
+      if (location) {
+        const locationEl = document.getElementById('quickAddLocation');
+        const locationText = locationEl.textContent;
+        if (locationText.startsWith('✓')) {
+          placeName = locationText.substring(2).trim();
+        }
+      }
+
+      const charge = {
+        id: Date.now(),
+        name: category.label,
+        amount: amount,
+        category: category.id,
+        categoryLabel: category.label,
+        categoryIcon: category.icon,
+        payeur: payer,
+        date: new Date().toISOString(),
+        location: location ? {
+          lat: location.lat,
+          lng: location.lng,
+          place: placeName,
+          timestamp: location.timestamp
+        } : null
+      };
+
+      variableCharges.push(charge);
+      savePeriodData();
+      renderVariableCharges();
+      closeModal('modalQuickAdd');
+      showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, 'success');
+    }
 
     // ===== INITIALIZATION =====
     window.addEventListener('load', () => {
