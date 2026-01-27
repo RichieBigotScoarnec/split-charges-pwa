@@ -1,0 +1,31 @@
+╔══════════════════════════════════════════════════════════════════╗
+║   RÈGLES FIREBASE À APPLIQUER MAINTENANT (2 minutes)            ║
+╚══════════════════════════════════════════════════════════════════╝
+
+1. Ouvrir Firebase Console :
+   👉 https://console.firebase.google.com/project/split-charges/database/split-charges-default-rtdb/rules
+
+2. Dans l'éditeur de règles, REMPLACER tout le contenu par :
+
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+
+3. Cliquer sur "Publier" (bouton bleu en haut)
+
+4. Attendre le message de confirmation
+
+5. Actualiser l'application dans votre navigateur
+
+✅ L'APPLICATION DEVRAIT FONCTIONNER IMMÉDIATEMENT !
+
+═══════════════════════════════════════════════════════════════════
+
+Note: Ces règles sont temporaires pour que l'app fonctionne.
+Pour activer la sécurité plus tard, on devra résoudre le problème
+d'API Key d'authentification Firebase.
+
+═══════════════════════════════════════════════════════════════════
