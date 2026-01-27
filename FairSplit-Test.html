@@ -491,6 +491,73 @@
       color: var(--text-primary);
     }
 
+    /* ===== RECONDUCTION CHARGES FIXES ===== */
+    .reconduction-banner {
+      background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(3, 169, 244, 0.1));
+      border: 2px solid var(--info-color);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .reconduction-banner-header {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--info-color);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .reconduction-banner-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 15px;
+    }
+
+    .reconduction-banner-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .reconduction-preview {
+      background: var(--dark-bg);
+      border-radius: 10px;
+      padding: 15px;
+      margin: 15px 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .reconduction-preview-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      margin-bottom: 5px;
+      background: var(--card-bg);
+      border-radius: 8px;
+    }
+
+    .reconduction-preview-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .reconduction-preview-item label {
+      flex: 1;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+
     /* ===== REIMBURSEMENT ===== */
     .reimbursement-item {
       background: var(--dark-bg);
@@ -870,6 +937,21 @@
       <p>Partage équitable des charges au prorata des salaires</p>
     </header>
 
+    <!-- Reconduction Banner (shown on new month) -->
+    <div id="reconductionBanner" class="reconduction-banner" style="display: none;">
+      <div class="reconduction-banner-header">
+        <span class="reconduction-banner-title">📋 Nouveau mois détecté</span>
+        <button class="reconduction-banner-close" onclick="dismissReconductionBanner()" title="Masquer">✕</button>
+      </div>
+      <div class="reconduction-banner-message">
+        Voulez-vous reconduire certaines charges fixes du mois précédent ?
+      </div>
+      <div class="reconduction-banner-actions">
+        <button class="btn btn-secondary" onclick="dismissReconductionBanner()">Non merci</button>
+        <button class="btn btn-primary" onclick="showReconductionModal()">📋 Voir les charges</button>
+      </div>
+    </div>
+
     <!-- Period Navigation -->
     <div class="card period-navigation">
       <div class="period-selector">
@@ -1090,6 +1172,25 @@
     </div>
   </div>
 
+  <!-- Modal: Reconduction Charges Fixes -->
+  <div id="modalReconduction" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">📋 Reconduire les charges fixes</div>
+      <p style="color: var(--text-secondary); margin-bottom: 20px;">
+        Sélectionnez les charges fixes du mois précédent à reconduire automatiquement :
+      </p>
+      <div id="reconductionPreviewList" class="reconduction-preview">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modalReconduction')">Annuler</button>
+        <button class="btn btn-primary" id="btnDuplicateCharges" onclick="duplicateSelectedCharges()" disabled>
+          ✓ Reconduire (<span id="reconductionCount">0</span>)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Action Button -->
   <button class="fab" onclick="showQuickAddModal()" title="Saisie rapide">
     ➕
@@ -1289,6 +1390,9 @@
           reimbursements = [];
         }
         renderAll();
+
+        // Check for new month and show reconduction banner if applicable
+        checkForNewMonth();
       });
     }
 
@@ -1958,6 +2062,167 @@
       renderVariableCharges();
       closeModal('modalQuickAdd');
       showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, 'success');
+    }
+
+    // ===== RECONDUCTION CHARGES FIXES =====
+
+    let previousMonthCharges = [];
+    let selectedReconductionItems = new Set();
+
+    // Get previous month period string (YYYY-MM)
+    function getPreviousPeriodString() {
+      const [year, month] = currentPeriod.split('-').map(Number);
+      let prevYear = year;
+      let prevMonth = month - 1;
+
+      if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = year - 1;
+      }
+
+      return `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+    }
+
+    // Load previous month data from Firebase
+    async function loadPreviousMonthData() {
+      const prevPeriod = getPreviousPeriodString();
+
+      try {
+        const snapshot = await database.ref(`periods/${prevPeriod}`).once('value');
+        const data = snapshot.val();
+
+        if (data && data.fixedCharges && data.fixedCharges.length > 0) {
+          previousMonthCharges = data.fixedCharges;
+          return true; // Has charges to reconduct
+        }
+
+        previousMonthCharges = [];
+        return false; // No charges to reconduct
+      } catch (error) {
+        console.error('Erreur chargement mois précédent:', error);
+        previousMonthCharges = [];
+        return false;
+      }
+    }
+
+    // Check if it's a new month and show reconduction banner
+    async function checkForNewMonth() {
+      // Only show banner if:
+      // 1. Current period is the current month
+      // 2. No fixed charges in current period yet
+      // 3. Previous month has fixed charges
+
+      const actualCurrentPeriod = getCurrentPeriodString();
+
+      if (currentPeriod !== actualCurrentPeriod) {
+        // User is viewing a past/future month, don't show banner
+        return;
+      }
+
+      if (fixedCharges.length > 0) {
+        // Already has fixed charges in current month, don't show banner
+        return;
+      }
+
+      const hasPreviousCharges = await loadPreviousMonthData();
+
+      if (hasPreviousCharges) {
+        // Show banner
+        document.getElementById('reconductionBanner').style.display = 'block';
+      }
+    }
+
+    // Dismiss reconduction banner
+    function dismissReconductionBanner() {
+      document.getElementById('reconductionBanner').style.display = 'none';
+    }
+
+    // Show reconduction modal with checkbox list
+    function showReconductionModal() {
+      const listEl = document.getElementById('reconductionPreviewList');
+      listEl.innerHTML = '';
+      selectedReconductionItems.clear();
+
+      if (previousMonthCharges.length === 0) {
+        listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Aucune charge fixe trouvée dans le mois précédent.</p>';
+        return;
+      }
+
+      // Render checkbox list
+      previousMonthCharges.forEach((charge, index) => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'reconduction-preview-item';
+        itemEl.innerHTML = `
+          <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; width: 100%;">
+            <input
+              type="checkbox"
+              id="reconduct-${index}"
+              onchange="toggleReconductionItem(${index})"
+              style="width: 20px; height: 20px; cursor: pointer;"
+            />
+            <div style="flex: 1;">
+              <div style="font-weight: 600; color: var(--text-primary);">${charge.name}</div>
+              <div style="font-size: 13px; color: var(--text-secondary);">Montant: ${formatCurrency(charge.amount)}</div>
+            </div>
+          </label>
+        `;
+        listEl.appendChild(itemEl);
+      });
+
+      updateReconductionCount();
+      dismissReconductionBanner();
+      showModal('modalReconduction');
+    }
+
+    // Toggle reconduction item selection
+    function toggleReconductionItem(index) {
+      const checkbox = document.getElementById(`reconduct-${index}`);
+
+      if (checkbox.checked) {
+        selectedReconductionItems.add(index);
+      } else {
+        selectedReconductionItems.delete(index);
+      }
+
+      updateReconductionCount();
+    }
+
+    // Update reconduction count and button state
+    function updateReconductionCount() {
+      const count = selectedReconductionItems.size;
+      document.getElementById('reconductionCount').textContent = count;
+      document.getElementById('btnDuplicateCharges').disabled = count === 0;
+    }
+
+    // Duplicate selected charges to current month
+    function duplicateSelectedCharges() {
+      if (selectedReconductionItems.size === 0) {
+        showToast('Veuillez sélectionner au moins une charge', 'error');
+        return;
+      }
+
+      const selectedCharges = Array.from(selectedReconductionItems)
+        .map(index => previousMonthCharges[index])
+        .filter(charge => charge);
+
+      // Add each selected charge to current month
+      selectedCharges.forEach(charge => {
+        const newCharge = {
+          id: Date.now() + Math.random(), // Unique ID
+          name: charge.name,
+          amount: charge.amount,
+          date: new Date().toISOString()
+        };
+
+        fixedCharges.push(newCharge);
+      });
+
+      savePeriodData();
+      renderFixedCharges();
+      closeModal('modalReconduction');
+
+      const count = selectedCharges.length;
+      showToast(`✓ ${count} charge${count > 1 ? 's' : ''} fixe${count > 1 ? 's' : ''} reconduite${count > 1 ? 's' : ''}`, 'success');
     }
 
     // ===== INITIALIZATION =====
