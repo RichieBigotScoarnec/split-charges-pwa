@@ -1,155 +1,280 @@
-# 🎯 Prochaines Étapes - FairSplit v3.0.0
+# 🚀 Prochaines Étapes - FairSplit v3.0.0
 
-## ✅ Déjà fait
-
-- ✅ Structure de fichiers créée
-- ✅ FairSplit-Test.html créé (avec badge orange TEST)
-- ✅ FairSplit-Prod.html créé (version production)
-- ✅ manifest.json et manifest-test.json créés
-- ✅ index.html et develop/index.html (redirections) créés
-- ✅ WORKFLOW-DEV.md créé (guide workflow)
-- ✅ .gitignore créé
-
-## 🔥 À FAIRE MAINTENANT : Créer les projets Firebase
-
-### 1️⃣ Créer Firebase TEST
-
-1. Aller sur https://console.firebase.google.com/
-2. Cliquer **Ajouter un projet**
-3. Nom du projet : **fairsplit-test**
-4. Désactiver Google Analytics (optionnel)
-5. Cliquer **Créer le projet**
-
-### 2️⃣ Activer Realtime Database (TEST)
-
-1. Dans le projet **fairsplit-test**
-2. Menu de gauche → **Realtime Database**
-3. Cliquer **Créer une base de données**
-4. Localisation : **europe-west1** (Belgique)
-5. Règles de sécurité : **Mode test** (temporaire)
-   ```json
-   {
-     "rules": {
-       ".read": true,
-       ".write": true
-     }
-   }
-   ```
-6. Cliquer **Activer**
-
-### 3️⃣ Récupérer la configuration Firebase TEST
-
-1. Dans le projet **fairsplit-test**
-2. Icône **⚙️** (Paramètres) → **Paramètres du projet**
-3. Onglet **Général**
-4. Section **Vos applications** → **</>** (Web)
-5. Enregistrer l'application : **FairSplit TEST**
-6. Copier les valeurs :
-   - `apiKey`
-   - `authDomain`
-   - `databaseURL`
-   - `projectId`
-   - `storageBucket`
-   - `messagingSenderId`
-   - `appId`
-
-### 4️⃣ Mettre à jour FairSplit-Test.html
-
-1. Ouvrir `FairSplit-Test.html` dans un éditeur
-2. Chercher : `VOTRE_API_KEY_TEST`
-3. Remplacer toutes les valeurs par la config Firebase TEST
-
-### 5️⃣ Répéter pour Firebase PROD
-
-1. Créer projet **fairsplit-prod**
-2. Activer Realtime Database (europe-west1)
-3. Règles test temporaires
-4. Récupérer config
-5. Mettre à jour `FairSplit-Prod.html`
-
-## 📂 Structure finale
-
-```
-split-charges-pwa/
-├── index.html                          ✅ Créé (redirige vers PROD)
-├── FairSplit-Prod.html                 ✅ Créé (à configurer Firebase)
-├── FairSplit-Test.html                 ✅ Créé (à configurer Firebase)
-├── manifest.json                       ✅ Créé
-├── manifest-test.json                  ✅ Créé
-├── develop/
-│   └── index.html                      ✅ Créé (redirige vers TEST)
-├── WORKFLOW-DEV.md                     ✅ Créé
-├── PROCHAINES-ETAPES.md               ✅ Ce fichier
-├── README.md                           ⏳ À mettre à jour
-├── .gitignore                          ✅ Créé
-└── [anciens fichiers à supprimer]      ⏳ Cleanup
-```
-
-## 🚀 Après configuration Firebase
-
-### 1️⃣ Tester localement
-
-```bash
-# Ouvrir FairSplit-Test.html dans le navigateur
-# Vérifier console : "Firebase TEST chargé"
-# Tester ajout salaires, charges, remboursements
-```
-
-### 2️⃣ Créer branche develop
-
-```bash
-cd C:\Users\ribigo\Documents\GIT\split-charges-pwa
-git checkout -b develop
-git add .
-git commit -m "feat: FairSplit v3.0.0 - périodes mensuelles + TEST/PROD"
-git push -u origin develop
-```
-
-### 3️⃣ Déployer sur GitHub Pages
-
-1. GitHub → Settings → Pages
-2. Source : **Deploy from branch**
-3. Branch : **main** → `/` (root)
-4. Sauvegarder
-
-### 4️⃣ Tester sur smartphone
-
-- TEST : https://richiebigot-scoarnec.github.io/split-charges-pwa/develop/
-- PROD : https://richiebigot-scoarnec.github.io/split-charges-pwa/
-
-## 💡 Aide-mémoire Firebase Config
-
-### Où trouver les valeurs ?
-
-- **apiKey** : Project Settings > General > Web API Key
-- **authDomain** : `{projectId}.firebaseapp.com`
-- **databaseURL** : Realtime Database > Data tab (URL en haut)
-- **projectId** : Project Settings > General > Project ID
-- **storageBucket** : `{projectId}.firebasestorage.app`
-- **messagingSenderId** : Project Settings > Cloud Messaging > Sender ID
-- **appId** : Project Settings > General > App ID
-
-### Format attendu
-
-```javascript
-const firebaseConfig = {
-  apiKey: "AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  authDomain: "fairsplit-test.firebaseapp.com",
-  databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "fairsplit-test",
-  storageBucket: "fairsplit-test.firebasestorage.app",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890abcdef"
-};
-```
-
-## 📞 Besoin d'aide ?
-
-Si vous êtes bloqué, fournissez-moi :
-1. Les configurations Firebase (TEST et PROD)
-2. Je mettrai à jour les fichiers HTML pour vous
+> **Status** : Configuration Firebase terminée ✅
+> **Architecture** : DevOps avec GitHub Actions (Option 3)
 
 ---
 
-**Version** : 2026-01-27
-**Statut** : En attente configurations Firebase
+## ✅ Complété
+
+1. ✅ Structure de fichiers créée
+2. ✅ Fichiers HTML TEST et PROD générés
+3. ✅ **Configuration Firebase intégrée (PROD et TEST)**
+4. ✅ PWA manifests (test et prod)
+5. ✅ **GitHub Actions workflow créé** (.github/workflows/deploy.yml)
+6. ✅ **Documentation complète** (DEPLOYMENT.md)
+7. ✅ **Scripts de migration** (migrate-to-branches.ps1 et .sh)
+
+---
+
+## 🚀 Étape 1 : Migration vers branches séparées
+
+### Option A : Utiliser le script automatique (Recommandé)
+
+**Sur Windows (PowerShell) :**
+```powershell
+.\migrate-to-branches.ps1
+```
+
+**Sur Linux/Mac (Bash) :**
+```bash
+chmod +x migrate-to-branches.sh
+./migrate-to-branches.sh
+```
+
+Le script va :
+- ✅ Créer la branche `main` avec uniquement les fichiers PROD
+- ✅ Créer la branche `develop` avec uniquement les fichiers TEST
+- ✅ Nettoyer les fichiers non nécessaires
+- ✅ Préparer les commits
+
+### Option B : Migration manuelle
+
+Suivre les instructions détaillées dans **[DEPLOYMENT.md](DEPLOYMENT.md)** (section "Configuration Initiale").
+
+---
+
+## 🌐 Étape 2 : Pousser sur GitHub
+
+```bash
+# Pousser main (PROD)
+git checkout main
+git push -u origin main
+
+# Pousser develop (TEST)
+git checkout develop
+git push -u origin develop
+```
+
+---
+
+## ⚙️ Étape 3 : Configurer GitHub Pages
+
+1. Aller sur GitHub → **Settings** → **Pages**
+2. **Source** : Deploy from a branch
+3. **Branch** : `gh-pages` / `(root)`
+4. **Save**
+
+⚠️ **Important** : Choisir `gh-pages` car GitHub Actions va créer cette branche automatiquement lors du premier déploiement.
+
+---
+
+## 🔒 Étape 4 : Protéger la branche main (Optionnel mais recommandé)
+
+1. GitHub → **Settings** → **Branches**
+2. **Branch protection rules** → Add rule
+3. **Branch name pattern** : `main`
+4. Activer :
+   - ✅ Require a pull request before merging
+   - ✅ Require approvals (1 minimum)
+5. **Save changes**
+
+Cela empêche les push directs en PROD et force le workflow de code review.
+
+---
+
+## ✅ Étape 5 : Vérifier le déploiement
+
+### Après le premier push
+
+1. Aller sur GitHub → **Actions**
+2. Vérifier que le workflow **"Deploy FairSplit to GitHub Pages"** s'exécute
+3. Attendre que le statut passe à ✅ (environ 30-60 secondes)
+
+### Tester les URLs
+
+Remplacer `USERNAME` et `REPO` par vos valeurs :
+
+- **PROD** : `https://USERNAME.github.io/REPO/`
+- **TEST** : `https://USERNAME.github.io/REPO/test/`
+
+**Vérifications** :
+- ✅ Badge TEST visible sur l'environnement TEST
+- ✅ Thème orange (TEST) vs bleu (PROD)
+- ✅ Connexion Firebase fonctionnelle
+- ✅ Saisie salaires + charges fonctionne
+- ✅ Navigation entre périodes fonctionne
+
+---
+
+## 🔥 Étape 6 : Configurer les règles Firebase
+
+### Règles actuelles (Test Mode - Permissif)
+
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+```
+
+⚠️ **Attention** : Ces règles permettent à **n'importe qui** de lire/écrire dans votre base de données.
+
+### Règles recommandées pour PROD (avec authentification)
+
+**TODO** : Ajouter Firebase Authentication puis utiliser ces règles :
+
+```json
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "salaries": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "periods": {
+      "$period": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 🎨 Étape 7 : Génération des Icônes PWA
+
+### Icônes requises
+
+- `icon-192.png` (192×192 px) - PROD
+- `icon-512.png` (512×512 px) - PROD
+- `icon-192-test.png` (192×192 px) - TEST
+- `icon-512-test.png` (512×512 px) - TEST
+
+### Outils recommandés
+
+- [PWA Asset Generator](https://www.pwabuilder.com/imageGenerator)
+- [RealFaviconGenerator](https://realfavicongenerator.net/)
+- Figma / Canva
+
+### Design suggéré
+
+**PROD** :
+- Fond : Dégradé bleu-violet (#667eea → #764ba2)
+- Emoji : 💰
+
+**TEST** :
+- Fond : Dégradé orange (#ff9800 → #ff5722)
+- Emoji : 💰 + badge "TEST"
+
+---
+
+## 🔄 Workflow de Développement
+
+### Créer une nouvelle fonctionnalité
+
+```bash
+# 1. Partir de develop
+git checkout develop
+git pull origin develop
+
+# 2. Créer une branche feature
+git checkout -b feature/ma-fonctionnalite
+
+# 3. Faire les modifications sur FairSplit-Test.html
+# Éditer, tester localement...
+
+# 4. Commit et push
+git add .
+git commit -m "feat: ajouter ma fonctionnalité"
+git push -u origin feature/ma-fonctionnalite
+
+# 5. Créer une Pull Request sur GitHub
+# feature/ma-fonctionnalite → develop
+```
+
+### Promouvoir TEST vers PROD
+
+```bash
+# 1. Vérifier que TEST fonctionne
+# Tester sur https://USERNAME.github.io/REPO/test/
+
+# 2. Créer une Pull Request sur GitHub
+# develop → main
+
+# 3. Code Review + Tests
+
+# 4. Merge la PR
+# → GitHub Actions déploie automatiquement en PROD
+```
+
+---
+
+## ✨ Fonctionnalités Futures (v3.1+)
+
+### Court terme
+- [ ] Authentification Firebase (Google, Email)
+- [ ] Copie automatique charges fixes du mois précédent
+- [ ] Export PDF des résumés mensuels
+- [ ] Mode offline avec Service Worker
+
+### Moyen terme
+- [ ] Notifications push (rappels)
+- [ ] Graphiques évolution charges
+- [ ] Multi-devises
+- [ ] Partage multi-utilisateurs
+
+### Long terme
+- [ ] Application mobile native
+- [ ] Intégration bancaire
+- [ ] Machine Learning (prédictions)
+
+---
+
+## 🐛 Troubleshooting
+
+### Le workflow GitHub Actions ne se déclenche pas
+
+1. Vérifier que `.github/workflows/deploy.yml` existe sur les deux branches
+2. **Settings** → **Actions** → **General** → **Workflow permissions** → "Read and write permissions"
+3. Vérifier les logs dans **Actions** tab
+
+### Erreur 404 sur les URLs
+
+1. Attendre 2-3 minutes après le premier déploiement
+2. Vérifier que `gh-pages` branch existe
+3. Vérifier Settings → Pages → Branch = `gh-pages`
+4. Vider le cache navigateur (Ctrl+Shift+R)
+
+### Firebase ne se connecte pas
+
+1. Console navigateur (F12) pour voir les erreurs
+2. Vérifier les règles Firebase (`.read` et `.write` doivent être `true`)
+3. Vérifier les configurations dans les fichiers HTML
+
+### Les deux environnements affichent le même contenu
+
+1. Vérifier que vous êtes sur la bonne branche : `git branch`
+2. Vérifier que les fichiers sont différents entre main et develop
+3. Attendre que GitHub Actions redéploie après correction
+
+---
+
+## 📚 Ressources
+
+- **Documentation complète** : [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Workflow développement** : [WORKFLOW-DEV.md](WORKFLOW-DEV.md)
+- Firebase Docs : https://firebase.google.com/docs/database
+- GitHub Actions : https://docs.github.com/en/actions
+- PWA Guide : https://web.dev/progressive-web-apps/
+
+---
+
+**Version** : 3.0.0
+**Dernière mise à jour** : 2025-01-27
+**Architecture** : DevOps with GitHub Actions (Option 3)
