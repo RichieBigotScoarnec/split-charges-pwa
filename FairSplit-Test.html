@@ -31,7 +31,7 @@
       --dark-bg: #1a1a2e;
       --card-bg: #16213e;
       --text-primary: #ffffff;
-      --text-secondary: #b0b0b0;
+      --text-secondary: #c5c5c5;
       --border-color: #2d3561;
       --shadow: 0 8px 32px rgba(255, 87, 34, 0.15);
     }
@@ -230,6 +230,38 @@
       box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.1);
     }
 
+    /* ===== SAVE INDICATOR ===== */
+    .save-indicator {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 13px;
+      min-height: 20px;
+    }
+
+    .save-indicator .saving {
+      color: var(--warning-color);
+      display: none;
+    }
+
+    .save-indicator .saved {
+      color: var(--success-color);
+      display: none;
+    }
+
+    .save-indicator.is-saving .saving {
+      display: inline;
+    }
+
+    .save-indicator.is-saved .saved {
+      display: inline;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
     /* ===== CHARGES ===== */
     .charge-item {
       background: var(--dark-bg);
@@ -348,6 +380,17 @@
 
     .btn-secondary:hover {
       background: #3d4785;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn:disabled:hover {
+      transform: none !important;
+      box-shadow: none !important;
     }
 
     /* ===== SUMMARY ===== */
@@ -610,6 +653,10 @@
           <input type="number" id="salaireConjointe" placeholder="Ex: 1800" min="0" step="0.01" />
         </div>
       </div>
+      <div class="save-indicator" id="salariesSaveIndicator">
+        <span class="saving">⏳ Sauvegarde...</span>
+        <span class="saved">✓ Sauvegardé</span>
+      </div>
     </div>
 
     <!-- Variable Charges Section -->
@@ -692,7 +739,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
-        <button class="btn btn-primary" onclick="addVariableCharge()">Ajouter</button>
+        <button class="btn btn-primary" id="btnAddVariableCharge" onclick="addVariableCharge()" disabled>Ajouter</button>
       </div>
     </div>
   </div>
@@ -718,7 +765,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
-        <button class="btn btn-primary" onclick="addFixedCharge()">Ajouter</button>
+        <button class="btn btn-primary" id="btnAddFixedCharge" onclick="addFixedCharge()" disabled>Ajouter</button>
       </div>
     </div>
   </div>
@@ -744,7 +791,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
-        <button class="btn btn-primary" onclick="addReimbursement()">Ajouter</button>
+        <button class="btn btn-primary" id="btnAddReimbursement" onclick="addReimbursement()" disabled>Ajouter</button>
       </div>
     </div>
   </div>
@@ -804,16 +851,19 @@
 
     function closeModal(modalId) {
       document.getElementById(modalId).classList.remove('active');
-      // Reset form fields
+      // Reset form fields and buttons
       if (modalId === 'modalAddVariableCharge') {
         document.getElementById('varChargeName').value = '';
         document.getElementById('varChargeAmount').value = '';
+        document.getElementById('btnAddVariableCharge').disabled = true;
       } else if (modalId === 'modalAddFixedCharge') {
         document.getElementById('fixedChargeName').value = '';
         document.getElementById('fixedChargeAmount').value = '';
+        document.getElementById('btnAddFixedCharge').disabled = true;
       } else if (modalId === 'modalAddReimbursement') {
         document.getElementById('reimbursementAmount').value = '';
         document.getElementById('reimbursementNote').value = '';
+        document.getElementById('btnAddReimbursement').disabled = true;
       }
     }
 
@@ -827,6 +877,27 @@
 
     function showAddReimbursementModal() {
       showModal('modalAddReimbursement');
+    }
+
+    // ===== REAL-TIME VALIDATION =====
+    function validateVariableChargeForm() {
+      const name = document.getElementById('varChargeName').value.trim();
+      const amount = parseFloat(document.getElementById('varChargeAmount').value) || 0;
+      const submitBtn = document.getElementById('btnAddVariableCharge');
+      submitBtn.disabled = !name || amount <= 0;
+    }
+
+    function validateFixedChargeForm() {
+      const name = document.getElementById('fixedChargeName').value.trim();
+      const amount = parseFloat(document.getElementById('fixedChargeAmount').value) || 0;
+      const submitBtn = document.getElementById('btnAddFixedCharge');
+      submitBtn.disabled = !name || amount <= 0;
+    }
+
+    function validateReimbursementForm() {
+      const amount = parseFloat(document.getElementById('reimbursementAmount').value) || 0;
+      const submitBtn = document.getElementById('btnAddReimbursement');
+      submitBtn.disabled = amount <= 0;
     }
 
     // ===== PERIOD MANAGEMENT =====
@@ -908,11 +979,25 @@
     }
 
     function saveSalaries() {
+      const indicator = document.getElementById('salariesSaveIndicator');
+
+      // Show saving indicator
+      indicator.className = 'save-indicator is-saving';
+
       salaries.vous = parseFloat(document.getElementById('salaireVous').value) || 0;
       salaries.conjointe = parseFloat(document.getElementById('salaireConjointe').value) || 0;
-      database.ref('salaries').set(salaries);
+
+      database.ref('salaries').set(salaries).then(() => {
+        // Show saved indicator
+        indicator.className = 'save-indicator is-saved';
+
+        // Hide after 2 seconds
+        setTimeout(() => {
+          indicator.className = 'save-indicator';
+        }, 2000);
+      });
+
       calculateSummary();
-      showToast('Salaires sauvegardés');
     }
 
     function savePeriodData() {
@@ -1141,6 +1226,17 @@
     document.getElementById('salaireVous').addEventListener('change', saveSalaries);
     document.getElementById('salaireConjointe').addEventListener('change', saveSalaries);
 
+    // Real-time validation for Variable Charge modal
+    document.getElementById('varChargeName').addEventListener('input', validateVariableChargeForm);
+    document.getElementById('varChargeAmount').addEventListener('input', validateVariableChargeForm);
+
+    // Real-time validation for Fixed Charge modal
+    document.getElementById('fixedChargeName').addEventListener('input', validateFixedChargeForm);
+    document.getElementById('fixedChargeAmount').addEventListener('input', validateFixedChargeForm);
+
+    // Real-time validation for Reimbursement modal
+    document.getElementById('reimbursementAmount').addEventListener('input', validateReimbursementForm);
+
     // Close modal on overlay click
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
       overlay.addEventListener('click', (e) => {
@@ -1148,6 +1244,16 @@
           closeModal(overlay.id);
         }
       });
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const activeModal = document.querySelector('.modal-overlay.active');
+        if (activeModal) {
+          closeModal(activeModal.id);
+        }
+      }
     });
 
     // ===== INITIALIZATION =====
