@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="FairSplit - Partage équitable des charges au prorata des salaires" />
+  <meta name="theme-color" content="#667eea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>FairSplit - Charges Partagées</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <style>
+    /* ===== RESET & BASE ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-color: #667eea;
+      --primary-dark: #5568d3;
+      --secondary-color: #764ba2;
+      --success-color: #4caf50;
+      --danger-color: #f44336;
+      --warning-color: #ff9800;
+      --info-color: #2196f3;
+      --dark-bg: #1a1a2e;
+      --card-bg: #16213e;
+      --text-primary: #ffffff;
+      --text-secondary: #b0b0b0;
+      --border-color: #2d3561;
+      --shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ===== CONTAINER ===== */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      text-align: center;
+      padding: 30px 20px;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border-radius: 20px;
+      margin-bottom: 30px;
+      box-shadow: var(--shadow);
+    }
+
+    header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    /* ===== PERIOD NAVIGATION ===== */
+    .period-navigation {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .period-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .period-arrow {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .period-arrow:hover {
+      background: var(--primary-dark);
+      transform: scale(1.1);
+    }
+
+    .period-arrow:active {
+      transform: scale(0.95);
+    }
+
+    .period-dropdown {
+      flex: 1;
+      max-width: 200px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 2px solid var(--border-color);
+      background: var(--dark-bg);
+      color: var(--text-primary);
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .period-info {
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 10px;
+    }
+
+    .current-period-badge {
+      display: inline-block;
+      background: var(--success-color);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--card-bg);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ===== SALARIES ===== */
+    .salaries-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .salary-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .salary-input-group label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .salary-input-group input {
+      padding: 12px;
+      border-radius: 10px;
+      border: 2px solid var(--border-color);
+      background: var(--dark-bg);
+      color: var(--text-primary);
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .salary-input-group input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* ===== CHARGES ===== */
+    .charge-item {
+      background: var(--dark-bg);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+    }
+
+    .charge-item:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    }
+
+    .charge-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .charge-name {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .charge-amount {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .charge-payeur {
+      font-size: 12px;
+      color: var(--warning-color);
+    }
+
+    .btn-delete {
+      background: var(--danger-color);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+      background: #d32f2f;
+      transform: scale(1.05);
+    }
+
+    /* ===== FORMS ===== */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 12px;
+      border-radius: 10px;
+      border: 2px solid var(--border-color);
+      background: var(--dark-bg);
+      color: var(--text-primary);
+      font-size: 16px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: #3d4785;
+    }
+
+    /* ===== SUMMARY ===== */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .summary-item {
+      background: var(--dark-bg);
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    /* ===== REIMBURSEMENT ===== */
+    .reimbursement-item {
+      background: var(--dark-bg);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 4px solid var(--success-color);
+    }
+
+    .reimbursement-info {
+      flex: 1;
+    }
+
+    .reimbursement-direction {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .reimbursement-amount {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--success-color);
+    }
+
+    .reimbursement-date {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+
+      header {
+        padding: 20px 15px;
+      }
+
+      header h1 {
+        font-size: 24px;
+      }
+
+      .salaries-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .charge-item {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card-bg);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+      border-left: 4px solid var(--primary-color);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      border-left-color: var(--success-color);
+    }
+
+    .toast.error {
+      border-left-color: var(--danger-color);
+    }
+
+    /* ===== LOADING SPINNER ===== */
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top: 3px solid var(--primary-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-header {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--primary-color);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-actions .btn {
+      flex: 1;
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 40px 20px;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <h1>💰 FairSplit</h1>
+      <p>Partage équitable des charges au prorata des salaires</p>
+    </header>
+
+    <!-- Period Navigation -->
+    <div class="card period-navigation">
+      <div class="period-selector">
+        <button class="period-arrow" onclick="navigatePeriod(-1)" title="Mois précédent">◀</button>
+        <select class="period-dropdown" id="periodSelect" onchange="changePeriod()">
+          <!-- Populated dynamically -->
+        </select>
+        <button class="period-arrow" onclick="navigatePeriod(1)" title="Mois suivant">▶</button>
+      </div>
+      <div class="period-info" id="periodInfo">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Salaries Section -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💵 Salaires</div>
+      </div>
+      <div class="salaries-grid">
+        <div class="salary-input-group">
+          <label for="salaireVous">Votre salaire (€)</label>
+          <input type="number" id="salaireVous" placeholder="Ex: 2500" min="0" step="0.01" />
+        </div>
+        <div class="salary-input-group">
+          <label for="salaireConjointe">Salaire conjointe (€)</label>
+          <input type="number" id="salaireConjointe" placeholder="Ex: 1800" min="0" step="0.01" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Variable Charges Section -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚡ Charges Variables</div>
+        <button class="btn btn-primary" onclick="showAddVariableChargeModal()">+ Ajouter</button>
+      </div>
+      <div id="variableChargesList">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Fixed Charges Section -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔒 Charges Fixes</div>
+        <button class="btn btn-primary" onclick="showAddFixedChargeModal()">+ Ajouter</button>
+      </div>
+      <div id="fixedChargesList">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Reimbursements Section -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💸 Remboursements</div>
+        <button class="btn btn-primary" onclick="showAddReimbursementModal()">+ Ajouter</button>
+      </div>
+      <div id="reimbursementsList">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📊 Résumé du Mois</div>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Total Charges</div>
+          <div class="summary-value" id="summaryTotal">0.00€</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Votre Part</div>
+          <div class="summary-value" id="summaryYourShare">0.00€</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Part Conjointe</div>
+          <div class="summary-value" id="summaryPartnerShare">0.00€</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Remboursements</div>
+          <div class="summary-value" id="summaryReimbursements">0.00€</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Variable Charge -->
+  <div id="modalAddVariableCharge" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">Ajouter Charge Variable</div>
+      <div class="form-group">
+        <label>Nom de la charge</label>
+        <input type="text" id="varChargeName" placeholder="Ex: Courses" />
+      </div>
+      <div class="form-group">
+        <label>Montant (€)</label>
+        <input type="number" id="varChargeAmount" placeholder="Ex: 150.50" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Payé par</label>
+        <select id="varChargePayeur">
+          <option value="vous">Vous</option>
+          <option value="conjointe">Conjointe</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
+        <button class="btn btn-primary" onclick="addVariableCharge()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Fixed Charge -->
+  <div id="modalAddFixedCharge" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">Ajouter Charge Fixe</div>
+      <div class="form-group">
+        <label>Nom de la charge</label>
+        <input type="text" id="fixedChargeName" placeholder="Ex: Loyer" />
+      </div>
+      <div class="form-group">
+        <label>Montant (€)</label>
+        <input type="number" id="fixedChargeAmount" placeholder="Ex: 800" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Payé par</label>
+        <select id="fixedChargePayeur">
+          <option value="vous">Vous</option>
+          <option value="conjointe">Conjointe</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
+        <button class="btn btn-primary" onclick="addFixedCharge()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Reimbursement -->
+  <div id="modalAddReimbursement" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">Ajouter Remboursement</div>
+      <div class="form-group">
+        <label>Direction</label>
+        <select id="reimbursementDirection">
+          <option value="vous-to-conjointe">Vous → Conjointe</option>
+          <option value="conjointe-to-vous">Conjointe → Vous</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Montant (€)</label>
+        <input type="number" id="reimbursementAmount" placeholder="Ex: 50" min="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Note (optionnel)</label>
+        <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
+        <button class="btn btn-primary" onclick="addReimbursement()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    // ===== FIREBASE CONFIGURATION =====
+    // 🔥 REMPLACER CES VALEURS PAR VOTRE CONFIG FIREBASE PROD
+    const firebaseConfig = {
+      apiKey: "AIzaSyCxvE7c-PRCmB21K7f7foKBeuBUjeVGKRQ",
+      authDomain: "fairsplit-prod.firebaseapp.com",
+      databaseURL: "https://fairsplit-prod-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "fairsplit-prod",
+      storageBucket: "fairsplit-prod.firebasestorage.app",
+      messagingSenderId: "398102585409",
+      appId: "1:398102585409:web:1e3ea6cb886f5aaae4e6c0",
+      measurementId: "G-F6J8HGJ1EN"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // ===== GLOBAL STATE =====
+    let currentPeriod = getCurrentPeriodString();
+    let salaries = { vous: 0, conjointe: 0 };
+    let fixedCharges = [];
+    let variableCharges = [];
+    let reimbursements = [];
+
+    // ===== UTILITY FUNCTIONS =====
+    function getCurrentPeriodString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function showModal(modalId) {
+      document.getElementById(modalId).classList.add('active');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+      // Reset form fields
+      if (modalId === 'modalAddVariableCharge') {
+        document.getElementById('varChargeName').value = '';
+        document.getElementById('varChargeAmount').value = '';
+      } else if (modalId === 'modalAddFixedCharge') {
+        document.getElementById('fixedChargeName').value = '';
+        document.getElementById('fixedChargeAmount').value = '';
+      } else if (modalId === 'modalAddReimbursement') {
+        document.getElementById('reimbursementAmount').value = '';
+        document.getElementById('reimbursementNote').value = '';
+      }
+    }
+
+    function showAddVariableChargeModal() {
+      showModal('modalAddVariableCharge');
+    }
+
+    function showAddFixedChargeModal() {
+      showModal('modalAddFixedCharge');
+    }
+
+    function showAddReimbursementModal() {
+      showModal('modalAddReimbursement');
+    }
+
+    // ===== PERIOD MANAGEMENT =====
+    function populatePeriodDropdown() {
+      const select = document.getElementById('periodSelect');
+      select.innerHTML = '';
+
+      // Generate last 12 months + current month
+      for (let i = 0; i < 12; i++) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const periodStr = `${year}-${month}`;
+        const option = document.createElement('option');
+        option.value = periodStr;
+        option.textContent = new Intl.DateTimeFormat('fr-FR', { year: 'numeric', month: 'long' }).format(date);
+        if (periodStr === currentPeriod) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      }
+
+      updatePeriodInfo();
+    }
+
+    function updatePeriodInfo() {
+      const info = document.getElementById('periodInfo');
+      const currentPeriodStr = getCurrentPeriodString();
+      if (currentPeriod === currentPeriodStr) {
+        info.innerHTML = '<span class="current-period-badge">✓ Période actuelle</span>';
+      } else {
+        info.innerHTML = '<span style="color: var(--text-secondary);">📁 Période archivée (lecture seule)</span>';
+      }
+    }
+
+    function changePeriod() {
+      const select = document.getElementById('periodSelect');
+      currentPeriod = select.value;
+      updatePeriodInfo();
+      loadPeriodData();
+    }
+
+    function navigatePeriod(direction) {
+      const select = document.getElementById('periodSelect');
+      const currentIndex = select.selectedIndex;
+      const newIndex = currentIndex - direction; // Inverse because newer periods are first
+      if (newIndex >= 0 && newIndex < select.options.length) {
+        select.selectedIndex = newIndex;
+        changePeriod();
+      }
+    }
+
+    // ===== FIREBASE OPERATIONS =====
+    function loadPeriodData() {
+      // Load salaries (global, not period-specific)
+      database.ref('salaries').once('value', snapshot => {
+        if (snapshot.exists()) {
+          salaries = snapshot.val();
+          document.getElementById('salaireVous').value = salaries.vous || 0;
+          document.getElementById('salaireConjointe').value = salaries.conjointe || 0;
+        }
+      });
+
+      // Load period data
+      database.ref(`periods/${currentPeriod}`).once('value', snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          fixedCharges = data.fixedCharges || [];
+          variableCharges = data.variableCharges || [];
+          reimbursements = data.reimbursements || [];
+        } else {
+          fixedCharges = [];
+          variableCharges = [];
+          reimbursements = [];
+        }
+        renderAll();
+      });
+    }
+
+    function saveSalaries() {
+      salaries.vous = parseFloat(document.getElementById('salaireVous').value) || 0;
+      salaries.conjointe = parseFloat(document.getElementById('salaireConjointe').value) || 0;
+      database.ref('salaries').set(salaries);
+      calculateSummary();
+      showToast('Salaires sauvegardés');
+    }
+
+    function savePeriodData() {
+      database.ref(`periods/${currentPeriod}`).set({
+        fixedCharges,
+        variableCharges,
+        reimbursements,
+        summary: calculateSummary()
+      });
+    }
+
+    // ===== CHARGE OPERATIONS =====
+    function addVariableCharge() {
+      const name = document.getElementById('varChargeName').value.trim();
+      const amount = parseFloat(document.getElementById('varChargeAmount').value) || 0;
+      const payeur = document.getElementById('varChargePayeur').value;
+
+      if (!name || amount <= 0) {
+        showToast('Veuillez remplir tous les champs', 'error');
+        return;
+      }
+
+      variableCharges.push({
+        id: Date.now(),
+        name,
+        amount,
+        payeur,
+        date: new Date().toISOString()
+      });
+
+      savePeriodData();
+      renderVariableCharges();
+      closeModal('modalAddVariableCharge');
+      showToast('Charge variable ajoutée');
+    }
+
+    function addFixedCharge() {
+      const name = document.getElementById('fixedChargeName').value.trim();
+      const amount = parseFloat(document.getElementById('fixedChargeAmount').value) || 0;
+      const payeur = document.getElementById('fixedChargePayeur').value;
+
+      if (!name || amount <= 0) {
+        showToast('Veuillez remplir tous les champs', 'error');
+        return;
+      }
+
+      fixedCharges.push({
+        id: Date.now(),
+        name,
+        amount,
+        payeur,
+        date: new Date().toISOString()
+      });
+
+      savePeriodData();
+      renderFixedCharges();
+      closeModal('modalAddFixedCharge');
+      showToast('Charge fixe ajoutée');
+    }
+
+    function deleteCharge(type, id) {
+      if (!confirm('Supprimer cette charge ?')) return;
+
+      if (type === 'fixed') {
+        fixedCharges = fixedCharges.filter(c => c.id !== id);
+        renderFixedCharges();
+      } else {
+        variableCharges = variableCharges.filter(c => c.id !== id);
+        renderVariableCharges();
+      }
+
+      savePeriodData();
+      showToast('Charge supprimée');
+    }
+
+    // ===== REIMBURSEMENT OPERATIONS =====
+    function addReimbursement() {
+      const direction = document.getElementById('reimbursementDirection').value;
+      const amount = parseFloat(document.getElementById('reimbursementAmount').value) || 0;
+      const note = document.getElementById('reimbursementNote').value.trim();
+
+      if (amount <= 0) {
+        showToast('Veuillez entrer un montant valide', 'error');
+        return;
+      }
+
+      reimbursements.push({
+        id: Date.now(),
+        direction,
+        amount,
+        note,
+        date: new Date().toISOString()
+      });
+
+      savePeriodData();
+      renderReimbursements();
+      closeModal('modalAddReimbursement');
+      showToast('Remboursement ajouté');
+    }
+
+    function deleteReimbursement(id) {
+      if (!confirm('Supprimer ce remboursement ?')) return;
+
+      reimbursements = reimbursements.filter(r => r.id !== id);
+      savePeriodData();
+      renderReimbursements();
+      showToast('Remboursement supprimé');
+    }
+
+    // ===== RENDERING =====
+    function renderVariableCharges() {
+      const list = document.getElementById('variableChargesList');
+      if (variableCharges.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚡</div><div class="empty-state-text">Aucune charge variable pour ce mois</div></div>';
+        return;
+      }
+
+      list.innerHTML = variableCharges.map(charge => `
+        <div class="charge-item">
+          <div class="charge-info">
+            <div class="charge-name">${charge.name}</div>
+            <div class="charge-amount">${formatCurrency(charge.amount)}</div>
+            <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteCharge('variable', ${charge.id})">🗑️</button>
+        </div>
+      `).join('');
+
+      calculateSummary();
+    }
+
+    function renderFixedCharges() {
+      const list = document.getElementById('fixedChargesList');
+      if (fixedCharges.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div class="empty-state-text">Aucune charge fixe pour ce mois</div></div>';
+        return;
+      }
+
+      list.innerHTML = fixedCharges.map(charge => `
+        <div class="charge-item">
+          <div class="charge-info">
+            <div class="charge-name">${charge.name}</div>
+            <div class="charge-amount">${formatCurrency(charge.amount)}</div>
+            <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
+        </div>
+      `).join('');
+
+      calculateSummary();
+    }
+
+    function renderReimbursements() {
+      const list = document.getElementById('reimbursementsList');
+      if (reimbursements.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💸</div><div class="empty-state-text">Aucun remboursement pour ce mois</div></div>';
+        return;
+      }
+
+      list.innerHTML = reimbursements.map(reimb => {
+        const directionText = reimb.direction === 'vous-to-conjointe' ? 'Vous → Conjointe' : 'Conjointe → Vous';
+        const date = new Date(reimb.date).toLocaleDateString('fr-FR');
+
+        return `
+          <div class="reimbursement-item">
+            <div class="reimbursement-info">
+              <div class="reimbursement-direction">${directionText}</div>
+              <div class="reimbursement-amount">${formatCurrency(reimb.amount)}</div>
+              ${reimb.note ? `<div class="reimbursement-date">${reimb.note}</div>` : ''}
+              <div class="reimbursement-date">${date}</div>
+            </div>
+            <button class="btn-delete" onclick="deleteReimbursement(${reimb.id})">🗑️</button>
+          </div>
+        `;
+      }).join('');
+
+      calculateSummary();
+    }
+
+    function calculateSummary() {
+      const totalSalaries = salaries.vous + salaries.conjointe;
+      if (totalSalaries === 0) {
+        document.getElementById('summaryTotal').textContent = formatCurrency(0);
+        document.getElementById('summaryYourShare').textContent = formatCurrency(0);
+        document.getElementById('summaryPartnerShare').textContent = formatCurrency(0);
+        document.getElementById('summaryReimbursements').textContent = formatCurrency(0);
+        return {};
+      }
+
+      // Calculate total charges
+      const totalCharges = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
+
+      // Calculate prorata shares
+      const yourRatio = salaries.vous / totalSalaries;
+      const partnerRatio = salaries.conjointe / totalSalaries;
+
+      const yourShare = totalCharges * yourRatio;
+      const partnerShare = totalCharges * partnerRatio;
+
+      // Calculate net reimbursements (positive = you owe partner, negative = partner owes you)
+      const netReimbursement = reimbursements.reduce((sum, r) => {
+        if (r.direction === 'vous-to-conjointe') {
+          return sum + r.amount;
+        } else {
+          return sum - r.amount;
+        }
+      }, 0);
+
+      // Update UI
+      document.getElementById('summaryTotal').textContent = formatCurrency(totalCharges);
+      document.getElementById('summaryYourShare').textContent = formatCurrency(yourShare);
+      document.getElementById('summaryPartnerShare').textContent = formatCurrency(partnerShare);
+      document.getElementById('summaryReimbursements').textContent = formatCurrency(Math.abs(netReimbursement));
+
+      return { totalCharges, yourShare, partnerShare, netReimbursement };
+    }
+
+    function renderAll() {
+      renderVariableCharges();
+      renderFixedCharges();
+      renderReimbursements();
+      calculateSummary();
+    }
+
+    // ===== EVENT LISTENERS =====
+    document.getElementById('salaireVous').addEventListener('change', saveSalaries);
+    document.getElementById('salaireConjointe').addEventListener('change', saveSalaries);
+
+    // Close modal on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          closeModal(overlay.id);
+        }
+      });
+    });
+
+    // ===== INITIALIZATION =====
+    window.addEventListener('load', () => {
+      populatePeriodDropdown();
+      loadPeriodData();
+      showToast('FairSplit chargé', 'success');
+      console.log('💰 FairSplit Production Environment');
+      console.log('📅 Current Period:', currentPeriod);
+    });
+
+    // ===== SERVICE WORKER REGISTRATION (PWA) =====
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Service worker registration disabled for now (can be added later)
+        console.log('PWA: Service Worker disabled (to be implemented)');
+      });
+    }
+  </script>
+</body>
+</html>
