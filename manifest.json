@@ -1,23 +1,22 @@
 {
-  "name": "Split-ChargeProrata",
-  "short_name": "Charges",
-  "description": "Calculateur de répartition de charges au prorata",
-  "start_url": "./Split-ChargeProrata.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
+  "name": "FairSplit",
+  "short_name": "FairSplit",
+  "description": "Partage équitable des charges au prorata des salaires",
+  "start_url": "./FairSplit-Prod.html",
+  "background_color": "#1a1a2e",
   "theme_color": "#667eea",
-  "orientation": "portrait",
+  "display": "standalone",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E💰%3C/text%3E%3C/svg%3E",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E💰%3C/text%3E%3C/svg%3E",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

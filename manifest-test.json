@@ -1,0 +1,23 @@
+{
+  "name": "FairSplit TEST",
+  "short_name": "FairSplit TEST",
+  "description": "Environnement de test - Partage équitable des charges",
+  "start_url": "./FairSplit-Test.html",
+  "background_color": "#ff9800",
+  "theme_color": "#ff5722",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "icon-192-test.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512-test.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

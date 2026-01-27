@@ -63,3 +63,7 @@ tmp/
 *.backup
 *.bak
 *.old
+
+# Old versions (cleanup)
+Split-ChargeProrata*.html
+Split-Charge*.html
