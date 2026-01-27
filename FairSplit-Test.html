@@ -797,6 +797,83 @@
       color: var(--error-color);
     }
 
+    /* ===== EXPORT ACTIONS ===== */
+    .export-actions {
+      margin-top: 20px;
+      padding: 15px;
+      background: var(--dark-bg);
+      border-radius: 10px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .export-actions .btn {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    /* ===== PRINT CSS (for PDF export) ===== */
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+
+      .container {
+        max-width: 100%;
+        padding: 0;
+      }
+
+      /* Hide interactive elements */
+      .fab, .btn, button, .modal-overlay, .reconduction-banner,
+      .export-actions, .period-navigation, .card-header button,
+      .btn-delete, .save-indicator {
+        display: none !important;
+      }
+
+      /* Hide unnecessary sections */
+      .share-mode-selector {
+        display: none !important;
+      }
+
+      /* Optimize spacing */
+      .card {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+      }
+
+      .card-header {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ccc;
+        page-break-after: avoid;
+      }
+
+      /* Make sure charts and tables fit */
+      .category-chart-container {
+        page-break-inside: avoid;
+      }
+
+      /* Ensure readability */
+      .charge-item, .reimbursement-item, .reconduction-preview-item {
+        border: 1px solid #eee;
+        page-break-inside: avoid;
+      }
+
+      /* Add page header */
+      @page {
+        margin: 2cm;
+      }
+
+      header {
+        text-align: center;
+        border-bottom: 2px solid black;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+    }
+
     /* ===== RESPONSIVE ===== */
     @media (max-width: 600px) {
       .container {
@@ -1289,6 +1366,16 @@
         <div id="categoryAnalysisContent">
           <!-- Populated dynamically -->
         </div>
+      </div>
+
+      <!-- Export Actions -->
+      <div class="export-actions">
+        <button class="btn btn-secondary" onclick="exportToCSV()" title="Export compatible Excel">
+          📊 Export CSV
+        </button>
+        <button class="btn btn-secondary" onclick="exportToPDF()" title="Imprimer ou sauvegarder en PDF">
+          📄 Imprimer PDF
+        </button>
       </div>
     </div>
   </div>
@@ -2324,6 +2411,96 @@
       renderVariableCharges();
       closeModal('modalQuickAdd');
       showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, 'success');
+    }
+
+    // ===== EXPORT FONCTIONS =====
+
+    // Export to CSV
+    function exportToCSV() {
+      const [year, month] = currentPeriod.split('-');
+      const periodName = new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+      // CSV Header
+      let csv = `FairSplit - ${periodName}\n\n`;
+
+      // Salaries
+      csv += `SALAIRES\n`;
+      csv += `Vous,${salaries.vous}\n`;
+      csv += `Conjointe,${salaries.conjointe}\n`;
+      csv += `Mode de partage,${shareMode === 'prorata' ? 'Prorata' : shareMode === '50-50' ? '50-50' : `Custom (${customPercents.vous}% / ${customPercents.conjointe}%)`}\n\n`;
+
+      // Variable Charges
+      csv += `CHARGES VARIABLES\n`;
+      csv += `Nom,Montant,Payeur,Catégorie,Date,Lieu\n`;
+      variableCharges.forEach(charge => {
+        const category = charge.categoryLabel || '';
+        const date = charge.date ? new Date(charge.date).toLocaleDateString('fr-FR') : '';
+        const location = charge.location?.place || '';
+        csv += `"${charge.name}",${charge.amount},${charge.payeur},${category},${date},"${location}"\n`;
+      });
+      csv += `\n`;
+
+      // Fixed Charges
+      csv += `CHARGES FIXES\n`;
+      csv += `Nom,Montant,Payeur,Date\n`;
+      fixedCharges.forEach(charge => {
+        const date = charge.date ? new Date(charge.date).toLocaleDateString('fr-FR') : '';
+        csv += `"${charge.name}",${charge.amount},${charge.payeur},${date}\n`;
+      });
+      csv += `\n`;
+
+      // Reimbursements
+      if (reimbursements.length > 0) {
+        csv += `REMBOURSEMENTS\n`;
+        csv += `Direction,Montant,Date,Note\n`;
+        reimbursements.forEach(reimb => {
+          const directionText = reimb.direction === 'vous-to-conjointe' ? 'Vous → Conjointe' : 'Conjointe → Vous';
+          const date = new Date(reimb.date).toLocaleDateString('fr-FR');
+          const note = reimb.note || '';
+          csv += `"${directionText}",${reimb.amount},${date},"${note}"\n`;
+        });
+        csv += `\n`;
+      }
+
+      // Summary
+      const summary = calculateSummary();
+      csv += `RECAPITULATIF\n`;
+      csv += `Total Charges,${summary.totalCharges || 0}\n`;
+      csv += `Votre Part Théorique,${summary.yourTheoricalShare || 0}\n`;
+      csv += `Part Conjointe Théorique,${summary.partnerTheoricalShare || 0}\n`;
+      csv += `Vous avez payé,${summary.yourActualPayments || 0}\n`;
+      csv += `Conjointe a payé,${summary.partnerActualPayments || 0}\n`;
+      csv += `Remboursements nets,${Math.abs(summary.netReimbursement || 0)}\n`;
+
+      const yourBalance = summary.yourBalance || 0;
+      if (Math.abs(yourBalance) < 1) {
+        csv += `Solde Final,Équilibré\n`;
+      } else if (yourBalance > 0) {
+        csv += `Solde Final,Conjointe vous doit ${Math.abs(yourBalance).toFixed(2)}€\n`;
+      } else {
+        csv += `Solde Final,Vous devez ${Math.abs(yourBalance).toFixed(2)}€ à Conjointe\n`;
+      }
+
+      // Download CSV
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `FairSplit_${currentPeriod}.csv`;
+      link.click();
+
+      showToast('✓ Export CSV téléchargé', 'success');
+    }
+
+    // Export to PDF (via print dialog)
+    function exportToPDF() {
+      // Add print-optimized title
+      const periodName = new Date(...currentPeriod.split('-').map(Number), 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      document.title = `FairSplit - ${periodName}`;
+
+      // Trigger print dialog
+      window.print();
+
+      showToast('💡 Utilisez "Enregistrer en PDF" dans la boîte de dialogue', 'success');
     }
 
     // ===== MODES DE PARTAGE =====
