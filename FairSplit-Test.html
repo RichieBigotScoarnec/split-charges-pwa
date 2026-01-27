@@ -702,6 +702,101 @@
       font-size: 14px;
     }
 
+    /* ===== MODES DE PARTAGE ===== */
+    .share-mode-selector {
+      margin-top: 20px;
+      padding: 15px;
+      background: var(--dark-bg);
+      border-radius: 10px;
+    }
+
+    .share-mode-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .share-mode-options {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .share-mode-option {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .share-mode-option:hover {
+      border-color: var(--primary-color);
+    }
+
+    .share-mode-option.selected {
+      border-color: var(--primary-color);
+      background: linear-gradient(135deg, rgba(255, 87, 34, 0.2), rgba(255, 152, 0, 0.2));
+    }
+
+    .custom-percentages {
+      display: none;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .custom-percentages.active {
+      display: flex;
+    }
+
+    .custom-percentage-group {
+      flex: 1;
+    }
+
+    .custom-percentage-group label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .custom-percentage-group input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .custom-percentage-group input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    .share-mode-validation {
+      margin-top: 10px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .share-mode-validation.valid {
+      color: var(--success-color);
+    }
+
+    .share-mode-validation.invalid {
+      color: var(--error-color);
+    }
+
     /* ===== RESPONSIVE ===== */
     @media (max-width: 600px) {
       .container {
@@ -1092,6 +1187,34 @@
           <input type="number" id="salaireConjointe" placeholder="Ex: 1800" min="0" step="0.01" />
         </div>
       </div>
+
+      <!-- Share Mode Selector -->
+      <div class="share-mode-selector">
+        <div class="share-mode-label">⚖️ Mode de partage</div>
+        <div class="share-mode-options">
+          <div class="share-mode-option selected" id="modeProrata" onclick="selectShareMode('prorata')">
+            📊 Prorata
+          </div>
+          <div class="share-mode-option" id="mode5050" onclick="selectShareMode('50-50')">
+            ⚖️ 50-50
+          </div>
+          <div class="share-mode-option" id="modeCustom" onclick="selectShareMode('custom')">
+            🎯 Custom
+          </div>
+        </div>
+        <div class="custom-percentages" id="customPercentages">
+          <div class="custom-percentage-group">
+            <label for="customPercentYou">Votre part (%)</label>
+            <input type="number" id="customPercentYou" min="0" max="100" step="1" value="50" />
+          </div>
+          <div class="custom-percentage-group">
+            <label for="customPercentPartner">Part conjointe (%)</label>
+            <input type="number" id="customPercentPartner" min="0" max="100" step="1" value="50" />
+          </div>
+        </div>
+        <div class="share-mode-validation" id="shareModeValidation"></div>
+      </div>
+
       <div class="save-indicator" id="salariesSaveIndicator">
         <span class="saving">⏳ Sauvegarde...</span>
         <span class="saved">✓ Sauvegardé</span>
@@ -1353,6 +1476,8 @@
     let fixedCharges = [];
     let variableCharges = [];
     let reimbursements = [];
+    let shareMode = 'prorata'; // 'prorata', '50-50', 'custom'
+    let customPercents = { vous: 50, conjointe: 50 };
     let quickAddState = {
       selectedCategory: null,
       selectedPayer: 'vous',
@@ -1734,9 +1859,20 @@
       // Calculate total charges
       const totalCharges = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
 
-      // Calculate prorata shares (théorique)
-      const yourRatio = salaries.vous / totalSalaries;
-      const partnerRatio = salaries.conjointe / totalSalaries;
+      // Calculate shares based on selected mode
+      let yourRatio, partnerRatio;
+
+      if (shareMode === '50-50') {
+        yourRatio = 0.5;
+        partnerRatio = 0.5;
+      } else if (shareMode === 'custom') {
+        yourRatio = customPercents.vous / 100;
+        partnerRatio = customPercents.conjointe / 100;
+      } else {
+        // Default: prorata based on salaries
+        yourRatio = salaries.vous / totalSalaries;
+        partnerRatio = salaries.conjointe / totalSalaries;
+      }
 
       const yourTheoricalShare = totalCharges * yourRatio;
       const partnerTheoricalShare = totalCharges * partnerRatio;
@@ -1903,6 +2039,10 @@
     // ===== EVENT LISTENERS =====
     document.getElementById('salaireVous').addEventListener('change', saveSalaries);
     document.getElementById('salaireConjointe').addEventListener('change', saveSalaries);
+
+    // Custom percentages validation
+    document.getElementById('customPercentYou').addEventListener('input', validateCustomPercents);
+    document.getElementById('customPercentPartner').addEventListener('input', validateCustomPercents);
 
     // Real-time validation for Variable Charge modal
     document.getElementById('varChargeName').addEventListener('input', validateVariableChargeForm);
@@ -2186,6 +2326,83 @@
       showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, 'success');
     }
 
+    // ===== MODES DE PARTAGE =====
+
+    // Select share mode
+    function selectShareMode(mode) {
+      shareMode = mode;
+
+      // Update UI - deselect all, select current
+      document.querySelectorAll('.share-mode-option').forEach(el => {
+        el.classList.remove('selected');
+      });
+
+      if (mode === 'prorata') {
+        document.getElementById('modeProrata').classList.add('selected');
+        document.getElementById('customPercentages').classList.remove('active');
+      } else if (mode === '50-50') {
+        document.getElementById('mode5050').classList.add('selected');
+        document.getElementById('customPercentages').classList.remove('active');
+      } else if (mode === 'custom') {
+        document.getElementById('modeCustom').classList.add('selected');
+        document.getElementById('customPercentages').classList.add('active');
+        validateCustomPercents();
+      }
+
+      saveShareMode();
+      calculateSummary();
+    }
+
+    // Validate custom percentages
+    function validateCustomPercents() {
+      const yourPercent = parseFloat(document.getElementById('customPercentYou').value) || 0;
+      const partnerPercent = parseFloat(document.getElementById('customPercentPartner').value) || 0;
+      const total = yourPercent + partnerPercent;
+
+      const validationEl = document.getElementById('shareModeValidation');
+
+      if (total === 100 && yourPercent > 0 && partnerPercent > 0) {
+        validationEl.textContent = '✓ Répartition valide';
+        validationEl.className = 'share-mode-validation valid';
+        customPercents.vous = yourPercent;
+        customPercents.conjointe = partnerPercent;
+        saveShareMode();
+        calculateSummary();
+      } else {
+        validationEl.textContent = `Total: ${total}% (doit être 100%)`;
+        validationEl.className = 'share-mode-validation invalid';
+      }
+    }
+
+    // Save share mode to Firebase
+    function saveShareMode() {
+      database.ref('shareMode').set({
+        mode: shareMode,
+        customPercents: shareMode === 'custom' ? customPercents : null
+      }).catch(error => {
+        console.error('Erreur sauvegarde mode partage:', error);
+      });
+    }
+
+    // Load share mode from Firebase
+    function loadShareMode() {
+      database.ref('shareMode').once('value', snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          shareMode = data.mode || 'prorata';
+
+          if (data.customPercents) {
+            customPercents = data.customPercents;
+            document.getElementById('customPercentYou').value = customPercents.vous;
+            document.getElementById('customPercentPartner').value = customPercents.conjointe;
+          }
+
+          // Update UI
+          selectShareMode(shareMode);
+        }
+      });
+    }
+
     // ===== ANALYSE PAR CATEGORIE =====
 
     // Calculate totals by category
@@ -2450,6 +2667,7 @@
     window.addEventListener('load', () => {
       populatePeriodDropdown();
       loadPeriodData();
+      loadShareMode();
       showToast('FairSplit TEST chargé', 'success');
       console.log('🔧 FairSplit TEST Environment');
       console.log('📅 Current Period:', currentPeriod);
