@@ -1,0 +1,57 @@
+name: Deploy FairSplit to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main      # PROD deployment
+      - develop   # TEST deployment
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine environment and paths
+        id: env
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=PROD" >> $GITHUB_OUTPUT
+            echo "destination=." >> $GITHUB_OUTPUT
+            echo "url_suffix=" >> $GITHUB_OUTPUT
+          else
+            echo "environment=TEST" >> $GITHUB_OUTPUT
+            echo "destination=test" >> $GITHUB_OUTPUT
+            echo "url_suffix=/test" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display deployment info
+        run: |
+          echo "🚀 Deploying ${{ steps.env.outputs.environment }} environment"
+          echo "📂 Destination: ${{ steps.env.outputs.destination }}"
+          echo "🌐 Branch: ${{ github.ref_name }}"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          destination_dir: ${{ steps.env.outputs.destination }}
+          keep_files: true
+          enable_jekyll: false
+          force_orphan: false
+
+      - name: Display deployment URL
+        run: |
+          REPO_NAME="${{ github.repository }}"
+          REPO_NAME="${REPO_NAME#*/}"
+          if [ "${{ steps.env.outputs.environment }}" = "PROD" ]; then
+            echo "✅ PROD deployed to: https://${{ github.repository_owner }}.github.io/${REPO_NAME}/"
+          else
+            echo "✅ TEST deployed to: https://${{ github.repository_owner }}.github.io/${REPO_NAME}/test/"
+          fi
