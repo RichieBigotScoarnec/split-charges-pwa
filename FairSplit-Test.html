@@ -2799,7 +2799,7 @@
       }
 
       // Calculate total charges
-      const totalCharges = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
+      const totalCharges = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + (c.amount || 0), 0);
 
       // Calculate shares based on selected mode
       let yourRatio, partnerRatio;
@@ -2822,11 +2822,11 @@
       // Calculate actual payments
       const yourActualPayments = [...fixedCharges, ...variableCharges]
         .filter(c => c.payeur === 'vous')
-        .reduce((sum, c) => sum + c.amount, 0);
+        .reduce((sum, c) => sum + (c.amount || 0), 0);
 
       const partnerActualPayments = [...fixedCharges, ...variableCharges]
         .filter(c => c.payeur === 'conjointe')
-        .reduce((sum, c) => sum + c.amount, 0);
+        .reduce((sum, c) => sum + (c.amount || 0), 0);
 
       // Calculate net reimbursements already made
       const netReimbursement = reimbursements.reduce((sum, r) => {
@@ -3638,7 +3638,7 @@
 
       // Budget exceeded reminder
       if (settings.budget) {
-        const totalAmount = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
+        const totalAmount = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + (c.amount || 0), 0);
         // Simple heuristic: if current charges > 120% of average of previous months
         // For now, alert if total > 3000€ (configurable later)
         if (totalAmount > 3000) {
@@ -3648,7 +3648,7 @@
 
       // Reimbursement reminder (if balance != 0 for > 7 days)
       if (settings.reimbursement && reimbursements.length === 0) {
-        const totalAmount = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
+        const totalAmount = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + (c.amount || 0), 0);
         if (totalAmount > 500 && dayOfMonth > 7) {
           const summary = calculateSummary();
           if (summary.yourBalance && Math.abs(summary.yourBalance) > 50) {
@@ -3908,8 +3908,10 @@
       const section = document.getElementById('gpsStatsSection');
       const content = document.getElementById('gpsStatsContent');
 
-      // Collect all charges with GPS data
-      const chargesWithGPS = variableCharges.filter(c => c.latitude && c.longitude);
+      // Collect all charges with GPS data (support both flat and nested location formats)
+      const chargesWithGPS = variableCharges.filter(c =>
+        (c.location && c.location.lat && c.location.lng) || (c.latitude && c.longitude)
+      );
 
       if (chargesWithGPS.length === 0) {
         section.style.display = 'none';
@@ -3918,21 +3920,26 @@
 
       section.style.display = 'block';
 
+      // Normalize GPS access helper
+      function getChargeLat(c) { return parseFloat(c.location?.lat ?? c.latitude); }
+      function getChargeLng(c) { return parseFloat(c.location?.lng ?? c.longitude); }
+      function getChargeName(c) { return c.location?.place || c.locationName || 'Position inconnue'; }
+
       // Group by location (round to ~100m precision)
       const locationMap = {};
       chargesWithGPS.forEach(c => {
-        const key = `${parseFloat(c.latitude).toFixed(3)}_${parseFloat(c.longitude).toFixed(3)}`;
+        const key = `${getChargeLat(c).toFixed(3)}_${getChargeLng(c).toFixed(3)}`;
         if (!locationMap[key]) {
           locationMap[key] = {
-            name: c.locationName || 'Position inconnue',
-            latitude: c.latitude,
-            longitude: c.longitude,
+            name: getChargeName(c),
+            latitude: getChargeLat(c),
+            longitude: getChargeLng(c),
             charges: [],
             totalAmount: 0
           };
         }
         locationMap[key].charges.push(c);
-        locationMap[key].totalAmount += c.amount;
+        locationMap[key].totalAmount += (c.amount || 0);
       });
 
       const locations = Object.values(locationMap).sort((a, b) => b.totalAmount - a.totalAmount);
@@ -3964,7 +3971,9 @@
     }
 
     function showMapModal() {
-      const chargesWithGPS = variableCharges.filter(c => c.latitude && c.longitude);
+      const chargesWithGPS = variableCharges.filter(c =>
+        (c.location && c.location.lat && c.location.lng) || (c.latitude && c.longitude)
+      );
       if (chargesWithGPS.length === 0) return;
 
       // Destroy previous map instance to avoid "container already initialized" error
@@ -3981,10 +3990,17 @@
     }
 
     function initializeMap(charges) {
+      const container = document.getElementById('mapContainer');
+      if (!container) return;
+
+      // Normalize GPS access helper (supports both flat and nested location formats)
+      function getChargeLatMap(c) { return parseFloat(c.location?.lat ?? c.latitude); }
+      function getChargeLngMap(c) { return parseFloat(c.location?.lng ?? c.longitude); }
+      function getChargeNameMap(c) { return c.location?.place || c.locationName || 'Position inconnue'; }
+
       // Calculate bounds for auto-zoom
-      const lats = charges.map(c => parseFloat(c.latitude));
-      const lngs = charges.map(c => parseFloat(c.longitude));
-      const bounds = [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]];
+      const lats = charges.map(c => getChargeLatMap(c));
+      const lngs = charges.map(c => getChargeLngMap(c));
 
       // Init map centered on average position
       const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
@@ -4004,12 +4020,12 @@
       // Group charges by location for markers
       const locationGroups = {};
       charges.forEach(c => {
-        const key = `${parseFloat(c.latitude).toFixed(3)}_${parseFloat(c.longitude).toFixed(3)}`;
+        const key = `${getChargeLatMap(c).toFixed(3)}_${getChargeLngMap(c).toFixed(3)}`;
         if (!locationGroups[key]) {
           locationGroups[key] = {
-            name: c.locationName || 'Position inconnue',
-            latitude: c.latitude,
-            longitude: c.longitude,
+            name: getChargeNameMap(c),
+            latitude: getChargeLatMap(c),
+            longitude: getChargeLngMap(c),
             charges: []
           };
         }
@@ -4021,9 +4037,9 @@
 
       // Create markers with popups
       Object.values(locationGroups).forEach((loc, index) => {
-        const totalAmount = loc.charges.reduce((sum, c) => sum + c.amount, 0);
+        const totalAmount = loc.charges.reduce((sum, c) => sum + (c.amount || 0), 0);
         const chargesList = loc.charges.map(c =>
-          `<div class="popup-detail">• ${c.name} — ${formatCurrency(c.amount)} (${c.payer === 'vous' ? 'Vous' : 'Conjointe'})</div>`
+          `<div class="popup-detail">• ${c.name} — ${formatCurrency(c.amount || 0)} (${c.payeur === 'vous' ? 'Vous' : 'Conjointe'})</div>`
         ).join('');
 
         const popupContent = `
