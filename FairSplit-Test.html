@@ -2550,7 +2550,7 @@
       setTimeout(() => toast.remove(), 3000);
     }
 
-    function showToastWithUndo(message, undoCallback) {
+    function showToastWithUndo(message, undoCallback, undoLabel = 'Restaurer') {
       const toast = document.createElement('div');
       toast.className = 'toast';
       toast.setAttribute('role', 'status');
@@ -2561,7 +2561,7 @@
 
       const undoBtn = document.createElement('button');
       undoBtn.type = 'button';
-      undoBtn.textContent = 'Restaurer';
+      undoBtn.textContent = undoLabel;
       undoBtn.style.cssText = 'margin-left:12px;background:none;border:1px solid currentColor;color:inherit;padding:2px 10px;border-radius:6px;cursor:pointer;font-size:0.85em;';
       undoBtn.onclick = () => {
         undoCallback();
@@ -2785,7 +2785,11 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalAddVariableCharge');
-      showToast(`✓ ${name} - ${formatCurrency(amount)}`);
+      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
+        variableCharges = variableCharges.filter(c => c.id !== newCharge.id);
+        savePeriodData();
+        renderVariableCharges();
+      }, 'Supprimer');
     }
 
     function addFixedCharge() {
@@ -2798,18 +2802,23 @@
         return;
       }
 
-      fixedCharges.push({
+      const newFixed = {
         id: Date.now(),
         name,
         amount,
         payeur,
         date: new Date().toISOString()
-      });
+      };
+      fixedCharges.push(newFixed);
 
       savePeriodData();
       renderFixedCharges();
       closeModal('modalAddFixedCharge');
-      showToast(`✓ ${name} - ${formatCurrency(amount)}`);
+      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
+        fixedCharges = fixedCharges.filter(c => c.id !== newFixed.id);
+        savePeriodData();
+        renderFixedCharges();
+      }, 'Supprimer');
     }
 
     function deleteCharge(type, id) {
@@ -2842,18 +2851,23 @@
         return;
       }
 
-      reimbursements.push({
+      const newReimb = {
         id: Date.now(),
         direction,
         amount,
         note,
         date: new Date().toISOString()
-      });
+      };
+      reimbursements.push(newReimb);
 
       savePeriodData();
       renderReimbursements();
       closeModal('modalAddReimbursement');
-      showToast(`✓ Remboursement ${formatCurrency(amount)}`);
+      showToastWithUndo(`✓ Remboursement ${formatCurrency(amount)}`, () => {
+        reimbursements = reimbursements.filter(r => r.id !== newReimb.id);
+        savePeriodData();
+        renderReimbursements();
+      }, 'Supprimer');
     }
 
     function deleteReimbursement(id) {
@@ -3460,7 +3474,11 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalQuickAdd');
-      showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`);
+      showToastWithUndo(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, () => {
+        variableCharges = variableCharges.filter(c => c.id !== charge.id);
+        savePeriodData();
+        renderVariableCharges();
+      }, 'Supprimer');
     }
 
     // ===== EXPORT FONCTIONS =====
