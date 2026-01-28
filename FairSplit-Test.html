@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="FairSplit TEST - Partage équitable des charges au prorata des salaires" />
   <meta name="theme-color" content="#ff5722" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -305,6 +305,33 @@
       font-size: 11px;
       color: var(--text-secondary);
       margin-top: 2px;
+    }
+
+    .budget-input-row {
+      padding: 0 16px 8px;
+      display: none;
+    }
+
+    .budget-input-row.visible {
+      display: block;
+    }
+
+    .budget-input-row label {
+      font-size: 0.85em;
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .budget-input-row input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 1em;
+      box-sizing: border-box;
     }
 
     .reminder-toggle {
@@ -1347,6 +1374,7 @@
     /* ===== TOAST NOTIFICATIONS ===== */
     .toast {
       position: fixed;
+      bottom: env(safe-area-inset-bottom, 20px);
       bottom: 20px;
       right: 20px;
       background: var(--card-bg);
@@ -1921,11 +1949,11 @@
       <div class="salaries-grid">
         <div class="salary-input-group">
           <label for="salaireVous">Votre salaire (€)</label>
-          <input type="number" id="salaireVous" placeholder="Ex: 2500" min="0" step="0.01" />
+          <input type="text" id="salaireVous" placeholder="Ex: 2500" inputmode="decimal" />
         </div>
         <div class="salary-input-group">
           <label for="salaireConjointe">Salaire conjointe (€)</label>
-          <input type="number" id="salaireConjointe" placeholder="Ex: 1800" min="0" step="0.01" />
+          <input type="text" id="salaireConjointe" placeholder="Ex: 1800" inputmode="decimal" />
         </div>
       </div>
 
@@ -1946,11 +1974,11 @@
         <div class="custom-percentages" id="customPercentages">
           <div class="custom-percentage-group">
             <label for="customPercentYou">Votre part (%)</label>
-            <input type="number" id="customPercentYou" min="0" max="100" step="1" value="50" />
+            <input type="text" id="customPercentYou" inputmode="numeric" value="50" />
           </div>
           <div class="custom-percentage-group">
             <label for="customPercentPartner">Part conjointe (%)</label>
-            <input type="number" id="customPercentPartner" min="0" max="100" step="1" value="50" />
+            <input type="text" id="customPercentPartner" inputmode="numeric" value="50" />
           </div>
         </div>
         <div class="share-mode-validation" id="shareModeValidation"></div>
@@ -2076,9 +2104,13 @@
               <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
             </div>
             <label class="reminder-toggle">
-              <input type="checkbox" id="reminderBudget" onchange="saveReminderSettings()" />
+              <input type="checkbox" id="reminderBudget" onchange="saveReminderSettings(); toggleBudgetInput()" />
               <span class="reminder-toggle-slider"></span>
             </label>
+          </div>
+          <div id="budgetInputRow" class="budget-input-row">
+            <label for="budgetAmount">Limite budget mensuel (€)</label>
+            <input type="text" id="budgetAmount" inputmode="decimal" placeholder="Ex: 3000" oninput="saveReminderSettings()" />
           </div>
           <div class="reminder-toggle-row">
             <div>
@@ -2118,7 +2150,7 @@
       </div>
       <div class="form-group">
         <label>Montant (€)</label>
-        <input type="number" id="varChargeAmount" placeholder="Ex: 150.50" min="0" step="0.01" />
+        <input type="text" id="varChargeAmount" placeholder="Ex: 150.50" inputmode="decimal" />
       </div>
       <div class="form-group">
         <label>Payé par</label>
@@ -2148,7 +2180,7 @@
       </div>
       <div class="form-group">
         <label>Montant (€)</label>
-        <input type="number" id="fixedChargeAmount" placeholder="Ex: 800" min="0" step="0.01" />
+        <input type="text" id="fixedChargeAmount" placeholder="Ex: 800" inputmode="decimal" />
       </div>
       <div class="form-group">
         <label>Payé par</label>
@@ -2177,7 +2209,7 @@
       </div>
       <div class="form-group">
         <label>Montant (€)</label>
-        <input type="number" id="reimbursementAmount" placeholder="Ex: 50" min="0" step="0.01" />
+        <input type="text" id="reimbursementAmount" placeholder="Ex: 50" inputmode="decimal" />
       </div>
       <div class="form-group">
         <label>Note (optionnel)</label>
@@ -2207,11 +2239,9 @@
 
       <div class="amount-input-large">
         <input
-          type="number"
+          type="text"
           id="quickAddAmount"
           placeholder="Montant"
-          min="0"
-          step="0.01"
           inputmode="decimal"
           autofocus
         />
@@ -2441,6 +2471,17 @@
       const div = document.createElement('div');
       div.textContent = String(unsafe);
       return div.innerHTML;
+    }
+
+    // Adjust toast position when Android virtual keyboard appears
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const toasts = document.querySelectorAll('.toast');
+        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+        toasts.forEach(t => {
+          t.style.bottom = (keyboardHeight > 0 ? keyboardHeight + 8 : 20) + 'px';
+        });
+      });
     }
 
     function showToast(message, type = 'success') {
@@ -3674,9 +3715,11 @@
     }
 
     function saveReminderSettings() {
+      const budgetAmount = parseFloat(document.getElementById('budgetAmount').value) || 3000;
       const settings = {
         finMois: document.getElementById('reminderFinMois').checked,
         budget: document.getElementById('reminderBudget').checked,
+        budgetAmount: budgetAmount,
         reimbursement: document.getElementById('reminderReimbursement').checked
       };
 
@@ -3691,6 +3734,12 @@
       });
     }
 
+    function toggleBudgetInput() {
+      const checked = document.getElementById('reminderBudget').checked;
+      const row = document.getElementById('budgetInputRow');
+      row.classList.toggle('visible', checked);
+    }
+
     function loadReminderSettings() {
       database.ref('reminderSettings').once('value', snapshot => {
         if (snapshot.exists()) {
@@ -3698,6 +3747,10 @@
           document.getElementById('reminderFinMois').checked = settings.finMois || false;
           document.getElementById('reminderBudget').checked = settings.budget || false;
           document.getElementById('reminderReimbursement').checked = settings.reimbursement || false;
+          if (settings.budgetAmount) {
+            document.getElementById('budgetAmount').value = settings.budgetAmount;
+          }
+          toggleBudgetInput();
         }
 
         // Check current notification permission status
@@ -3734,11 +3787,10 @@
 
       // Budget exceeded reminder
       if (settings.budget) {
+        const budgetLimit = parseFloat(document.getElementById('budgetAmount').value) || 3000;
         const totalAmount = [...fixedCharges, ...variableCharges].filter(c => !c.deleted).reduce((sum, c) => sum + (c.amount || 0), 0);
-        // Simple heuristic: if current charges > 120% of average of previous months
-        // For now, alert if total > 3000€ (configurable later)
-        if (totalAmount > 3000) {
-          sendNotification('⚠️ FairSplit — Budget élevé', 'Vos charges ce mois atteignent ' + formatCurrency(totalAmount));
+        if (totalAmount > budgetLimit) {
+          sendNotification('⚠️ FairSplit — Budget élevé', 'Vos charges ce mois (' + formatCurrency(totalAmount) + ') dépassent votre budget de ' + formatCurrency(budgetLimit));
         }
       }
 
@@ -4344,8 +4396,13 @@
     // ===== SERVICE WORKER REGISTRATION (PWA) =====
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // Service worker registration disabled for now (can be added later)
-        console.log('PWA: Service Worker disabled (to be implemented)');
+        navigator.serviceWorker.register('./sw-test.js')
+          .then((registration) => {
+            console.log('[PWA] Service Worker enregistré :', registration.scope);
+          })
+          .catch((error) => {
+            console.warn('[PWA] Échec enregistrement Service Worker :', error);
+          });
       });
     }
   </script>
