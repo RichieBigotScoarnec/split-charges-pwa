@@ -2429,6 +2429,13 @@
       return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(isNaN(num) ? 0 : num);
     }
 
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      const div = document.createElement('div');
+      div.textContent = String(unsafe);
+      return div.innerHTML;
+    }
+
     function showToast(message, type = 'success') {
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
@@ -2741,14 +2748,14 @@
 
       list.innerHTML = charges.map(charge => {
         const icon = charge.categoryIcon || '⚡';
-        const locationInfo = charge.locationName ? ` - ${charge.locationName}` : (charge.location?.place ? ` - ${charge.location.place}` : '');
+        const locationInfo = charge.locationName ? ` - ${escapeHtml(charge.locationName)}` : (charge.location?.place ? ` - ${escapeHtml(charge.location.place)}` : '');
         const gpsIndicator = (charge.locationName || charge.location) ? ' 📍' : '';
-        const noteHTML = charge.note ? `<div class="charge-note">📝 ${charge.note}</div>` : '';
+        const noteHTML = charge.note ? `<div class="charge-note">📝 ${escapeHtml(charge.note)}</div>` : '';
 
         return `
           <div class="charge-item">
             <div class="charge-info">
-              <div class="charge-name">${icon} ${charge.name}${locationInfo}${gpsIndicator}</div>
+              <div class="charge-name">${icon} ${escapeHtml(charge.name)}${locationInfo}${gpsIndicator}</div>
               ${noteHTML}
               <div class="charge-amount">${formatCurrency(charge.amount)}</div>
               <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
@@ -2778,7 +2785,7 @@
       list.innerHTML = charges.map(charge => `
         <div class="charge-item">
           <div class="charge-info">
-            <div class="charge-name">${charge.name}</div>
+            <div class="charge-name">${escapeHtml(charge.name)}</div>
             <div class="charge-amount">${formatCurrency(charge.amount)}</div>
             <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
           </div>
@@ -3443,6 +3450,7 @@
         customPercents: shareMode === 'custom' ? customPercents : null
       }).catch(error => {
         console.error('Erreur sauvegarde mode partage:', error);
+        showToast('Erreur : impossible de sauvegarder le mode de partage', 'error');
       });
     }
 
@@ -3771,6 +3779,7 @@
         renderTrendsChart(monthData);
       } catch (err) {
         console.error('Erreur chargement tendances:', err);
+        showToast('Erreur : impossible de charger les tendances', 'error');
         trendsSection.style.display = 'none';
       }
     }
@@ -3974,7 +3983,7 @@
       const locations = Object.values(locationMap).sort((a, b) => b.totalAmount - a.totalAmount);
 
       // Calculate stats
-      const totalGPSAmount = locations.reduce((sum, l) => sum + l.totalAmount, 0);
+      const totalGPSAmount = locations.reduce((sum, l) => sum + (l.totalAmount || 0), 0);
       const topLocation = locations[0];
 
       content.innerHTML = `
@@ -3992,7 +4001,7 @@
             <div class="gps-stats-label">Total géolocalisé</div>
           </div>
           <div class="gps-stats-item">
-            <div class="gps-stats-value" title="${topLocation.name}">${topLocation.name.length > 12 ? topLocation.name.substring(0, 12) + '...' : topLocation.name}</div>
+            <div class="gps-stats-value" title="${escapeHtml(topLocation.name)}">${escapeHtml(topLocation.name.length > 12 ? topLocation.name.substring(0, 12) + '...' : topLocation.name)}</div>
             <div class="gps-stats-label">Lieu principal</div>
           </div>
         </div>
@@ -4068,12 +4077,12 @@
       Object.values(locationGroups).forEach((loc, index) => {
         const totalAmount = loc.charges.reduce((sum, c) => sum + (c.amount || 0), 0);
         const chargesList = loc.charges.map(c =>
-          `<div class="popup-detail">• ${c.name} — ${formatCurrency(c.amount || 0)} (${c.payeur === 'vous' ? 'Vous' : 'Conjointe'})</div>`
+          `<div class="popup-detail">• ${escapeHtml(c.name)} — ${formatCurrency(c.amount || 0)} (${c.payeur === 'vous' ? 'Vous' : 'Conjointe'})</div>`
         ).join('');
 
         const popupContent = `
           <div class="popup-content">
-            <div class="popup-title">📍 ${loc.name}</div>
+            <div class="popup-title">📍 ${escapeHtml(loc.name)}</div>
             ${chargesList}
             <div class="popup-detail" style="margin-top: 8px; font-weight: 600; color: #333;">Total: ${formatCurrency(totalAmount)}</div>
           </div>
@@ -4203,7 +4212,7 @@
               style="width: 20px; height: 20px; cursor: pointer;"
             />
             <div style="flex: 1;">
-              <div style="font-weight: 600; color: var(--text-primary);">${charge.name}</div>
+              <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(charge.name)}</div>
               <div style="font-size: 13px; color: var(--text-secondary);">Montant: ${formatCurrency(charge.amount)}</div>
             </div>
           </label>
