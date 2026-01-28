@@ -180,6 +180,63 @@
       min-height: 50px;
     }
 
+    /* ===== TRENDS CHART ===== */
+    .trends-section {
+      margin-top: 20px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(156, 39, 176, 0.05), rgba(103, 58, 183, 0.05));
+      border: 2px solid var(--secondary-color);
+      border-radius: 15px;
+    }
+
+    .trends-header {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--secondary-color);
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .trends-chart-container {
+      width: 100%;
+      height: 200px;
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .trends-chart-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .trends-legend {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .trends-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .trends-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .trends-loading {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+      padding: 40px 0;
+    }
+
     /* ===== PERIOD NAVIGATION ===== */
     .period-navigation {
       background: var(--card-bg);
@@ -1645,6 +1702,14 @@
         </button>
       </div>
 
+      <!-- Tendances Historiques -->
+      <div id="trendsSection" class="trends-section" style="display: none;">
+        <div class="trends-header">📈 Tendances sur 6 mois</div>
+        <div id="trendsContent">
+          <div class="trends-loading">⏳ Chargement des données historiques...</div>
+        </div>
+      </div>
+
       <!-- Export Actions -->
       <div class="export-actions">
         <button class="btn btn-secondary" onclick="exportToCSV()" title="Export compatible Excel">
@@ -2059,6 +2124,8 @@
         reimbursements,
         summary: calculateSummary()
       });
+      // Refresh trends after data change
+      loadTrendsData();
     }
 
     // ===== CHARGE OPERATIONS =====
@@ -3009,6 +3076,191 @@
       `;
     }
 
+    // ===== TRENDS / EVOLUTION HISTORIQUE =====
+
+    async function loadTrendsData() {
+      const trendsSection = document.getElementById('trendsSection');
+      const trendsContent = document.getElementById('trendsContent');
+
+      // Generate last 6 months periods
+      const periods = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        periods.push(`${year}-${month}`);
+      }
+
+      try {
+        const snapshot = await database.ref('periods').once('value');
+        if (!snapshot.exists()) {
+          trendsSection.style.display = 'none';
+          return;
+        }
+
+        const allPeriods = snapshot.val();
+        const monthData = [];
+
+        periods.forEach(period => {
+          const data = allPeriods[period];
+          if (data) {
+            const totalCharges = [
+              ...(data.fixedCharges || []),
+              ...(data.variableCharges || [])
+            ].reduce((sum, c) => sum + (c.amount || 0), 0);
+
+            const yourPayments = [
+              ...(data.fixedCharges || []),
+              ...(data.variableCharges || [])
+            ].filter(c => c.payeur === 'vous').reduce((sum, c) => sum + (c.amount || 0), 0);
+
+            const partnerPayments = [
+              ...(data.fixedCharges || []),
+              ...(data.variableCharges || [])
+            ].filter(c => c.payeur === 'conjointe').reduce((sum, c) => sum + (c.amount || 0), 0);
+
+            monthData.push({
+              period,
+              label: period.substring(5), // "MM" part
+              totalCharges,
+              yourPayments,
+              partnerPayments
+            });
+          } else {
+            monthData.push({
+              period,
+              label: period.substring(5),
+              totalCharges: 0,
+              yourPayments: 0,
+              partnerPayments: 0
+            });
+          }
+        });
+
+        // Only show if at least 2 months have data
+        const monthsWithData = monthData.filter(m => m.totalCharges > 0);
+        if (monthsWithData.length < 2) {
+          trendsSection.style.display = 'none';
+          return;
+        }
+
+        trendsSection.style.display = 'block';
+        renderTrendsChart(monthData);
+      } catch (err) {
+        console.error('Erreur chargement tendances:', err);
+        trendsSection.style.display = 'none';
+      }
+    }
+
+    function renderTrendsChart(monthData) {
+      const content = document.getElementById('trendsContent');
+      const width = 600;
+      const height = 180;
+      const paddingLeft = 50;
+      const paddingRight = 20;
+      const paddingTop = 20;
+      const paddingBottom = 40;
+      const chartWidth = width - paddingLeft - paddingRight;
+      const chartHeight = height - paddingTop - paddingBottom;
+
+      // Find max value for scaling
+      const maxValue = Math.max(
+        ...monthData.map(m => m.totalCharges),
+        1 // avoid division by zero
+      );
+
+      const stepX = chartWidth / (monthData.length - 1 || 1);
+
+      // Helper to create polyline points
+      function getPoints(data, key) {
+        return data.map((d, i) => {
+          const x = paddingLeft + i * stepX;
+          const y = paddingTop + chartHeight - (d[key] / maxValue) * chartHeight;
+          return `${x},${y}`;
+        }).join(' ');
+      }
+
+      // Y-axis labels
+      const yLabels = [0, 0.5, 1].map(ratio => {
+        const value = maxValue * ratio;
+        const y = paddingTop + chartHeight - ratio * chartHeight;
+        return `<text x="5" y="${y + 4}" fill="var(--text-secondary)" font-size="10" text-anchor="start">${Math.round(value)}€</text>
+               <line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" stroke="var(--dark-bg)" stroke-width="1" />`;
+      }).join('');
+
+      // X-axis labels (month labels)
+      const xLabels = monthData.map((d, i) => {
+        const x = paddingLeft + i * stepX;
+        return `<text x="${x}" y="${height - 8}" fill="var(--text-secondary)" font-size="10" text-anchor="middle">${d.label}</text>`;
+      }).join('');
+
+      // Gradient defs for area fill
+      const defs = `
+        <defs>
+          <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4caf50" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#4caf50" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="gradYours" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2196f3" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#2196f3" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="gradPartner" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff9800" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#ff9800" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+      `;
+
+      // Area paths (filled under line)
+      function getAreaPath(data, key) {
+        let path = `M ${paddingLeft},${paddingTop + chartHeight}`;
+        data.forEach((d, i) => {
+          const x = paddingLeft + i * stepX;
+          const y = paddingTop + chartHeight - (d[key] / maxValue) * chartHeight;
+          path += ` L ${x},${y}`;
+        });
+        path += ` L ${paddingLeft + (data.length - 1) * stepX},${paddingTop + chartHeight} Z`;
+        return path;
+      }
+
+      const totalPoints = getPoints(monthData, 'totalCharges');
+      const yourPoints = getPoints(monthData, 'yourPayments');
+      const partnerPoints = getPoints(monthData, 'partnerPayments');
+
+      const svg = `
+        <svg class="trends-chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+          ${defs}
+          ${yLabels}
+          ${xLabels}
+          <!-- Area fills -->
+          <path d="${getAreaPath(monthData, 'totalCharges')}" fill="url(#gradTotal)" />
+          <path d="${getAreaPath(monthData, 'yourPayments')}" fill="url(#gradYours)" />
+          <path d="${getAreaPath(monthData, 'partnerPayments')}" fill="url(#gradPartner)" />
+          <!-- Lines -->
+          <polyline points="${totalPoints}" fill="none" stroke="#4caf50" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <polyline points="${yourPoints}" fill="none" stroke="#2196f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,3" />
+          <polyline points="${partnerPoints}" fill="none" stroke="#ff9800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,3" />
+          <!-- Data points (circles) -->
+          ${monthData.map((d, i) => {
+            const x = paddingLeft + i * stepX;
+            const yTotal = paddingTop + chartHeight - (d.totalCharges / maxValue) * chartHeight;
+            return `<circle cx="${x}" cy="${yTotal}" r="3" fill="#4caf50" />`;
+          }).join('')}
+        </svg>
+      `;
+
+      content.innerHTML = `
+        <div class="trends-chart-container">${svg}</div>
+        <div class="trends-legend">
+          <div class="trends-legend-item"><span class="trends-legend-dot" style="background: #4caf50;"></span> Total charges</div>
+          <div class="trends-legend-item"><span class="trends-legend-dot" style="background: #2196f3;"></span> Vos paiements</div>
+          <div class="trends-legend-item"><span class="trends-legend-dot" style="background: #ff9800;"></span> Paiements conjointe</div>
+        </div>
+      `;
+    }
+
     // ===== SEARCH FUNCTIONALITY =====
     function handleSearch() {
       const searchTerm = document.getElementById('searchInput').value.trim();
@@ -3382,6 +3634,7 @@
       populatePeriodDropdown();
       loadPeriodData();
       loadShareMode();
+      loadTrendsData();
       showToast('FairSplit TEST chargé', 'success');
       console.log('🔧 FairSplit TEST Environment');
       console.log('📅 Current Period:', currentPeriod);
