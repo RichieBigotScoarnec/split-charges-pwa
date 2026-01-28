@@ -100,6 +100,86 @@
       opacity: 0.9;
     }
 
+    /* ===== SEARCH BAR ===== */
+    .search-bar-container {
+      margin-bottom: 20px;
+    }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-bg);
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .search-bar-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      color: var(--text-primary);
+    }
+
+    .search-bar input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .search-clear-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+      display: none;
+    }
+
+    .search-clear-btn:hover {
+      background: var(--dark-bg);
+      color: var(--text-primary);
+    }
+
+    .search-clear-btn.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .search-results-info {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 6px 16px 0;
+      display: none;
+    }
+
+    .search-results-info.visible {
+      display: block;
+    }
+
+    /* Charge notes display */
+    .charge-note {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-top: 2px;
+    }
+
+    .note-textarea {
+      resize: vertical;
+      min-height: 50px;
+    }
+
     /* ===== PERIOD NAVIGATION ===== */
     .period-navigation {
       background: var(--card-bg);
@@ -1425,6 +1505,16 @@
       </div>
     </div>
 
+    <!-- Search Bar -->
+    <div class="search-bar-container">
+      <div class="search-bar">
+        <span class="search-bar-icon">🔍</span>
+        <input type="search" id="searchInput" placeholder="Rechercher une charge..." oninput="handleSearch()" />
+        <button type="button" class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" title="Effacer">✕</button>
+      </div>
+      <div class="search-results-info" id="searchResultsInfo"></div>
+    </div>
+
     <!-- Salaries Section -->
     <div class="card">
       <div class="card-header">
@@ -1585,6 +1675,10 @@
           <option value="vous">Vous</option>
           <option value="conjointe">Conjointe</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label>Note (optionnel)</label>
+        <textarea id="varChargeNote" class="note-textarea" placeholder="Ex: Courses du samedi matin..." rows="2"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
@@ -1804,6 +1898,7 @@
       if (modalId === 'modalAddVariableCharge') {
         document.getElementById('varChargeName').value = '';
         document.getElementById('varChargeAmount').value = '';
+        document.getElementById('varChargeNote').value = '';
         document.getElementById('btnAddVariableCharge').disabled = true;
       } else if (modalId === 'modalAddFixedCharge') {
         document.getElementById('fixedChargeName').value = '';
@@ -1923,6 +2018,11 @@
           variableCharges = [];
           reimbursements = [];
         }
+        // Clear search when switching periods
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchClearBtn').classList.remove('visible');
+        document.getElementById('searchResultsInfo').classList.remove('visible');
+
         renderAll();
 
         // Check for new month and show reconduction banner if applicable
@@ -1966,19 +2066,22 @@
       const name = document.getElementById('varChargeName').value.trim();
       const amount = parseFloat(document.getElementById('varChargeAmount').value) || 0;
       const payeur = document.getElementById('varChargePayeur').value;
+      const note = document.getElementById('varChargeNote').value.trim();
 
       if (!name || amount <= 0) {
         showToast('Veuillez remplir tous les champs', 'error');
         return;
       }
 
-      variableCharges.push({
+      const newCharge = {
         id: Date.now(),
         name,
         amount,
         payeur,
         date: new Date().toISOString()
-      });
+      };
+      if (note) newCharge.note = note;
+      variableCharges.push(newCharge);
 
       savePeriodData();
       renderVariableCharges();
@@ -2062,20 +2165,36 @@
     // ===== RENDERING =====
     function renderVariableCharges() {
       const list = document.getElementById('variableChargesList');
-      if (variableCharges.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚡</div><div class="empty-state-text">Aucune charge variable pour ce mois</div></div>';
+      const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+
+      // Filter by search term
+      let charges = variableCharges;
+      if (searchTerm) {
+        charges = variableCharges.filter(c =>
+          c.name.toLowerCase().includes(searchTerm) ||
+          (c.note && c.note.toLowerCase().includes(searchTerm)) ||
+          (c.locationName && c.locationName.toLowerCase().includes(searchTerm)) ||
+          (c.categoryLabel && c.categoryLabel.toLowerCase().includes(searchTerm))
+        );
+      }
+
+      if (charges.length === 0) {
+        const msg = searchTerm ? 'Aucun résultat pour cette recherche' : 'Aucune charge variable pour ce mois';
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚡</div><div class="empty-state-text">' + msg + '</div></div>';
         return;
       }
 
-      list.innerHTML = variableCharges.map(charge => {
+      list.innerHTML = charges.map(charge => {
         const icon = charge.categoryIcon || '⚡';
-        const locationInfo = charge.location?.place ? ` - ${charge.location.place}` : '';
-        const gpsIndicator = charge.location ? ' 📍' : '';
+        const locationInfo = charge.locationName ? ` - ${charge.locationName}` : (charge.location?.place ? ` - ${charge.location.place}` : '');
+        const gpsIndicator = (charge.locationName || charge.location) ? ' 📍' : '';
+        const noteHTML = charge.note ? `<div class="charge-note">📝 ${charge.note}</div>` : '';
 
         return `
           <div class="charge-item">
             <div class="charge-info">
               <div class="charge-name">${icon} ${charge.name}${locationInfo}${gpsIndicator}</div>
+              ${noteHTML}
               <div class="charge-amount">${formatCurrency(charge.amount)}</div>
               <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
             </div>
@@ -2083,29 +2202,34 @@
           </div>
         `;
       }).join('');
-
-      calculateSummary();
     }
 
     function renderFixedCharges() {
       const list = document.getElementById('fixedChargesList');
-      if (fixedCharges.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div class="empty-state-text">Aucune charge fixe pour ce mois</div></div>';
+      const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+
+      // Filter by search term
+      let charges = fixedCharges;
+      if (searchTerm) {
+        charges = fixedCharges.filter(c => c.name.toLowerCase().includes(searchTerm));
+      }
+
+      if (charges.length === 0) {
+        const msg = searchTerm ? 'Aucun résultat pour cette recherche' : 'Aucune charge fixe pour ce mois';
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div class="empty-state-text">' + msg + '</div></div>';
         return;
       }
 
-      list.innerHTML = fixedCharges.map(charge => `
+      list.innerHTML = charges.map(charge => `
         <div class="charge-item">
           <div class="charge-info">
             <div class="charge-name">${charge.name}</div>
             <div class="charge-amount">${formatCurrency(charge.amount)}</div>
             <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
           </div>
-          <button class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
+          <button type="button" class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
         </div>
       `).join('');
-
-      calculateSummary();
     }
 
     function renderReimbursements() {
@@ -2883,6 +3007,53 @@
           </div>
         </div>
       `;
+    }
+
+    // ===== SEARCH FUNCTIONALITY =====
+    function handleSearch() {
+      const searchTerm = document.getElementById('searchInput').value.trim();
+      const clearBtn = document.getElementById('searchClearBtn');
+      const infoEl = document.getElementById('searchResultsInfo');
+
+      // Toggle clear button visibility
+      if (searchTerm) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+        infoEl.classList.remove('visible');
+      }
+
+      // Re-render all lists (they read searchInput internally)
+      renderVariableCharges();
+      renderFixedCharges();
+
+      // Show results summary if searching
+      if (searchTerm) {
+        const varMatches = variableCharges.filter(c =>
+          c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (c.note && c.note.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (c.locationName && c.locationName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (c.categoryLabel && c.categoryLabel.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+        const fixedMatches = fixedCharges.filter(c =>
+          c.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        const total = varMatches.length + fixedMatches.length;
+        infoEl.textContent = total + ' résultat' + (total !== 1 ? 's' : '') + ' trouvé' + (total !== 1 ? 's' : '');
+        infoEl.classList.add('visible');
+      }
+
+      // Recalculate summary (uses full lists, not filtered)
+      calculateSummary();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('searchClearBtn').classList.remove('visible');
+      document.getElementById('searchResultsInfo').classList.remove('visible');
+      renderVariableCharges();
+      renderFixedCharges();
+      calculateSummary();
     }
 
     // ===== GPS STATS & MAP =====
