@@ -3231,10 +3231,13 @@
       // Show modal
       showModal('modalQuickAdd');
 
-      // Focus amount input
+      // Focus amount input, puis scroll pour garder le modal visible avec le clavier
       setTimeout(() => {
         document.getElementById('quickAddAmount').focus();
       }, 100);
+      setTimeout(() => {
+        document.getElementById('modalQuickAdd').querySelector('.modal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
 
       // Start GPS detection in background (non-blocking)
       startGPSDetection();
