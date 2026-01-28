@@ -2785,7 +2785,11 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalAddVariableCharge');
-      showToast('Charge variable ajoutée');
+      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
+        variableCharges = variableCharges.filter(c => c.id !== newCharge.id);
+        savePeriodData();
+        renderVariableCharges();
+      });
     }
 
     function addFixedCharge() {
@@ -2798,18 +2802,23 @@
         return;
       }
 
-      fixedCharges.push({
+      const newFixed = {
         id: Date.now(),
         name,
         amount,
         payeur,
         date: new Date().toISOString()
-      });
+      };
+      fixedCharges.push(newFixed);
 
       savePeriodData();
       renderFixedCharges();
       closeModal('modalAddFixedCharge');
-      showToast('Charge fixe ajoutée');
+      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
+        fixedCharges = fixedCharges.filter(c => c.id !== newFixed.id);
+        savePeriodData();
+        renderFixedCharges();
+      });
     }
 
     function deleteCharge(type, id) {
@@ -2842,18 +2851,23 @@
         return;
       }
 
-      reimbursements.push({
+      const newReimb = {
         id: Date.now(),
         direction,
         amount,
         note,
         date: new Date().toISOString()
-      });
+      };
+      reimbursements.push(newReimb);
 
       savePeriodData();
       renderReimbursements();
       closeModal('modalAddReimbursement');
-      showToast('Remboursement ajouté');
+      showToastWithUndo(`✓ Remboursement ${formatCurrency(amount)}`, () => {
+        reimbursements = reimbursements.filter(r => r.id !== newReimb.id);
+        savePeriodData();
+        renderReimbursements();
+      });
     }
 
     function deleteReimbursement(id) {
