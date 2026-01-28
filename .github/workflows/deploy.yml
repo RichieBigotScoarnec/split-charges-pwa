@@ -23,12 +23,15 @@ jobs:
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "environment=PROD" >> $GITHUB_OUTPUT
             echo "destination=." >> $GITHUB_OUTPUT
-            echo "url_suffix=" >> $GITHUB_OUTPUT
           else
             echo "environment=TEST" >> $GITHUB_OUTPUT
             echo "destination=test" >> $GITHUB_OUTPUT
-            echo "url_suffix=/test" >> $GITHUB_OUTPUT
           fi
+
+      - name: Prepare sync - copy FairSplit-Test.html into test/
+        run: |
+          mkdir -p test
+          cp FairSplit-Test.html test/FairSplit-Test.html
 
       - name: Display deployment info
         run: |
