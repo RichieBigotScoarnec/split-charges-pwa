@@ -2731,8 +2731,40 @@
       // Show saving indicator
       indicator.className = 'save-indicator is-saving';
 
-      salaries.vous = parseFloat(document.getElementById('salaireVous').value) || 0;
-      salaries.conjointe = parseFloat(document.getElementById('salaireConjointe').value) || 0;
+      const rawVous = parseFloat(document.getElementById('salaireVous').value);
+      const rawConjointe = parseFloat(document.getElementById('salaireConjointe').value);
+
+      // Validation : rejeter NaN, négatifs, > 100 000€
+      if (isNaN(rawVous) && document.getElementById('salaireVous').value.trim() !== '') {
+        showToast('Valeur invalide pour votre salaire', 'error');
+        document.getElementById('salaireVous').value = salaries.vous || 0;
+        return;
+      }
+      if (isNaN(rawConjointe) && document.getElementById('salaireConjointe').value.trim() !== '') {
+        showToast('Valeur invalide pour le salaire conjoint', 'error');
+        document.getElementById('salaireConjointe').value = salaries.conjointe || 0;
+        return;
+      }
+
+      salaries.vous = isNaN(rawVous) ? 0 : rawVous;
+      salaries.conjointe = isNaN(rawConjointe) ? 0 : rawConjointe;
+
+      if (salaries.vous < 0 || salaries.conjointe < 0) {
+        showToast('Les salaires ne peuvent pas être négatifs', 'error');
+        salaries.vous = Math.max(0, salaries.vous);
+        salaries.conjointe = Math.max(0, salaries.conjointe);
+        document.getElementById('salaireVous').value = salaries.vous;
+        document.getElementById('salaireConjointe').value = salaries.conjointe;
+        return;
+      }
+      if (salaries.vous > 100000 || salaries.conjointe > 100000) {
+        showToast('Limite maximale : 100 000€ par salaire', 'error');
+        salaries.vous = Math.min(100000, salaries.vous);
+        salaries.conjointe = Math.min(100000, salaries.conjointe);
+        document.getElementById('salaireVous').value = salaries.vous;
+        document.getElementById('salaireConjointe').value = salaries.conjointe;
+        return;
+      }
 
       database.ref('salaries').set(salaries).then(() => {
         indicator.className = 'save-indicator is-saved';
@@ -2771,6 +2803,10 @@
         showToast('Veuillez remplir tous les champs', 'error');
         return;
       }
+      if (amount > 50000) {
+        showToast('Limite maximale : 50 000€ par charge', 'error');
+        return;
+      }
 
       const newCharge = {
         id: Date.now(),
@@ -2799,6 +2835,10 @@
 
       if (!name || amount <= 0) {
         showToast('Veuillez remplir tous les champs', 'error');
+        return;
+      }
+      if (amount > 50000) {
+        showToast('Limite maximale : 50 000€ par charge', 'error');
         return;
       }
 
@@ -3440,6 +3480,10 @@
 
       if (!category || !amount || amount <= 0) {
         showToast('Veuillez sélectionner une catégorie et entrer un montant', 'error');
+        return;
+      }
+      if (amount > 50000) {
+        showToast('Limite maximale : 50 000€ par charge', 'error');
         return;
       }
 
