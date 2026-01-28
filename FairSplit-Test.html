@@ -2335,6 +2335,8 @@
       });
     }
 
+    let appInitialized = false;
+
     auth.onAuthStateChanged(function(user) {
       const authOverlay = document.getElementById('authOverlay');
       const mainApp = document.getElementById('mainApp');
@@ -2361,12 +2363,32 @@
         document.getElementById('authEmail').value = '';
         document.getElementById('authPassword').value = '';
         document.getElementById('authError').textContent = '';
+
+        // Initialize app data only once after auth resolves
+        if (!appInitialized) {
+          appInitialized = true;
+          populatePeriodDropdown();
+          loadPeriodData();
+          loadShareMode();
+          loadTrendsData();
+          loadReminderSettings();
+          setTimeout(checkAndSendReminders, 2000);
+        }
       } else {
-        // No user
+        // No user — clear all state
         authOverlay.style.display = 'flex';
         mainApp.style.display = 'none';
         if (testBadge) testBadge.style.display = 'none';
         userInfoBar.style.display = 'none';
+
+        // Reset app state for next user
+        appInitialized = false;
+        variableCharges = [];
+        fixedCharges = [];
+        reimbursements = [];
+        salaries = { vous: 0, conjointe: 0 };
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.value = '';
       }
     });
 
@@ -2403,7 +2425,8 @@
     }
 
     function formatCurrency(amount) {
-      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+      const num = parseFloat(amount);
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(isNaN(num) ? 0 : num);
     }
 
     function showToast(message, type = 'success') {
@@ -2415,11 +2438,13 @@
     }
 
     function showModal(modalId) {
-      document.getElementById(modalId).classList.add('active');
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.add('active');
     }
 
     function closeModal(modalId) {
-      document.getElementById(modalId).classList.remove('active');
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.remove('active');
       // Reset form fields and buttons
       if (modalId === 'modalAddVariableCharge') {
         document.getElementById('varChargeName').value = '';
@@ -4243,18 +4268,10 @@
     }
 
     // ===== INITIALIZATION =====
-    window.addEventListener('load', () => {
-      populatePeriodDropdown();
-      loadPeriodData();
-      loadShareMode();
-      loadTrendsData();
-      loadReminderSettings();
-      // Check reminders after data is loaded (small delay)
-      setTimeout(checkAndSendReminders, 2000);
-      showToast('FairSplit TEST chargé', 'success');
-      console.log('🔧 FairSplit TEST Environment');
-      console.log('📅 Current Period:', currentPeriod);
-    });
+    // App data initialization moved into auth.onAuthStateChanged (above)
+    // to ensure Firebase queries run only after user is authenticated
+    console.log('🔧 FairSplit TEST Environment');
+    console.log('📅 Current Period:', currentPeriod);
 
     // ===== SERVICE WORKER REGISTRATION (PWA) =====
     if ('serviceWorker' in navigator) {
