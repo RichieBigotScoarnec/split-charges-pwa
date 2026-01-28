@@ -2785,11 +2785,7 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalAddVariableCharge');
-      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
-        variableCharges = variableCharges.filter(c => c.id !== newCharge.id);
-        savePeriodData();
-        renderVariableCharges();
-      });
+      showToast(`✓ ${name} - ${formatCurrency(amount)}`);
     }
 
     function addFixedCharge() {
@@ -2802,23 +2798,18 @@
         return;
       }
 
-      const newFixed = {
+      fixedCharges.push({
         id: Date.now(),
         name,
         amount,
         payeur,
         date: new Date().toISOString()
-      };
-      fixedCharges.push(newFixed);
+      });
 
       savePeriodData();
       renderFixedCharges();
       closeModal('modalAddFixedCharge');
-      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
-        fixedCharges = fixedCharges.filter(c => c.id !== newFixed.id);
-        savePeriodData();
-        renderFixedCharges();
-      });
+      showToast(`✓ ${name} - ${formatCurrency(amount)}`);
     }
 
     function deleteCharge(type, id) {
@@ -2851,23 +2842,18 @@
         return;
       }
 
-      const newReimb = {
+      reimbursements.push({
         id: Date.now(),
         direction,
         amount,
         note,
         date: new Date().toISOString()
-      };
-      reimbursements.push(newReimb);
+      });
 
       savePeriodData();
       renderReimbursements();
       closeModal('modalAddReimbursement');
-      showToastWithUndo(`✓ Remboursement ${formatCurrency(amount)}`, () => {
-        reimbursements = reimbursements.filter(r => r.id !== newReimb.id);
-        savePeriodData();
-        renderReimbursements();
-      });
+      showToast(`✓ Remboursement ${formatCurrency(amount)}`);
     }
 
     function deleteReimbursement(id) {
@@ -3474,11 +3460,7 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalQuickAdd');
-      showToastWithUndo(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, () => {
-        variableCharges = variableCharges.filter(c => c.id !== charge.id);
-        savePeriodData();
-        renderVariableCharges();
-      });
+      showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`);
     }
 
     // ===== EXPORT FONCTIONS =====
