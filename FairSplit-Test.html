@@ -2476,6 +2476,15 @@
       }
     });
 
+    // Scroll global sur focus input (Android clavier)
+    document.addEventListener('focusin', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        setTimeout(() => {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 350);
+      }
+    });
+
     // ===== CATEGORIES DEFINITIONS =====
     const CATEGORIES = [
       { id: 'courses', icon: '🛒', label: 'Courses', color: '#4caf50' },
@@ -3451,7 +3460,11 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalQuickAdd');
-      showToast(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, 'success');
+      showToastWithUndo(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, () => {
+        variableCharges = variableCharges.filter(c => c.id !== charge.id);
+        savePeriodData();
+        renderVariableCharges();
+      });
     }
 
     // ===== EXPORT FONCTIONS =====
