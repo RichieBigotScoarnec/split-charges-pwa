@@ -12,6 +12,11 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192-test.png" />
   <link rel="apple-touch-icon" href="icon-192-test.png" />
 
+  <!-- Leaflet.js CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="" />
+
   <style>
     /* ===== RESET & BASE ===== */
     * {
@@ -813,6 +818,177 @@
       min-width: 150px;
     }
 
+    /* ===== CARTE GPS & STATS LIEUX ===== */
+    .gps-stats-section {
+      margin-top: 20px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), rgba(3, 169, 244, 0.05));
+      border: 2px solid var(--info-color);
+      border-radius: 15px;
+    }
+
+    .gps-stats-header {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--info-color);
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .gps-stats-content {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .gps-stats-item {
+      flex: 1;
+      min-width: 150px;
+      padding: 15px;
+      background: var(--dark-bg);
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .gps-stats-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .gps-stats-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--info-color);
+    }
+
+    .gps-stats-grid {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .gps-view-map-btn {
+      width: 100%;
+      margin-top: 15px;
+    }
+
+    /* Map Modal */
+    .map-modal {
+      max-width: 90%;
+      width: 900px;
+      max-height: 90vh;
+    }
+
+    .map-container {
+      height: 500px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 15px 0;
+    }
+
+    .map-legend {
+      margin-top: 15px;
+      padding: 15px;
+      background: var(--dark-bg);
+      border-radius: 10px;
+    }
+
+    .map-legend-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .map-legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .map-legend-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .map-legend-item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .map-legend-marker {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .map-legend-item-right {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .map-legend-count {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .map-legend-amount {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Leaflet popup customization */
+    .leaflet-popup-content {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-width: 200px;
+    }
+
+    .popup-content {
+      padding: 5px;
+    }
+
+    .popup-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .popup-detail {
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .popup-detail strong {
+      color: #333;
+    }
+
+    /* Map Modal sizing */
+    .modal-map-view {
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+
+    .map-view-container {
+      width: 100%;
+      height: 50vh;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
     /* ===== PRINT CSS (for PDF export) ===== */
     @media print {
       body {
@@ -1368,6 +1544,17 @@
         </div>
       </div>
 
+      <!-- Stats GPS & Lieux -->
+      <div id="gpsStatsSection" class="gps-stats-section" style="display: none;">
+        <div class="gps-stats-header">🗺️ Lieux de Dépenses</div>
+        <div class="gps-stats-content" id="gpsStatsContent">
+          <!-- Populated dynamically -->
+        </div>
+        <button class="btn btn-primary gps-view-map-btn" onclick="showMapModal()">
+          📍 Voir la carte
+        </button>
+      </div>
+
       <!-- Export Actions -->
       <div class="export-actions">
         <button class="btn btn-secondary" onclick="exportToCSV()" title="Export compatible Excel">
@@ -1520,10 +1707,26 @@
     </div>
   </div>
 
+  <!-- Modal: Map View -->
+  <div id="modalMapView" class="modal-overlay map-modal">
+    <div class="modal modal-map-view">
+      <div class="modal-header">📍 Carte des Dépenses</div>
+      <div id="mapContainer" class="map-view-container"></div>
+      <div id="mapLegend" class="map-legend"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalMapView')">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Action Button -->
   <button class="fab" onclick="showQuickAddModal()" title="Saisie rapide">
     ➕
   </button>
+
+  <!-- Leaflet.js -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-O2O5v8a2LTDLjnsUAqkG97QoEYEMUhGq01pk5G2gFU=" crossorigin=""></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -2006,6 +2209,9 @@
 
       // Render Category Analysis
       renderCategoryAnalysis();
+
+      // Render GPS Stats
+      renderGPSStats();
 
       return {
         totalCharges,
@@ -2677,6 +2883,166 @@
           </div>
         </div>
       `;
+    }
+
+    // ===== GPS STATS & MAP =====
+    let mapInstance = null;
+
+    function renderGPSStats() {
+      const section = document.getElementById('gpsStatsSection');
+      const content = document.getElementById('gpsStatsContent');
+
+      // Collect all charges with GPS data
+      const chargesWithGPS = variableCharges.filter(c => c.latitude && c.longitude);
+
+      if (chargesWithGPS.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+
+      // Group by location (round to ~100m precision)
+      const locationMap = {};
+      chargesWithGPS.forEach(c => {
+        const key = `${parseFloat(c.latitude).toFixed(3)}_${parseFloat(c.longitude).toFixed(3)}`;
+        if (!locationMap[key]) {
+          locationMap[key] = {
+            name: c.locationName || 'Position inconnue',
+            latitude: c.latitude,
+            longitude: c.longitude,
+            charges: [],
+            totalAmount: 0
+          };
+        }
+        locationMap[key].charges.push(c);
+        locationMap[key].totalAmount += c.amount;
+      });
+
+      const locations = Object.values(locationMap).sort((a, b) => b.totalAmount - a.totalAmount);
+
+      // Calculate stats
+      const totalGPSAmount = locations.reduce((sum, l) => sum + l.totalAmount, 0);
+      const topLocation = locations[0];
+
+      content.innerHTML = `
+        <div class="gps-stats-grid">
+          <div class="gps-stats-item">
+            <div class="gps-stats-value">${locations.length}</div>
+            <div class="gps-stats-label">Lieux visités</div>
+          </div>
+          <div class="gps-stats-item">
+            <div class="gps-stats-value">${chargesWithGPS.length}</div>
+            <div class="gps-stats-label">Dépenses géolocalisées</div>
+          </div>
+          <div class="gps-stats-item">
+            <div class="gps-stats-value">${formatCurrency(totalGPSAmount)}</div>
+            <div class="gps-stats-label">Total géolocalisé</div>
+          </div>
+          <div class="gps-stats-item">
+            <div class="gps-stats-value" title="${topLocation.name}">${topLocation.name.length > 12 ? topLocation.name.substring(0, 12) + '...' : topLocation.name}</div>
+            <div class="gps-stats-label">Lieu principal</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showMapModal() {
+      const chargesWithGPS = variableCharges.filter(c => c.latitude && c.longitude);
+      if (chargesWithGPS.length === 0) return;
+
+      // Destroy previous map instance to avoid "container already initialized" error
+      if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
+      }
+
+      // Show modal then initialize map after render
+      showModal('modalMapView');
+      setTimeout(() => {
+        initializeMap(chargesWithGPS);
+      }, 150);
+    }
+
+    function initializeMap(charges) {
+      // Calculate bounds for auto-zoom
+      const lats = charges.map(c => parseFloat(c.latitude));
+      const lngs = charges.map(c => parseFloat(c.longitude));
+      const bounds = [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]];
+
+      // Init map centered on average position
+      const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+      const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+
+      mapInstance = L.map('mapContainer', {
+        center: [centerLat, centerLng],
+        zoom: 14
+      });
+
+      // Add OpenStreetMap tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(mapInstance);
+
+      // Group charges by location for markers
+      const locationGroups = {};
+      charges.forEach(c => {
+        const key = `${parseFloat(c.latitude).toFixed(3)}_${parseFloat(c.longitude).toFixed(3)}`;
+        if (!locationGroups[key]) {
+          locationGroups[key] = {
+            name: c.locationName || 'Position inconnue',
+            latitude: c.latitude,
+            longitude: c.longitude,
+            charges: []
+          };
+        }
+        locationGroups[key].charges.push(c);
+      });
+
+      // Legend HTML
+      const legendItems = [];
+
+      // Create markers with popups
+      Object.values(locationGroups).forEach((loc, index) => {
+        const totalAmount = loc.charges.reduce((sum, c) => sum + c.amount, 0);
+        const chargesList = loc.charges.map(c =>
+          `<div class="popup-detail">• ${c.name} — ${formatCurrency(c.amount)} (${c.payer === 'vous' ? 'Vous' : 'Conjointe'})</div>`
+        ).join('');
+
+        const popupContent = `
+          <div class="popup-content">
+            <div class="popup-title">📍 ${loc.name}</div>
+            ${chargesList}
+            <div class="popup-detail" style="margin-top: 8px; font-weight: 600; color: #333;">Total: ${formatCurrency(totalAmount)}</div>
+          </div>
+        `;
+
+        // Custom icon with count badge
+        const iconColor = index === 0 ? '#e74c3c' : '#3498db';
+        const icon = L.divIcon({
+          className: 'custom-marker',
+          html: '<div style="background: ' + iconColor + '; color: white; border-radius: 50% 50% 50% 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: rotate(-45deg);"><span style="transform: rotate(45deg);">' + loc.charges.length + '</span></div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 28],
+          popupAnchor: [0, -28]
+        });
+
+        const marker = L.marker([parseFloat(loc.latitude), parseFloat(loc.longitude)], { icon });
+        marker.addTo(mapInstance);
+        marker.bindPopup(popupContent);
+
+        // Legend item
+        legendItems.push('<div class="map-legend-item"><span style="color: ' + iconColor + ';">●</span> ' + loc.name + ' (' + formatCurrency(totalAmount) + ')</div>');
+      });
+
+      // Render legend
+      document.getElementById('mapLegend').innerHTML = legendItems.join('');
+
+      // Fit bounds if multiple markers
+      if (Object.keys(locationGroups).length > 1) {
+        mapInstance.fitBounds(bounds, { padding: [20, 20] });
+      }
     }
 
     // ===== RECONDUCTION CHARGES FIXES =====
