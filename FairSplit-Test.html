@@ -1871,25 +1871,25 @@
     <div id="reconductionBanner" class="reconduction-banner" style="display: none;">
       <div class="reconduction-banner-header">
         <span class="reconduction-banner-title">📋 Nouveau mois détecté</span>
-        <button class="reconduction-banner-close" onclick="dismissReconductionBanner()" title="Masquer">✕</button>
+        <button type="button" class="reconduction-banner-close" onclick="dismissReconductionBanner()" title="Masquer">✕</button>
       </div>
       <div class="reconduction-banner-message">
         Voulez-vous reconduire certaines charges fixes du mois précédent ?
       </div>
       <div class="reconduction-banner-actions">
-        <button class="btn btn-secondary" onclick="dismissReconductionBanner()">Non merci</button>
-        <button class="btn btn-primary" onclick="showReconductionModal()">📋 Voir les charges</button>
+        <button type="button" class="btn btn-secondary" onclick="dismissReconductionBanner()">Non merci</button>
+        <button type="button" class="btn btn-primary" onclick="showReconductionModal()">📋 Voir les charges</button>
       </div>
     </div>
 
     <!-- Period Navigation -->
     <div class="card period-navigation">
       <div class="period-selector">
-        <button class="period-arrow" onclick="navigatePeriod(-1)" title="Mois précédent">◀</button>
+        <button type="button" class="period-arrow" onclick="navigatePeriod(-1)" title="Mois précédent">◀</button>
         <select class="period-dropdown" id="periodSelect" onchange="changePeriod()">
           <!-- Populated dynamically -->
         </select>
-        <button class="period-arrow" onclick="navigatePeriod(1)" title="Mois suivant">▶</button>
+        <button type="button" class="period-arrow" onclick="navigatePeriod(1)" title="Mois suivant">▶</button>
       </div>
       <div class="period-info" id="periodInfo">
         <!-- Populated dynamically -->
@@ -1959,7 +1959,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">⚡ Charges Variables</div>
-        <button class="btn btn-primary" onclick="showAddVariableChargeModal()">+ Ajouter</button>
+        <button type="button" class="btn btn-primary" onclick="showAddVariableChargeModal()">+ Ajouter</button>
       </div>
       <div id="variableChargesList">
         <!-- Populated dynamically -->
@@ -1970,7 +1970,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">🔒 Charges Fixes</div>
-        <button class="btn btn-primary" onclick="showAddFixedChargeModal()">+ Ajouter</button>
+        <button type="button" class="btn btn-primary" onclick="showAddFixedChargeModal()">+ Ajouter</button>
       </div>
       <div id="fixedChargesList">
         <!-- Populated dynamically -->
@@ -1981,7 +1981,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">💸 Remboursements</div>
-        <button class="btn btn-primary" onclick="showAddReimbursementModal()">+ Ajouter</button>
+        <button type="button" class="btn btn-primary" onclick="showAddReimbursementModal()">+ Ajouter</button>
       </div>
       <div id="reimbursementsList">
         <!-- Populated dynamically -->
@@ -2031,7 +2031,7 @@
         <div class="gps-stats-content" id="gpsStatsContent">
           <!-- Populated dynamically -->
         </div>
-        <button class="btn btn-primary gps-view-map-btn" onclick="showMapModal()">
+        <button type="button" class="btn btn-primary gps-view-map-btn" onclick="showMapModal()">
           📍 Voir la carte
         </button>
       </div>
@@ -2091,10 +2091,10 @@
 
       <!-- Export Actions -->
       <div class="export-actions">
-        <button class="btn btn-secondary" onclick="exportToCSV()" title="Export compatible Excel">
+        <button type="button" class="btn btn-secondary" onclick="exportToCSV()" title="Export compatible Excel">
           📊 Export CSV
         </button>
-        <button class="btn btn-secondary" onclick="exportToPDF()" title="Imprimer ou sauvegarder en PDF">
+        <button type="button" class="btn btn-secondary" onclick="exportToPDF()" title="Imprimer ou sauvegarder en PDF">
           📄 Imprimer PDF
         </button>
       </div>
@@ -2125,8 +2125,8 @@
         <textarea id="varChargeNote" class="note-textarea" placeholder="Ex: Courses du samedi matin..." rows="2"></textarea>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
-        <button class="btn btn-primary" id="btnAddVariableCharge" onclick="addVariableCharge()" disabled>Ajouter</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnAddVariableCharge" onclick="addVariableCharge()" disabled>Ajouter</button>
       </div>
     </div>
   </div>
@@ -2151,8 +2151,8 @@
         </select>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
-        <button class="btn btn-primary" id="btnAddFixedCharge" onclick="addFixedCharge()" disabled>Ajouter</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnAddFixedCharge" onclick="addFixedCharge()" disabled>Ajouter</button>
       </div>
     </div>
   </div>
@@ -2177,8 +2177,8 @@
         <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" />
       </div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
-        <button class="btn btn-primary" id="btnAddReimbursement" onclick="addReimbursement()" disabled>Ajouter</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnAddReimbursement" onclick="addReimbursement()" disabled>Ajouter</button>
       </div>
     </div>
   </div>
@@ -2220,8 +2220,8 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('modalQuickAdd')">Annuler</button>
-        <button class="btn btn-primary" id="btnQuickAdd" onclick="addQuickCharge()" disabled>✓ Ajouter</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalQuickAdd')">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnQuickAdd" onclick="addQuickCharge()" disabled>✓ Ajouter</button>
       </div>
     </div>
   </div>
@@ -2237,8 +2237,8 @@
         <!-- Populated dynamically -->
       </div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('modalReconduction')">Annuler</button>
-        <button class="btn btn-primary" id="btnDuplicateCharges" onclick="duplicateSelectedCharges()" disabled>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalReconduction')">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnDuplicateCharges" onclick="duplicateSelectedCharges()" disabled>
           ✓ Reconduire (<span id="reconductionCount">0</span>)
         </button>
       </div>
@@ -2258,7 +2258,7 @@
   </div>
 
   <!-- Floating Action Button -->
-  <button class="fab" onclick="showQuickAddModal()" title="Saisie rapide">
+  <button type="button" class="fab" onclick="showQuickAddModal()" title="Saisie rapide">
     ➕
   </button>
 
@@ -2566,13 +2566,13 @@
       salaries.conjointe = parseFloat(document.getElementById('salaireConjointe').value) || 0;
 
       database.ref('salaries').set(salaries).then(() => {
-        // Show saved indicator
         indicator.className = 'save-indicator is-saved';
-
-        // Hide after 2 seconds
         setTimeout(() => {
           indicator.className = 'save-indicator';
         }, 2000);
+      }).catch(() => {
+        indicator.className = 'save-indicator';
+        showToast('Erreur : impossible de sauvegarder les salaires', 'error');
       });
 
       calculateSummary();
@@ -2584,6 +2584,8 @@
         variableCharges,
         reimbursements,
         summary: calculateSummary()
+      }).catch(() => {
+        showToast('Erreur : impossible de sauvegarder les données', 'error');
       });
       // Refresh trends after data change
       loadTrendsData();
@@ -2779,7 +2781,7 @@
               ${reimb.note ? `<div class="reimbursement-date">${reimb.note}</div>` : ''}
               <div class="reimbursement-date">${date}</div>
             </div>
-            <button class="btn-delete" onclick="deleteReimbursement(${reimb.id})">🗑️</button>
+            <button type="button" class="btn-delete" onclick="deleteReimbursement(${reimb.id})">🗑️</button>
           </div>
         `;
       }).join('');
@@ -2948,7 +2950,7 @@
             </div>
           </div>
           <div class="bilan-final-action">
-            <button class="btn btn-primary" onclick="markAsReimbursed(${absBalance}, '${direction.from === 'Vous' ? 'vous-to-conjointe' : 'conjointe-to-vous'}')">
+            <button type="button" class="btn btn-primary" onclick="markAsReimbursed(${absBalance}, '${direction.from === 'Vous' ? 'vous-to-conjointe' : 'conjointe-to-vous'}')">
               ✓ Marquer comme remboursé
             </button>
           </div>
@@ -3592,7 +3594,9 @@
       }
 
       // Save to Firebase
-      database.ref('reminderSettings').set(settings);
+      database.ref('reminderSettings').set(settings).catch(() => {
+        showToast('Erreur : impossible de sauvegarder les paramètres', 'error');
+      });
     }
 
     function loadReminderSettings() {
