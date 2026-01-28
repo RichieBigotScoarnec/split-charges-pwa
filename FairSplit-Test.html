@@ -237,6 +237,129 @@
       padding: 40px 0;
     }
 
+    /* ===== REMINDERS / NOTIFICATIONS ===== */
+    .reminders-section {
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--dark-bg);
+      border-radius: 12px;
+    }
+
+    .reminders-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .reminders-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .reminders-toggle-icon {
+      font-size: 10px;
+      color: var(--text-secondary);
+      transition: transform 0.2s ease;
+    }
+
+    .reminders-toggle-icon.open {
+      transform: rotate(180deg);
+    }
+
+    .reminders-body {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--dark-bg);
+    }
+
+    .reminders-body.open {
+      display: block;
+    }
+
+    .reminder-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .reminder-toggle-label {
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .reminder-toggle-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .reminder-toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+
+    .reminder-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .reminder-toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--dark-bg);
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .reminder-toggle-slider::before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    .reminder-toggle input:checked + .reminder-toggle-slider {
+      background-color: var(--primary-color);
+    }
+
+    .reminder-toggle input:checked + .reminder-toggle-slider::before {
+      transform: translateX(20px);
+    }
+
+    .notifications-status {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .notifications-status.granted {
+      color: var(--success-color);
+    }
+
+    .notifications-status.denied {
+      color: var(--danger-color);
+    }
+
     /* ===== PERIOD NAVIGATION ===== */
     .period-navigation {
       background: var(--card-bg);
@@ -1710,6 +1833,51 @@
         </div>
       </div>
 
+      <!-- Reminders / Notifications -->
+      <div class="reminders-section">
+        <div class="reminders-header" onclick="toggleRemindersPanel()">
+          <div class="reminders-header-left">
+            <span>🔔</span> Rappels et Notifications
+          </div>
+          <span class="reminders-toggle-icon" id="remindersToggleIcon">▼</span>
+        </div>
+        <div class="reminders-body" id="remindersBody">
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Fin de mois</div>
+              <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderFinMois" onchange="saveReminderSettings()" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Budget dépassé</div>
+              <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderBudget" onchange="saveReminderSettings()" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Remboursement en attente</div>
+              <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderReimbursement" onchange="saveReminderSettings()" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div id="notificationsStatus" class="notifications-status">
+            📱 Activez les notifications pour recevoir les rappels
+          </div>
+        </div>
+      </div>
+
       <!-- Export Actions -->
       <div class="export-actions">
         <button class="btn btn-secondary" onclick="exportToCSV()" title="Export compatible Excel">
@@ -3076,6 +3244,138 @@
       `;
     }
 
+    // ===== REMINDERS & NOTIFICATIONS =====
+
+    function toggleRemindersPanel() {
+      const body = document.getElementById('remindersBody');
+      const icon = document.getElementById('remindersToggleIcon');
+      body.classList.toggle('open');
+      icon.classList.toggle('open');
+    }
+
+    async function requestNotificationPermission() {
+      if (!('Notification' in window)) {
+        updateNotificationStatus('Les notifications ne sont pas supportées dans votre navigateur', 'denied');
+        return false;
+      }
+
+      if (Notification.permission === 'granted') {
+        updateNotificationStatus('✓ Notifications activées', 'granted');
+        return true;
+      }
+
+      if (Notification.permission === 'denied') {
+        updateNotificationStatus('✗ Notifications bloquées — veuillez activer dans les paramètres du navigateur', 'denied');
+        return false;
+      }
+
+      // Request permission
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        updateNotificationStatus('✓ Notifications activées', 'granted');
+        return true;
+      } else {
+        updateNotificationStatus('✗ Permission refusée', 'denied');
+        return false;
+      }
+    }
+
+    function updateNotificationStatus(message, statusClass) {
+      const el = document.getElementById('notificationsStatus');
+      el.textContent = message;
+      el.className = 'notifications-status' + (statusClass ? ' ' + statusClass : '');
+    }
+
+    function saveReminderSettings() {
+      const settings = {
+        finMois: document.getElementById('reminderFinMois').checked,
+        budget: document.getElementById('reminderBudget').checked,
+        reimbursement: document.getElementById('reminderReimbursement').checked
+      };
+
+      // Request notification permission if any toggle is on
+      if (settings.finMois || settings.budget || settings.reimbursement) {
+        requestNotificationPermission();
+      }
+
+      // Save to Firebase
+      database.ref('reminderSettings').set(settings);
+    }
+
+    function loadReminderSettings() {
+      database.ref('reminderSettings').once('value', snapshot => {
+        if (snapshot.exists()) {
+          const settings = snapshot.val();
+          document.getElementById('reminderFinMois').checked = settings.finMois || false;
+          document.getElementById('reminderBudget').checked = settings.budget || false;
+          document.getElementById('reminderReimbursement').checked = settings.reimbursement || false;
+        }
+
+        // Check current notification permission status
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            updateNotificationStatus('✓ Notifications activées', 'granted');
+          } else if (Notification.permission === 'denied') {
+            updateNotificationStatus('✗ Notifications bloquées — activez dans les paramètres', 'denied');
+          }
+        }
+      });
+    }
+
+    function checkAndSendReminders() {
+      const settings = {
+        finMois: document.getElementById('reminderFinMois').checked,
+        budget: document.getElementById('reminderBudget').checked,
+        reimbursement: document.getElementById('reminderReimbursement').checked
+      };
+
+      if (Notification.permission !== 'granted') return;
+
+      const today = new Date();
+      const dayOfMonth = today.getDate();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+      // Fin de mois reminder (last 3 days of month)
+      if (settings.finMois && dayOfMonth >= daysInMonth - 2) {
+        const totalCharges = [...fixedCharges, ...variableCharges].length;
+        if (totalCharges === 0) {
+          sendNotification('💰 FairSplit — Fin de mois', 'Vous n\'avez pas encore enregistré de charges pour ce mois !');
+        }
+      }
+
+      // Budget exceeded reminder
+      if (settings.budget) {
+        const totalAmount = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
+        // Simple heuristic: if current charges > 120% of average of previous months
+        // For now, alert if total > 3000€ (configurable later)
+        if (totalAmount > 3000) {
+          sendNotification('⚠️ FairSplit — Budget élevé', 'Vos charges ce mois atteignent ' + formatCurrency(totalAmount));
+        }
+      }
+
+      // Reimbursement reminder (if balance != 0 for > 7 days)
+      if (settings.reimbursement && reimbursements.length === 0) {
+        const totalAmount = [...fixedCharges, ...variableCharges].reduce((sum, c) => sum + c.amount, 0);
+        if (totalAmount > 500 && dayOfMonth > 7) {
+          const summary = calculateSummary();
+          if (summary.yourBalance && Math.abs(summary.yourBalance) > 50) {
+            sendNotification('💸 FairSplit — Remboursement en attente', 'Un remboursement de ' + formatCurrency(Math.abs(summary.yourBalance)) + ' est en attente');
+          }
+        }
+      }
+    }
+
+    function sendNotification(title, body) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: '💰',
+          badge: '🔔',
+          silent: false
+        });
+      }
+    }
+
     // ===== TRENDS / EVOLUTION HISTORIQUE =====
 
     async function loadTrendsData() {
@@ -3635,6 +3935,9 @@
       loadPeriodData();
       loadShareMode();
       loadTrendsData();
+      loadReminderSettings();
+      // Check reminders after data is loaded (small delay)
+      setTimeout(checkAndSendReminders, 2000);
       showToast('FairSplit TEST chargé', 'success');
       console.log('🔧 FairSplit TEST Environment');
       console.log('📅 Current Period:', currentPeriod);
