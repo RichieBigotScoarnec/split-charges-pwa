@@ -1,0 +1,440 @@
+/* ===== BILAN FINAL ===== */
+.bilan-final {
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.1), rgba(255, 152, 0, 0.1));
+  border: 2px solid var(--primary-color);
+  border-radius: 15px;
+  padding: 25px;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.bilan-final-header {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.bilan-final-amount {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 15px 0;
+  color: var(--text-primary);
+}
+
+.bilan-final-direction {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 15px;
+}
+
+.bilan-final-balanced {
+  color: var(--success-color);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.bilan-final-action {
+  margin-top: 15px;
+}
+
+.bilan-final-details {
+  background: var(--dark-bg);
+  border-radius: 10px;
+  padding: 15px;
+  margin-top: 15px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.bilan-final-details-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.bilan-final-details-row:last-child {
+  margin-bottom: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ===== ANALYSE PAR CATEGORIE ===== */
+.category-analysis {
+  margin-top: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.05), rgba(255, 152, 0, 0.05));
+  border: 2px solid var(--primary-color);
+  border-radius: 15px;
+}
+
+.category-analysis-header {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.category-chart-container {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.category-chart {
+  flex-shrink: 0;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.category-chart-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  background: var(--card-bg);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.category-chart-center-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.category-legend {
+  flex: 1;
+  min-width: 250px;
+}
+
+.category-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--dark-bg);
+  border-radius: 10px;
+  border-left: 4px solid currentColor;
+}
+
+.category-legend-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-legend-icon {
+  font-size: 20px;
+}
+
+.category-legend-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.category-legend-right {
+  text-align: right;
+}
+
+.category-legend-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.category-legend-percentage {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.no-category-data {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 30px;
+  font-size: 14px;
+}
+
+/* ===== TRENDS CHART ===== */
+.trends-section {
+  margin-top: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.05), rgba(103, 58, 183, 0.05));
+  border: 2px solid var(--secondary-color);
+  border-radius: 15px;
+}
+
+.trends-header {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--secondary-color);
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.trends-chart-container {
+  width: 100%;
+  height: 200px;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.trends-chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.trends-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.trends-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.trends-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.trends-loading {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+/* ===== REMINDERS / NOTIFICATIONS ===== */
+.reminders-section {
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--dark-bg);
+  border-radius: 12px;
+}
+
+.reminders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.reminders-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.reminders-toggle-icon {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.reminders-toggle-icon.open {
+  transform: rotate(180deg);
+}
+
+.reminders-body {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dark-bg);
+}
+
+.reminders-body.open {
+  display: block;
+}
+
+.reminder-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.reminder-toggle-label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.reminder-toggle-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.budget-input-row {
+  padding: 0 16px 8px;
+  display: none;
+}
+
+.budget-input-row.visible {
+  display: block;
+}
+
+.budget-input-row label {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.budget-input-row input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+.reminder-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.reminder-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.reminder-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--dark-bg);
+  border-radius: 24px;
+  transition: 0.3s;
+}
+
+.reminder-toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.reminder-toggle input:checked + .reminder-toggle-slider {
+  background-color: var(--primary-color);
+}
+
+.reminder-toggle input:checked + .reminder-toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.notifications-status {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.notifications-status.granted {
+  color: var(--success-color);
+}
+
+.notifications-status.denied {
+  color: var(--danger-color);
+}
+
+/* ===== CARTE GPS & STATS LIEUX ===== */
+.gps-stats-section {
+  margin-top: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), rgba(3, 169, 244, 0.05));
+  border: 2px solid var(--info-color);
+  border-radius: 15px;
+}
+
+.gps-stats-header {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--info-color);
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.gps-stats-content {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.gps-stats-item {
+  flex: 1;
+  min-width: 150px;
+  padding: 15px;
+  background: var(--dark-bg);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.gps-stats-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.gps-stats-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--info-color);
+}
+
+.gps-stats-grid {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.gps-view-map-btn {
+  width: 100%;
+  margin-top: 15px;
+}

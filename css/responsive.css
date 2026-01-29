@@ -1,0 +1,147 @@
+/* ===== PRINT CSS (for PDF export) ===== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* Hide interactive elements */
+  .fab, .btn, button, .modal-overlay, .reconduction-banner,
+  .export-actions, .period-navigation, .card-header button,
+  .btn-delete, .save-indicator {
+    display: none !important;
+  }
+
+  /* Hide unnecessary sections */
+  .share-mode-selector {
+    display: none !important;
+  }
+
+  /* Optimize spacing */
+  .card {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+  }
+
+  .card-header {
+    background: #f5f5f5;
+    border-bottom: 1px solid #ccc;
+    page-break-after: avoid;
+  }
+
+  /* Make sure charts and tables fit */
+  .category-chart-container {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure readability */
+  .charge-item, .reimbursement-item, .reconduction-preview-item {
+    border: 1px solid #eee;
+    page-break-inside: avoid;
+  }
+
+  /* Add page header */
+  @page {
+    margin: 2cm;
+  }
+
+  header {
+    text-align: center;
+    border-bottom: 2px solid black;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 600px) {
+  .container {
+    padding: 10px;
+  }
+
+  header {
+    padding: 20px 15px;
+  }
+
+  header h1 {
+    font-size: 24px;
+  }
+
+  .salaries-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charge-item {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fab {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+    bottom: 80px;
+    right: 20px;
+  }
+
+  .category-btn .category-icon {
+    font-size: 22px;
+  }
+
+  .category-btn {
+    aspect-ratio: auto;
+    gap: 3px;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal {
+    padding: 18px;
+  }
+
+  .modal-header {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  .quick-add-location {
+    margin-bottom: 6px;
+    min-height: 14px;
+    font-size: 11px;
+  }
+
+  .quick-add-header {
+    margin-bottom: 8px;
+  }
+
+  .amount-input-large {
+    margin-bottom: 10px;
+  }
+
+  .amount-input-large input {
+    padding: 10px 36px 10px 10px;
+    font-size: 20px;
+  }
+
+  .payer-toggle {
+    margin-bottom: 10px;
+  }
+
+  .modal-actions {
+    margin-top: 10px;
+  }
+}

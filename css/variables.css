@@ -1,0 +1,16 @@
+/* ===== VARIABLES CSS ===== */
+:root {
+  --primary-color: #ff5722;
+  --primary-dark: #d84315;
+  --secondary-color: #ff9800;
+  --success-color: #4caf50;
+  --danger-color: #f44336;
+  --warning-color: #ff9800;
+  --info-color: #2196f3;
+  --dark-bg: #1a1a2e;
+  --card-bg: #16213e;
+  --text-primary: #ffffff;
+  --text-secondary: #c5c5c5;
+  --border-color: #2d3561;
+  --shadow: 0 8px 32px rgba(255, 87, 34, 0.15);
+}
