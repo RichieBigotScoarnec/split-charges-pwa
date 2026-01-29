@@ -600,6 +600,13 @@
       color: var(--warning-color);
     }
 
+    .charge-split {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
     .btn-delete {
       background: var(--danger-color);
       color: white;
@@ -2296,11 +2303,11 @@
       </div>
 
       <div class="quick-add-header">
-        <strong>Payé par</strong>
+        <strong>Répartition</strong>
       </div>
       <div class="payer-toggle">
-        <button type="button" id="quickPayerVous" class="selected">Vous</button>
-        <button type="button" id="quickPayerConjointe">Conjointe</button>
+        <button type="button" id="quickSplitProrata" class="selected">📊 Prorata</button>
+        <button type="button" id="quickSplit5050">⚖️ 50-50</button>
       </div>
 
       <div class="modal-actions">
@@ -2505,7 +2512,7 @@
     let customPercents = { vous: 50, conjointe: 50 };
     let quickAddState = {
       selectedCategory: null,
-      selectedPayer: 'vous',
+      splitMode: 'prorata',
       gpsLocation: null
     };
 
@@ -2929,6 +2936,37 @@
     }
 
     // ===== RENDERING =====
+    // Helper function: Calculate individual shares based on charge split mode
+    function calculateIndividualShares(charge) {
+      const amount = charge.amount || 0;
+      const totalSalaries = salaries.vous + salaries.conjointe;
+      let yourShare = 0;
+      let partnerShare = 0;
+
+      // Pour les anciennes charges sans splitMode, utiliser prorata par défaut
+      const splitMode = charge.splitMode || 'prorata';
+
+      if (splitMode === '50-50') {
+        yourShare = amount * 0.5;
+        partnerShare = amount * 0.5;
+      } else if (splitMode === 'custom' && charge.customSplit) {
+        yourShare = amount * (charge.customSplit.vous / 100);
+        partnerShare = amount * (charge.customSplit.conjointe / 100);
+      } else {
+        // Prorata (défaut)
+        if (totalSalaries > 0) {
+          yourShare = amount * (salaries.vous / totalSalaries);
+          partnerShare = amount * (salaries.conjointe / totalSalaries);
+        } else {
+          // Fallback 50-50 si pas de salaires
+          yourShare = amount * 0.5;
+          partnerShare = amount * 0.5;
+        }
+      }
+
+      return { yourShare, partnerShare };
+    }
+
     function renderVariableCharges() {
       const list = document.getElementById('variableChargesList');
       const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -2956,13 +2994,19 @@
         const gpsIndicator = (charge.locationName || charge.location) ? ' 📍' : '';
         const noteHTML = charge.note ? `<div class="charge-note">📝 ${escapeHtml(charge.note)}</div>` : '';
 
+        // Calculate individual shares
+        const shares = calculateIndividualShares(charge);
+        const splitModeLabel = charge.splitMode === '50-50' ? '50-50' : (charge.splitMode === 'custom' ? 'Custom' : 'Prorata');
+        const paymentTypeLabel = charge.paymentType === 'joint' ? 'Compte joint' : (charge.paymentType === 'vous' ? 'Vous' : (charge.paymentType === 'conjointe' ? 'Conjointe' : charge.payeur === 'vous' ? 'Vous' : 'Conjointe'));
+
         return `
           <div class="charge-item">
             <div class="charge-info">
               <div class="charge-name">${icon} ${escapeHtml(charge.name)}${locationInfo}${gpsIndicator}</div>
               ${noteHTML}
               <div class="charge-amount">${formatCurrency(charge.amount)}</div>
-              <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
+              <div class="charge-payeur">${paymentTypeLabel} · ${splitModeLabel}</div>
+              <div class="charge-split">Vous: ${formatCurrency(shares.yourShare)} | Conjointe: ${formatCurrency(shares.partnerShare)}</div>
             </div>
             <button type="button" class="btn-delete" onclick="deleteCharge('variable', ${charge.id})">🗑️</button>
           </div>
@@ -2986,16 +3030,24 @@
         return;
       }
 
-      list.innerHTML = charges.map(charge => `
-        <div class="charge-item">
-          <div class="charge-info">
-            <div class="charge-name">${escapeHtml(charge.name)}</div>
-            <div class="charge-amount">${formatCurrency(charge.amount)}</div>
-            <div class="charge-payeur">Payé par: ${charge.payeur === 'vous' ? 'Vous' : 'Conjointe'}</div>
+      list.innerHTML = charges.map(charge => {
+        // Calculate individual shares
+        const shares = calculateIndividualShares(charge);
+        const splitModeLabel = charge.splitMode === '50-50' ? '50-50' : (charge.splitMode === 'custom' ? 'Custom' : 'Prorata');
+        const paymentTypeLabel = charge.paymentType === 'joint' ? 'Compte joint' : (charge.paymentType === 'vous' ? 'Vous' : (charge.paymentType === 'conjointe' ? 'Conjointe' : charge.payeur === 'vous' ? 'Vous' : 'Conjointe'));
+
+        return `
+          <div class="charge-item">
+            <div class="charge-info">
+              <div class="charge-name">${escapeHtml(charge.name)}</div>
+              <div class="charge-amount">${formatCurrency(charge.amount)}</div>
+              <div class="charge-payeur">${paymentTypeLabel} · ${splitModeLabel}</div>
+              <div class="charge-split">Vous: ${formatCurrency(shares.yourShare)} | Conjointe: ${formatCurrency(shares.partnerShare)}</div>
+            </div>
+            <button type="button" class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
           </div>
-          <button type="button" class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function renderReimbursements() {
@@ -3251,9 +3303,9 @@
       }
     });
 
-    // Payer toggle buttons
-    document.getElementById('quickPayerVous').addEventListener('click', () => updatePayerToggle('vous'));
-    document.getElementById('quickPayerConjointe').addEventListener('click', () => updatePayerToggle('conjointe'));
+    // Split mode toggle buttons
+    document.getElementById('quickSplitProrata').addEventListener('click', () => updateSplitToggle('prorata'));
+    document.getElementById('quickSplit5050').addEventListener('click', () => updateSplitToggle('50-50'));
 
     // Close modal on overlay click
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -3280,13 +3332,13 @@
     function showQuickAddModal() {
       // Reset state
       quickAddState.selectedCategory = null;
-      quickAddState.selectedPayer = 'vous';
+      quickAddState.splitMode = 'prorata';
       quickAddState.gpsLocation = null;
 
       // Reset UI
       document.getElementById('quickAddAmount').value = '';
       document.getElementById('btnQuickAdd').disabled = true;
-      updatePayerToggle('vous');
+      updateSplitToggle('prorata');
 
       // Populate categories
       populateCategories();
@@ -3334,10 +3386,10 @@
     }
 
     // Update payer toggle
-    function updatePayerToggle(payer) {
-      quickAddState.selectedPayer = payer;
-      document.getElementById('quickPayerVous').classList.toggle('selected', payer === 'vous');
-      document.getElementById('quickPayerConjointe').classList.toggle('selected', payer === 'conjointe');
+    function updateSplitToggle(mode) {
+      quickAddState.splitMode = mode;
+      document.getElementById('quickSplitProrata').classList.toggle('selected', mode === 'prorata');
+      document.getElementById('quickSplit5050').classList.toggle('selected', mode === '50-50');
     }
 
     // Validate quick add form
@@ -3475,7 +3527,7 @@
     async function addQuickCharge() {
       const amount = parseFloat(document.getElementById('quickAddAmount').value);
       const category = quickAddState.selectedCategory;
-      const payer = quickAddState.selectedPayer;
+      const splitMode = quickAddState.splitMode;
       const location = quickAddState.gpsLocation;
 
       if (!category || !amount || amount <= 0) {
@@ -3501,10 +3553,11 @@
         id: Date.now(),
         name: category.label,
         amount: amount,
+        paymentType: 'joint', // Toujours compte joint pour saisie rapide
+        splitMode: splitMode, // 'prorata' ou '50-50'
         category: category.id,
         categoryLabel: category.label,
         categoryIcon: category.icon,
-        payeur: payer,
         date: new Date().toISOString(),
         location: location ? {
           lat: location.lat,
@@ -3518,7 +3571,9 @@
       savePeriodData();
       renderVariableCharges();
       closeModal('modalQuickAdd');
-      showToastWithUndo(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)}`, () => {
+
+      const modeLabel = splitMode === 'prorata' ? 'Prorata' : '50-50';
+      showToastWithUndo(`✓ ${category.icon} ${category.label} - ${formatCurrency(amount)} (${modeLabel})`, () => {
         variableCharges = variableCharges.filter(c => c.id !== charge.id);
         savePeriodData();
         renderVariableCharges();
