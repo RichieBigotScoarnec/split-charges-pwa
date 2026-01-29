@@ -3096,32 +3096,39 @@
       // Calculate total charges
       const totalCharges = activeCharges.reduce((sum, c) => sum + (c.amount || 0), 0);
 
-      // Calculate shares based on selected mode
-      let yourRatio, partnerRatio;
+      // Calculate theoretical shares (ce que chacun DEVRAIT payer selon splitMode de chaque charge)
+      let yourTheoricalShare = 0;
+      let partnerTheoricalShare = 0;
 
-      if (shareMode === '50-50') {
-        yourRatio = 0.5;
-        partnerRatio = 0.5;
-      } else if (shareMode === 'custom') {
-        yourRatio = customPercents.vous / 100;
-        partnerRatio = customPercents.conjointe / 100;
-      } else {
-        // Default: prorata based on salaries
-        yourRatio = salaries.vous / totalSalaries;
-        partnerRatio = salaries.conjointe / totalSalaries;
-      }
+      // Calculate actual payments (ce que chacun a RÉELLEMENT payé selon paymentType)
+      let yourActualPayments = 0;
+      let partnerActualPayments = 0;
 
-      const yourTheoricalShare = totalCharges * yourRatio;
-      const partnerTheoricalShare = totalCharges * partnerRatio;
+      activeCharges.forEach(charge => {
+        // Theoretical shares based on charge splitMode
+        const shares = calculateIndividualShares(charge);
+        yourTheoricalShare += shares.yourShare;
+        partnerTheoricalShare += shares.partnerShare;
 
-      // Calculate actual payments
-      const yourActualPayments = activeCharges
-        .filter(c => c.payeur === 'vous')
-        .reduce((sum, c) => sum + (c.amount || 0), 0);
+        // Actual payments based on paymentType
+        const paymentType = charge.paymentType || (charge.payeur === 'vous' ? 'vous' : 'conjointe'); // Fallback pour anciennes charges
 
-      const partnerActualPayments = activeCharges
-        .filter(c => c.payeur === 'conjointe')
-        .reduce((sum, c) => sum + (c.amount || 0), 0);
+        if (paymentType === 'joint') {
+          // Compte joint : chacun a payé sa part théorique (pas de dette)
+          yourActualPayments += shares.yourShare;
+          partnerActualPayments += shares.partnerShare;
+        } else if (paymentType === 'vous') {
+          // Vous avez payé 100%
+          yourActualPayments += charge.amount;
+        } else if (paymentType === 'conjointe') {
+          // Conjointe a payé 100%
+          partnerActualPayments += charge.amount;
+        } else if (paymentType === 'both' && charge.paidBy) {
+          // Les deux ont payé (montants spécifiques)
+          yourActualPayments += charge.paidBy.vous || 0;
+          partnerActualPayments += charge.paidBy.conjointe || 0;
+        }
+      });
 
       // Calculate net reimbursements already made
       const netReimbursement = activeReimbs.reduce((sum, r) => {
