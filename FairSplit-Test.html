@@ -2012,7 +2012,7 @@
     <div class="search-bar-container">
       <div class="search-bar">
         <span class="search-bar-icon">🔍</span>
-        <input type="search" id="searchInput" placeholder="Rechercher une charge..." oninput="handleSearch()" />
+        <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
         <button type="button" class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" title="Effacer">✕</button>
       </div>
       <div class="search-results-info" id="searchResultsInfo"></div>
@@ -2223,7 +2223,7 @@
       <div class="modal-header">Ajouter Charge Variable</div>
       <div class="form-group">
         <label>Nom de la charge</label>
-        <input type="text" id="varChargeName" placeholder="Ex: Courses" />
+        <input type="text" id="varChargeName" placeholder="Ex: Courses" maxlength="100" />
       </div>
       <div class="form-group">
         <label>Montant (€)</label>
@@ -2265,7 +2265,7 @@
       </div>
       <div class="form-group">
         <label>Note (optionnel)</label>
-        <textarea id="varChargeNote" class="note-textarea" placeholder="Ex: Courses du samedi matin..." rows="2"></textarea>
+        <textarea id="varChargeNote" class="note-textarea" placeholder="Ex: Courses du samedi matin..." rows="2" maxlength="500"></textarea>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
@@ -2280,7 +2280,7 @@
       <div class="modal-header">Ajouter Charge Fixe</div>
       <div class="form-group">
         <label>Nom de la charge</label>
-        <input type="text" id="fixedChargeName" placeholder="Ex: Loyer, Nounou, Crédit..." />
+        <input type="text" id="fixedChargeName" placeholder="Ex: Loyer, Nounou, Crédit..." maxlength="100" />
       </div>
       <div class="form-group">
         <label>Montant (€)</label>
@@ -2322,7 +2322,7 @@
       </div>
       <div class="form-group">
         <label>Note (optionnel)</label>
-        <textarea id="fixedChargeNote" class="note-textarea" placeholder="Ex: Prélèvement automatique le 5 du mois..." rows="2"></textarea>
+        <textarea id="fixedChargeNote" class="note-textarea" placeholder="Ex: Prélèvement automatique le 5 du mois..." rows="2" maxlength="500"></textarea>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
@@ -2348,7 +2348,7 @@
       </div>
       <div class="form-group">
         <label>Note (optionnel)</label>
-        <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" />
+        <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" maxlength="200" />
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
@@ -2616,6 +2616,15 @@
       const div = document.createElement('div');
       div.textContent = String(unsafe);
       return div.innerHTML;
+    }
+
+    // Debounce utility for performance optimization
+    function debounce(func, delay) {
+      let timeoutId;
+      return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+      };
     }
 
     // Adjust toast position when Android virtual keyboard appears
@@ -3586,8 +3595,16 @@
     }
 
     // ===== EVENT LISTENERS =====
+    // Protection against duplicate initialization
+    if (!window.fairSplitEventListenersInitialized) {
+      window.fairSplitEventListenersInitialized = true;
+
     document.getElementById('salaireVous').addEventListener('change', saveSalaries);
     document.getElementById('salaireConjointe').addEventListener('change', saveSalaries);
+
+    // Search with debounce (300ms) for performance
+    const debouncedSearch = debounce(handleSearch, 300);
+    document.getElementById('searchInput').addEventListener('input', debouncedSearch);
 
     // Custom percentages validation
     document.getElementById('customPercentYou').addEventListener('input', validateCustomPercents);
@@ -3634,6 +3651,8 @@
         }
       }
     });
+
+    } // End of event listeners initialization protection
 
     // ===== QUICK ADD (SAISIE EXPRESS) =====
 
@@ -4015,7 +4034,7 @@
 
       const validationEl = document.getElementById('shareModeValidation');
 
-      if (total === 100 && yourPercent > 0 && partnerPercent > 0) {
+      if (total === 100 && yourPercent >= 0 && partnerPercent >= 0) {
         validationEl.textContent = '✓ Répartition valide';
         validationEl.className = 'share-mode-validation valid';
         customPercents.vous = yourPercent;
