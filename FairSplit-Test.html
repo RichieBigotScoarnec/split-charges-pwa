@@ -2679,6 +2679,11 @@
         document.getElementById('varChargeNote').value = '';
         document.getElementById('varChargePaymentType').value = 'joint';
         document.getElementById('varChargeSplitMode').value = 'prorata';
+        // Reset conditional fields
+        document.getElementById('varPaidByYou').value = '';
+        document.getElementById('varPaidByPartner').value = '';
+        document.getElementById('varCustomYou').value = '';
+        document.getElementById('varCustomPartner').value = '';
         toggleVarPaymentDetails();
         toggleVarCustomSplit();
         document.getElementById('btnAddVariableCharge').disabled = true;
@@ -2692,6 +2697,11 @@
         document.getElementById('fixedChargeNote').value = '';
         document.getElementById('fixedChargePaymentType').value = 'joint';
         document.getElementById('fixedChargeSplitMode').value = 'prorata';
+        // Reset conditional fields
+        document.getElementById('fixedPaidByYou').value = '';
+        document.getElementById('fixedPaidByPartner').value = '';
+        document.getElementById('fixedCustomYou').value = '';
+        document.getElementById('fixedCustomPartner').value = '';
         toggleFixedPaymentDetails();
         toggleFixedCustomSplit();
         document.getElementById('btnAddFixedCharge').disabled = true;
@@ -2702,7 +2712,33 @@
       } else if (modalId === 'modalAddReimbursement') {
         document.getElementById('reimbursementAmount').value = '';
         document.getElementById('reimbursementNote').value = '';
+        document.getElementById('reimbursementDirection').value = 'from-you';
         document.getElementById('btnAddReimbursement').disabled = true;
+        // Reset submit button text and editing state
+        const submitBtn = document.querySelector('#modalAddReimbursement .btn-primary');
+        if (submitBtn) submitBtn.textContent = 'Ajouter';
+        editingCharge = null;
+      } else if (modalId === 'modalQuickAdd') {
+        document.getElementById('quickAddAmount').value = '';
+        document.getElementById('btnQuickAdd').disabled = true;
+        const locationEl = document.getElementById('quickAddLocation');
+        if (locationEl) {
+          locationEl.textContent = '';
+          locationEl.className = 'quick-add-location';
+        }
+        // Reset quickAddState
+        quickAddState.selectedCategory = null;
+        quickAddState.splitMode = 'prorata';
+        quickAddState.gpsLocation = null;
+        // Clear category selection
+        document.querySelectorAll('.category-btn').forEach(btn => {
+          btn.classList.remove('selected');
+        });
+        // Reset split toggle to prorata
+        const prorataBtn = document.getElementById('quickSplitProrata');
+        const fiftyBtn = document.getElementById('quickSplit5050');
+        if (prorataBtn) prorataBtn.classList.add('selected');
+        if (fiftyBtn) fiftyBtn.classList.remove('selected');
       }
     }
 
@@ -2721,22 +2757,22 @@
     // ===== REAL-TIME VALIDATION =====
     function validateVariableChargeForm() {
       const name = document.getElementById('varChargeName').value.trim();
-      const amount = parseFloat(document.getElementById('varChargeAmount').value) || 0;
+      const amount = parseFloat(document.getElementById('varChargeAmount').value);
       const submitBtn = document.getElementById('btnAddVariableCharge');
-      submitBtn.disabled = !name || amount <= 0;
+      submitBtn.disabled = !name || amount <= 0 || isNaN(amount);
     }
 
     function validateFixedChargeForm() {
       const name = document.getElementById('fixedChargeName').value.trim();
-      const amount = parseFloat(document.getElementById('fixedChargeAmount').value) || 0;
+      const amount = parseFloat(document.getElementById('fixedChargeAmount').value);
       const submitBtn = document.getElementById('btnAddFixedCharge');
-      submitBtn.disabled = !name || amount <= 0;
+      submitBtn.disabled = !name || amount <= 0 || isNaN(amount);
     }
 
     function validateReimbursementForm() {
-      const amount = parseFloat(document.getElementById('reimbursementAmount').value) || 0;
+      const amount = parseFloat(document.getElementById('reimbursementAmount').value);
       const submitBtn = document.getElementById('btnAddReimbursement');
-      submitBtn.disabled = amount <= 0;
+      submitBtn.disabled = amount <= 0 || isNaN(amount);
     }
 
     // ===== PERIOD MANAGEMENT =====
@@ -3117,7 +3153,7 @@
         const submitBtn = document.querySelector('#modalAddVariableCharge .btn-primary');
         submitBtn.textContent = '✓ Modifier';
 
-        openModal('modalAddVariableCharge');
+        showModal('modalAddVariableCharge');
       } else {
         // Pre-fill fixed charge modal
         document.getElementById('fixedChargeName').value = charge.name || '';
@@ -3143,7 +3179,7 @@
         const submitBtn = document.querySelector('#modalAddFixedCharge .btn-primary');
         submitBtn.textContent = '✓ Modifier';
 
-        openModal('modalAddFixedCharge');
+        showModal('modalAddFixedCharge');
       }
     }
 
