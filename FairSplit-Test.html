@@ -607,6 +607,23 @@
       font-weight: 500;
     }
 
+    .btn-edit {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      margin-right: 8px;
+    }
+
+    .btn-edit:hover {
+      background: #5a6fd8;
+      transform: scale(1.05);
+    }
+
     .btn-delete {
       background: var(--danger-color);
       color: white;
@@ -621,6 +638,12 @@
     .btn-delete:hover {
       background: #d32f2f;
       transform: scale(1.05);
+    }
+
+    .charge-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
 
     /* ===== FORMS ===== */
@@ -2569,6 +2592,7 @@
       splitMode: 'prorata',
       gpsLocation: null
     };
+    let editingCharge = null; // Stores { type: 'variable'|'fixed', id: number } when editing
 
     // ===== UTILITY FUNCTIONS =====
     function getCurrentPeriodString() {
@@ -2649,11 +2673,28 @@
         document.getElementById('varChargeName').value = '';
         document.getElementById('varChargeAmount').value = '';
         document.getElementById('varChargeNote').value = '';
+        document.getElementById('varChargePaymentType').value = 'joint';
+        document.getElementById('varChargeSplitMode').value = 'prorata';
+        toggleVarPaymentDetails();
+        toggleVarCustomSplit();
         document.getElementById('btnAddVariableCharge').disabled = true;
+        // Reset submit button text and editing state
+        const submitBtn = document.querySelector('#modalAddVariableCharge .btn-primary');
+        submitBtn.textContent = '✓ Ajouter';
+        if (editingCharge && editingCharge.type === 'variable') editingCharge = null;
       } else if (modalId === 'modalAddFixedCharge') {
         document.getElementById('fixedChargeName').value = '';
         document.getElementById('fixedChargeAmount').value = '';
+        document.getElementById('fixedChargeNote').value = '';
+        document.getElementById('fixedChargePaymentType').value = 'joint';
+        document.getElementById('fixedChargeSplitMode').value = 'prorata';
+        toggleFixedPaymentDetails();
+        toggleFixedCustomSplit();
         document.getElementById('btnAddFixedCharge').disabled = true;
+        // Reset submit button text and editing state
+        const submitBtn = document.querySelector('#modalAddFixedCharge .btn-primary');
+        submitBtn.textContent = '✓ Ajouter';
+        if (editingCharge && editingCharge.type === 'fixed') editingCharge = null;
       } else if (modalId === 'modalAddReimbursement') {
         document.getElementById('reimbursementAmount').value = '';
         document.getElementById('reimbursementNote').value = '';
@@ -2898,20 +2939,25 @@
         return;
       }
 
-      const newCharge = {
-        id: Date.now(),
+      // Check if we're editing an existing charge
+      const isEditing = editingCharge && editingCharge.type === 'variable';
+      const charge = isEditing ? variableCharges.find(c => c.id === editingCharge.id) : {};
+
+      // Build charge data
+      const chargeData = {
+        id: isEditing ? charge.id : Date.now(),
         name,
         amount,
         paymentType,
         splitMode,
-        date: new Date().toISOString()
+        date: isEditing ? charge.date : new Date().toISOString()
       };
 
       // If payment type is "both", store individual amounts
       if (paymentType === 'both') {
         const paidYou = parseFloat(document.getElementById('varPaidByYou').value) || 0;
         const paidPartner = parseFloat(document.getElementById('varPaidByPartner').value) || 0;
-        newCharge.paidBy = { vous: paidYou, conjointe: paidPartner };
+        chargeData.paidBy = { vous: paidYou, conjointe: paidPartner };
       }
 
       // If split mode is custom, store percentages
@@ -2922,20 +2968,28 @@
           showToast('Les pourcentages doivent totaliser 100%', 'error');
           return;
         }
-        newCharge.customSplit = { vous: customYou, conjointe: customPartner };
+        chargeData.customSplit = { vous: customYou, conjointe: customPartner };
       }
 
-      if (note) newCharge.note = note;
-      variableCharges.push(newCharge);
+      if (note) chargeData.note = note;
+
+      // Update existing charge or add new one
+      if (isEditing) {
+        Object.assign(charge, chargeData);
+        editingCharge = null;
+        showToast(`✓ Charge modifiée`, 'success');
+      } else {
+        variableCharges.push(chargeData);
+        showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
+          variableCharges = variableCharges.filter(c => c.id !== chargeData.id);
+          savePeriodData();
+          renderVariableCharges();
+        }, 'Supprimer');
+      }
 
       savePeriodData();
       renderVariableCharges();
       closeModal('modalAddVariableCharge');
-      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
-        variableCharges = variableCharges.filter(c => c.id !== newCharge.id);
-        savePeriodData();
-        renderVariableCharges();
-      }, 'Supprimer');
     }
 
     function addFixedCharge() {
@@ -2954,20 +3008,25 @@
         return;
       }
 
-      const newFixed = {
-        id: Date.now(),
+      // Check if we're editing an existing charge
+      const isEditing = editingCharge && editingCharge.type === 'fixed';
+      const charge = isEditing ? fixedCharges.find(c => c.id === editingCharge.id) : {};
+
+      // Build charge data
+      const chargeData = {
+        id: isEditing ? charge.id : Date.now(),
         name,
         amount,
         paymentType,
         splitMode,
-        date: new Date().toISOString()
+        date: isEditing ? charge.date : new Date().toISOString()
       };
 
       // Gestion du paiement "both" (les deux ont payé physiquement)
       if (paymentType === 'both') {
         const paidYou = parseFloat(document.getElementById('fixedPaidByYou').value) || 0;
         const paidPartner = parseFloat(document.getElementById('fixedPaidByPartner').value) || 0;
-        newFixed.paidBy = { vous: paidYou, conjointe: paidPartner };
+        chargeData.paidBy = { vous: paidYou, conjointe: paidPartner };
       }
 
       // Gestion du split custom
@@ -2978,20 +3037,28 @@
           showToast('Les pourcentages doivent totaliser 100%', 'error');
           return;
         }
-        newFixed.customSplit = { vous: customYou, conjointe: customPartner };
+        chargeData.customSplit = { vous: customYou, conjointe: customPartner };
       }
 
-      if (note) newFixed.note = note;
-      fixedCharges.push(newFixed);
+      if (note) chargeData.note = note;
+
+      // Update existing charge or add new one
+      if (isEditing) {
+        Object.assign(charge, chargeData);
+        editingCharge = null;
+        showToast(`✓ Charge modifiée`, 'success');
+      } else {
+        fixedCharges.push(chargeData);
+        showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
+          fixedCharges = fixedCharges.filter(c => c.id !== chargeData.id);
+          savePeriodData();
+          renderFixedCharges();
+        }, 'Supprimer');
+      }
 
       savePeriodData();
       renderFixedCharges();
       closeModal('modalAddFixedCharge');
-      showToastWithUndo(`✓ ${name} - ${formatCurrency(amount)}`, () => {
-        fixedCharges = fixedCharges.filter(c => c.id !== newFixed.id);
-        savePeriodData();
-        renderFixedCharges();
-      }, 'Supprimer');
     }
 
     function deleteCharge(type, id) {
@@ -3011,6 +3078,69 @@
         savePeriodData();
         if (type === 'fixed') renderFixedCharges(); else renderVariableCharges();
       });
+    }
+
+    function editCharge(type, id) {
+      const charges = type === 'fixed' ? fixedCharges : variableCharges;
+      const charge = charges.find(c => c.id === id);
+      if (!charge) return;
+
+      // Store editing state
+      editingCharge = { type, id };
+
+      if (type === 'variable') {
+        // Pre-fill variable charge modal
+        document.getElementById('varChargeName').value = charge.name || '';
+        document.getElementById('varChargeAmount').value = charge.amount || 0;
+        document.getElementById('varChargePaymentType').value = charge.paymentType || 'joint';
+        document.getElementById('varChargeSplitMode').value = charge.splitMode || 'prorata';
+        document.getElementById('varChargeNote').value = charge.note || '';
+
+        // Handle conditional fields
+        toggleVarPaymentDetails();
+        if (charge.paymentType === 'both' && charge.paidBy) {
+          document.getElementById('varPaidByYou').value = charge.paidBy.vous || 0;
+          document.getElementById('varPaidByPartner').value = charge.paidBy.conjointe || 0;
+        }
+
+        toggleVarCustomSplit();
+        if (charge.splitMode === 'custom' && charge.customSplit) {
+          document.getElementById('varCustomYou').value = charge.customSplit.vous || 0;
+          document.getElementById('varCustomPartner').value = charge.customSplit.conjointe || 0;
+        }
+
+        // Change button text
+        const submitBtn = document.querySelector('#modalAddVariableCharge .btn-primary');
+        submitBtn.textContent = '✓ Modifier';
+
+        openModal('modalAddVariableCharge');
+      } else {
+        // Pre-fill fixed charge modal
+        document.getElementById('fixedChargeName').value = charge.name || '';
+        document.getElementById('fixedChargeAmount').value = charge.amount || 0;
+        document.getElementById('fixedChargePaymentType').value = charge.paymentType || 'joint';
+        document.getElementById('fixedChargeSplitMode').value = charge.splitMode || 'prorata';
+        document.getElementById('fixedChargeNote').value = charge.note || '';
+
+        // Handle conditional fields
+        toggleFixedPaymentDetails();
+        if (charge.paymentType === 'both' && charge.paidBy) {
+          document.getElementById('fixedPaidByYou').value = charge.paidBy.vous || 0;
+          document.getElementById('fixedPaidByPartner').value = charge.paidBy.conjointe || 0;
+        }
+
+        toggleFixedCustomSplit();
+        if (charge.splitMode === 'custom' && charge.customSplit) {
+          document.getElementById('fixedCustomYou').value = charge.customSplit.vous || 0;
+          document.getElementById('fixedCustomPartner').value = charge.customSplit.conjointe || 0;
+        }
+
+        // Change button text
+        const submitBtn = document.querySelector('#modalAddFixedCharge .btn-primary');
+        submitBtn.textContent = '✓ Modifier';
+
+        openModal('modalAddFixedCharge');
+      }
     }
 
     // ===== REIMBURSEMENT OPERATIONS =====
@@ -3134,7 +3264,10 @@
               <div class="charge-payeur">${paymentTypeLabel} · ${splitModeLabel}</div>
               <div class="charge-split">Vous: ${formatCurrency(shares.yourShare)} | Conjointe: ${formatCurrency(shares.partnerShare)}</div>
             </div>
-            <button type="button" class="btn-delete" onclick="deleteCharge('variable', ${charge.id})">🗑️</button>
+            <div class="charge-actions">
+              <button type="button" class="btn-edit" onclick="editCharge('variable', ${charge.id})">✏️</button>
+              <button type="button" class="btn-delete" onclick="deleteCharge('variable', ${charge.id})">🗑️</button>
+            </div>
           </div>
         `;
       }).join('');
@@ -3170,7 +3303,10 @@
               <div class="charge-payeur">${paymentTypeLabel} · ${splitModeLabel}</div>
               <div class="charge-split">Vous: ${formatCurrency(shares.yourShare)} | Conjointe: ${formatCurrency(shares.partnerShare)}</div>
             </div>
-            <button type="button" class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
+            <div class="charge-actions">
+              <button type="button" class="btn-edit" onclick="editCharge('fixed', ${charge.id})">✏️</button>
+              <button type="button" class="btn-delete" onclick="deleteCharge('fixed', ${charge.id})">🗑️</button>
+            </div>
           </div>
         `;
       }).join('');
