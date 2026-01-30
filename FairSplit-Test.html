@@ -710,12 +710,17 @@
     let editingCharge = null; // Stores { type: 'variable'|'fixed', id: number } when editing
 
     // ===== UTILITY FUNCTIONS =====
+    // ===== MIGRÉ VERS MODULES =====
+    // Period utilities → js/utils/date.js + js/modules/period.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function getCurrentPeriodString() {
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       return `${year}-${month}`;
     }
+    */
+    // ===== FIN MIGRATION =====
 
     function formatCurrency(amount) {
       const num = parseFloat(amount);
@@ -901,6 +906,9 @@
       submitBtn.disabled = amount <= 0 || isNaN(amount);
     }
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Period management → js/modules/period.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     // ===== PERIOD MANAGEMENT =====
     function populatePeriodDropdown() {
       const select = document.getElementById('periodSelect');
@@ -951,7 +959,12 @@
         changePeriod();
       }
     }
+    */
+    // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Firebase operations → js/modules/period.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     // ===== FIREBASE OPERATIONS =====
     function loadPeriodData() {
       // Load salaries (global, not period-specific)
@@ -992,7 +1005,12 @@
         showToast('Erreur lors du chargement des données', 'error');
       });
     }
+    */
+    // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Salaries & Period save → js/modules/period.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function saveSalaries() {
       const indicator = document.getElementById('salariesSaveIndicator');
 
@@ -1059,6 +1077,8 @@
       // Refresh trends after data change
       loadTrendsData();
     }
+    */
+    // ===== FIN MIGRATION =====
 
     // ===== CHARGE OPERATIONS =====
     // Toggle payment details for variable charges

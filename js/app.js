@@ -11,9 +11,12 @@ import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
 import { initAuth } from './modules/auth.js';
 
-// Will be imported as modules are migrated (Étape 3c-3h)
-// import { initPeriod } from './modules/period.js';
+// Modules migrated (initialized by auth.js after login):
+// - period.js (Étape 3c) ✅
+//
+// Will be imported as modules are migrated (Étape 3d-3h)
 // import { initSalaires } from './modules/salaires.js';
+// import { initCharges } from './modules/charges.js';
 // etc.
 
 /**

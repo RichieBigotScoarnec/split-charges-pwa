@@ -6,6 +6,7 @@
 import { getFirebaseAuth } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import toast from '../components/toast.js';
+import { initPeriod, loadPeriodData } from './period.js';
 
 let appInitialized = false;
 
@@ -190,9 +191,11 @@ async function initializeAppData() {
 
   console.log('📦 Initialisation des données utilisateur...');
 
-  // TODO Étape 3c-3h : Charger les données de l'application
-  // - populatePeriodDropdown()
-  // - loadPeriodData()
+  // Étape 3c : Period management
+  initPeriod();
+  await loadPeriodData();
+
+  // TODO Étape 3d-3h : Charger les autres données
   // - loadShareMode()
   // - loadTrendsData()
   // - loadReminderSettings()
