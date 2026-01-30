@@ -1,0 +1,72 @@
+/**
+ * FairSplit - Firebase Initialization
+ * @description Initialise Firebase et exporte les références
+ */
+
+import { FIREBASE_CONFIG } from './config.js';
+
+let app = null;
+let database = null;
+let auth = null;
+
+/**
+ * Initialize Firebase
+ * @returns {{app: Object, database: Object, auth: Object}}
+ */
+export function initFirebase() {
+  if (app) {
+    return { app, database, auth };
+  }
+
+  // Firebase is loaded via CDN, use global firebase object
+  if (typeof firebase === 'undefined') {
+    throw new Error('Firebase SDK not loaded. Include Firebase scripts before this module.');
+  }
+
+  app = firebase.initializeApp(FIREBASE_CONFIG);
+  database = firebase.database();
+  auth = firebase.auth();
+
+  console.log('🔥 Firebase initialisé (TEST)');
+
+  return { app, database, auth };
+}
+
+/**
+ * Get Firebase database reference
+ * @returns {Object}
+ */
+export function getFirebaseDatabase() {
+  if (!database) {
+    throw new Error('Firebase not initialized. Call initFirebase() first.');
+  }
+  return database;
+}
+
+/**
+ * Get Firebase auth reference
+ * @returns {Object}
+ */
+export function getFirebaseAuth() {
+  if (!auth) {
+    throw new Error('Firebase not initialized. Call initFirebase() first.');
+  }
+  return auth;
+}
+
+/**
+ * Check Firebase connection status
+ * @param {Function} callback - Called with boolean (isConnected)
+ * @returns {Function} Unsubscribe function
+ */
+export function onConnectionChange(callback) {
+  const connectedRef = database.ref('.info/connected');
+
+  const handler = (snap) => {
+    callback(snap.val() === true);
+  };
+
+  connectedRef.on('value', handler);
+
+  return () => connectedRef.off('value', handler);
+}
