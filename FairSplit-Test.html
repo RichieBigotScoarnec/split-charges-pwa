@@ -564,6 +564,9 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Authentification → js/modules/auth.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     // ===== FIREBASE AUTHENTICATION =====
     function signInWithGoogle() {
       document.getElementById('authError').textContent = '';
@@ -607,7 +610,12 @@
         document.getElementById('authError').textContent = 'Erreur déconnexion : ' + error.message;
       });
     }
+    */
+    // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Auth state listener → js/modules/auth.js (initAuth)
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     let appInitialized = false;
 
     auth.onAuthStateChanged(function(user) {
@@ -664,6 +672,8 @@
         if (searchInput) searchInput.value = '';
       }
     });
+    */
+    // ===== FIN MIGRATION =====
 
     // Scroll global sur focus input (Android clavier)
     document.addEventListener('focusin', (e) => {

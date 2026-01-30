@@ -9,10 +9,11 @@ import { initDatabase } from './db.js';
 import { setState, getState } from './state.js';
 import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
+import { initAuth } from './modules/auth.js';
 
-// Will be imported as modules are migrated
-// import { initAuth } from './auth.js';
+// Will be imported as modules are migrated (Étape 3c-3h)
 // import { initPeriod } from './modules/period.js';
+// import { initSalaires } from './modules/salaires.js';
 // etc.
 
 /**
@@ -35,7 +36,10 @@ async function initApp() {
     // 3. Initialize UI components
     initModals();
 
-    // 4. Mark app as initialized
+    // 4. Initialize authentication
+    initAuth();
+
+    // 5. Mark app as initialized
     setState('appInitialized', true);
 
     toast.success('FairSplit chargé');
