@@ -1575,6 +1575,15 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Summary/Bilan → js/modules/summary.js
+    // - calculateSummary() → calculateSummary()
+    // - renderBilanFinal() → renderSummary()
+    // - markAsReimbursed() → Intégré dans UI
+    // - renderAll() → renderAll()
+    // ===== FIN MIGRATION =====
+
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function calculateSummary() {
       const totalSalaries = salaries.vous + salaries.conjointe;
       if (totalSalaries === 0) {
@@ -1779,6 +1788,7 @@
       renderReimbursements();
       calculateSummary();
     }
+    */
 
     // ===== EVENT LISTENERS =====
     // Protection against duplicate initialization

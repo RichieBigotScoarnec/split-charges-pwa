@@ -6,6 +6,7 @@ import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
+import { calculateSummary } from './summary.js';
 
 let database = null;
 
@@ -111,8 +112,8 @@ export async function saveReimbursement() {
     await loadReimbursements();
     closeModal('reimbursementModal', true);
 
-    // TODO Étape 3h: recalculer le bilan
-    // calculateSummary();
+    // Recalculer le bilan
+    calculateSummary();
   } catch (error) {
     console.error('❌ Erreur sauvegarde remboursement :', error);
     toast.error('Erreur de sauvegarde');
@@ -156,12 +157,13 @@ export async function deleteReimbursement(reimbursementId) {
       undo: async () => {
         await database.ref(`periods/${currentPeriod}/reimbursements/${reimbursementId}`).update({ deleted: false });
         await loadReimbursements();
+        calculateSummary();
         toast.success('Suppression annulée');
       }
     });
 
-    // TODO Étape 3h: recalculer le bilan
-    // calculateSummary();
+    // Recalculer le bilan
+    calculateSummary();
   } catch (error) {
     console.error('❌ Erreur suppression remboursement :', error);
     toast.error('Erreur de suppression');

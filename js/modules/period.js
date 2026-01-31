@@ -7,6 +7,10 @@ import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { setState, getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
 import toast from '../components/toast.js';
+import { renderVariableCharges } from './variable-charges.js';
+import { renderFixedCharges } from './fixed-charges.js';
+import { renderReimbursements } from './reimbursements.js';
+import { calculateSummary } from './summary.js';
 
 /**
  * Populate period dropdown with last 12 months
@@ -134,8 +138,11 @@ export async function loadPeriodData() {
     if (searchClearBtn) searchClearBtn.classList.remove('visible');
     if (searchResultsInfo) searchResultsInfo.classList.remove('visible');
 
-    // TODO Étape 3e-3h : Render UI
-    // renderAll();
+    // Render all UI
+    renderVariableCharges();
+    renderFixedCharges();
+    renderReimbursements();
+    calculateSummary();
 
     // TODO Étape 3h : Check for reconduction banner
     // checkForNewMonth();
@@ -246,8 +253,8 @@ export async function saveSalaries() {
       }, 2000);
     }
 
-    // TODO Étape 3h : Recalculate summary
-    // calculateSummary();
+    // Recalculate summary
+    calculateSummary();
 
   } catch (error) {
     console.error('❌ Erreur sauvegarde salaires:', error);

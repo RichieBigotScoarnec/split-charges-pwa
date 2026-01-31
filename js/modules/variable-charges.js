@@ -6,6 +6,7 @@ import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
+import { calculateSummary } from './summary.js';
 
 let database = null;
 
@@ -134,8 +135,8 @@ export async function saveVariableCharge() {
     await loadVariableCharges();
     closeModal('variableChargeModal', true);
 
-    // TODO Étape 3h: recalculer le bilan
-    // calculateSummary();
+    // Recalculer le bilan
+    calculateSummary();
   } catch (error) {
     console.error('❌ Erreur sauvegarde charge variable :', error);
     toast.error('Erreur de sauvegarde');
@@ -198,12 +199,13 @@ export async function deleteVariableCharge(chargeId) {
       undo: async () => {
         await database.ref(`periods/${currentPeriod}/variableCharges/${chargeId}`).update({ deleted: false });
         await loadVariableCharges();
+        calculateSummary();
         toast.success('Suppression annulée');
       }
     });
 
-    // TODO Étape 3h: recalculer le bilan
-    // calculateSummary();
+    // Recalculer le bilan
+    calculateSummary();
   } catch (error) {
     console.error('❌ Erreur suppression charge variable :', error);
     toast.error('Erreur de suppression');

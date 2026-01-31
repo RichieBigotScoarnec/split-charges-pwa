@@ -6,6 +6,7 @@ import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
+import { calculateSummary } from './summary.js';
 
 let database = null;
 
@@ -134,8 +135,8 @@ export async function saveFixedCharge() {
     await loadFixedCharges();
     closeModal('fixedChargeModal', true);
 
-    // TODO Étape 3h: recalculer le bilan
-    // calculateSummary();
+    // Recalculer le bilan
+    calculateSummary();
   } catch (error) {
     console.error('❌ Erreur sauvegarde charge fixe :', error);
     toast.error('Erreur de sauvegarde');
@@ -198,12 +199,13 @@ export async function deleteFixedCharge(chargeId) {
       undo: async () => {
         await database.ref(`periods/${currentPeriod}/fixedCharges/${chargeId}`).update({ deleted: false });
         await loadFixedCharges();
+        calculateSummary();
         toast.success('Suppression annulée');
       }
     });
 
-    // TODO Étape 3h: recalculer le bilan
-    // calculateSummary();
+    // Recalculer le bilan
+    calculateSummary();
   } catch (error) {
     console.error('❌ Erreur suppression charge fixe :', error);
     toast.error('Erreur de suppression');

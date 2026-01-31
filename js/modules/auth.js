@@ -11,6 +11,7 @@ import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 import { initReimbursements, loadReimbursements } from './reimbursements.js';
+import { initSummary, calculateSummary } from './summary.js';
 
 let appInitialized = false;
 
@@ -215,8 +216,9 @@ async function initializeAppData() {
   initReimbursements();
   await loadReimbursements();
 
-  // TODO Étape 3h : Summary/Bilan
-  // - calculateSummary() + renderAll()
+  // Étape 3h : Summary/Bilan management
+  initSummary();
+  calculateSummary();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');

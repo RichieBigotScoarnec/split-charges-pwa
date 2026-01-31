@@ -6,6 +6,7 @@
 import { setState, getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
 import toast from '../components/toast.js';
+import { calculateSummary } from './summary.js';
 
 /**
  * Select and apply share mode
@@ -38,8 +39,8 @@ export function selectShareMode(mode) {
 
   saveShareMode();
 
-  // TODO Étape 3h : Recalculate summary
-  // calculateSummary();
+  // Recalculate summary
+  calculateSummary();
 
   console.log(`💰 Mode de partage : ${mode}`);
 }
@@ -70,8 +71,8 @@ export function validateCustomPercents() {
 
     saveShareMode();
 
-    // TODO Étape 3h : Recalculate summary
-    // calculateSummary();
+    // Recalculate summary
+    calculateSummary();
   } else {
     validationEl.textContent = `Total: ${total}% (doit être 100%)`;
     validationEl.className = 'share-mode-validation invalid';
