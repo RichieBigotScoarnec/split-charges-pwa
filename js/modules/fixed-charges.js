@@ -262,6 +262,7 @@ export function renderFixedCharges() {
     categoryCharges.forEach(charge => {
       const chargeDiv = document.createElement('div');
       chargeDiv.className = 'charge-item';
+      chargeDiv.dataset.id = charge.id;
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${charge.description}</span>

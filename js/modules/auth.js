@@ -12,6 +12,7 @@ import { initVariableCharges, loadVariableCharges } from './variable-charges.js'
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 import { initReimbursements, loadReimbursements } from './reimbursements.js';
 import { initSummary, calculateSummary } from './summary.js';
+import { initSearch } from './search.js';
 
 let appInitialized = false;
 
@@ -219,6 +220,9 @@ async function initializeAppData() {
   // Étape 3h : Summary/Bilan management
   initSummary();
   calculateSummary();
+
+  // Étape 4a : Search module
+  initSearch();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
