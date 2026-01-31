@@ -13,6 +13,7 @@ import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 import { initReimbursements, loadReimbursements } from './reimbursements.js';
 import { initSummary, calculateSummary } from './summary.js';
 import { initSearch } from './search.js';
+import { initExport } from './export.js';
 
 let appInitialized = false;
 
@@ -223,6 +224,9 @@ async function initializeAppData() {
 
   // Étape 4a : Search module
   initSearch();
+
+  // Étape 4b : Export module
+  initExport();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
