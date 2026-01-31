@@ -27,18 +27,32 @@ let appInitialized = false;
  * Sign in with Google popup
  */
 export async function signInWithGoogle() {
+  console.log('[Auth] 🔵 signInWithGoogle() appelé');
+
   const authErrorEl = document.getElementById('authError');
   if (authErrorEl) authErrorEl.textContent = '';
 
   try {
+    console.log('[Auth] 🔵 Récupération auth...');
     const auth = getFirebaseAuth();
+    console.log('[Auth] ✅ Auth récupéré:', auth ? 'OK' : 'NULL');
+
+    console.log('[Auth] 🔵 Création GoogleAuthProvider...');
     const googleProvider = getGoogleAuthProvider();
+    console.log('[Auth] ✅ GoogleProvider créé:', googleProvider ? 'OK' : 'NULL');
+
+    console.log('[Auth] 🔵 Lancement signInWithPopup...');
     await auth.signInWithPopup(googleProvider);
+    console.log('[Auth] ✅ Connexion Google réussie !');
   } catch (error) {
+    console.error('[Auth] ❌ ERREUR Google sign-in:', error);
+    console.error('[Auth] ❌ Type erreur:', error.constructor.name);
+    console.error('[Auth] ❌ Code erreur:', error.code);
+    console.error('[Auth] ❌ Message:', error.message);
+
     const message = `Erreur Google : ${error.message}`;
     if (authErrorEl) authErrorEl.textContent = message;
     toast.error(message);
-    console.error('[Auth] Google sign-in error:', error);
   }
 }
 
