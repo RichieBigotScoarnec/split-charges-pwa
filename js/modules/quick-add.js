@@ -18,6 +18,10 @@ export function initQuickAdd() {
   database = getFirebaseDatabase();
   setupQuickAddUI();
 
+  // Expose functions globally for onclick handlers (legacy HTML compatibility)
+  window.showQuickAddModal = showQuickAddForm;
+  window.hideQuickAddModal = hideQuickAddForm;
+
   console.log('✅ Module ajout rapide initialisé');
 }
 

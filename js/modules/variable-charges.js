@@ -13,6 +13,15 @@ let database = null;
 /**
  * Initialise le module de gestion des charges variables
  */
+/**
+ * Show add variable charge modal
+ */
+export function showAddVariableChargeModal() {
+  document.getElementById('variableChargeId').value = '';
+  document.getElementById('variableChargeForm').reset();
+  showModal('variableChargeModal');
+}
+
 export function initVariableCharges() {
   console.log('📦 Initialisation module charges variables');
   database = getFirebaseDatabase();
@@ -20,11 +29,7 @@ export function initVariableCharges() {
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addVariableChargeBtn');
   if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      document.getElementById('variableChargeId').value = '';
-      document.getElementById('variableChargeForm').reset();
-      showModal('variableChargeModal');
-    });
+    addBtn.addEventListener('click', showAddVariableChargeModal);
   }
 
   // Listener sur le formulaire de sauvegarde
@@ -32,6 +37,11 @@ export function initVariableCharges() {
   if (saveBtn) {
     saveBtn.addEventListener('click', saveVariableCharge);
   }
+
+  // Expose functions globally for onclick handlers (legacy HTML compatibility)
+  window.showAddVariableChargeModal = showAddVariableChargeModal;
+  window.editVariableCharge = editVariableCharge;
+  window.deleteVariableCharge = deleteVariableCharge;
 
   console.log('✅ Module charges variables initialisé');
 }

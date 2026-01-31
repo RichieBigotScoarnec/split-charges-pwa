@@ -13,6 +13,15 @@ let database = null;
 /**
  * Initialise le module de gestion des charges fixes
  */
+/**
+ * Show add fixed charge modal
+ */
+export function showAddFixedChargeModal() {
+  document.getElementById('fixedChargeId').value = '';
+  document.getElementById('fixedChargeForm').reset();
+  showModal('fixedChargeModal');
+}
+
 export function initFixedCharges() {
   console.log('📦 Initialisation module charges fixes');
   database = getFirebaseDatabase();
@@ -20,11 +29,7 @@ export function initFixedCharges() {
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addFixedChargeBtn');
   if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      document.getElementById('fixedChargeId').value = '';
-      document.getElementById('fixedChargeForm').reset();
-      showModal('fixedChargeModal');
-    });
+    addBtn.addEventListener('click', showAddFixedChargeModal);
   }
 
   // Listener sur le formulaire de sauvegarde
@@ -32,6 +37,12 @@ export function initFixedCharges() {
   if (saveBtn) {
     saveBtn.addEventListener('click', saveFixedCharge);
   }
+
+  // Expose functions globally for onclick handlers (legacy HTML compatibility)
+  window.showAddFixedChargeModal = showAddFixedChargeModal;
+  window.editFixedCharge = editFixedCharge;
+  window.deleteFixedCharge = deleteFixedCharge;
+  window.toggleFixedChargeActive = toggleFixedChargeActive;
 
   console.log('✅ Module charges fixes initialisé');
 }

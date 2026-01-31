@@ -13,6 +13,14 @@ let database = null;
 /**
  * Initialise le module de gestion des remboursements
  */
+/**
+ * Show add reimbursement modal
+ */
+export function showAddReimbursementModal() {
+  document.getElementById('reimbursementForm').reset();
+  showModal('reimbursementModal');
+}
+
 export function initReimbursements() {
   console.log('📦 Initialisation module remboursements');
   database = getFirebaseDatabase();
@@ -20,10 +28,7 @@ export function initReimbursements() {
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addReimbursementBtn');
   if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      document.getElementById('reimbursementForm').reset();
-      showModal('reimbursementModal');
-    });
+    addBtn.addEventListener('click', showAddReimbursementModal);
   }
 
   // Listener sur le formulaire de sauvegarde
@@ -31,6 +36,11 @@ export function initReimbursements() {
   if (saveBtn) {
     saveBtn.addEventListener('click', saveReimbursement);
   }
+
+  // Expose functions globally for onclick handlers (legacy HTML compatibility)
+  window.showAddReimbursementModal = showAddReimbursementModal;
+  window.markReimbursementPaid = markReimbursementPaid;
+  window.deleteReimbursement = deleteReimbursement;
 
   console.log('✅ Module remboursements initialisé');
 }
