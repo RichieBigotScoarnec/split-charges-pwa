@@ -873,9 +873,13 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Variable charges modal & validation → js/modules/variable-charges.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function showAddVariableChargeModal() {
       showModal('modalAddVariableCharge');
     }
+    */
 
     function showAddFixedChargeModal() {
       showModal('modalAddFixedCharge');
@@ -886,12 +890,14 @@
     }
 
     // ===== REAL-TIME VALIDATION =====
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function validateVariableChargeForm() {
       const name = document.getElementById('varChargeName').value.trim();
       const amount = parseFloat(document.getElementById('varChargeAmount').value);
       const submitBtn = document.getElementById('btnAddVariableCharge');
       submitBtn.disabled = !name || amount <= 0 || isNaN(amount);
     }
+    */
 
     function validateFixedChargeForm() {
       const name = document.getElementById('fixedChargeName').value.trim();
@@ -1109,6 +1115,9 @@
       details.style.display = splitMode === 'custom' ? 'block' : 'none';
     }
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Variable charges add/edit → js/modules/variable-charges.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function addVariableCharge() {
       const name = document.getElementById('varChargeName').value.trim();
       const amount = parseFloat(document.getElementById('varChargeAmount').value) || 0;
@@ -1177,6 +1186,8 @@
       renderVariableCharges();
       closeModal('modalAddVariableCharge');
     }
+    */
+    // ===== FIN MIGRATION =====
 
     function addFixedCharge() {
       const name = document.getElementById('fixedChargeName').value.trim();
@@ -1247,6 +1258,9 @@
       closeModal('modalAddFixedCharge');
     }
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Edit/delete charges → js/modules/variable-charges.js + fixed-charges.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES (Étape 3e, 3f)
     function deleteCharge(type, id) {
       const charges = type === 'fixed' ? fixedCharges : variableCharges;
       const charge = charges.find(c => c.id === id);
@@ -1328,6 +1342,8 @@
         showModal('modalAddFixedCharge');
       }
     }
+    */
+    // ===== FIN MIGRATION =====
 
     // ===== REIMBURSEMENT OPERATIONS =====
     function addReimbursement() {
@@ -1409,6 +1425,9 @@
       return { yourShare, partnerShare };
     }
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Variable charges rendering → js/modules/variable-charges.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function renderVariableCharges() {
       const list = document.getElementById('variableChargesList');
       const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -1458,6 +1477,8 @@
         `;
       }).join('');
     }
+    */
+    // ===== FIN MIGRATION =====
 
     function renderFixedCharges() {
       const list = document.getElementById('fixedChargesList');

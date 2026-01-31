@@ -8,6 +8,7 @@ import { setState, getState } from '../state.js';
 import toast from '../components/toast.js';
 import { initPeriod, loadPeriodData } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
+import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 
 let appInitialized = false;
 
@@ -200,10 +201,14 @@ async function initializeAppData() {
   initShareMode();
   await loadShareMode();
 
-  // TODO Étape 3e-3h : Charger les autres données
-  // - loadTrendsData()
-  // - loadReminderSettings()
-  // - checkAndSendReminders()
+  // Étape 3e : Variable charges management
+  initVariableCharges();
+  await loadVariableCharges();
+
+  // TODO Étape 3f-3h : Charger les autres données
+  // - initFixedCharges() + loadFixedCharges()
+  // - initReimbursements() + loadReimbursements()
+  // - calculateSummary() + renderAll()
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
