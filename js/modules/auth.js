@@ -16,6 +16,7 @@ import { initSearch } from './search.js';
 import { initExport } from './export.js';
 import { initNotifications } from './notifications.js';
 import { initCategories } from './categories.js';
+import { initTrends } from './trends.js';
 
 let appInitialized = false;
 
@@ -235,6 +236,9 @@ async function initializeAppData() {
 
   // Étape 4d : Categories analysis module
   initCategories();
+
+  // Étape 4e : Trends module
+  initTrends();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
