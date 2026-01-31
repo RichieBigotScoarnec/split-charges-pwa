@@ -46,7 +46,6 @@ export function initFixedCharges() {
   window.showAddFixedChargeModal = showAddFixedChargeModal;
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
-  window.toggleFixedChargeActive = toggleFixedChargeActive;
 
   console.log('✅ Module charges fixes initialisé');
 }

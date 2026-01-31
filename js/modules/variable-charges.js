@@ -65,9 +65,18 @@ export async function loadVariableCharges() {
 
     if (snapshot.exists()) {
       const charges = snapshot.val();
-      // Filtrer les charges non supprimées
+      // Filtrer les charges non supprimées et valides
       const activeCharges = Object.entries(charges)
-        .filter(([_, charge]) => !charge.deleted)
+        .filter(([id, charge]) => {
+          // Filtrer les charges supprimées
+          if (charge.deleted) return false;
+          // Filtrer les charges invalides (sans id, description, ou amount)
+          if (!id || !charge.description || typeof charge.amount !== 'number') {
+            console.warn(`⚠️ Charge invalide ignorée:`, id, charge);
+            return false;
+          }
+          return true;
+        })
         .map(([id, charge]) => ({ id, ...charge }));
 
       setState('variableCharges', activeCharges);
@@ -274,16 +283,22 @@ export function renderVariableCharges() {
     chargesList.className = 'charges-list';
 
     categoryCharges.forEach(charge => {
+      // Validation supplémentaire
+      if (!charge.id || !charge.description) {
+        console.warn('⚠️ Charge invalide ignorée dans le rendu:', charge);
+        return;
+      }
+
       const chargeDiv = document.createElement('div');
       chargeDiv.className = 'charge-item';
       chargeDiv.dataset.id = charge.id;
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${charge.description}</span>
+          <span class="charge-description">${charge.description || 'Sans description'}</span>
           <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
         </div>
         <div class="charge-actions">
-          <span class="charge-amount">${formatCurrency(charge.amount)}</span>
+          <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
           <button class="btn-icon" onclick="editVariableCharge('${charge.id}')" title="Modifier">
             <i class="fas fa-edit"></i>
           </button>
