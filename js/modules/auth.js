@@ -15,6 +15,7 @@ import { initSummary, calculateSummary } from './summary.js';
 import { initSearch } from './search.js';
 import { initExport } from './export.js';
 import { initNotifications } from './notifications.js';
+import { initCategories } from './categories.js';
 
 let appInitialized = false;
 
@@ -231,6 +232,9 @@ async function initializeAppData() {
 
   // Étape 4c : Notifications module
   initNotifications();
+
+  // Étape 4d : Categories analysis module
+  initCategories();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
