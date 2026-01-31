@@ -17,7 +17,9 @@ let database = null;
  * Show add reimbursement modal
  */
 export function showAddReimbursementModal() {
-  document.getElementById('reimbursementForm').reset();
+  const formEl = document.getElementById('reimbursementForm');
+  if (formEl) formEl.reset();
+
   showModal('reimbursementModal');
 }
 

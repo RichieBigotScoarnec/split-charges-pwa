@@ -17,8 +17,12 @@ let database = null;
  * Show add fixed charge modal
  */
 export function showAddFixedChargeModal() {
-  document.getElementById('fixedChargeId').value = '';
-  document.getElementById('fixedChargeForm').reset();
+  const chargeIdEl = document.getElementById('fixedChargeId');
+  const formEl = document.getElementById('fixedChargeForm');
+
+  if (chargeIdEl) chargeIdEl.value = '';
+  if (formEl) formEl.reset();
+
   showModal('fixedChargeModal');
 }
 

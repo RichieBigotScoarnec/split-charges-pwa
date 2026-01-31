@@ -17,8 +17,12 @@ let database = null;
  * Show add variable charge modal
  */
 export function showAddVariableChargeModal() {
-  document.getElementById('variableChargeId').value = '';
-  document.getElementById('variableChargeForm').reset();
+  const chargeIdEl = document.getElementById('variableChargeId');
+  const formEl = document.getElementById('variableChargeForm');
+
+  if (chargeIdEl) chargeIdEl.value = '';
+  if (formEl) formEl.reset();
+
   showModal('variableChargeModal');
 }
 
