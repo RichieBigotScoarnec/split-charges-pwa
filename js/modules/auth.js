@@ -17,6 +17,7 @@ import { initExport } from './export.js';
 import { initNotifications } from './notifications.js';
 import { initCategories } from './categories.js';
 import { initTrends } from './trends.js';
+import { initReconduction } from './reconduction.js';
 
 let appInitialized = false;
 
@@ -239,6 +240,9 @@ async function initializeAppData() {
 
   // Étape 4e : Trends module
   initTrends();
+
+  // Étape 4f : Reconduction module
+  initReconduction();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');

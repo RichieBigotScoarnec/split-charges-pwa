@@ -1,7 +1,7 @@
 // Service Worker — FairSplit TEST
 // Stratégie : cache-first pour assets statiques, network-first pour Firebase
 
-const CACHE_NAME = 'fairsplit-test-v16';
+const CACHE_NAME = 'fairsplit-test-v17';
 
 // Fichiers à mettre en cache pour le mode offline
 const STATIC_ASSETS = [
@@ -51,7 +51,9 @@ const STATIC_ASSETS = [
   // JS Modules (Étape 4d)
   './js/modules/categories.js',
   // JS Modules (Étape 4e)
-  './js/modules/trends.js'
+  './js/modules/trends.js',
+  // JS Modules (Étape 4f)
+  './js/modules/reconduction.js'
 ];
 
 self.addEventListener('install', (event) => {
