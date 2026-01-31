@@ -9,13 +9,14 @@ export const VERSION = '3.1.0';
 
 // ===== FIREBASE CONFIGURATION =====
 export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBWSTkl6ukmmPFsb6Xll8XdSHKz-BVyNP4",
+  apiKey: "AIzaSyAR3tFWBxdMHr27-NOK0jlOyQ8xZoXcVSU",
   authDomain: "fairsplit-test.firebaseapp.com",
   databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "fairsplit-test",
   storageBucket: "fairsplit-test.firebasestorage.app",
-  messagingSenderId: "168459726",
-  appId: "1:168459726:web:xxxxx"
+  messagingSenderId: "455299346967",
+  appId: "1:455299346967:web:7165ac7e84062657632252",
+  measurementId: "G-9HW1XN8EF1"
 };
 
 // ===== CATEGORIES =====
