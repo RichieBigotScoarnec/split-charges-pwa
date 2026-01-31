@@ -18,6 +18,7 @@ import { initNotifications } from './notifications.js';
 import { initCategories } from './categories.js';
 import { initTrends } from './trends.js';
 import { initReconduction } from './reconduction.js';
+import { initQuickAdd } from './quick-add.js';
 
 let appInitialized = false;
 
@@ -243,6 +244,9 @@ async function initializeAppData() {
 
   // Étape 4f : Reconduction module
   initReconduction();
+
+  // Étape 4g : Quick Add module
+  initQuickAdd();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
