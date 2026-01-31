@@ -7,6 +7,7 @@ import { getFirebaseAuth } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import toast from '../components/toast.js';
 import { initPeriod, loadPeriodData } from './period.js';
+import { initShareMode, loadShareMode } from './share-mode.js';
 
 let appInitialized = false;
 
@@ -195,8 +196,11 @@ async function initializeAppData() {
   initPeriod();
   await loadPeriodData();
 
-  // TODO Étape 3d-3h : Charger les autres données
-  // - loadShareMode()
+  // Étape 3d : Share mode management
+  initShareMode();
+  await loadShareMode();
+
+  // TODO Étape 3e-3h : Charger les autres données
   // - loadTrendsData()
   // - loadReminderSettings()
   // - checkAndSendReminders()
