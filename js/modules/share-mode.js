@@ -5,7 +5,7 @@
 
 import { setState, getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
-import toast from '../components/toast.js';
+import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
 
 /**

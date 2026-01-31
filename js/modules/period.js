@@ -6,7 +6,7 @@
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { setState, getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
-import toast from '../components/toast.js';
+import { toast } from '../components/toast.js';
 import { renderVariableCharges } from './variable-charges.js';
 import { renderFixedCharges } from './fixed-charges.js';
 import { renderReimbursements } from './reimbursements.js';
