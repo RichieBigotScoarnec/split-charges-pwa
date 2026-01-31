@@ -19,6 +19,7 @@ import { initCategories } from './categories.js';
 import { initTrends } from './trends.js';
 import { initReconduction } from './reconduction.js';
 import { initQuickAdd } from './quick-add.js';
+import { initMap } from './map.js';
 
 let appInitialized = false;
 
@@ -247,6 +248,9 @@ async function initializeAppData() {
 
   // Étape 4g : Quick Add module
   initQuickAdd();
+
+  // Étape 4h : Map module
+  initMap();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
