@@ -887,9 +887,11 @@
     }
     */
 
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function showAddReimbursementModal() {
       showModal('modalAddReimbursement');
     }
+    */
 
     // ===== REAL-TIME VALIDATION =====
     /* COMMENTÉ - MIGRÉ VERS MODULES
@@ -910,11 +912,13 @@
     }
     */
 
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function validateReimbursementForm() {
       const amount = parseFloat(document.getElementById('reimbursementAmount').value);
       const submitBtn = document.getElementById('btnAddReimbursement');
       submitBtn.disabled = amount <= 0 || isNaN(amount);
     }
+    */
 
     // ===== MIGRÉ VERS MODULES =====
     // Period management → js/modules/period.js
@@ -1354,6 +1358,9 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Reimbursements add/delete → js/modules/reimbursements.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     // ===== REIMBURSEMENT OPERATIONS =====
     function addReimbursement() {
       const direction = document.getElementById('reimbursementDirection').value;
@@ -1401,6 +1408,8 @@
         renderReimbursements();
       });
     }
+    */
+    // ===== FIN MIGRATION =====
 
     // ===== RENDERING =====
     // Helper function: Calculate individual shares based on charge split mode
@@ -1533,6 +1542,9 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Reimbursements rendering → js/modules/reimbursements.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function renderReimbursements() {
       const list = document.getElementById('reimbursementsList');
       const activeReimbursements = reimbursements.filter(r => !r.deleted);
@@ -1560,6 +1572,8 @@
 
       calculateSummary();
     }
+    */
+    // ===== FIN MIGRATION =====
 
     function calculateSummary() {
       const totalSalaries = salaries.vous + salaries.conjointe;

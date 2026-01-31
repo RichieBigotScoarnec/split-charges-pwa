@@ -10,6 +10,7 @@ import { initPeriod, loadPeriodData } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
+import { initReimbursements, loadReimbursements } from './reimbursements.js';
 
 let appInitialized = false;
 
@@ -210,8 +211,11 @@ async function initializeAppData() {
   initFixedCharges();
   await loadFixedCharges();
 
-  // TODO Étape 3g-3h : Charger les autres données
-  // - initReimbursements() + loadReimbursements()
+  // Étape 3g : Reimbursements management
+  initReimbursements();
+  await loadReimbursements();
+
+  // TODO Étape 3h : Summary/Bilan
   // - calculateSummary() + renderAll()
 
   appInitialized = true;
