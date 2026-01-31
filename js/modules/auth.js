@@ -14,6 +14,7 @@ import { initReimbursements, loadReimbursements } from './reimbursements.js';
 import { initSummary, calculateSummary } from './summary.js';
 import { initSearch } from './search.js';
 import { initExport } from './export.js';
+import { initNotifications } from './notifications.js';
 
 let appInitialized = false;
 
@@ -227,6 +228,9 @@ async function initializeAppData() {
 
   // Étape 4b : Export module
   initExport();
+
+  // Étape 4c : Notifications module
+  initNotifications();
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
