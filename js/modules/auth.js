@@ -3,9 +3,9 @@
  * @description Gestion de l'authentification Firebase (Google, Email/Password)
  */
 
-import { getFirebaseAuth } from '../firebase-init.js';
+import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
-import toast from '../components/toast.js';
+import { toast } from '../components/toast.js';
 import { initPeriod, loadPeriodData } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -32,7 +32,7 @@ export async function signInWithGoogle() {
 
   try {
     const auth = getFirebaseAuth();
-    const googleProvider = new firebase.auth.GoogleAuthProvider();
+    const googleProvider = getGoogleAuthProvider();
     await auth.signInWithPopup(googleProvider);
   } catch (error) {
     const message = `Erreur Google : ${error.message}`;
