@@ -881,9 +881,11 @@
     }
     */
 
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function showAddFixedChargeModal() {
       showModal('modalAddFixedCharge');
     }
+    */
 
     function showAddReimbursementModal() {
       showModal('modalAddReimbursement');
@@ -899,12 +901,14 @@
     }
     */
 
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function validateFixedChargeForm() {
       const name = document.getElementById('fixedChargeName').value.trim();
       const amount = parseFloat(document.getElementById('fixedChargeAmount').value);
       const submitBtn = document.getElementById('btnAddFixedCharge');
       submitBtn.disabled = !name || amount <= 0 || isNaN(amount);
     }
+    */
 
     function validateReimbursementForm() {
       const amount = parseFloat(document.getElementById('reimbursementAmount').value);
@@ -1189,6 +1193,9 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Fixed charges add/edit → js/modules/fixed-charges.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function addFixedCharge() {
       const name = document.getElementById('fixedChargeName').value.trim();
       const amount = parseFloat(document.getElementById('fixedChargeAmount').value) || 0;
@@ -1257,6 +1264,8 @@
       renderFixedCharges();
       closeModal('modalAddFixedCharge');
     }
+    */
+    // ===== FIN MIGRATION =====
 
     // ===== MIGRÉ VERS MODULES =====
     // Edit/delete charges → js/modules/variable-charges.js + fixed-charges.js
@@ -1480,6 +1489,9 @@
     */
     // ===== FIN MIGRATION =====
 
+    // ===== MIGRÉ VERS MODULES =====
+    // Fixed charges rendering → js/modules/fixed-charges.js
+    /* COMMENTÉ - MIGRÉ VERS MODULES
     function renderFixedCharges() {
       const list = document.getElementById('fixedChargesList');
       const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -1518,6 +1530,8 @@
         `;
       }).join('');
     }
+    */
+    // ===== FIN MIGRATION =====
 
     function renderReimbursements() {
       const list = document.getElementById('reimbursementsList');

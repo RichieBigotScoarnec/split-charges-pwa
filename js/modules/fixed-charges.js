@@ -1,0 +1,310 @@
+// ===== MODULE : GESTION DES CHARGES FIXES =====
+// Fonctionnalités : add, edit, delete, render, validation
+
+import { getFirebaseDatabase } from '../firebase-init.js';
+import { setState, getState } from '../state.js';
+import { toast } from '../components/toast.js';
+import { showModal, closeModal } from '../components/modal.js';
+import { formatCurrency } from '../utils/format.js';
+
+let database = null;
+
+/**
+ * Initialise le module de gestion des charges fixes
+ */
+export function initFixedCharges() {
+  console.log('📦 Initialisation module charges fixes');
+  database = getFirebaseDatabase();
+
+  // Listener sur le bouton d'ajout
+  const addBtn = document.getElementById('addFixedChargeBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      document.getElementById('fixedChargeId').value = '';
+      document.getElementById('fixedChargeForm').reset();
+      showModal('fixedChargeModal');
+    });
+  }
+
+  // Listener sur le formulaire de sauvegarde
+  const saveBtn = document.getElementById('saveFixedCharge');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', saveFixedCharge);
+  }
+
+  console.log('✅ Module charges fixes initialisé');
+}
+
+/**
+ * Charge les charges fixes depuis Firebase pour la période actuelle
+ */
+export async function loadFixedCharges() {
+  const currentPeriod = getState('currentPeriod');
+  if (!currentPeriod) {
+    console.warn('⚠️ Pas de période active, chargement charges fixes ignoré');
+    return;
+  }
+
+  try {
+    const snapshot = await database.ref(`periods/${currentPeriod}/fixedCharges`).once('value');
+
+    if (snapshot.exists()) {
+      const charges = snapshot.val();
+      // Filtrer les charges non supprimées
+      const activeCharges = Object.entries(charges)
+        .filter(([_, charge]) => !charge.deleted)
+        .map(([id, charge]) => ({ id, ...charge }));
+
+      setState('fixedCharges', activeCharges);
+      console.log(`📊 ${activeCharges.length} charges fixes chargées`);
+    } else {
+      setState('fixedCharges', []);
+      console.log('📊 Aucune charge fixe pour cette période');
+    }
+
+    renderFixedCharges();
+  } catch (error) {
+    console.error('❌ Erreur chargement charges fixes :', error);
+    toast.error('Erreur de chargement des charges fixes');
+  }
+}
+
+/**
+ * Sauvegarde une charge fixe (ajout ou édition)
+ */
+export async function saveFixedCharge() {
+  const currentPeriod = getState('currentPeriod');
+  if (!currentPeriod) {
+    toast.error('Aucune période sélectionnée');
+    return;
+  }
+
+  const chargeId = document.getElementById('fixedChargeId').value;
+  const description = document.getElementById('fixedChargeDescription').value.trim();
+  const amount = parseFloat(document.getElementById('fixedChargeAmount').value);
+  const category = document.getElementById('fixedChargeCategory').value;
+  const paidBy = document.getElementById('fixedChargePaidBy').value;
+
+  // Validation
+  if (!description || description.length > 100) {
+    toast.error('Description requise (max 100 caractères)');
+    return;
+  }
+
+  if (isNaN(amount) || amount <= 0 || amount > 100000) {
+    toast.error('Montant invalide (0-100000€)');
+    return;
+  }
+
+  if (!category) {
+    toast.error('Catégorie requise');
+    return;
+  }
+
+  if (!paidBy) {
+    toast.error('Payeur requis');
+    return;
+  }
+
+  try {
+    const chargeData = {
+      description,
+      amount,
+      category,
+      paidBy,
+      timestamp: Date.now(),
+      deleted: false
+    };
+
+    let key;
+    if (chargeId) {
+      // Édition
+      key = chargeId;
+      await database.ref(`periods/${currentPeriod}/fixedCharges/${key}`).update(chargeData);
+      toast.success('Charge modifiée');
+    } else {
+      // Ajout
+      const newRef = database.ref(`periods/${currentPeriod}/fixedCharges`).push();
+      key = newRef.key;
+      await newRef.set(chargeData);
+      toast.success('Charge ajoutée');
+    }
+
+    // Mettre à jour le state local
+    await loadFixedCharges();
+    closeModal('fixedChargeModal', true);
+
+    // TODO Étape 3h: recalculer le bilan
+    // calculateSummary();
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde charge fixe :', error);
+    toast.error('Erreur de sauvegarde');
+  }
+}
+
+/**
+ * Édite une charge fixe existante
+ * @param {string} chargeId - ID de la charge à éditer
+ */
+export function editFixedCharge(chargeId) {
+  const charges = getState('fixedCharges') || [];
+  const charge = charges.find(c => c.id === chargeId);
+
+  if (!charge) {
+    toast.error('Charge introuvable');
+    return;
+  }
+
+  // Pré-remplir le formulaire
+  document.getElementById('fixedChargeId').value = charge.id;
+  document.getElementById('fixedChargeDescription').value = charge.description;
+  document.getElementById('fixedChargeAmount').value = charge.amount;
+  document.getElementById('fixedChargeCategory').value = charge.category;
+  document.getElementById('fixedChargePaidBy').value = charge.paidBy;
+
+  showModal('fixedChargeModal');
+}
+
+/**
+ * Supprime une charge fixe (soft delete)
+ * @param {string} chargeId - ID de la charge à supprimer
+ */
+export async function deleteFixedCharge(chargeId) {
+  const currentPeriod = getState('currentPeriod');
+  if (!currentPeriod) {
+    toast.error('Aucune période sélectionnée');
+    return;
+  }
+
+  const charges = getState('fixedCharges') || [];
+  const charge = charges.find(c => c.id === chargeId);
+
+  if (!charge) {
+    toast.error('Charge introuvable');
+    return;
+  }
+
+  if (!confirm(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`)) {
+    return;
+  }
+
+  try {
+    // Soft delete
+    await database.ref(`periods/${currentPeriod}/fixedCharges/${chargeId}`).update({ deleted: true });
+
+    // Mettre à jour le state local
+    await loadFixedCharges();
+    toast.success('Charge supprimée', {
+      undo: async () => {
+        await database.ref(`periods/${currentPeriod}/fixedCharges/${chargeId}`).update({ deleted: false });
+        await loadFixedCharges();
+        toast.success('Suppression annulée');
+      }
+    });
+
+    // TODO Étape 3h: recalculer le bilan
+    // calculateSummary();
+  } catch (error) {
+    console.error('❌ Erreur suppression charge fixe :', error);
+    toast.error('Erreur de suppression');
+  }
+}
+
+/**
+ * Affiche la liste des charges fixes dans le DOM
+ */
+export function renderFixedCharges() {
+  const charges = getState('fixedCharges') || [];
+  const listElement = document.getElementById('fixedChargesList');
+  const totalElement = document.getElementById('fixedChargesTotal');
+
+  if (!listElement) {
+    console.warn('⚠️ Element #fixedChargesList introuvable');
+    return;
+  }
+
+  // Vider la liste
+  listElement.innerHTML = '';
+
+  if (charges.length === 0) {
+    listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période</p>';
+    if (totalElement) totalElement.textContent = formatCurrency(0);
+    return;
+  }
+
+  // Grouper par catégorie
+  const byCategory = charges.reduce((acc, charge) => {
+    if (!acc[charge.category]) acc[charge.category] = [];
+    acc[charge.category].push(charge);
+    return acc;
+  }, {});
+
+  // Afficher par catégorie
+  let total = 0;
+  Object.entries(byCategory).forEach(([category, categoryCharges]) => {
+    const categoryTotal = categoryCharges.reduce((sum, c) => sum + c.amount, 0);
+    total += categoryTotal;
+
+    const categoryDiv = document.createElement('div');
+    categoryDiv.className = 'charge-category';
+    categoryDiv.innerHTML = `
+      <h4 class="category-header">
+        ${getCategoryIcon(category)} ${category}
+        <span class="category-total">${formatCurrency(categoryTotal)}</span>
+      </h4>
+    `;
+
+    const chargesList = document.createElement('div');
+    chargesList.className = 'charges-list';
+
+    categoryCharges.forEach(charge => {
+      const chargeDiv = document.createElement('div');
+      chargeDiv.className = 'charge-item';
+      chargeDiv.innerHTML = `
+        <div class="charge-info">
+          <span class="charge-description">${charge.description}</span>
+          <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
+        </div>
+        <div class="charge-actions">
+          <span class="charge-amount">${formatCurrency(charge.amount)}</span>
+          <button class="btn-icon" onclick="editFixedCharge('${charge.id}')" title="Modifier">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="btn-icon btn-delete" onclick="deleteFixedCharge('${charge.id}')" title="Supprimer">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      `;
+      chargesList.appendChild(chargeDiv);
+    });
+
+    categoryDiv.appendChild(chargesList);
+    listElement.appendChild(categoryDiv);
+  });
+
+  // Afficher le total
+  if (totalElement) {
+    totalElement.textContent = formatCurrency(total);
+  }
+}
+
+/**
+ * Retourne l'icône pour une catégorie
+ * @param {string} category - Nom de la catégorie
+ * @returns {string} HTML de l'icône
+ */
+function getCategoryIcon(category) {
+  const icons = {
+    'Loyer': '<i class="fas fa-home"></i>',
+    'Énergie': '<i class="fas fa-bolt"></i>',
+    'Internet': '<i class="fas fa-wifi"></i>',
+    'Assurances': '<i class="fas fa-shield-alt"></i>',
+    'Abonnements': '<i class="fas fa-calendar-check"></i>',
+    'Autre': '<i class="fas fa-ellipsis-h"></i>'
+  };
+  return icons[category] || icons['Autre'];
+}
+
+// Exposer les fonctions globalement pour les onclick handlers
+window.editFixedCharge = editFixedCharge;
+window.deleteFixedCharge = deleteFixedCharge;

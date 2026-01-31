@@ -9,6 +9,7 @@ import toast from '../components/toast.js';
 import { initPeriod, loadPeriodData } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
+import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 
 let appInitialized = false;
 
@@ -205,8 +206,11 @@ async function initializeAppData() {
   initVariableCharges();
   await loadVariableCharges();
 
-  // TODO Étape 3f-3h : Charger les autres données
-  // - initFixedCharges() + loadFixedCharges()
+  // Étape 3f : Fixed charges management
+  initFixedCharges();
+  await loadFixedCharges();
+
+  // TODO Étape 3g-3h : Charger les autres données
   // - initReimbursements() + loadReimbursements()
   // - calculateSummary() + renderAll()
 
