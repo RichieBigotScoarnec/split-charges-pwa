@@ -43,7 +43,7 @@ const initialState = {
 };
 
 // ===== STATE STORE =====
-let state = { ...initialState };
+let state = JSON.parse(JSON.stringify(initialState));
 const listeners = new Map();
 
 // ===== PUBLIC API =====
@@ -115,7 +115,7 @@ export function subscribe(key, callback) {
  * Reset state to initial values
  */
 export function resetState() {
-  state = { ...initialState };
+  state = JSON.parse(JSON.stringify(initialState));
   listeners.forEach((callbacks, key) => {
     callbacks.forEach(cb => cb(getState(key), key));
   });

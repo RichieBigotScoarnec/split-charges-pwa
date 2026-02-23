@@ -2,7 +2,7 @@
 // Fonctionnalités : CSV, PDF (optionnel)
 
 import { getState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 
@@ -44,9 +44,9 @@ export function exportToCSV() {
   }
 
   try {
-    const fixedCharges = getState('fixedCharges') || [];
-    const variableCharges = getState('variableCharges') || [];
-    const reimbursements = getState('reimbursements') || [];
+    const fixedCharges = (getState('fixedCharges') || []).filter(c => !c.deleted);
+    const variableCharges = (getState('variableCharges') || []).filter(c => !c.deleted);
+    const reimbursements = (getState('reimbursements') || []).filter(r => !r.deleted);
     const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
 
     // Construire CSV
@@ -88,7 +88,8 @@ export function exportToCSV() {
       csv += '=== REMBOURSEMENTS ===\n';
       csv += 'De;Vers;Montant;Date\n';
       reimbursements.forEach(reimb => {
-        csv += `"${reimb.from === 'vous' ? 'Vous' : 'Conjointe'}";"${reimb.to === 'vous' ? 'Vous' : 'Conjointe'}";${reimb.amount};"${formatDate(reimb.timestamp)}"\n`;
+        const dir = parseReimbDirection(reimb.direction);
+        csv += `"${dir.from}";"${dir.to}";${reimb.amount};"${formatDate(reimb.timestamp)}"\n`;
       });
       csv += '\n';
     }
@@ -126,9 +127,9 @@ export function exportToPDF() {
 
   try {
     // Créer une nouvelle fenêtre avec les données formatées pour impression
-    const fixedCharges = getState('fixedCharges') || [];
-    const variableCharges = getState('variableCharges') || [];
-    const reimbursements = getState('reimbursements') || [];
+    const fixedCharges = (getState('fixedCharges') || []).filter(c => !c.deleted);
+    const variableCharges = (getState('variableCharges') || []).filter(c => !c.deleted);
+    const reimbursements = (getState('reimbursements') || []).filter(r => !r.deleted);
     const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
 
     const printWindow = window.open('', '', 'width=800,height=600');
@@ -264,8 +265,8 @@ export function exportToPDF() {
             </tr>
             ${reimbursements.map(reimb => `
               <tr>
-                <td>${reimb.from === 'vous' ? 'Vous' : 'Conjointe'}</td>
-                <td>${reimb.to === 'vous' ? 'Vous' : 'Conjointe'}</td>
+                <td>${parseReimbDirection(reimb.direction).from}</td>
+                <td>${parseReimbDirection(reimb.direction).to}</td>
                 <td>${formatCurrency(reimb.amount)}</td>
                 <td>${formatDate(reimb.timestamp)}</td>
               </tr>
@@ -291,14 +292,14 @@ export function exportToPDF() {
 }
 
 /**
- * Échappe le HTML pour éviter les injections XSS
- * @param {string} text - Texte à échapper
- * @returns {string}
+ * Parse le champ direction d'un remboursement en from/to lisibles
+ * @param {string} direction - "vous-to-conjointe" ou "conjointe-to-vous"
+ * @returns {{from: string, to: string}}
  */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+function parseReimbDirection(direction) {
+  if (direction === 'vous-to-conjointe') return { from: 'Vous', to: 'Conjointe' };
+  if (direction === 'conjointe-to-vous') return { from: 'Conjointe', to: 'Vous' };
+  return { from: '?', to: '?' };
 }
 
 // Exposer globalement pour compatibilité

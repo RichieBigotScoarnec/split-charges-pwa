@@ -30,11 +30,13 @@ async function initApp() {
     const { database } = initFirebase();
     initDatabase(database);
 
-    // 2. Setup connection monitoring
-    onConnectionChange((isConnected) => {
+    // 2. Setup connection monitoring (app-lifetime listener)
+    const unsubscribeConnection = onConnectionChange((isConnected) => {
       setState('isOnline', isConnected);
       console.log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
     });
+    // Store for potential cleanup (not needed for SPA lifecycle)
+    window._unsubscribeConnection = unsubscribeConnection;
 
     // 3. Initialize UI components
     initModals();

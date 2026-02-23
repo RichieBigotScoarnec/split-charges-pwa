@@ -1,29 +1,17 @@
 // ===== MODULE : GESTION DU BILAN/SUMMARY =====
-// Fonctionnalités : calculateSummary, renderSummary, reconduction période
+// Fonctionnalités : calculateSummary, renderSummary
 
-import { getFirebaseDatabase } from '../firebase-init.js';
-import { setState, getState } from '../state.js';
-import { toast } from '../components/toast.js';
+import { getState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
 import { renderVariableCharges } from './variable-charges.js';
 import { renderFixedCharges } from './fixed-charges.js';
 import { renderReimbursements } from './reimbursements.js';
-
-let database = null;
 
 /**
  * Initialise le module summary
  */
 export function initSummary() {
   console.log('📦 Initialisation module summary/bilan');
-  database = getFirebaseDatabase();
-
-  // Listener pour la reconduction de période
-  const reconductBtn = document.getElementById('reconductPeriodBtn');
-  if (reconductBtn) {
-    reconductBtn.addEventListener('click', reconductPeriod);
-  }
-
   console.log('✅ Module summary/bilan initialisé');
 }
 
@@ -88,8 +76,11 @@ export function calculateSummary() {
       partnerActualPayments += charge.amount;
     } else {
       // Compte joint : chacun a payé sa part théorique (pas de dette)
-      yourActualPayments += yourTheoricalShare / (yourTheoricalShare + partnerTheoricalShare) * charge.amount;
-      partnerActualPayments += partnerTheoricalShare / (yourTheoricalShare + partnerTheoricalShare) * charge.amount;
+      const totalShares = yourTheoricalShare + partnerTheoricalShare;
+      const yourRatio = totalShares > 0 ? yourTheoricalShare / totalShares : 0.5;
+      const partnerRatio = totalShares > 0 ? partnerTheoricalShare / totalShares : 0.5;
+      yourActualPayments += yourRatio * charge.amount;
+      partnerActualPayments += partnerRatio * charge.amount;
     }
   });
 
@@ -227,77 +218,4 @@ export function renderAll() {
   console.log('✅ Tous les affichages rafraîchis');
 }
 
-/**
- * Reconduction de la période actuelle vers le mois suivant
- * Copie les charges fixes et les salaires, ignore les charges variables et remboursements
- */
-async function reconductPeriod() {
-  const currentPeriod = getState('currentPeriod');
-  if (!currentPeriod) {
-    toast.error('Aucune période sélectionnée');
-    return;
-  }
-
-  // Calculer la période suivante (mois suivant)
-  const [year, month] = currentPeriod.split('-').map(Number);
-  const nextDate = new Date(year, month, 1); // mois est 0-indexé en JS, donc month donne le mois suivant
-  const nextPeriod = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
-
-  if (!confirm(`Reconduire les données vers ${nextPeriod} ?\n\n✅ Copié : Charges fixes, Salaires\n❌ Non copié : Charges variables, Remboursements`)) {
-    return;
-  }
-
-  try {
-    const database = getFirebaseDatabase();
-    const userId = getState('currentUser')?.uid;
-    if (!userId) {
-      toast.error('Utilisateur non connecté');
-      return;
-    }
-
-    // Récupérer les données de la période actuelle
-    const currentSnapshot = await database.ref(`users/${userId}/periods/${currentPeriod}`).once('value');
-    const currentData = currentSnapshot.val() || {};
-
-    // Préparer les données pour la nouvelle période
-    const newPeriodData = {
-      fixedCharges: currentData.fixedCharges || {},
-      salaries: currentData.salaries || { vous: 0, conjointe: 0 },
-      shareMode: currentData.shareMode || { mode: 'prorata' },
-      variableCharges: {}, // Vide
-      reimbursements: {}   // Vide
-    };
-
-    // Écrire dans la nouvelle période
-    await database.ref(`users/${userId}/periods/${nextPeriod}`).set(newPeriodData);
-
-    toast.success(`Période ${nextPeriod} créée avec succès`);
-
-    // Changer vers la nouvelle période
-    setState('currentPeriod', nextPeriod);
-    const periodSelect = document.getElementById('periodSelect');
-    if (periodSelect) {
-      // Ajouter la nouvelle option si elle n'existe pas
-      const existingOption = Array.from(periodSelect.options).find(opt => opt.value === nextPeriod);
-      if (!existingOption) {
-        const option = document.createElement('option');
-        option.value = nextPeriod;
-        option.textContent = nextPeriod;
-        periodSelect.insertBefore(option, periodSelect.firstChild);
-      }
-      periodSelect.value = nextPeriod;
-    }
-
-    // Recharger les données de la nouvelle période
-    const { loadPeriodData } = await import('./period.js');
-    await loadPeriodData();
-    renderAll();
-
-  } catch (error) {
-    console.error('❌ Erreur reconduction période :', error);
-    toast.error('Erreur lors de la reconduction');
-  }
-}
-
-// Exposer les fonctions globalement
-window.reconductPeriod = reconductPeriod;
+// Note : La reconduction de période est gérée par le module reconduction.js

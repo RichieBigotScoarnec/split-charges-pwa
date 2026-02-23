@@ -5,8 +5,9 @@ import { getFirebaseDatabase } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
+import { getUserPath } from '../db.js';
 
 let database = null;
 
@@ -61,7 +62,7 @@ export async function loadFixedCharges() {
   }
 
   try {
-    const snapshot = await database.ref(`periods/${currentPeriod}/fixedCharges`).once('value');
+    const snapshot = await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges`)).once('value');
 
     if (snapshot.exists()) {
       const charges = snapshot.val();
@@ -135,11 +136,11 @@ export async function saveFixedCharge() {
     if (chargeId) {
       // Édition
       key = chargeId;
-      await database.ref(`periods/${currentPeriod}/fixedCharges/${key}`).update(chargeData);
+      await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges/${key}`)).update(chargeData);
       toast.success('Charge modifiée');
     } else {
       // Ajout
-      const newRef = database.ref(`periods/${currentPeriod}/fixedCharges`).push();
+      const newRef = database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges`)).push();
       key = newRef.key;
       await newRef.set(chargeData);
       toast.success('Charge ajoutée');
@@ -205,13 +206,13 @@ export async function deleteFixedCharge(chargeId) {
 
   try {
     // Soft delete
-    await database.ref(`periods/${currentPeriod}/fixedCharges/${chargeId}`).update({ deleted: true });
+    await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges/${chargeId}`)).update({ deleted: true });
 
     // Mettre à jour le state local
     await loadFixedCharges();
     toast.success('Charge supprimée', {
       undo: async () => {
-        await database.ref(`periods/${currentPeriod}/fixedCharges/${chargeId}`).update({ deleted: false });
+        await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges/${chargeId}`)).update({ deleted: false });
         await loadFixedCharges();
         calculateSummary();
         toast.success('Suppression annulée');
@@ -265,7 +266,7 @@ export function renderFixedCharges() {
     categoryDiv.className = 'charge-category';
     categoryDiv.innerHTML = `
       <h4 class="category-header">
-        ${getCategoryIcon(category)} ${category}
+        ${getCategoryIcon(category)} ${escapeHtml(category)}
         <span class="category-total">${formatCurrency(categoryTotal)}</span>
       </h4>
     `;
@@ -279,15 +280,15 @@ export function renderFixedCharges() {
       chargeDiv.dataset.id = charge.id;
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${charge.description}</span>
+          <span class="charge-description">${escapeHtml(charge.description)}</span>
           <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>
-          <button class="btn-icon" onclick="editFixedCharge('${charge.id}')" title="Modifier">
+          <button class="btn-icon" onclick="editFixedCharge('${escapeHtml(charge.id)}')" title="Modifier">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn-icon btn-delete" onclick="deleteFixedCharge('${charge.id}')" title="Supprimer">
+          <button class="btn-icon btn-delete" onclick="deleteFixedCharge('${escapeHtml(charge.id)}')" title="Supprimer">
             <i class="fas fa-trash"></i>
           </button>
         </div>
@@ -322,6 +323,3 @@ function getCategoryIcon(category) {
   return icons[category] || icons['Autre'];
 }
 
-// Exposer les fonctions globalement pour les onclick handlers
-window.editFixedCharge = editFixedCharge;
-window.deleteFixedCharge = deleteFixedCharge;

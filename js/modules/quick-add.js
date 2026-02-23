@@ -6,8 +6,10 @@ import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
+import { getUserPath } from '../db.js';
 
 let database = null;
+let _keydownHandler = null;
 
 /**
  * Initialise le module d'ajout rapide
@@ -21,6 +23,10 @@ export function initQuickAdd() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.showQuickAddModal = showQuickAddForm;
   window.hideQuickAddModal = hideQuickAddForm;
+  window.showQuickAddForm = showQuickAddForm;
+  window.hideQuickAddForm = hideQuickAddForm;
+  window.addQuickCharge = addQuickCharge;
+  window.suggestCategory = suggestCategory;
 
   console.log('✅ Module ajout rapide initialisé');
 }
@@ -37,13 +43,23 @@ function setupQuickAddUI() {
     });
   }
 
-  // Raccourci clavier : Ctrl+Q ou Cmd+Q
-  document.addEventListener('keydown', (e) => {
+  // Raccourci clavier unique : Ctrl+Q (ouvrir) + Escape (fermer)
+  if (_keydownHandler) {
+    document.removeEventListener('keydown', _keydownHandler);
+  }
+  _keydownHandler = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'q') {
       e.preventDefault();
       showQuickAddForm();
     }
-  });
+    if (e.key === 'Escape') {
+      const quickAddContainer = document.getElementById('quickAddContainer');
+      if (quickAddContainer && quickAddContainer.style.display !== 'none') {
+        hideQuickAddForm();
+      }
+    }
+  };
+  document.addEventListener('keydown', _keydownHandler);
 
   // Listener pour le formulaire d'ajout rapide
   const quickAddForm = document.getElementById('quickAddForm');
@@ -61,16 +77,6 @@ function setupQuickAddUI() {
       hideQuickAddForm();
     });
   }
-
-  // Listener pour fermer avec Escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const quickAddContainer = document.getElementById('quickAddContainer');
-      if (quickAddContainer && quickAddContainer.style.display !== 'none') {
-        hideQuickAddForm();
-      }
-    }
-  });
 }
 
 /**
@@ -91,6 +97,17 @@ function showQuickAddForm() {
   if (amountInput) {
     setTimeout(() => amountInput.focus(), 100);
   }
+}
+
+/**
+ * Nettoie les listeners du module quick-add (appelé au logout)
+ */
+export function cleanupQuickAdd() {
+  if (_keydownHandler) {
+    document.removeEventListener('keydown', _keydownHandler);
+    _keydownHandler = null;
+  }
+  console.log('🧹 Listeners quick-add nettoyés');
 }
 
 /**
@@ -186,9 +203,6 @@ function createQuickAddContainer() {
   `;
 
   document.body.appendChild(container);
-
-  // Exposer hideQuickAddForm globalement pour onclick
-  window.hideQuickAddForm = hideQuickAddForm;
 }
 
 /**
@@ -232,7 +246,7 @@ async function handleQuickAddSubmit() {
 
   try {
     // Sauvegarder dans Firebase
-    const newRef = database.ref(`periods/${currentPeriod}/variableCharges`).push();
+    const newRef = database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).push();
     await newRef.set(chargeData);
 
     toast.success(`✅ ${description} ajouté (${amount.toFixed(2)} €)`);
@@ -279,7 +293,7 @@ export async function addQuickCharge(chargeData) {
   }
 
   try {
-    const newRef = database.ref(`periods/${currentPeriod}/variableCharges`).push();
+    const newRef = database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).push();
     await newRef.set(charge);
 
     await loadVariableCharges();
@@ -322,7 +336,7 @@ export async function addQuickChargesBatch(charges) {
         deleted: false
       };
 
-      updates[`periods/${currentPeriod}/variableCharges/${newKey}`] = charge;
+      updates[getUserPath(`periods/${currentPeriod}/variableCharges/${newKey}`)] = charge;
     });
 
     await database.ref().update(updates);
@@ -362,8 +376,3 @@ export function suggestCategory(description) {
   return 'Autre';
 }
 
-// Exposer les fonctions globalement pour compatibilité
-window.showQuickAddForm = showQuickAddForm;
-window.hideQuickAddForm = hideQuickAddForm;
-window.addQuickCharge = addQuickCharge;
-window.suggestCategory = suggestCategory;

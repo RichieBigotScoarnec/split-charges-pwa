@@ -5,6 +5,7 @@ import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
 import { toast } from '../components/toast.js';
+import { getUserPath } from '../db.js';
 
 let database = null;
 
@@ -46,7 +47,7 @@ export async function fetchHistoricalData(months = 6) {
   }
 
   try {
-    const snapshot = await database.ref('periods').once('value');
+    const snapshot = await database.ref(getUserPath('periods')).once('value');
 
     if (!snapshot.exists()) {
       return { periods: [], data: {} };
@@ -153,7 +154,7 @@ function renderTrendsChart(canvas, data) {
   const variableTotals = periods.map(p => data.data[p].variableCharges);
 
   // Échelles
-  const maxValue = Math.max(...totals) * 1.1; // +10% marge
+  const maxValue = Math.max(...totals) * 1.1 || 1; // +10% marge, min 1 pour éviter div/0
   const xStep = chartWidth / (periods.length - 1 || 1);
   const yScale = chartHeight / maxValue;
 
@@ -309,7 +310,7 @@ function renderTrendsStats(data) {
   const totals = periods.map(p => data.data[p].total);
 
   // Calculer les statistiques
-  const average = totals.reduce((sum, v) => sum + v, 0) / totals.length;
+  const average = totals.length > 0 ? totals.reduce((sum, v) => sum + v, 0) / totals.length : 0;
   const min = Math.min(...totals);
   const max = Math.max(...totals);
 

@@ -5,6 +5,9 @@ import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { formatDate } from '../utils/date.js';
 
+let _hourlyIntervalId = null;
+let _dailyTimeoutId = null;
+
 /**
  * Initialise le module de notifications
  */
@@ -89,7 +92,7 @@ function scheduleNotificationChecks() {
   checkUpcomingDeadlines();
 
   // Vérification toutes les heures
-  setInterval(() => {
+  _hourlyIntervalId = setInterval(() => {
     checkUpcomingDeadlines();
   }, 60 * 60 * 1000); // 1 heure
 
@@ -112,7 +115,7 @@ function scheduleDailyCheck() {
 
   const timeUntilCheck = scheduledTime - now;
 
-  setTimeout(() => {
+  _dailyTimeoutId = setTimeout(() => {
     checkUpcomingDeadlines();
     // Re-planifier pour le lendemain
     scheduleDailyCheck();
@@ -123,7 +126,7 @@ function scheduleDailyCheck() {
  * Vérifie les échéances à venir et envoie des notifications
  */
 export function checkUpcomingDeadlines() {
-  if (Notification.permission !== 'granted') {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
 
@@ -269,7 +272,7 @@ function checkPendingReimbursements() {
  * @param {Object} data - Données additionnelles
  */
 function sendNotification(title, body, data = {}) {
-  if (Notification.permission !== 'granted') {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
 
@@ -320,11 +323,27 @@ export function showReminder(message, type = 'info') {
  * @returns {Object} Statut des notifications
  */
 export function getNotificationStatus() {
+  const supported = 'Notification' in window;
   return {
-    supported: 'Notification' in window,
-    permission: Notification.permission,
-    enabled: Notification.permission === 'granted'
+    supported,
+    permission: supported ? Notification.permission : 'denied',
+    enabled: supported && Notification.permission === 'granted'
   };
+}
+
+/**
+ * Nettoie les timers de notifications (appeler au logout)
+ */
+export function cleanupNotifications() {
+  if (_hourlyIntervalId) {
+    clearInterval(_hourlyIntervalId);
+    _hourlyIntervalId = null;
+  }
+  if (_dailyTimeoutId) {
+    clearTimeout(_dailyTimeoutId);
+    _dailyTimeoutId = null;
+  }
+  console.log('🧹 Timers notifications nettoyés');
 }
 
 // Exposer globalement pour compatibilité

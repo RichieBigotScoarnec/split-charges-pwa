@@ -11,6 +11,7 @@ import { renderVariableCharges } from './variable-charges.js';
 import { renderFixedCharges } from './fixed-charges.js';
 import { renderReimbursements } from './reimbursements.js';
 import { calculateSummary } from './summary.js';
+import { getUserPath } from '../db.js';
 
 /**
  * Populate period dropdown with last 12 months
@@ -102,7 +103,7 @@ export async function loadPeriodData() {
 
   try {
     // 1. Load salaries (global, not period-specific)
-    const salariesSnapshot = await database.ref('salaries').once('value');
+    const salariesSnapshot = await database.ref(getUserPath('salaries')).once('value');
     if (salariesSnapshot.exists()) {
       const salaries = salariesSnapshot.val();
       setState('salaries', salaries);
@@ -115,7 +116,7 @@ export async function loadPeriodData() {
     }
 
     // 2. Load period-specific data
-    const periodSnapshot = await database.ref(`periods/${currentPeriod}`).once('value');
+    const periodSnapshot = await database.ref(getUserPath(`periods/${currentPeriod}`)).once('value');
 
     if (periodSnapshot.exists()) {
       const data = periodSnapshot.val();
@@ -170,7 +171,7 @@ export async function savePeriodData() {
     // TODO Étape 3h : Calculate summary
     // const summary = calculateSummary();
 
-    await database.ref(`periods/${currentPeriod}`).set({
+    await database.ref(getUserPath(`periods/${currentPeriod}`)).set({
       fixedCharges,
       variableCharges,
       reimbursements
@@ -243,7 +244,7 @@ export async function saveSalaries() {
   }
 
   try {
-    await database.ref('salaries').set(salaries);
+    await database.ref(getUserPath('salaries')).set(salaries);
     setState('salaries', salaries);
 
     if (indicator) {

@@ -3,6 +3,8 @@
  * @description Gestion centralisée des modales
  */
 
+let _escapeHandler = null;
+
 /**
  * Show modal by ID
  * @param {string} modalId - Modal element ID
@@ -66,14 +68,18 @@ export function setupModalOverlayClose() {
  * Setup modal close on Escape key
  */
 export function setupModalEscapeClose() {
-  document.addEventListener('keydown', (e) => {
+  if (_escapeHandler) {
+    document.removeEventListener('keydown', _escapeHandler);
+  }
+  _escapeHandler = (e) => {
     if (e.key === 'Escape') {
       const activeModal = document.querySelector('.modal-overlay.active');
       if (activeModal) {
         closeModal(activeModal.id);
       }
     }
-  });
+  };
+  document.addEventListener('keydown', _escapeHandler);
 }
 
 /**
@@ -82,4 +88,15 @@ export function setupModalEscapeClose() {
 export function initModals() {
   setupModalOverlayClose();
   setupModalEscapeClose();
+}
+
+/**
+ * Cleanup modal event listeners (called on logout)
+ */
+export function cleanupModals() {
+  if (_escapeHandler) {
+    document.removeEventListener('keydown', _escapeHandler);
+    _escapeHandler = null;
+  }
+  console.log('🧹 Listeners modals nettoyés');
 }

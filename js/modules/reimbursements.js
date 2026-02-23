@@ -5,8 +5,9 @@ import { getFirebaseDatabase } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
+import { getUserPath } from '../db.js';
 
 let database = null;
 
@@ -41,7 +42,6 @@ export function initReimbursements() {
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.showAddReimbursementModal = showAddReimbursementModal;
-  window.markReimbursementPaid = markReimbursementPaid;
   window.deleteReimbursement = deleteReimbursement;
 
   console.log('✅ Module remboursements initialisé');
@@ -58,7 +58,7 @@ export async function loadReimbursements() {
   }
 
   try {
-    const snapshot = await database.ref(`periods/${currentPeriod}/reimbursements`).once('value');
+    const snapshot = await database.ref(getUserPath(`periods/${currentPeriod}/reimbursements`)).once('value');
 
     if (snapshot.exists()) {
       const reimbursements = snapshot.val();
@@ -116,7 +116,7 @@ export async function saveReimbursement() {
     };
 
     // Ajout
-    const newRef = database.ref(`periods/${currentPeriod}/reimbursements`).push();
+    const newRef = database.ref(getUserPath(`periods/${currentPeriod}/reimbursements`)).push();
     await newRef.set(reimbursementData);
     toast.success('Remboursement ajouté');
 
@@ -161,13 +161,13 @@ export async function deleteReimbursement(reimbursementId) {
 
   try {
     // Soft delete
-    await database.ref(`periods/${currentPeriod}/reimbursements/${reimbursementId}`).update({ deleted: true });
+    await database.ref(getUserPath(`periods/${currentPeriod}/reimbursements/${reimbursementId}`)).update({ deleted: true });
 
     // Mettre à jour le state local
     await loadReimbursements();
     toast.success('Remboursement supprimé', {
       undo: async () => {
-        await database.ref(`periods/${currentPeriod}/reimbursements/${reimbursementId}`).update({ deleted: false });
+        await database.ref(getUserPath(`periods/${currentPeriod}/reimbursements/${reimbursementId}`)).update({ deleted: false });
         await loadReimbursements();
         calculateSummary();
         toast.success('Suppression annulée');
@@ -236,11 +236,11 @@ export function renderReimbursements() {
         <span class="reimbursement-direction ${directionClass}">
           ${directionIcon} ${directionText}
         </span>
-        ${reimb.note ? `<span class="reimbursement-note">${reimb.note}</span>` : ''}
+        ${reimb.note ? `<span class="reimbursement-note">${escapeHtml(reimb.note)}</span>` : ''}
       </div>
       <div class="reimbursement-actions">
         <span class="reimbursement-amount">${formatCurrency(reimb.amount)}</span>
-        <button class="btn-icon btn-delete" onclick="deleteReimbursement('${reimb.id}')" title="Supprimer">
+        <button class="btn-icon btn-delete" onclick="deleteReimbursement('${escapeHtml(reimb.id)}')" title="Supprimer">
           <i class="fas fa-trash"></i>
         </button>
       </div>
@@ -264,5 +264,3 @@ export function renderReimbursements() {
   }
 }
 
-// Exposer les fonctions globalement pour les onclick handlers
-window.deleteReimbursement = deleteReimbursement;

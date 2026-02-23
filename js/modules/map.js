@@ -2,7 +2,7 @@
 // Fonctionnalités : visualisation géographique des dépenses avec Leaflet
 
 import { getState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 
@@ -139,9 +139,6 @@ function createMapModal() {
   `;
 
   document.body.appendChild(modal);
-
-  // Exposer hideMapModal globalement
-  window.hideMapModal = hideMapModal;
 
   // Setup des listeners après création
   const closeBtn = document.getElementById('closeMapBtn');
@@ -315,12 +312,12 @@ function createMarker(charge) {
     // Popup avec détails de la charge
     const popupContent = `
       <div class="marker-popup">
-        <h4>${charge.description}</h4>
+        <h4>${escapeHtml(charge.description)}</h4>
         <p><strong>Montant :</strong> ${formatCurrency(charge.amount)}</p>
-        <p><strong>Catégorie :</strong> ${charge.category || 'N/A'}</p>
+        <p><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'N/A')}</p>
         <p><strong>Payé par :</strong> ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</p>
         <p><strong>Date :</strong> ${formatDate(charge.date)}</p>
-        ${charge.location.name ? `<p><strong>Lieu :</strong> ${charge.location.name}</p>` : ''}
+        ${charge.location.name ? `<p><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</p>` : ''}
       </div>
     `;
 
@@ -483,6 +480,23 @@ export function centerMap(lat, lng, zoom = 13) {
   if (map) {
     map.setView([lat, lng], zoom);
   }
+}
+
+/**
+ * Nettoie les ressources du module map (appelé au logout)
+ */
+export function cleanupMap() {
+  clearMarkers();
+  if (map) {
+    map.remove();
+    map = null;
+  }
+  markerClusterGroup = null;
+  const modal = document.getElementById('mapModal');
+  if (modal) {
+    modal.remove();
+  }
+  console.log('🧹 Ressources carte nettoyées');
 }
 
 // Exposer les fonctions globalement pour compatibilité

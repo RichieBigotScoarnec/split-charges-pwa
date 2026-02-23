@@ -2,7 +2,7 @@
 // Fonctionnalités : recherche dans les charges avec debounce et highlighting
 
 import { getState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 
 let searchTimeout = null;
@@ -262,14 +262,14 @@ function showAllCharges() {
 }
 
 /**
- * Échappe le HTML pour éviter les injections XSS
- * @param {string} text - Texte à échapper
- * @returns {string}
+ * Nettoie les timers du module search (appelé au logout)
  */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+export function cleanupSearch() {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+    searchTimeout = null;
+  }
+  console.log('🧹 Timer search nettoyé');
 }
 
 // Exposer globalement pour compatibilité

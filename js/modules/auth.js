@@ -4,7 +4,7 @@
  */
 
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
-import { setState, getState } from '../state.js';
+import { setState, getState, resetState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { initPeriod, loadPeriodData } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
@@ -12,14 +12,15 @@ import { initVariableCharges, loadVariableCharges } from './variable-charges.js'
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 import { initReimbursements, loadReimbursements } from './reimbursements.js';
 import { initSummary, calculateSummary } from './summary.js';
-import { initSearch } from './search.js';
+import { initSearch, cleanupSearch } from './search.js';
 import { initExport } from './export.js';
-import { initNotifications } from './notifications.js';
+import { initNotifications, cleanupNotifications } from './notifications.js';
 import { initCategories } from './categories.js';
 import { initTrends } from './trends.js';
 import { initReconduction } from './reconduction.js';
-import { initQuickAdd } from './quick-add.js';
-import { initMap } from './map.js';
+import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
+import { initMap, cleanupMap } from './map.js';
+import { cleanupModals } from '../components/modal.js';
 
 let appInitialized = false;
 
@@ -218,6 +219,7 @@ async function initializeAppData() {
 
   console.log('📦 Initialisation des données utilisateur...');
 
+  try {
   // Étape 3c : Period management
   initPeriod();
   await loadPeriodData();
@@ -268,6 +270,10 @@ async function initializeAppData() {
 
   appInitialized = true;
   console.log('✅ Données utilisateur initialisées');
+  } catch (error) {
+    console.error('❌ Erreur initialisation modules:', error);
+    toast.error('Erreur lors du chargement des données');
+  }
 }
 
 /**
@@ -288,14 +294,15 @@ export function initAuth() {
       await initializeAppData();
     }
 
-    // If user logged out, reset app state
+    // If user logged out, cleanup and reset app state
     if (!user) {
-      // TODO Étape 3c-3h : Réinitialiser les données
-      // - variableCharges = []
-      // - fixedCharges = []
-      // - reimbursements = []
-      // - salaries = { vous: 0, conjointe: 0 }
-      // - searchInput.value = ''
+      cleanupNotifications();
+      cleanupQuickAdd();
+      cleanupSearch();
+      cleanupMap();
+      cleanupModals();
+      resetState();
+      appInitialized = false;
     }
   });
 

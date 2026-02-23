@@ -2,7 +2,7 @@
 // Fonctionnalités : statistiques, comparaisons, visualisation par catégorie
 
 import { getState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 
 /**
  * Initialise le module d'analyse par catégorie
@@ -197,7 +197,7 @@ export function renderCategoryAnalysis() {
     row.innerHTML = `
       <td class="category-name">
         <span class="category-icon">${getCategoryIcon(cat.category)}</span>
-        ${cat.category}
+        ${escapeHtml(cat.category)}
       </td>
       <td class="amount-total"><strong>${formatCurrency(cat.total)}</strong></td>
       <td class="percentage">
@@ -232,7 +232,7 @@ export function renderCategoryAnalysis() {
     <td class="amount-total"><strong>${formatCurrency(grandTotal)}</strong></td>
     <td class="percentage"><strong>100%</strong></td>
     <td class="count"><strong>${totalCount}</strong></td>
-    <td class="amount"><strong>${formatCurrency(grandTotal / totalCount)}</strong></td>
+    <td class="amount"><strong>${formatCurrency(totalCount > 0 ? grandTotal / totalCount : 0)}</strong></td>
     <td class="amount"><strong>${formatCurrency(totalYou)}</strong></td>
     <td class="amount"><strong>${formatCurrency(totalPartner)}</strong></td>
     <td class="amount"><strong>${formatCurrency(totalFixed)}</strong></td>
@@ -263,18 +263,18 @@ function renderCategoryInsights(categories) {
   // Top 3 catégories
   const top3 = categories.slice(0, 3);
   const topCategoriesText = top3.map(cat =>
-    `${cat.category} (${formatCurrency(cat.total)})`
+    `${escapeHtml(cat.category)} (${formatCurrency(cat.total)})`
   ).join(', ');
 
   insights.push(`📊 <strong>Top 3 catégories :</strong> ${topCategoriesText}`);
 
   // Catégorie la plus fréquente
   const mostFrequent = categories.reduce((max, cat) => cat.count > max.count ? cat : max, categories[0]);
-  insights.push(`🔢 <strong>Plus fréquente :</strong> ${mostFrequent.category} (${mostFrequent.count} charges)`);
+  insights.push(`🔢 <strong>Plus fréquente :</strong> ${escapeHtml(mostFrequent.category)} (${mostFrequent.count} charges)`);
 
   // Catégorie avec la moyenne la plus élevée
   const highestAverage = categories.reduce((max, cat) => cat.average > max.average ? cat : max, categories[0]);
-  insights.push(`💰 <strong>Moyenne la plus élevée :</strong> ${highestAverage.category} (${formatCurrency(highestAverage.average)})`);
+  insights.push(`💰 <strong>Moyenne la plus élevée :</strong> ${escapeHtml(highestAverage.category)} (${formatCurrency(highestAverage.average)})`);
 
   // Répartition Vous vs Conjointe
   const totalYou = categories.reduce((sum, cat) => sum + cat.paidByYou, 0);

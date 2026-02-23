@@ -4,6 +4,7 @@
  */
 
 import { DB_PATHS } from './config.js';
+import { getState } from './state.js';
 
 // Firebase database reference (set after initialization)
 let database = null;
@@ -22,6 +23,19 @@ export function initDatabase(db) {
  */
 export function getDatabase() {
   return database;
+}
+
+// ===== USER PATH HELPER =====
+
+/**
+ * Get user-scoped database path
+ * @param {string} subpath - Relative path (e.g. 'salaries', 'periods/2025-01')
+ * @returns {string} Full path prefixed with users/{uid}/
+ */
+export function getUserPath(subpath) {
+  const uid = getState('currentUser')?.uid;
+  if (!uid) throw new Error('User not authenticated');
+  return `users/${uid}/${subpath}`;
 }
 
 // ===== GENERIC OPERATIONS =====
@@ -87,7 +101,7 @@ export function dbListen(path, callback) {
  * @returns {Promise<{vous: number, conjointe: number}>}
  */
 export async function loadSalaries() {
-  const data = await dbGet(DB_PATHS.SALARIES);
+  const data = await dbGet(getUserPath(DB_PATHS.SALARIES));
   return data || { vous: 0, conjointe: 0 };
 }
 
@@ -97,7 +111,7 @@ export async function loadSalaries() {
  * @returns {Promise<void>}
  */
 export async function saveSalaries(salaries) {
-  await dbSet(DB_PATHS.SALARIES, salaries);
+  await dbSet(getUserPath(DB_PATHS.SALARIES), salaries);
 }
 
 /**
@@ -106,7 +120,7 @@ export async function saveSalaries(salaries) {
  * @returns {Function} Unsubscribe
  */
 export function listenSalaries(callback) {
-  return dbListen(DB_PATHS.SALARIES, callback);
+  return dbListen(getUserPath(DB_PATHS.SALARIES), callback);
 }
 
 // ===== PERIOD DATA =====
@@ -117,7 +131,7 @@ export function listenSalaries(callback) {
  * @returns {string} Database path
  */
 function getPeriodPath(period) {
-  return `${DB_PATHS.PERIODS}/${period}`;
+  return getUserPath(`${DB_PATHS.PERIODS}/${period}`);
 }
 
 /**
@@ -189,7 +203,7 @@ export function listenPeriodData(period, callback) {
  * @returns {Promise<{mode: string, customPercents: Object}>}
  */
 export async function loadShareMode() {
-  const data = await dbGet(DB_PATHS.SHARE_MODE);
+  const data = await dbGet(getUserPath(DB_PATHS.SHARE_MODE));
   return data || { mode: 'prorata', customPercents: { vous: 50, conjointe: 50 } };
 }
 
@@ -199,7 +213,7 @@ export async function loadShareMode() {
  * @param {Object} customPercents
  */
 export async function saveShareMode(mode, customPercents) {
-  await dbSet(DB_PATHS.SHARE_MODE, { mode, customPercents });
+  await dbSet(getUserPath(DB_PATHS.SHARE_MODE), { mode, customPercents });
 }
 
 // ===== REMINDERS =====
@@ -209,7 +223,7 @@ export async function saveShareMode(mode, customPercents) {
  * @returns {Promise<Object>}
  */
 export async function loadReminders() {
-  const data = await dbGet(DB_PATHS.REMINDERS);
+  const data = await dbGet(getUserPath(DB_PATHS.REMINDERS));
   return data || {
     finMois: false,
     budget: false,
@@ -223,5 +237,5 @@ export async function loadReminders() {
  * @param {Object} settings
  */
 export async function saveReminders(settings) {
-  await dbSet(DB_PATHS.REMINDERS, settings);
+  await dbSet(getUserPath(DB_PATHS.REMINDERS), settings);
 }

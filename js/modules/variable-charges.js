@@ -5,8 +5,9 @@ import { getFirebaseDatabase } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
+import { getUserPath } from '../db.js';
 
 let database = null;
 
@@ -61,7 +62,7 @@ export async function loadVariableCharges() {
   }
 
   try {
-    const snapshot = await database.ref(`periods/${currentPeriod}/variableCharges`).once('value');
+    const snapshot = await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).once('value');
 
     if (snapshot.exists()) {
       const charges = snapshot.val();
@@ -144,11 +145,11 @@ export async function saveVariableCharge() {
     if (chargeId) {
       // Édition
       key = chargeId;
-      await database.ref(`periods/${currentPeriod}/variableCharges/${key}`).update(chargeData);
+      await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges/${key}`)).update(chargeData);
       toast.success('Charge modifiée');
     } else {
       // Ajout
-      const newRef = database.ref(`periods/${currentPeriod}/variableCharges`).push();
+      const newRef = database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).push();
       key = newRef.key;
       await newRef.set(chargeData);
       toast.success('Charge ajoutée');
@@ -214,13 +215,13 @@ export async function deleteVariableCharge(chargeId) {
 
   try {
     // Soft delete
-    await database.ref(`periods/${currentPeriod}/variableCharges/${chargeId}`).update({ deleted: true });
+    await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges/${chargeId}`)).update({ deleted: true });
 
     // Mettre à jour le state local
     await loadVariableCharges();
     toast.success('Charge supprimée', {
       undo: async () => {
-        await database.ref(`periods/${currentPeriod}/variableCharges/${chargeId}`).update({ deleted: false });
+        await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges/${chargeId}`)).update({ deleted: false });
         await loadVariableCharges();
         calculateSummary();
         toast.success('Suppression annulée');
@@ -274,7 +275,7 @@ export function renderVariableCharges() {
     categoryDiv.className = 'charge-category';
     categoryDiv.innerHTML = `
       <h4 class="category-header">
-        ${getCategoryIcon(category)} ${category}
+        ${getCategoryIcon(category)} ${escapeHtml(category)}
         <span class="category-total">${formatCurrency(categoryTotal)}</span>
       </h4>
     `;
@@ -294,15 +295,15 @@ export function renderVariableCharges() {
       chargeDiv.dataset.id = charge.id;
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${charge.description || 'Sans description'}</span>
+          <span class="charge-description">${escapeHtml(charge.description) || 'Sans description'}</span>
           <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
-          <button class="btn-icon" onclick="editVariableCharge('${charge.id}')" title="Modifier">
+          <button class="btn-icon" onclick="editVariableCharge('${escapeHtml(charge.id)}')" title="Modifier">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn-icon btn-delete" onclick="deleteVariableCharge('${charge.id}')" title="Supprimer">
+          <button class="btn-icon btn-delete" onclick="deleteVariableCharge('${escapeHtml(charge.id)}')" title="Supprimer">
             <i class="fas fa-trash"></i>
           </button>
         </div>
@@ -336,6 +337,3 @@ function getCategoryIcon(category) {
   return icons[category] || icons['Autre'];
 }
 
-// Exposer les fonctions globalement pour les onclick handlers
-window.editVariableCharge = editVariableCharge;
-window.deleteVariableCharge = deleteVariableCharge;

@@ -7,6 +7,7 @@ import { setState, getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
 import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
+import { getUserPath } from '../db.js';
 
 /**
  * Select and apply share mode
@@ -79,16 +80,19 @@ export function validateCustomPercents() {
   }
 }
 
+let _isLoading = false;
+
 /**
  * Save share mode to Firebase
  */
 async function saveShareMode() {
+  if (_isLoading) return;
   const database = getFirebaseDatabase();
   const shareMode = getState('shareMode');
   const customPercents = getState('customPercents');
 
   try {
-    await database.ref('shareMode').set({
+    await database.ref(getUserPath('shareMode')).set({
       mode: shareMode,
       customPercents: shareMode === 'custom' ? customPercents : null
     });
@@ -107,7 +111,7 @@ export async function loadShareMode() {
   const database = getFirebaseDatabase();
 
   try {
-    const snapshot = await database.ref('shareMode').once('value');
+    const snapshot = await database.ref(getUserPath('shareMode')).once('value');
 
     if (snapshot.exists()) {
       const data = snapshot.val();
@@ -125,18 +129,24 @@ export async function loadShareMode() {
       }
 
       // Update UI (this will also save and recalc summary)
+      _isLoading = true;
       selectShareMode(mode);
+      _isLoading = false;
 
       console.log(`📥 Mode de partage chargé : ${mode}`);
     } else {
       // No saved mode, use default 'prorata'
+      _isLoading = true;
       selectShareMode('prorata');
+      _isLoading = false;
     }
   } catch (error) {
     console.error('❌ Erreur chargement mode partage:', error);
     toast.error('Erreur lors du chargement du mode de partage');
     // Fallback to prorata
+    _isLoading = true;
     selectShareMode('prorata');
+    _isLoading = false;
   }
 }
 
