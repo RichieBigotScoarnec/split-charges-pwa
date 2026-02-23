@@ -3,6 +3,7 @@
 
 import { getState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 /**
  * Initialise le module d'analyse par catégorie
@@ -197,7 +198,7 @@ export function renderCategoryAnalysis() {
     row.innerHTML = `
       <td class="category-name">
         <span class="category-icon">${getCategoryIcon(cat.category)}</span>
-        ${cat.category}
+        ${escapeHtml(cat.category)}
       </td>
       <td class="amount-total"><strong>${formatCurrency(cat.total)}</strong></td>
       <td class="percentage">

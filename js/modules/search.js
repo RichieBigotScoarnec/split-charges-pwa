@@ -4,6 +4,7 @@
 import { getState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 let searchTimeout = null;
 
@@ -261,16 +262,7 @@ function showAllCharges() {
   });
 }
 
-/**
- * Échappe le HTML pour éviter les injections XSS
- * @param {string} text - Texte à échapper
- * @returns {string}
- */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+// ✅ FIX CRITIQUE 3: Function escapeHtml removed - now imported from utils.js
 
 // Exposer globalement pour compatibilité
 window.clearSearch = clearSearch;

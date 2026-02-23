@@ -1,0 +1,83 @@
+Structure du dossier pour le volume Windows
+Le numéro de série du volume est 5AE3-4CF5
+C:.
+|   .gitignore
+|   ARBORESCENCE.txt
+|   CHANGELOG-MULTIUSER.md
+|   CLAUDE.md
+|   CLEAR-CACHE.md
+|   COMMANDES-GIT-RAPIDES.md
+|   configure-partner.html
+|   create-fairsplit-files.ps1
+|   DEPLOIEMENT-GITHUB-PAGES.md
+|   FairSplit-Test.html
+|   GUIDE-MIGRATION-MULTIUSER.md
+|   icon-192-test.png
+|   icon-512-test.png
+|   index.html
+|   manifest-test.json
+|   manifest.json
+|   migrate-to-multiuser.html
+|   PROCHAINES-ETAPES.md
+|   README-MIGRATION.md
+|   README.md
+|   REGLES-FIREBASE-A-APPLIQUER.txt
+|   SECURITY.md
+|   sw-test.js
+|   TROUBLESHOOTING-AUTH.md
+|   VERSION-INFO.md
+|   WORKFLOW-DEV.md
+|   
++---.github
+|   \---workflows
+|           deploy.yml
+|           
++---css
+|       auth.css
+|       base.css
+|       components.css
+|       map.css
+|       modals.css
+|       responsive.css
+|       summary.css
+|       variables.css
+|       
++---docs
+|   \---claude
+|       \---prompts
+|               prompt_html_troubleshooting.md
+|               
+\---js
+    |   app.js
+    |   config.js
+    |   db.js
+    |   firebase-init.js
+    |   state.js
+    |   utils.js
+    |   
+    +---components
+    |       modal.js
+    |       toast.js
+    |       
+    +---modules
+    |       auth.js
+    |       categories.js
+    |       export.js
+    |       fixed-charges.js
+    |       map.js
+    |       notifications.js
+    |       period.js
+    |       quick-add.js
+    |       reconduction.js
+    |       reimbursements.js
+    |       search.js
+    |       share-mode.js
+    |       summary.js
+    |       trends.js
+    |       variable-charges.js
+    |       
+    \---utils
+            date.js
+            format.js
+            validation.js
+            

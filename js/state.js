@@ -89,6 +89,12 @@ export function setState(key, value) {
     current[keys[keys.length - 1]] = value;
   }
 
+  // Debug log for GPS location updates
+  if (key.includes('gpsLocation')) {
+    console.log(`📝 [STATE] setState("${key}") =`, JSON.stringify(value));
+    console.log('📝 [STATE] État complet quickAddState:', JSON.stringify(state.quickAddState));
+  }
+
   // Notify listeners
   notifyListeners(key, value);
 }
@@ -119,6 +125,40 @@ export function resetState() {
   listeners.forEach((callbacks, key) => {
     callbacks.forEach(cb => cb(getState(key), key));
   });
+}
+
+/**
+ * Reset user data on logout (keep app state like isOnline, mapInstance)
+ */
+export function resetUserData() {
+  // Reset user & auth
+  setState('currentUser', null);
+  setState('isAuthenticated', false);
+
+  // Keep currentPeriod (will be reinitialized on next login)
+  // But clear user data
+  setState('salaries', { vous: 0, conjointe: 0 });
+  setState('fixedCharges', []);
+  setState('variableCharges', []);
+  setState('reimbursements', []);
+
+  // Reset share settings to defaults
+  setState('shareMode', 'prorata');
+  setState('customPercents', { vous: 50, conjointe: 50 });
+
+  // Clear UI state
+  setState('editingCharge', null);
+  setState('quickAddState', {
+    selectedCategory: null,
+    splitMode: 'prorata',
+    gpsLocation: null
+  });
+
+  // Clear reconduction data
+  setState('previousMonthCharges', []);
+  setState('selectedReconductionItems', []);
+
+  console.log('🧹 User data reset on logout');
 }
 
 // ===== ARRAY HELPERS =====

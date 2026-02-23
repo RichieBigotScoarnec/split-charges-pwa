@@ -1,7 +1,7 @@
 // ===== MODULE : CARTE INTERACTIVE =====
 // Fonctionnalités : visualisation géographique des dépenses avec Leaflet
 
-import { getState } from '../state.js';
+import { getState, setState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
@@ -208,10 +208,20 @@ async function loadChargesOnMap() {
     return;
   }
 
+  console.log('🗺️ [MAP-1] Chargement des charges sur la carte');
+
   // Récupérer les charges
   const variableCharges = getState('variableCharges') || [];
   const fixedCharges = getState('fixedCharges') || [];
   const allCharges = [...variableCharges, ...fixedCharges];
+
+  console.log(`🗺️ [MAP-2] Charges récupérées: ${variableCharges.length} variables, ${fixedCharges.length} fixes`);
+  console.log('🗺️ [MAP-2b] Charges variables avec location:',
+    variableCharges.filter(c => c.location).map(c => ({
+      desc: c.description,
+      location: c.location
+    }))
+  );
 
   // Nettoyer les marqueurs existants
   clearMarkers();
@@ -221,6 +231,8 @@ async function loadChargesOnMap() {
     .filter(charge => !charge.deleted)
     .map(charge => addGeolocationToCharge(charge))
     .filter(charge => charge.location);
+
+  console.log(`🗺️ [MAP-3] Charges géolocalisées après traitement: ${geoCharges.length}`);
 
   // Créer les marqueurs
   let totalAmount = 0;
@@ -250,12 +262,24 @@ async function loadChargesOnMap() {
 }
 
 /**
- * Ajoute une géolocalisation simulée à une charge
+ * Ajoute une géolocalisation simulée à une charge SI elle n'en a pas déjà
  * (En production, ces données viendraient de la base ou d'une API de géocodage)
  * @param {Object} charge - Charge à géolocaliser
  * @returns {Object} Charge avec location ajoutée
  */
 function addGeolocationToCharge(charge) {
+  // ✅ IMPORTANT: Si la charge a déjà une vraie géolocalisation, la préserver
+  if (charge.location && charge.location.lat && charge.location.lng) {
+    console.log('📍 [GEO-PRESERVE] Vraie géolocalisation préservée:',
+      charge.description,
+      'GPS:', charge.location.lat.toFixed(5), charge.location.lng.toFixed(5),
+      'Nom:', charge.location.name
+    );
+    return charge;
+  }
+
+  console.log('🔍 [GEO-SIMULATE] Pas de GPS réel pour:', charge.description, '- tentative simulation');
+
   // Simulation : détection de mots-clés dans la description pour assigner des coordonnées
   const description = charge.description.toLowerCase();
 
@@ -270,9 +294,10 @@ function addGeolocationToCharge(charge) {
     'cinéma': { lat: 48.8700, lng: 2.3100, name: 'Cinéma' }
   };
 
-  // Rechercher un match
+  // Rechercher un match pour simulation
   for (const [keyword, location] of Object.entries(locationDatabase)) {
     if (description.includes(keyword)) {
+      console.log('📍 Géolocalisation simulée:', charge.description, keyword);
       return {
         ...charge,
         location: {
@@ -448,28 +473,50 @@ function updateMapStats(totalAmount, markerCount) {
 }
 
 /**
- * Ajoute une charge géolocalisée manuellement
- * @param {Object} charge - Charge à ajouter
+ * Ajoute ou met à jour une géolocalisation pour une charge existante
+ * @param {string} chargeId - ID de la charge
+ * @param {string} chargeType - Type de charge ('variableCharges' ou 'fixedCharges')
  * @param {number} lat - Latitude
  * @param {number} lng - Longitude
  * @param {string} locationName - Nom du lieu
  */
-export async function addGeoCharge(charge, lat, lng, locationName) {
-  const geoCharge = {
-    ...charge,
-    location: {
-      lat: lat,
-      lng: lng,
-      name: locationName
-    }
+export async function addGeoCharge(chargeId, chargeType, lat, lng, locationName) {
+  if (!chargeId || !chargeType) {
+    console.error('❌ addGeoCharge: chargeId et chargeType requis');
+    return;
+  }
+
+  const locationData = {
+    lat: lat,
+    lng: lng,
+    name: locationName || 'Localisation',
+    timestamp: Date.now()
   };
 
-  // TODO: Sauvegarder dans Firebase avec location
-  console.log('Charge géolocalisée :', geoCharge);
+  try {
+    // ✅ Sauvegarder dans Firebase avec location
+    const { dbUpdate } = await import('../db.js');
+    const currentPeriod = getState('currentPeriod');
 
-  // Rafraîchir la carte si ouverte
-  if (map) {
-    loadChargesOnMap();
+    await dbUpdate(`periods/${currentPeriod}/${chargeType}/${chargeId}/location`, locationData);
+
+    console.log('📍 Géolocalisation sauvegardée :', locationData);
+    toast.success('📍 Localisation ajoutée');
+
+    // Mettre à jour le state local
+    const charges = getState(chargeType) || [];
+    const updatedCharges = charges.map(c =>
+      c.id === chargeId ? { ...c, location: locationData } : c
+    );
+    setState(chargeType, updatedCharges);
+
+    // Rafraîchir la carte si ouverte
+    if (map) {
+      loadChargesOnMap();
+    }
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde géolocalisation :', error);
+    toast.error('Erreur lors de l\'ajout de la localisation');
   }
 }
 

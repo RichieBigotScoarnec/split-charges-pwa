@@ -41,7 +41,7 @@ function setupReconduction() {
 /**
  * Vérifie si une reconduction est nécessaire
  */
-function checkReconductionNeeded() {
+export function checkReconductionNeeded() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) return;
 

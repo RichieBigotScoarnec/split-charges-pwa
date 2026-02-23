@@ -19,6 +19,9 @@ import { initAuth } from './modules/auth.js';
 // import { initCharges } from './modules/charges.js';
 // etc.
 
+// ✅ FIX CRITIQUE 5: Stocker l'unsubscribe function pour le listener de connexion
+let connectionUnsubscribe = null;
+
 /**
  * Initialize the application
  */
@@ -31,7 +34,8 @@ async function initApp() {
     initDatabase(database);
 
     // 2. Setup connection monitoring
-    onConnectionChange((isConnected) => {
+    // ✅ FIX CRITIQUE 5: Stocker l'unsubscribe function
+    connectionUnsubscribe = onConnectionChange((isConnected) => {
       setState('isOnline', isConnected);
       console.log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
     });
@@ -58,6 +62,24 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
   initApp();
+}
+
+/**
+ * ✅ FIX CRITIQUE 5: Cleanup application listeners
+ * Call this when you need to explicitly remove all app listeners
+ * (e.g., during app shutdown or hot module reload)
+ */
+export async function cleanupApp() {
+  // Cleanup connection listener
+  if (connectionUnsubscribe) {
+    connectionUnsubscribe();
+    connectionUnsubscribe = null;
+    console.log('[App] 🧹 Listener de connexion Firebase nettoyé');
+  }
+
+  // Cleanup auth listener
+  const { cleanupAuth } = await import('./modules/auth.js');
+  cleanupAuth();
 }
 
 // Export for potential external use
