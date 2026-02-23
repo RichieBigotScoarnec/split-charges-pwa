@@ -5,11 +5,10 @@
 
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { setState, getState } from '../state.js';
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { toast } from '../components/toast.js';
-import { renderVariableCharges } from './variable-charges.js';
-import { renderFixedCharges } from './fixed-charges.js';
-import { renderReimbursements } from './reimbursements.js';
+import { loadVariableCharges } from './variable-charges.js';
+import { loadFixedCharges } from './fixed-charges.js';
+import { loadReimbursements } from './reimbursements.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
 
@@ -98,14 +97,15 @@ export function navigatePeriod(direction) {
  * Loads both salaries (global) and period-specific data
  */
 export async function loadPeriodData() {
-  const database = getFirebaseDatabase();
   const currentPeriod = getState('currentPeriod');
 
   try {
     // 1. Load salaries (global, not period-specific)
-    const salariesSnapshot = await database.ref(getUserPath('salaries')).once('value');
-    if (salariesSnapshot.exists()) {
-      const salaries = salariesSnapshot.val();
+    // Use dbGet from db.js which handles UID-scoped paths
+    const { dbGet } = await import('../db.js');
+    const salaries = await dbGet('salaries');
+
+    if (salaries) {
       setState('salaries', salaries);
 
       // Update UI inputs
@@ -115,20 +115,11 @@ export async function loadPeriodData() {
       if (conjointeInput) conjointeInput.value = salaries.conjointe || 0;
     }
 
-    // 2. Load period-specific data
-    const periodSnapshot = await database.ref(getUserPath(`periods/${currentPeriod}`)).once('value');
-
-    if (periodSnapshot.exists()) {
-      const data = periodSnapshot.val();
-      setState('fixedCharges', data.fixedCharges || []);
-      setState('variableCharges', data.variableCharges || []);
-      setState('reimbursements', data.reimbursements || []);
-    } else {
-      // No data for this period, reset to empty arrays
-      setState('fixedCharges', []);
-      setState('variableCharges', []);
-      setState('reimbursements', []);
-    }
+    // 2. Load period-specific data using individual module loaders
+    // This ensures proper object-to-array conversion from Firebase
+    await loadVariableCharges();
+    await loadFixedCharges();
+    await loadReimbursements();
 
     // Clear search when switching periods
     const searchInput = document.getElementById('searchInput');
@@ -139,14 +130,12 @@ export async function loadPeriodData() {
     if (searchClearBtn) searchClearBtn.classList.remove('visible');
     if (searchResultsInfo) searchResultsInfo.classList.remove('visible');
 
-    // Render all UI
-    renderVariableCharges();
-    renderFixedCharges();
-    renderReimbursements();
+    // Calculate summary (rendering is done by individual loaders)
     calculateSummary();
 
-    // TODO Étape 3h : Check for reconduction banner
-    // checkForNewMonth();
+    // ✅ Check for reconduction banner
+    const { checkReconductionNeeded } = await import('./reconduction.js');
+    checkReconductionNeeded();
 
     console.log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
 
@@ -160,7 +149,6 @@ export async function loadPeriodData() {
  * Save current period data to Firebase
  */
 export async function savePeriodData() {
-  const database = getFirebaseDatabase();
   const currentPeriod = getState('currentPeriod');
 
   const fixedCharges = getState('fixedCharges') || [];
@@ -168,14 +156,16 @@ export async function savePeriodData() {
   const reimbursements = getState('reimbursements') || [];
 
   try {
-    // TODO Étape 3h : Calculate summary
-    // const summary = calculateSummary();
+    // Note: Summary is NOT saved to Firebase because it's calculated dynamically
+    // from charges + reimbursements. Saving it would be redundant and could cause
+    // data inconsistency. Summary is recalculated on every page load.
 
-    await database.ref(getUserPath(`periods/${currentPeriod}`)).set({
+    // Use dbSet from db.js which handles UID-scoped paths
+    const { dbSet } = await import('../db.js');
+    await dbSet(`periods/${currentPeriod}`, {
       fixedCharges,
       variableCharges,
       reimbursements
-      // summary (TODO Étape 3h)
     });
 
     console.log('💾 Données période sauvegardées');
@@ -190,7 +180,6 @@ export async function savePeriodData() {
  * Save salaries (global, not period-specific)
  */
 export async function saveSalaries() {
-  const database = getFirebaseDatabase();
   const indicator = document.getElementById('salariesSaveIndicator');
 
   if (indicator) {
@@ -244,7 +233,9 @@ export async function saveSalaries() {
   }
 
   try {
-    await database.ref(getUserPath('salaries')).set(salaries);
+    // Use dbSet from db.js which handles UID-scoped paths
+    const { dbSet } = await import('../db.js');
+    await dbSet('salaries', salaries);
     setState('salaries', salaries);
 
     if (indicator) {
@@ -280,6 +271,16 @@ export function initPeriod() {
   const periodSelect = document.getElementById('periodSelect');
   if (periodSelect) {
     periodSelect.addEventListener('change', changePeriod);
+  }
+
+  // Setup event listeners for salary inputs
+  const vousInput = document.getElementById('salaireVous');
+  const conjointeInput = document.getElementById('salaireConjointe');
+  if (vousInput) {
+    vousInput.addEventListener('change', saveSalaries);
+  }
+  if (conjointeInput) {
+    conjointeInput.addEventListener('change', saveSalaries);
   }
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)

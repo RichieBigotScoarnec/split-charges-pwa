@@ -2,7 +2,8 @@
 // Fonctionnalités : statistiques, comparaisons, visualisation par catégorie
 
 import { getState } from '../state.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { formatCurrency } from '../utils/format.js';
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 /**
  * Initialise le module d'analyse par catégorie

@@ -1,15 +1,12 @@
 // ===== MODULE : GESTION DES CHARGES VARIABLES =====
 // Fonctionnalités : add, edit, delete, render, validation
 
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
-import { getUserPath } from '../db.js';
-
-let database = null;
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 /**
  * Initialise le module de gestion des charges variables
@@ -24,12 +21,11 @@ export function showAddVariableChargeModal() {
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
 
-  showModal('variableChargeModal');
+  showModal('modalAddVariableCharge');
 }
 
 export function initVariableCharges() {
   console.log('📦 Initialisation module charges variables');
-  database = getFirebaseDatabase();
 
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addVariableChargeBtn');
@@ -62,17 +58,19 @@ export async function loadVariableCharges() {
   }
 
   try {
-    const snapshot = await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).once('value');
+    // Use dbGet from db.js which handles UID-scoped paths
+    const { dbGet } = await import('../db.js');
+    const charges = await dbGet(`periods/${currentPeriod}/variableCharges`);
 
-    if (snapshot.exists()) {
-      const charges = snapshot.val();
+    if (charges) {
       // Filtrer les charges non supprimées et valides
       const activeCharges = Object.entries(charges)
         .filter(([id, charge]) => {
           // Filtrer les charges supprimées
           if (charge.deleted) return false;
-          // Filtrer les charges invalides (sans id, description, ou amount)
-          if (!id || !charge.description || typeof charge.amount !== 'number') {
+          // Filtrer les charges invalides (sans id ou amount invalide)
+          // Note: description est optionnel (anciennes charges peuvent ne pas en avoir)
+          if (!id || typeof charge.amount !== 'number') {
             console.warn(`⚠️ Charge invalide ignorée:`, id, charge);
             return false;
           }
@@ -141,23 +139,24 @@ export async function saveVariableCharge() {
       deleted: false
     };
 
+    // Use dbUpdate/dbPush from db.js which handles UID-scoped paths
+    const { dbUpdate, dbPush } = await import('../db.js');
+
     let key;
     if (chargeId) {
       // Édition
       key = chargeId;
-      await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges/${key}`)).update(chargeData);
+      await dbUpdate(`periods/${currentPeriod}/variableCharges/${key}`, chargeData);
       toast.success('Charge modifiée');
     } else {
       // Ajout
-      const newRef = database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).push();
-      key = newRef.key;
-      await newRef.set(chargeData);
+      key = await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
       toast.success('Charge ajoutée');
     }
 
     // Mettre à jour le state local
     await loadVariableCharges();
-    closeModal('variableChargeModal', true);
+    closeModal('modalAddVariableCharge', true);
 
     // Recalculer le bilan
     calculateSummary();
@@ -187,7 +186,7 @@ export function editVariableCharge(chargeId) {
   document.getElementById('variableChargeCategory').value = charge.category;
   document.getElementById('variableChargePaidBy').value = charge.paidBy;
 
-  showModal('variableChargeModal');
+  showModal('modalAddVariableCharge');
 }
 
 /**
@@ -214,14 +213,17 @@ export async function deleteVariableCharge(chargeId) {
   }
 
   try {
+    // Use dbUpdate from db.js which handles UID-scoped paths
+    const { dbUpdate } = await import('../db.js');
+
     // Soft delete
-    await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges/${chargeId}`)).update({ deleted: true });
+    await dbUpdate(`periods/${currentPeriod}/variableCharges/${chargeId}`, { deleted: true });
 
     // Mettre à jour le state local
     await loadVariableCharges();
     toast.success('Charge supprimée', {
       undo: async () => {
-        await database.ref(getUserPath(`periods/${currentPeriod}/variableCharges/${chargeId}`)).update({ deleted: false });
+        await dbUpdate(`periods/${currentPeriod}/variableCharges/${chargeId}`, { deleted: false });
         await loadVariableCharges();
         calculateSummary();
         toast.success('Suppression annulée');
@@ -285,8 +287,8 @@ export function renderVariableCharges() {
 
     categoryCharges.forEach(charge => {
       // Validation supplémentaire
-      if (!charge.id || !charge.description) {
-        console.warn('⚠️ Charge invalide ignorée dans le rendu:', charge);
+      if (!charge.id) {
+        console.warn('⚠️ Charge invalide ignorée dans le rendu (pas d\'ID):', charge);
         return;
       }
 
@@ -295,7 +297,7 @@ export function renderVariableCharges() {
       chargeDiv.dataset.id = charge.id;
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${escapeHtml(charge.description) || 'Sans description'}</span>
+          <span class="charge-description">${escapeHtml(charge.description || 'Sans description')}</span>
           <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
         </div>
         <div class="charge-actions">

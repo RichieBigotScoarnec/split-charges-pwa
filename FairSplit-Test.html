@@ -161,7 +161,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">⚡ Charges Variables</div>
-        <button type="button" class="btn btn-primary" onclick="showAddVariableChargeModal()">+ Ajouter</button>
+        <button type="button" class="btn btn-primary" id="addVariableChargeBtn">+ Ajouter</button>
       </div>
       <div id="variableChargesList">
         <!-- Populated dynamically -->
@@ -172,7 +172,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">🔒 Charges Fixes</div>
-        <button type="button" class="btn btn-primary" onclick="showAddFixedChargeModal()">+ Ajouter</button>
+        <button type="button" class="btn btn-primary" id="addFixedChargeBtn">+ Ajouter</button>
       </div>
       <div id="fixedChargesList">
         <!-- Populated dynamically -->
@@ -183,7 +183,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">💸 Remboursements</div>
-        <button type="button" class="btn btn-primary" onclick="showAddReimbursementModal()">+ Ajouter</button>
+        <button type="button" class="btn btn-primary" id="addReimbursementBtn">+ Ajouter</button>
       </div>
       <div id="reimbursementsList">
         <!-- Populated dynamically -->
@@ -195,28 +195,10 @@
       <div class="card-header">
         <div class="card-title">📊 Résumé du Mois</div>
       </div>
-      <div class="summary-grid">
-        <div class="summary-item">
-          <div class="summary-label">Total Charges</div>
-          <div class="summary-value" id="summaryTotal">0.00€</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Votre Part</div>
-          <div class="summary-value" id="summaryYourShare">0.00€</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Part Conjointe</div>
-          <div class="summary-value" id="summaryPartnerShare">0.00€</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Remboursements</div>
-          <div class="summary-value" id="summaryReimbursements">0.00€</div>
-        </div>
-      </div>
 
-      <!-- Bilan Final -->
-      <div id="bilanFinal" class="bilan-final" style="display: none;">
-        <!-- Populated dynamically -->
+      <!-- Bilan dynamically populated by summary.js module -->
+      <div id="summarySection">
+        <!-- Populated dynamically by summary.js -->
       </div>
 
       <!-- Analyse par Catégorie -->
@@ -307,143 +289,124 @@
     </div>
   </div>
 
-  <!-- Modal: Add Variable Charge -->
+  <!-- Modal: Add Variable Charge (Refactored for module) -->
   <div id="modalAddVariableCharge" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">Ajouter Charge Variable</div>
-      <div class="form-group">
-        <label>Nom de la charge</label>
-        <input type="text" id="varChargeName" placeholder="Ex: Courses" maxlength="100" />
-      </div>
-      <div class="form-group">
-        <label>Montant (€)</label>
-        <input type="text" id="varChargeAmount" placeholder="Ex: 150.50" inputmode="decimal" />
-      </div>
-      <div class="form-group">
-        <label>Type de paiement</label>
-        <select id="varChargePaymentType" onchange="toggleVarPaymentDetails()">
-          <option value="joint">Compte joint</option>
-          <option value="vous">Vous seul</option>
-          <option value="conjointe">Conjointe seule</option>
-          <option value="both">Les deux (50-50 physique)</option>
-        </select>
-      </div>
-      <div class="form-group" id="varPaymentBothDetails" style="display: none;">
-        <label>Montants payés</label>
-        <div style="display: flex; gap: 10px;">
-          <input type="text" id="varPaidByYou" placeholder="Vous (€)" inputmode="decimal" style="flex: 1;" />
-          <input type="text" id="varPaidByPartner" placeholder="Conjointe (€)" inputmode="decimal" style="flex: 1;" />
+      <form id="variableChargeForm">
+        <input type="hidden" id="variableChargeId" value="" />
+
+        <div class="form-group">
+          <label for="variableChargeDescription">Description</label>
+          <input type="text" id="variableChargeDescription" placeholder="Ex: Courses, Restaurant..." maxlength="100" required />
         </div>
-      </div>
-      <div class="form-group">
-        <label>Mode de répartition</label>
-        <select id="varChargeSplitMode" onchange="toggleVarCustomSplit()">
-          <option value="prorata">Prorata (selon salaires)</option>
-          <option value="50-50">50-50</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="form-group" id="varCustomSplitDetails" style="display: none;">
-        <label>Pourcentages custom</label>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <input type="number" id="varCustomYou" placeholder="Vous %" min="0" max="100" style="flex: 1;" />
-          <span>%</span>
-          <input type="number" id="varCustomPartner" placeholder="Conjointe %" min="0" max="100" style="flex: 1;" />
-          <span>%</span>
+
+        <div class="form-group">
+          <label for="variableChargeAmount">Montant (€)</label>
+          <input type="number" id="variableChargeAmount" placeholder="Ex: 150.50" step="0.01" min="0" max="100000" required />
         </div>
-        <small style="color: var(--text-secondary); font-size: 11px;">Total doit = 100%</small>
-      </div>
-      <div class="form-group">
-        <label>Note (optionnel)</label>
-        <textarea id="varChargeNote" class="note-textarea" placeholder="Ex: Courses du samedi matin..." rows="2" maxlength="500"></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
-        <button type="button" class="btn btn-primary" id="btnAddVariableCharge" onclick="addVariableCharge()" disabled>Ajouter</button>
-      </div>
+
+        <div class="form-group">
+          <label for="variableChargeCategory">Catégorie</label>
+          <select id="variableChargeCategory" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="Alimentation">Alimentation</option>
+            <option value="Transport">Transport</option>
+            <option value="Loisirs">Loisirs</option>
+            <option value="Santé">Santé</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="variableChargePaidBy">Payé par</label>
+          <select id="variableChargePaidBy" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="vous">Vous</option>
+            <option value="conjointe">Conjointe</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
+          <button type="button" class="btn btn-primary" id="saveVariableCharge">Ajouter</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <!-- Modal: Add Fixed Charge -->
+  <!-- Modal: Add Fixed Charge (Refactored for module) -->
   <div id="modalAddFixedCharge" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">Ajouter Charge Fixe</div>
-      <div class="form-group">
-        <label>Nom de la charge</label>
-        <input type="text" id="fixedChargeName" placeholder="Ex: Loyer, Nounou, Crédit..." maxlength="100" />
-      </div>
-      <div class="form-group">
-        <label>Montant (€)</label>
-        <input type="text" id="fixedChargeAmount" placeholder="Ex: 800" inputmode="decimal" />
-      </div>
-      <div class="form-group">
-        <label>Type de paiement</label>
-        <select id="fixedChargePaymentType" onchange="toggleFixedPaymentDetails()">
-          <option value="joint">Compte joint</option>
-          <option value="vous">Vous seul</option>
-          <option value="conjointe">Conjointe seule</option>
-          <option value="both">Les deux (50-50 physique)</option>
-        </select>
-      </div>
-      <div class="form-group" id="fixedPaymentBothDetails" style="display: none;">
-        <label>Montants payés</label>
-        <div style="display: flex; gap: 10px;">
-          <input type="text" id="fixedPaidByYou" placeholder="Vous (€)" inputmode="decimal" style="flex: 1;" />
-          <input type="text" id="fixedPaidByPartner" placeholder="Conjointe (€)" inputmode="decimal" style="flex: 1;" />
+      <form id="fixedChargeForm">
+        <input type="hidden" id="fixedChargeId" value="" />
+
+        <div class="form-group">
+          <label for="fixedChargeDescription">Description</label>
+          <input type="text" id="fixedChargeDescription" placeholder="Ex: Loyer, EDF, Internet..." maxlength="100" required />
         </div>
-      </div>
-      <div class="form-group">
-        <label>Mode de répartition</label>
-        <select id="fixedChargeSplitMode" onchange="toggleFixedCustomSplit()">
-          <option value="prorata">Prorata (selon salaires)</option>
-          <option value="50-50">50-50</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="form-group" id="fixedCustomSplitDetails" style="display: none;">
-        <label>Pourcentages custom</label>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <input type="number" id="fixedCustomYou" placeholder="Vous %" min="0" max="100" style="flex: 1;" />
-          <span>%</span>
-          <input type="number" id="fixedCustomPartner" placeholder="Conjointe %" min="0" max="100" style="flex: 1;" />
-          <span>%</span>
+
+        <div class="form-group">
+          <label for="fixedChargeAmount">Montant (€)</label>
+          <input type="number" id="fixedChargeAmount" placeholder="Ex: 800" step="0.01" min="0" max="100000" required />
         </div>
-        <small style="color: var(--text-secondary); font-size: 11px;">Total doit = 100%</small>
-      </div>
-      <div class="form-group">
-        <label>Note (optionnel)</label>
-        <textarea id="fixedChargeNote" class="note-textarea" placeholder="Ex: Prélèvement automatique le 5 du mois..." rows="2" maxlength="500"></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
-        <button type="button" class="btn btn-primary" id="btnAddFixedCharge" onclick="addFixedCharge()" disabled>Ajouter</button>
-      </div>
+
+        <div class="form-group">
+          <label for="fixedChargeCategory">Catégorie</label>
+          <select id="fixedChargeCategory" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="Logement">Logement</option>
+            <option value="Énergie">Énergie</option>
+            <option value="Communication">Communication</option>
+            <option value="Assurance">Assurance</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="fixedChargePaidBy">Payé par</label>
+          <select id="fixedChargePaidBy" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="vous">Vous</option>
+            <option value="conjointe">Conjointe</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddFixedCharge')">Annuler</button>
+          <button type="button" class="btn btn-primary" id="saveFixedCharge">Ajouter</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <!-- Modal: Add Reimbursement -->
+  <!-- Modal: Add Reimbursement (Refactored for module) -->
   <div id="modalAddReimbursement" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">Ajouter Remboursement</div>
-      <div class="form-group">
-        <label>Direction</label>
-        <select id="reimbursementDirection">
-          <option value="vous-to-conjointe">Vous → Conjointe</option>
-          <option value="conjointe-to-vous">Conjointe → Vous</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Montant (€)</label>
-        <input type="text" id="reimbursementAmount" placeholder="Ex: 50" inputmode="decimal" />
-      </div>
-      <div class="form-group">
-        <label>Note (optionnel)</label>
-        <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" maxlength="200" />
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
-        <button type="button" class="btn btn-primary" id="btnAddReimbursement" onclick="addReimbursement()" disabled>Ajouter</button>
-      </div>
+      <form id="reimbursementForm">
+        <div class="form-group">
+          <label for="reimbursementDirection">Direction</label>
+          <select id="reimbursementDirection" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="from-you">Vous → Conjointe</option>
+            <option value="from-partner">Conjointe → Vous</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reimbursementAmount">Montant (€)</label>
+          <input type="number" id="reimbursementAmount" placeholder="Ex: 50" step="0.01" min="0" max="100000" required />
+        </div>
+        <div class="form-group">
+          <label for="reimbursementNote">Note (optionnel)</label>
+          <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" maxlength="200" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddReimbursement')">Annuler</button>
+          <button type="button" class="btn btn-primary" id="saveReimbursement">Ajouter</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -483,7 +446,7 @@
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalQuickAdd')">Annuler</button>
-        <button type="button" class="btn btn-primary" id="btnQuickAdd" onclick="addQuickCharge()" disabled>✓ Ajouter</button>
+        <button type="button" class="btn btn-primary" id="btnQuickAdd" onclick="window.handleQuickAddSubmit()" disabled>✓ Ajouter</button>
       </div>
     </div>
   </div>
@@ -695,18 +658,45 @@
     ];
 
     // ===== GLOBAL STATE =====
-    let currentPeriod = getCurrentPeriodString();
+    // Initialize currentPeriod with current date (YYYY-MM format)
+    const now = new Date();
+    let currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     let salaries = { vous: 0, conjointe: 0 };
     let fixedCharges = [];
     let variableCharges = [];
     let reimbursements = [];
     let shareMode = 'prorata'; // 'prorata', '50-50', 'custom'
     let customPercents = { vous: 50, conjointe: 50 };
-    let quickAddState = {
+    // Exposer sur window pour accès depuis modules
+    window.quickAddState = {
       selectedCategory: null,
       splitMode: 'prorata',
       gpsLocation: null
     };
+
+    /**
+     * ✅ FONCTION CENTRALISÉE - Synchronisation état quick-add
+     * Met à jour à la fois window.quickAddState ET le state modulaire
+     * @param {Object} updates - Propriétés à mettre à jour (partial update)
+     * @returns {Promise<void>}
+     */
+    async function syncQuickAddState(updates) {
+      console.log('🔄 [SYNC] Synchronisation quickAddState:', updates);
+
+      // 1. Mettre à jour window.quickAddState
+      Object.assign(window.quickAddState, updates);
+
+      // 2. Mettre à jour le state modulaire
+      try {
+        const { setState, getState } = await import('./js/state.js');
+        const currentState = getState('quickAddState') || {};
+        setState('quickAddState', { ...currentState, ...updates });
+        console.log('✅ [SYNC] Synchronisation réussie');
+      } catch (error) {
+        console.error('❌ [SYNC-ERROR] Échec synchronisation:', error);
+      }
+    }
+
     let editingCharge = null; // Stores { type: 'variable'|'fixed', id: number } when editing
 
     // ===== UTILITY FUNCTIONS =====
@@ -855,10 +845,12 @@
           locationEl.textContent = '';
           locationEl.className = 'quick-add-location';
         }
-        // Reset quickAddState
-        quickAddState.selectedCategory = null;
-        quickAddState.splitMode = 'prorata';
-        quickAddState.gpsLocation = null;
+        // ✅ Reset quickAddState (via fonction centralisée)
+        syncQuickAddState({
+          selectedCategory: null,
+          splitMode: 'prorata',
+          gpsLocation: null
+        });
         // Clear category selection
         document.querySelectorAll('.category-btn').forEach(btn => {
           btn.classList.remove('selected');
@@ -1095,6 +1087,7 @@
     // ===== FIN MIGRATION =====
 
     // ===== CHARGE OPERATIONS =====
+    /* COMMENTÉ - Ancien modal variable charges (remplacé par modal simple)
     // Toggle payment details for variable charges
     function toggleVarPaymentDetails() {
       const paymentType = document.getElementById('varChargePaymentType').value;
@@ -1108,6 +1101,7 @@
       const details = document.getElementById('varCustomSplitDetails');
       details.style.display = splitMode === 'custom' ? 'block' : 'none';
     }
+    */
 
     // Toggle payment details for fixed charges
     function toggleFixedPaymentDetails() {
@@ -1795,33 +1789,34 @@
     if (!window.fairSplitEventListenersInitialized) {
       window.fairSplitEventListenersInitialized = true;
 
-    document.getElementById('salaireVous').addEventListener('change', saveSalaries);
-    document.getElementById('salaireConjointe').addEventListener('change', saveSalaries);
+    // NOTE: Salary listeners moved to period.js initPeriod()
+    // document.getElementById('salaireVous').addEventListener('change', saveSalaries);
+    // document.getElementById('salaireConjointe').addEventListener('change', saveSalaries);
 
     // Search with debounce (300ms) for performance
     const debouncedSearch = debounce(handleSearch, 300);
     document.getElementById('searchInput').addEventListener('input', debouncedSearch);
 
-    // Custom percentages validation
-    document.getElementById('customPercentYou').addEventListener('input', validateCustomPercents);
-    document.getElementById('customPercentPartner').addEventListener('input', validateCustomPercents);
+    // NOTE: Custom percentages validation moved to share-mode.js module
+    // document.getElementById('customPercentYou').addEventListener('input', validateCustomPercents);
+    // document.getElementById('customPercentPartner').addEventListener('input', validateCustomPercents);
 
-    // Real-time validation for Variable Charge modal
-    document.getElementById('varChargeName').addEventListener('input', validateVariableChargeForm);
-    document.getElementById('varChargeAmount').addEventListener('input', validateVariableChargeForm);
+    // NOTE: Real-time validation for Variable Charge modal moved to variable-charges.js module
+    // document.getElementById('varChargeName').addEventListener('input', validateVariableChargeForm);
+    // document.getElementById('varChargeAmount').addEventListener('input', validateVariableChargeForm);
 
-    // Real-time validation for Fixed Charge modal
-    document.getElementById('fixedChargeName').addEventListener('input', validateFixedChargeForm);
-    document.getElementById('fixedChargeAmount').addEventListener('input', validateFixedChargeForm);
+    // NOTE: Real-time validation for Fixed Charge modal moved to fixed-charges.js module
+    // document.getElementById('fixedChargeName').addEventListener('input', validateFixedChargeForm);
+    // document.getElementById('fixedChargeAmount').addEventListener('input', validateFixedChargeForm);
 
-    // Real-time validation for Reimbursement modal
-    document.getElementById('reimbursementAmount').addEventListener('input', validateReimbursementForm);
+    // NOTE: Real-time validation for Reimbursement modal moved to reimbursements.js module
+    // document.getElementById('reimbursementAmount').addEventListener('input', validateReimbursementForm);
 
     // Quick Add event listeners
     document.getElementById('quickAddAmount').addEventListener('input', validateQuickAddForm);
     document.getElementById('quickAddAmount').addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && !document.getElementById('btnQuickAdd').disabled) {
-        addQuickCharge();
+        window.handleQuickAddSubmit();
       }
     });
 
@@ -1853,11 +1848,15 @@
     // ===== QUICK ADD (SAISIE EXPRESS) =====
 
     // Show Quick Add Modal
-    function showQuickAddModal() {
-      // Reset state
-      quickAddState.selectedCategory = null;
-      quickAddState.splitMode = 'prorata';
-      quickAddState.gpsLocation = null;
+    async function showQuickAddModal() {
+      console.log('🔄 [MODAL-OPEN] Réinitialisation du state GPS');
+
+      // ✅ Utiliser la fonction centralisée de synchronisation
+      await syncQuickAddState({
+        selectedCategory: null,
+        splitMode: 'prorata',
+        gpsLocation: null
+      });
 
       // Reset UI
       document.getElementById('quickAddAmount').value = '';
@@ -1894,11 +1893,14 @@
     }
 
     // Select category
-    function selectCategory(categoryId) {
+    async function selectCategory(categoryId) {
       const category = CATEGORIES.find(c => c.id === categoryId);
       if (!category) return;
 
-      quickAddState.selectedCategory = category;
+      console.log('🎯 [CATEGORY-SELECT] Catégorie sélectionnée:', category);
+
+      // ✅ Utiliser la fonction centralisée de synchronisation
+      await syncQuickAddState({ selectedCategory: category });
 
       // Update UI
       document.querySelectorAll('.category-btn').forEach(btn => {
@@ -1910,8 +1912,10 @@
     }
 
     // Update payer toggle
-    function updateSplitToggle(mode) {
-      quickAddState.splitMode = mode;
+    async function updateSplitToggle(mode) {
+      // ✅ Utiliser la fonction centralisée de synchronisation
+      await syncQuickAddState({ splitMode: mode });
+
       document.getElementById('quickSplitProrata').classList.toggle('selected', mode === 'prorata');
       document.getElementById('quickSplit5050').classList.toggle('selected', mode === '50-50');
     }
@@ -1919,7 +1923,7 @@
     // Validate quick add form
     function validateQuickAddForm() {
       const amount = parseFloat(document.getElementById('quickAddAmount').value) || 0;
-      const hasCategory = quickAddState.selectedCategory !== null;
+      const hasCategory = window.quickAddState.selectedCategory !== null;
       const hasAmount = amount > 0;
 
       document.getElementById('btnQuickAdd').disabled = !(hasCategory && hasAmount);
@@ -1928,28 +1932,45 @@
     // GPS Detection (Phase 1 - Basic)
     function startGPSDetection() {
       const locationEl = document.getElementById('quickAddLocation');
-      locationEl.textContent = '📍 Détection position...';
-      locationEl.className = 'quick-add-location loading';
 
-      if (!navigator.geolocation) {
-        locationEl.textContent = '';
-        locationEl.className = 'quick-add-location';
-        return;
-      }
+      try {
+        locationEl.textContent = '📍 Détection position...';
+        locationEl.className = 'quick-add-location loading';
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          quickAddState.gpsLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: Date.now()
-          };
+        if (!navigator.geolocation) {
+          console.warn('⚠️ [GPS] Géolocalisation non disponible');
+          locationEl.textContent = '';
+          locationEl.className = 'quick-add-location';
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            try {
+              console.log('🌍 [GPS-1] Position raw reçue:', position.coords);
+
+              const gpsData = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: Date.now()
+              };
+
+              // ✅ Utiliser la fonction centralisée de synchronisation
+              await syncQuickAddState({ gpsLocation: gpsData });
+              console.log('📍 [GPS-2] Géolocalisation capturée et synchronisée:', gpsData);
 
           // Try reverse geocoding
           try {
-            const place = await reverseGeocode(quickAddState.gpsLocation.lat, quickAddState.gpsLocation.lng);
+            const place = await reverseGeocode(gpsData.lat, gpsData.lng);
             if (place && place.name) {
+              // Add place name to GPS data
+              gpsData.name = place.name;
+
+              // ✅ Re-synchroniser avec le nom du lieu
+              await syncQuickAddState({ gpsLocation: gpsData });
+              console.log('✅ [GPS-3] Nom de lieu ajouté et synchronisé:', place.name);
+
               locationEl.textContent = `✓ ${place.name}`;
               locationEl.className = 'quick-add-location success';
 
@@ -1967,18 +1988,41 @@
             locationEl.textContent = '✓ Position enregistrée';
             locationEl.className = 'quick-add-location success';
           }
+            } catch (positionError) {
+              console.error('❌ [GPS-POSITION-ERROR] Erreur traitement position:', positionError);
+              locationEl.textContent = '✗ Erreur GPS';
+              locationEl.className = 'quick-add-location error';
+            }
         },
         (error) => {
-          console.log('GPS error:', error);
+          console.error('❌ [GPS-ERROR-FINAL] Échec géolocalisation:', error.message, 'Code:', error.code);
+
+          // Reset l'affichage
           locationEl.textContent = '';
           locationEl.className = 'quick-add-location';
+
+          // Afficher message selon le type d'erreur
+          if (error.code === 1) {
+            console.warn('⚠️ [GPS] Permission refusée par l\'utilisateur');
+          } else if (error.code === 2) {
+            console.warn('⚠️ [GPS] Position indisponible');
+          } else if (error.code === 3) {
+            console.warn('⚠️ [GPS] Timeout - augmenter la durée ou réessayer');
+          }
+
+          // L'utilisateur peut quand même ajouter la charge sans GPS
         },
         {
           enableHighAccuracy: false,
-          timeout: 5000,
+          timeout: 10000,  // ✅ Augmenté à 10 secondes
           maximumAge: 60000
         }
       );
+      } catch (globalError) {
+        console.error('❌ [GPS-FATAL] Erreur critique GPS:', globalError);
+        locationEl.textContent = '';
+        locationEl.className = 'quick-add-location';
+      }
     }
 
     // Reverse Geocoding (Nominatim API - Free)
@@ -2048,6 +2092,7 @@
     }
 
     // Add Quick Charge
+    /* COMMENTÉ - Ancienne version sans Firebase UID-scoped
     async function addQuickCharge() {
       const amount = parseFloat(document.getElementById('quickAddAmount').value);
       const category = quickAddState.selectedCategory;
@@ -2103,6 +2148,14 @@
         renderVariableCharges();
       }, 'Supprimer');
     }
+    */
+
+    // ===== QUICK ADD =====
+    // Note: Bouton et Enter appellent directement window.handleQuickAddSubmit() du module
+    // Le module (quick-add.js) lit les données depuis DOM et state (y compris GPS)
+
+    // Expose wrapper globally
+    window.handleQuickAddSubmit = handleQuickAddSubmit;
 
     // ===== EXPORT FONCTIONS =====
 

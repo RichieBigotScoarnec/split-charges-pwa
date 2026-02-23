@@ -1,15 +1,12 @@
 // ===== MODULE : GESTION DES REMBOURSEMENTS =====
 // Fonctionnalités : add, delete, render
 
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
-import { getUserPath } from '../db.js';
-
-let database = null;
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 /**
  * Initialise le module de gestion des remboursements
@@ -21,12 +18,11 @@ export function showAddReimbursementModal() {
   const formEl = document.getElementById('reimbursementForm');
   if (formEl) formEl.reset();
 
-  showModal('reimbursementModal');
+  showModal('modalAddReimbursement');
 }
 
 export function initReimbursements() {
   console.log('📦 Initialisation module remboursements');
-  database = getFirebaseDatabase();
 
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addReimbursementBtn');
@@ -58,10 +54,11 @@ export async function loadReimbursements() {
   }
 
   try {
-    const snapshot = await database.ref(getUserPath(`periods/${currentPeriod}/reimbursements`)).once('value');
+    // Use dbGet from db.js which handles UID-scoped paths
+    const { dbGet } = await import('../db.js');
+    const reimbursements = await dbGet(`periods/${currentPeriod}/reimbursements`);
 
-    if (snapshot.exists()) {
-      const reimbursements = snapshot.val();
+    if (reimbursements) {
       // Filtrer les remboursements non supprimés
       const activeReimbursements = Object.entries(reimbursements)
         .filter(([_, reimb]) => !reimb.deleted)
@@ -115,14 +112,16 @@ export async function saveReimbursement() {
       deleted: false
     };
 
+    // Use dbPush from db.js which handles UID-scoped paths
+    const { dbPush } = await import('../db.js');
+
     // Ajout
-    const newRef = database.ref(getUserPath(`periods/${currentPeriod}/reimbursements`)).push();
-    await newRef.set(reimbursementData);
+    await dbPush(`periods/${currentPeriod}/reimbursements`, reimbursementData);
     toast.success('Remboursement ajouté');
 
     // Mettre à jour le state local
     await loadReimbursements();
-    closeModal('reimbursementModal', true);
+    closeModal('modalAddReimbursement', true);
 
     // Recalculer le bilan
     calculateSummary();
@@ -160,14 +159,17 @@ export async function deleteReimbursement(reimbursementId) {
   }
 
   try {
+    // Use dbUpdate from db.js which handles UID-scoped paths
+    const { dbUpdate } = await import('../db.js');
+
     // Soft delete
-    await database.ref(getUserPath(`periods/${currentPeriod}/reimbursements/${reimbursementId}`)).update({ deleted: true });
+    await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, { deleted: true });
 
     // Mettre à jour le state local
     await loadReimbursements();
     toast.success('Remboursement supprimé', {
       undo: async () => {
-        await database.ref(getUserPath(`periods/${currentPeriod}/reimbursements/${reimbursementId}`)).update({ deleted: false });
+        await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, { deleted: false });
         await loadReimbursements();
         calculateSummary();
         toast.success('Suppression annulée');

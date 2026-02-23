@@ -88,6 +88,10 @@ export function setupModalEscapeClose() {
 export function initModals() {
   setupModalOverlayClose();
   setupModalEscapeClose();
+
+  // Expose functions globally for onclick handlers (legacy HTML compatibility)
+  window.showModal = showModal;
+  window.closeModal = closeModal;
 }
 
 /**

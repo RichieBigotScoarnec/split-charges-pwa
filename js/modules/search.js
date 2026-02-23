@@ -4,6 +4,7 @@
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 let searchTimeout = null;
 
@@ -261,16 +262,7 @@ function showAllCharges() {
   });
 }
 
-/**
- * Nettoie les timers du module search (appelé au logout)
- */
-export function cleanupSearch() {
-  if (searchTimeout) {
-    clearTimeout(searchTimeout);
-    searchTimeout = null;
-  }
-  console.log('🧹 Timer search nettoyé');
-}
+// ✅ FIX CRITIQUE 3: Function escapeHtml removed - now imported from utils.js
 
 // Exposer globalement pour compatibilité
 window.clearSearch = clearSearch;

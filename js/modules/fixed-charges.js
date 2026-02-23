@@ -1,15 +1,12 @@
 // ===== MODULE : GESTION DES CHARGES FIXES =====
 // Fonctionnalités : add, edit, delete, render, validation
 
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
-import { getUserPath } from '../db.js';
-
-let database = null;
+import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -24,12 +21,11 @@ export function showAddFixedChargeModal() {
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
 
-  showModal('fixedChargeModal');
+  showModal('modalAddFixedCharge');
 }
 
 export function initFixedCharges() {
   console.log('📦 Initialisation module charges fixes');
-  database = getFirebaseDatabase();
 
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addFixedChargeBtn');
@@ -62,10 +58,11 @@ export async function loadFixedCharges() {
   }
 
   try {
-    const snapshot = await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges`)).once('value');
+    // Use dbGet from db.js which handles UID-scoped paths
+    const { dbGet } = await import('../db.js');
+    const charges = await dbGet(`periods/${currentPeriod}/fixedCharges`);
 
-    if (snapshot.exists()) {
-      const charges = snapshot.val();
+    if (charges) {
       // Filtrer les charges non supprimées
       const activeCharges = Object.entries(charges)
         .filter(([_, charge]) => !charge.deleted)
@@ -132,23 +129,24 @@ export async function saveFixedCharge() {
       deleted: false
     };
 
+    // Use dbUpdate/dbPush from db.js which handles UID-scoped paths
+    const { dbUpdate, dbPush } = await import('../db.js');
+
     let key;
     if (chargeId) {
       // Édition
       key = chargeId;
-      await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges/${key}`)).update(chargeData);
+      await dbUpdate(`periods/${currentPeriod}/fixedCharges/${key}`, chargeData);
       toast.success('Charge modifiée');
     } else {
       // Ajout
-      const newRef = database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges`)).push();
-      key = newRef.key;
-      await newRef.set(chargeData);
+      key = await dbPush(`periods/${currentPeriod}/fixedCharges`, chargeData);
       toast.success('Charge ajoutée');
     }
 
     // Mettre à jour le state local
     await loadFixedCharges();
-    closeModal('fixedChargeModal', true);
+    closeModal('modalAddFixedCharge', true);
 
     // Recalculer le bilan
     calculateSummary();
@@ -178,7 +176,7 @@ export function editFixedCharge(chargeId) {
   document.getElementById('fixedChargeCategory').value = charge.category;
   document.getElementById('fixedChargePaidBy').value = charge.paidBy;
 
-  showModal('fixedChargeModal');
+  showModal('modalAddFixedCharge');
 }
 
 /**
@@ -205,14 +203,17 @@ export async function deleteFixedCharge(chargeId) {
   }
 
   try {
+    // Use dbUpdate from db.js which handles UID-scoped paths
+    const { dbUpdate } = await import('../db.js');
+
     // Soft delete
-    await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges/${chargeId}`)).update({ deleted: true });
+    await dbUpdate(`periods/${currentPeriod}/fixedCharges/${chargeId}`, { deleted: true });
 
     // Mettre à jour le state local
     await loadFixedCharges();
     toast.success('Charge supprimée', {
       undo: async () => {
-        await database.ref(getUserPath(`periods/${currentPeriod}/fixedCharges/${chargeId}`)).update({ deleted: false });
+        await dbUpdate(`periods/${currentPeriod}/fixedCharges/${chargeId}`, { deleted: false });
         await loadFixedCharges();
         calculateSummary();
         toast.success('Suppression annulée');

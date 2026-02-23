@@ -1,15 +1,11 @@
 // ===== MODULE : AJOUT RAPIDE =====
 // Fonctionnalités : ajout rapide de charge variable avec raccourci clavier
 
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
-
-let database = null;
-let _keydownHandler = null;
 
 /**
  * Initialise le module d'ajout rapide
@@ -17,16 +13,10 @@ let _keydownHandler = null;
 export function initQuickAdd() {
   console.log('📦 Initialisation module ajout rapide');
 
-  database = getFirebaseDatabase();
   setupQuickAddUI();
 
-  // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showQuickAddModal = showQuickAddForm;
-  window.hideQuickAddModal = hideQuickAddForm;
-  window.showQuickAddForm = showQuickAddForm;
-  window.hideQuickAddForm = hideQuickAddForm;
-  window.addQuickCharge = addQuickCharge;
-  window.suggestCategory = suggestCategory;
+  // Note: showQuickAddModal et hideQuickAddModal sont gérés par le HTML legacy
+  // Ne pas exposer ici pour éviter conflits
 
   console.log('✅ Module ajout rapide initialisé');
 }
@@ -215,12 +205,38 @@ async function handleQuickAddSubmit() {
     return;
   }
 
-  // Récupérer les valeurs du formulaire
-  const amount = parseFloat(document.getElementById('quickAddAmount').value);
-  const description = document.getElementById('quickAddDescription').value.trim();
-  const category = document.getElementById('quickAddCategory').value;
-  const paidBy = document.getElementById('quickAddPaidBy').value;
-  const date = document.getElementById('quickAddDate').value;
+  // ✅ Adapter pour la modale HTML wrapper (utilise quickAddState au lieu de DOM)
+  console.log('🔵 [SUBMIT-1] Démarrage handleQuickAddSubmit');
+  console.log('🔵 [SUBMIT-1b] window.quickAddState:', window.quickAddState);
+
+  const amountEl = document.getElementById('quickAddAmount');
+  if (!amountEl) {
+    console.error('❌ [QUICK-ADD-ERROR] Élément quickAddAmount introuvable');
+    toast.error('Erreur: formulaire non trouvé');
+    return;
+  }
+
+  const amount = parseFloat(amountEl.value);
+  console.log('🔵 [SUBMIT-2] Montant lu:', amount);
+
+  // Récupérer la catégorie depuis le state JavaScript (modale HTML wrapper)
+  const categoryFromState = window.quickAddState?.selectedCategory;
+  console.log('🔵 [SUBMIT-3] Catégorie depuis window.quickAddState:', categoryFromState);
+
+  if (!categoryFromState) {
+    console.error('❌ [SUBMIT-ERROR] Pas de catégorie sélectionnée');
+    console.error('   window.quickAddState:', window.quickAddState);
+    toast.error('Veuillez sélectionner une catégorie');
+    return;
+  }
+
+  console.log('✅ [SUBMIT-4] Catégorie validée:', categoryFromState.label);
+
+  // Construire les données pour la modale HTML wrapper
+  const description = categoryFromState.label; // Utiliser le label de la catégorie
+  const category = categoryFromState.label;
+  const paidBy = 'vous'; // Toujours 'vous' pour saisie rapide
+  const date = new Date().toISOString().split('T')[0]; // Date du jour
 
   // Validation
   if (!amount || amount <= 0) {
@@ -228,10 +244,10 @@ async function handleQuickAddSubmit() {
     return;
   }
 
-  if (!description) {
-    toast.error('Description requise');
-    return;
-  }
+  // Récupérer la géolocalisation si disponible
+  const gpsLocation = getState('quickAddState.gpsLocation');
+  console.log('🔍 [QUICK-ADD-1] GPS depuis state:', gpsLocation);
+  console.log('🔍 [QUICK-ADD-1b] État complet quickAddState:', getState('quickAddState'));
 
   // Créer l'objet charge variable
   const chargeData = {
@@ -244,10 +260,26 @@ async function handleQuickAddSubmit() {
     deleted: false
   };
 
+  // ✅ Add GPS location if available
+  if (gpsLocation) {
+    chargeData.location = {
+      lat: gpsLocation.lat,
+      lng: gpsLocation.lng,
+      name: gpsLocation.name || 'Localisation',
+      timestamp: Date.now()
+    };
+    console.log('📍 [QUICK-ADD-2] Charge géolocalisée créée:', chargeData.location);
+  } else {
+    console.warn('⚠️ [QUICK-ADD-2] Pas de GPS disponible dans state');
+  }
+
   try {
-    // Sauvegarder dans Firebase
-    const newRef = database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).push();
-    await newRef.set(chargeData);
+    // Use dbPush from db.js which handles UID-scoped paths
+    const { dbPush } = await import('../db.js');
+    console.log('💾 [QUICK-ADD-3] Données à enregistrer dans Firebase:', JSON.stringify(chargeData));
+
+    await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
+    console.log('✅ [QUICK-ADD-4] Enregistrement Firebase réussi');
 
     toast.success(`✅ ${description} ajouté (${amount.toFixed(2)} €)`);
 
@@ -257,8 +289,12 @@ async function handleQuickAddSubmit() {
     // Recalculer le bilan
     calculateSummary();
 
-    // Masquer le formulaire
-    hideQuickAddForm();
+    // Fermer la modale (compatibilité HTML wrapper)
+    if (typeof closeModal === 'function') {
+      closeModal('modalQuickAdd');
+    } else {
+      hideQuickAddForm();
+    }
   } catch (error) {
     console.error('❌ Erreur ajout rapide :', error);
     toast.error('Erreur lors de l\'ajout');
@@ -293,15 +329,18 @@ export async function addQuickCharge(chargeData) {
   }
 
   try {
-    const newRef = database.ref(getUserPath(`periods/${currentPeriod}/variableCharges`)).push();
-    await newRef.set(charge);
+    // Use dbPush from db.js which handles UID-scoped paths
+    const { dbPush } = await import('../db.js');
+    await dbPush(`periods/${currentPeriod}/variableCharges`, charge);
 
     await loadVariableCharges();
     calculateSummary();
 
+    toast.success('Charge ajoutée');
     return charge;
   } catch (error) {
     console.error('❌ Erreur addQuickCharge :', error);
+    toast.error('Erreur lors de l\'ajout de la charge');
     throw error;
   }
 }
@@ -322,10 +361,10 @@ export async function addQuickChargesBatch(charges) {
   }
 
   try {
-    const updates = {};
+    // Use dbPush from db.js which handles UID-scoped paths
+    const { dbPush } = await import('../db.js');
 
-    charges.forEach(chargeData => {
-      const newKey = database.ref().push().key;
+    for (const chargeData of charges) {
       const charge = {
         description: chargeData.description,
         amount: parseFloat(chargeData.amount),
@@ -336,10 +375,8 @@ export async function addQuickChargesBatch(charges) {
         deleted: false
       };
 
-      updates[getUserPath(`periods/${currentPeriod}/variableCharges/${newKey}`)] = charge;
-    });
-
-    await database.ref().update(updates);
+      await dbPush(`periods/${currentPeriod}/variableCharges`, charge);
+    }
 
     toast.success(`${charges.length} charge(s) ajoutée(s)`);
 
@@ -376,3 +413,9 @@ export function suggestCategory(description) {
   return 'Autre';
 }
 
+// Exposer les fonctions globalement pour compatibilité
+window.showQuickAddForm = showQuickAddForm;
+window.hideQuickAddForm = hideQuickAddForm;
+window.addQuickCharge = addQuickCharge;
+window.handleQuickAddSubmit = handleQuickAddSubmit; // ✅ Exposer la fonction qui lit DOM + state
+window.suggestCategory = suggestCategory;

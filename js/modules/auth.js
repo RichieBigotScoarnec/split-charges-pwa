@@ -24,6 +24,9 @@ import { cleanupModals } from '../components/modal.js';
 
 let appInitialized = false;
 
+// ✅ FIX CRITIQUE 2: Stocker l'unsubscribe function pour éviter fuite mémoire
+let authUnsubscribe = null;
+
 /**
  * Sign in with Google popup
  */
@@ -283,8 +286,20 @@ async function initializeAppData() {
 export function initAuth() {
   const auth = getFirebaseAuth();
 
-  auth.onAuthStateChanged(async (user) => {
+  // ✅ FIX CRITIQUE 2: Nettoyer l'ancien listener s'il existe
+  if (authUnsubscribe) {
+    authUnsubscribe();
+    console.log('[Auth] 🧹 Ancien listener nettoyé');
+  }
+
+  // ✅ FIX CRITIQUE 2: Stocker la fonction unsubscribe
+  authUnsubscribe = auth.onAuthStateChanged(async (user) => {
     console.log('[Auth] État changé:', user ? user.email : 'Déconnecté');
+
+    // ✅ CRITIQUE 1 FIX: Set current user ID for multi-user database structure
+    // Also loads partner configuration if user is a Partner
+    const { setCurrentUserId } = await import('../db.js');
+    await setCurrentUserId(user ? user.uid : null);
 
     // Update UI
     updateAuthUI(user);
@@ -296,13 +311,26 @@ export function initAuth() {
 
     // If user logged out, cleanup and reset app state
     if (!user) {
-      cleanupNotifications();
-      cleanupQuickAdd();
-      cleanupSearch();
-      cleanupMap();
-      cleanupModals();
-      resetState();
-      appInitialized = false;
+      // ✅ FIX: Reset user data on logout for security/privacy
+      const { resetUserData } = await import('../state.js');
+      resetUserData();
+
+      // Clear UI elements
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) searchInput.value = '';
+
+      // Clear displayed lists (the modules will handle re-rendering on next login)
+      const variableChargesList = document.getElementById('variableChargesList');
+      const fixedChargesList = document.getElementById('fixedChargesList');
+      const reimbursementsList = document.getElementById('reimbursementsList');
+      const summarySection = document.getElementById('summarySection');
+
+      if (variableChargesList) variableChargesList.innerHTML = '<p class="empty-state">Connectez-vous pour voir vos charges</p>';
+      if (fixedChargesList) fixedChargesList.innerHTML = '<p class="empty-state">Connectez-vous pour voir vos charges</p>';
+      if (reimbursementsList) reimbursementsList.innerHTML = '<p class="empty-state">Connectez-vous pour voir vos remboursements</p>';
+      if (summarySection) summarySection.innerHTML = '<p class="empty-state">Connectez-vous pour voir le bilan</p>';
+
+      console.log('🔒 User logged out, data cleared');
     }
   });
 
@@ -313,4 +341,17 @@ export function initAuth() {
   window.signOut = signOut;
 
   console.log('🔐 Authentification initialisée');
+}
+
+/**
+ * ✅ FIX CRITIQUE 2: Cleanup authentication listener
+ * Call this when you need to explicitly remove the auth listener
+ * (e.g., during app shutdown or hot module reload)
+ */
+export function cleanupAuth() {
+  if (authUnsubscribe) {
+    authUnsubscribe();
+    authUnsubscribe = null;
+    console.log('[Auth] 🧹 Listener d\'authentification nettoyé');
+  }
 }

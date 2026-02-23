@@ -4,7 +4,6 @@
  */
 
 import { setState, getState } from '../state.js';
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
@@ -86,13 +85,13 @@ let _isLoading = false;
  * Save share mode to Firebase
  */
 async function saveShareMode() {
-  if (_isLoading) return;
-  const database = getFirebaseDatabase();
   const shareMode = getState('shareMode');
   const customPercents = getState('customPercents');
 
   try {
-    await database.ref(getUserPath('shareMode')).set({
+    // Use dbSet from db.js which handles UID-scoped paths
+    const { dbSet } = await import('../db.js');
+    await dbSet('shareMode', {
       mode: shareMode,
       customPercents: shareMode === 'custom' ? customPercents : null
     });
@@ -108,13 +107,12 @@ async function saveShareMode() {
  * Load share mode from Firebase
  */
 export async function loadShareMode() {
-  const database = getFirebaseDatabase();
-
   try {
-    const snapshot = await database.ref(getUserPath('shareMode')).once('value');
+    // Use dbGet from db.js which handles UID-scoped paths
+    const { dbGet } = await import('../db.js');
+    const data = await dbGet('shareMode');
 
-    if (snapshot.exists()) {
-      const data = snapshot.val();
+    if (data) {
       const mode = data.mode || 'prorata';
 
       // Load custom percents if available
