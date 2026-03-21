@@ -7,7 +7,15 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "npx playwright test",
+    "test:all": "vitest run && npx playwright test",
+    "emulators": "npx firebase emulators:start",
+    "emulators:test": "npx firebase emulators:exec \"npx playwright test tests/e2e/firebase-integration.spec.js\"",
+    "serve": "npx http-server . -p 3333 -c-1",
+    "deploy:test": "npx firebase deploy --only hosting --project fairsplit-test",
+    "deploy:prod": "npx firebase deploy --only hosting --project fairsplit-prod",
+    "deploy:rules": "npx firebase deploy --only database --project fairsplit-test"
   },
   "repository": {
     "type": "git",
@@ -23,6 +31,7 @@
   "homepage": "https://github.com/RichieBigotScoarnec/split-charges-pwa#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "firebase-tools": "^15.11.0",
     "http-server": "^14.1.1",
     "serve": "^14.2.6",
     "vitest": "^4.1.0"
