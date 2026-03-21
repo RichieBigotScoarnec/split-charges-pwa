@@ -79,7 +79,7 @@ export function calculateSummary() {
     } else if (charge.paidBy === 'conjointe') {
       partnerActualPayments += charge.amount;
     } else {
-      // Compte joint : répartir selon le mode effectif de cette charge
+      // Partagé (joint/partage) : répartir selon le mode effectif de cette charge
       const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
       let yourJointRatio = 0.5;
 
@@ -205,62 +205,69 @@ function renderSummary(summary) {
     virementsByDestination
   } = summary;
 
+  // Calculer les pourcentages de répartition
+  const yourPercent = totalCharges > 0 ? Math.round((yourTheoricalShare / totalCharges) * 100) : 50;
+  const partnerPercent = totalCharges > 0 ? 100 - yourPercent : 50;
+
   // Déterminer qui doit à qui
   let balanceText = '';
   let balanceClass = '';
 
   if (finalBalance > 0) {
-    balanceText = `Vous avez payé <strong>${formatCurrency(Math.abs(finalBalance))}</strong> de trop<br><small>→ Conjointe vous doit ce montant</small>`;
+    balanceText = `Conjointe vous doit <strong>${formatCurrency(Math.abs(finalBalance))}</strong>`;
     balanceClass = 'balance-positive';
   } else if (finalBalance < 0) {
-    balanceText = `Vous devez <strong>${formatCurrency(Math.abs(finalBalance))}</strong><br><small>→ À rembourser à Conjointe</small>`;
+    balanceText = `Vous devez <strong>${formatCurrency(Math.abs(finalBalance))}</strong> à Conjointe`;
     balanceClass = 'balance-negative';
   } else {
-    balanceText = `<strong>Équilibré</strong><br><small>Aucun remboursement nécessaire</small>`;
+    balanceText = `<strong>Comptes équilibrés</strong> — rien à se rembourser`;
     balanceClass = 'balance-zero';
+  }
+
+  // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
+  let balanceExplanation = '';
+  if (finalBalance !== 0) {
+    const overpayer = finalBalance > 0 ? 'Vous' : 'Conjointe';
+    balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }
 
   summaryElement.innerHTML = `
     <div class="summary-card">
       <h3>📊 Bilan du mois</h3>
 
-      <div class="summary-row">
-        <span>Total charges :</span>
+      <div class="summary-row summary-total-row">
+        <span>Total des charges</span>
         <strong>${formatCurrency(totalCharges)}</strong>
       </div>
 
       <div class="summary-divider"></div>
 
+      <div class="summary-section-label">Répartition à payer</div>
       <div class="summary-row">
-        <span>Votre part théorique :</span>
+        <span>Vous <span class="summary-percent">${yourPercent}%</span></span>
         <strong>${formatCurrency(yourTheoricalShare)}</strong>
       </div>
       <div class="summary-row">
-        <span>Part conjointe théorique :</span>
+        <span>Conjointe <span class="summary-percent">${partnerPercent}%</span></span>
         <strong>${formatCurrency(partnerTheoricalShare)}</strong>
       </div>
 
       <div class="summary-divider"></div>
 
+      <div class="summary-section-label">Paiements réels</div>
       <div class="summary-row">
-        <span>Vous avez payé :</span>
+        <span>Vous avez payé</span>
         <strong>${formatCurrency(yourActualPayments)}</strong>
       </div>
       <div class="summary-row">
-        <span>Conjointe a payé :</span>
+        <span>Conjointe a payé</span>
         <strong>${formatCurrency(partnerActualPayments)}</strong>
       </div>
 
-      <div class="summary-divider"></div>
-
-      <div class="summary-row">
-        <span>Solde avant remboursements :</span>
-        <strong class="${balanceBeforeReimbs > 0 ? 'positive' : balanceBeforeReimbs < 0 ? 'negative' : ''}">${balanceBeforeReimbs > 0 ? '+' : ''}${formatCurrency(balanceBeforeReimbs)}</strong>
-      </div>
-
       ${reimbursementAdjustment !== 0 ? `
+        <div class="summary-divider"></div>
         <div class="summary-row">
-          <span>Remboursements effectués :</span>
+          <span>Remboursements effectués</span>
           <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${reimbursementAdjustment > 0 ? '+' : ''}${formatCurrency(reimbursementAdjustment)}</strong>
         </div>
       ` : ''}
@@ -269,6 +276,7 @@ function renderSummary(summary) {
 
       <div class="summary-balance ${balanceClass}">
         ${balanceText}
+        ${balanceExplanation}
       </div>
     </div>
 

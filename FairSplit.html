@@ -308,11 +308,6 @@
           <label for="variableChargeCategory">Catégorie</label>
           <select id="variableChargeCategory" required>
             <option value="">-- Sélectionner --</option>
-            <option value="Alimentation">Alimentation</option>
-            <option value="Transport">Transport</option>
-            <option value="Loisirs">Loisirs</option>
-            <option value="Santé">Santé</option>
-            <option value="Autre">Autre</option>
           </select>
         </div>
 
@@ -322,7 +317,7 @@
             <option value="">-- Sélectionner --</option>
             <option value="vous">Vous</option>
             <option value="conjointe">Conjointe</option>
-            <option value="joint">Compte Joint</option>
+            <option value="partage">Partagé</option>
           </select>
         </div>
 
@@ -382,11 +377,6 @@
           <label for="fixedChargeCategory">Catégorie</label>
           <select id="fixedChargeCategory" required>
             <option value="">-- Sélectionner --</option>
-            <option value="Logement">Logement</option>
-            <option value="Énergie">Énergie</option>
-            <option value="Communication">Communication</option>
-            <option value="Assurance">Assurance</option>
-            <option value="Autre">Autre</option>
           </select>
         </div>
 
@@ -396,7 +386,7 @@
             <option value="">-- Sélectionner --</option>
             <option value="vous">Vous</option>
             <option value="conjointe">Conjointe</option>
-            <option value="joint">Compte Joint</option>
+            <option value="partage">Partagé</option>
           </select>
         </div>
 
@@ -404,12 +394,6 @@
           <label for="fixedChargeDestination">Destination virement</label>
           <select id="fixedChargeDestination">
             <option value="">-- Aucune --</option>
-            <option value="Env. Charges Fixes">🏦 Env. Charges Fixes</option>
-            <option value="Compte Joint">🤝 Compte Joint</option>
-            <option value="Env. Ordures">🗑️ Env. Ordures</option>
-            <option value="Env. Taxe Foncière">🏡 Env. Taxe Foncière</option>
-            <option value="Compte Perso">👤 Compte Perso</option>
-            <option value="Autre">📋 Autre</option>
           </select>
         </div>
 
@@ -571,7 +555,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
   <!-- FairSplit JS Modules -->
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=31"></script>
 
   <!-- Auth function stubs — available immediately, delegate to module once loaded -->
   <script>
@@ -2212,7 +2196,7 @@
         id: Date.now(),
         name: category.label,
         amount: amount,
-        paymentType: 'joint', // Toujours compte joint pour saisie rapide
+        paymentType: 'partage', // Toujours partagé pour saisie rapide
         splitMode: splitMode, // 'prorata' ou '50-50'
         category: category.id,
         categoryLabel: category.label,

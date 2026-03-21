@@ -20,6 +20,7 @@ import { initTrends } from './trends.js';
 import { initReconduction } from './reconduction.js';
 import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
 import { initMap, cleanupMap } from './map.js';
+import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
 
 let appInitialized = false;
@@ -220,6 +221,10 @@ async function initializeAppData() {
   console.log('📦 Initialisation des données utilisateur...');
 
   try {
+  // Custom lists (categories/destinations) — must init before modules using selects
+  await initCustomLists();
+  populateAllSelects();
+
   // Étape 3c : Period management
   initPeriod();
   await loadPeriodData();

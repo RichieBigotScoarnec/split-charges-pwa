@@ -6,6 +6,7 @@ import { toast } from '../components/toast.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
+import { getCategories, populateCategorySelect } from './custom-lists.js';
 
 let _keydownHandler = null;
 
@@ -79,6 +80,8 @@ function showQuickAddForm() {
   if (!container) {
     // Créer le container si inexistant
     createQuickAddContainer();
+    // Peupler le select catégorie dynamiquement
+    populateCategorySelect('quickAddCategory', { addManageOption: false });
   }
 
   const quickAddContainer = document.getElementById('quickAddContainer');
@@ -157,11 +160,7 @@ function createQuickAddContainer() {
         <div class="form-row">
           <label for="quickAddCategory">Catégorie</label>
           <select id="quickAddCategory">
-            <option value="Alimentation">🍽️ Alimentation</option>
-            <option value="Transport">🚗 Transport</option>
-            <option value="Loisirs">🎮 Loisirs</option>
-            <option value="Santé">❤️ Santé</option>
-            <option value="Autre">📦 Autre</option>
+            <option value="">-- Sélectionner --</option>
           </select>
         </div>
 
@@ -207,51 +206,38 @@ async function handleQuickAddSubmit() {
     return;
   }
 
-  // ✅ Adapter pour la modale HTML wrapper (utilise quickAddState au lieu de DOM)
-  console.log('🔵 [SUBMIT-1] Démarrage handleQuickAddSubmit');
-  console.log('🔵 [SUBMIT-1b] window.quickAddState:', window.quickAddState);
-
   const amountEl = document.getElementById('quickAddAmount');
   if (!amountEl) {
-    console.error('❌ [QUICK-ADD-ERROR] Élément quickAddAmount introuvable');
     toast.error('Erreur: formulaire non trouvé');
     return;
   }
 
   const amount = parseFloat(amountEl.value);
-  console.log('🔵 [SUBMIT-2] Montant lu:', amount);
 
   // Récupérer la catégorie depuis le state JavaScript (modale HTML wrapper)
   const categoryFromState = window.quickAddState?.selectedCategory;
-  console.log('🔵 [SUBMIT-3] Catégorie depuis window.quickAddState:', categoryFromState);
 
   if (!categoryFromState) {
-    console.error('❌ [SUBMIT-ERROR] Pas de catégorie sélectionnée');
-    console.error('   window.quickAddState:', window.quickAddState);
     toast.error('Veuillez sélectionner une catégorie');
     return;
   }
 
-  console.log('✅ [SUBMIT-4] Catégorie validée:', categoryFromState.label);
-
-  // Construire les données pour la modale HTML wrapper
-  const description = categoryFromState.label; // Utiliser le label de la catégorie
+  const description = categoryFromState.label;
   const category = categoryFromState.label;
-  const paidBy = 'vous'; // Toujours 'vous' pour saisie rapide
-  const date = new Date().toISOString().split('T')[0]; // Date du jour
+  const paidBy = 'vous';
+  const date = new Date().toISOString().split('T')[0];
 
-  // Validation
   if (!amount || amount <= 0) {
     toast.error('Montant invalide');
     return;
   }
 
-  // Récupérer la géolocalisation si disponible
-  const gpsLocation = getState('quickAddState.gpsLocation');
-  console.log('🔍 [QUICK-ADD-1] GPS depuis state:', gpsLocation);
-  console.log('🔍 [QUICK-ADD-1b] État complet quickAddState:', getState('quickAddState'));
+  // Récupérer la géolocalisation si disponible (state modulaire OU window fallback)
+  let gpsLocation = getState('quickAddState.gpsLocation');
+  if (!gpsLocation && window.quickAddState?.gpsLocation) {
+    gpsLocation = window.quickAddState.gpsLocation;
+  }
 
-  // Créer l'objet charge variable
   const chargeData = {
     description: description,
     amount: amount,
@@ -262,7 +248,7 @@ async function handleQuickAddSubmit() {
     deleted: false
   };
 
-  // ✅ Add GPS location if available
+  // Ajouter GPS location si disponible
   if (gpsLocation) {
     chargeData.location = {
       lat: gpsLocation.lat,
@@ -270,18 +256,12 @@ async function handleQuickAddSubmit() {
       name: gpsLocation.name || 'Localisation',
       timestamp: Date.now()
     };
-    console.log('📍 [QUICK-ADD-2] Charge géolocalisée créée:', chargeData.location);
-  } else {
-    console.warn('⚠️ [QUICK-ADD-2] Pas de GPS disponible dans state');
   }
 
   try {
-    // Use dbPush from db.js which handles UID-scoped paths
     const { dbPush } = await import('../db.js');
-    console.log('💾 [QUICK-ADD-3] Données à enregistrer dans Firebase:', JSON.stringify(chargeData));
 
     await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
-    console.log('✅ [QUICK-ADD-4] Enregistrement Firebase réussi');
 
     toast.success(`✅ ${description} ajouté (${amount.toFixed(2)} €)`);
 

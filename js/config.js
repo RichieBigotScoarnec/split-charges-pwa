@@ -72,7 +72,7 @@ export const CATEGORIES = [
 export const PAYMENT_TYPES = {
   VOUS: 'vous',
   CONJOINTE: 'conjointe',
-  JOINT: 'joint',
+  PARTAGE: 'partage',
   BOTH: 'both'
 };
 
@@ -86,7 +86,7 @@ export const SPLIT_MODES = {
 // ===== DESTINATIONS DE VIREMENT =====
 export const DESTINATIONS = [
   { id: 'env-charges-fixes', label: 'Env. Charges Fixes', icon: '🏦' },
-  { id: 'compte-joint', label: 'Compte Joint', icon: '🤝' },
+  { id: 'compte-commun', label: 'Compte Commun', icon: '🤝' },
   { id: 'env-ordures', label: 'Env. Ordures', icon: '🗑️' },
   { id: 'env-taxe-fonciere', label: 'Env. Taxe Foncière', icon: '🏡' },
   { id: 'compte-perso', label: 'Compte Perso', icon: '👤' },
@@ -114,5 +114,7 @@ export const DB_PATHS = {
   SALARIES: 'salaries',
   PERIODS: 'periods',
   SHARE_MODE: 'shareMode',
-  REMINDERS: 'reminders'
+  REMINDERS: 'reminders',
+  CUSTOM_CATEGORIES: 'customCategories',
+  CUSTOM_DESTINATIONS: 'customDestinations'
 };

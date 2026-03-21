@@ -93,7 +93,8 @@ export function formatPaidBy(paidBy) {
   switch (paidBy) {
     case 'vous': return 'Vous';
     case 'conjointe': return 'Conjointe';
-    case 'joint': return 'Compte Joint';
+    case 'partage':
+    case 'joint': return 'Partagé';
     default: return paidBy || 'Inconnu';
   }
 }

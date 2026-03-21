@@ -6,6 +6,7 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
+import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -32,6 +33,9 @@ export function showAddVariableChargeModal() {
 
 export function initVariableCharges() {
   console.log('📦 Initialisation module charges variables');
+
+  // Peupler le select catégorie dynamiquement
+  populateCategorySelect('variableChargeCategory');
 
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addVariableChargeBtn');
@@ -343,10 +347,15 @@ export function renderVariableCharges() {
       const splitTag = charge.splitOverride
         ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${charge.splitOverride.vous}/${charge.splitOverride.conjointe}`}</span>`
         : '';
+      const locationName = charge.location ? (charge.location.name || charge.location.place) : null;
+      const locationTag = locationName
+        ? `<span class="charge-location"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(locationName)}</span>`
+        : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}</span>
           <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)}</span>
+          ${locationTag}
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
@@ -372,18 +381,11 @@ export function renderVariableCharges() {
 }
 
 /**
- * Retourne l'icône pour une catégorie
+ * Retourne l'icône emoji pour une catégorie (depuis custom-lists)
  * @param {string} category - Nom de la catégorie
- * @returns {string} HTML de l'icône
+ * @returns {string} Emoji icône
  */
 function getCategoryIcon(category) {
-  const icons = {
-    'Alimentation': '<i class="fas fa-utensils"></i>',
-    'Transport': '<i class="fas fa-car"></i>',
-    'Loisirs': '<i class="fas fa-gamepad"></i>',
-    'Santé': '<i class="fas fa-heartbeat"></i>',
-    'Autre': '<i class="fas fa-ellipsis-h"></i>'
-  };
-  return icons[category] || icons['Autre'];
+  return getCategoryEmoji(category);
 }
 

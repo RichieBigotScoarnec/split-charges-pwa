@@ -1,7 +1,7 @@
 // Service Worker — FairSplit TEST
 // Stratégie : cache-first pour assets statiques, network-first pour Firebase
 
-const CACHE_NAME = 'fairsplit-test-v22';
+const CACHE_NAME = 'fairsplit-test-v35';
 
 // Fichiers à mettre en cache pour le mode offline
 const STATIC_ASSETS = [
@@ -57,10 +57,13 @@ const STATIC_ASSETS = [
   // JS Modules (Étape 4g)
   './js/modules/quick-add.js',
   // JS Modules (Étape 4h)
-  './js/modules/map.js'
+  './js/modules/map.js',
+  // JS Modules (Étape 5a)
+  './js/modules/custom-lists.js'
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Cache ouvert, installation en cours...');
@@ -77,9 +80,12 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('[SW] Suppression ancien cache :', name);
+            return caches.delete(name);
+          })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -91,35 +97,52 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first pour les assets statiques locaux
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Rafraîchir le cache en arrière-plan
-        const networkFetch = fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.ok) {
-              const clone = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-            }
-            return networkResponse;
-          })
-          .catch(() => {});
+  // Network-first pour JS et HTML (garantit les mises à jour immédiates)
+  // Cache-first uniquement pour CSS et images (changent moins souvent)
+  const isJSorHTML = url.pathname.endsWith('.js') || url.pathname.endsWith('.html');
 
-        // Retourner la version cachée immédiatement (stale-while-revalidate)
-        return cachedResponse;
-      }
+  if (isJSorHTML) {
+    // Network-first : essayer le réseau d'abord, fallback sur cache
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cachedResponse) => {
+            return cachedResponse || caches.match('./FairSplit.html');
+          });
+        })
+    );
+  } else {
+    // Stale-while-revalidate pour CSS, images, fonts
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          fetch(event.request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.ok) {
+                const clone = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+              }
+            })
+            .catch(() => {});
+          return cachedResponse;
+        }
 
-      // Pas en cache : réseau puis cache
-      return fetch(event.request).then((response) => {
-        if (!response || !response.ok) return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        return response;
-      });
-    }).catch(() => {
-      // Hors ligne et pas en cache : retourner la page principale
-      return caches.match('./FairSplit.html');
-    })
-  );
+        return fetch(event.request).then((response) => {
+          if (!response || !response.ok) return response;
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        });
+      }).catch(() => {
+        return caches.match('./FairSplit.html');
+      })
+    );
+  }
 });

@@ -6,6 +6,7 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
+import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -34,6 +35,10 @@ export function showAddFixedChargeModal() {
 
 export function initFixedCharges() {
   console.log('📦 Initialisation module charges fixes');
+
+  // Peupler les selects catégorie et destination dynamiquement
+  populateCategorySelect('fixedChargeCategory');
+  populateDestinationSelect('fixedChargeDestination');
 
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addFixedChargeBtn');
@@ -372,19 +377,11 @@ export function renderFixedCharges() {
 }
 
 /**
- * Retourne l'icône pour une catégorie
+ * Retourne l'icône emoji pour une catégorie (depuis custom-lists)
  * @param {string} category - Nom de la catégorie
- * @returns {string} HTML de l'icône
+ * @returns {string} Emoji icône
  */
 function getCategoryIcon(category) {
-  const icons = {
-    'Loyer': '<i class="fas fa-home"></i>',
-    'Énergie': '<i class="fas fa-bolt"></i>',
-    'Internet': '<i class="fas fa-wifi"></i>',
-    'Assurances': '<i class="fas fa-shield-alt"></i>',
-    'Abonnements': '<i class="fas fa-calendar-check"></i>',
-    'Autre': '<i class="fas fa-ellipsis-h"></i>'
-  };
-  return icons[category] || icons['Autre'];
+  return getCategoryEmoji(category);
 }
 
