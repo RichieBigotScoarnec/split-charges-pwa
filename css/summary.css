@@ -513,7 +513,7 @@
   font-size: 18px;
 }
 
-/* ===== TAG DESTINATION (charges fixes) ===== */
+/* ===== TAGS CHARGES FIXES ===== */
 .charge-destination {
   display: inline-block;
   background: rgba(33, 150, 243, 0.15);
@@ -523,4 +523,16 @@
   border-radius: 10px;
   margin-left: 6px;
   font-weight: 500;
+}
+
+.charge-ponctuel {
+  display: inline-block;
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-weight: 500;
+  vertical-align: middle;
 }

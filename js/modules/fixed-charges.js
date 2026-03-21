@@ -19,6 +19,8 @@ export function showAddFixedChargeModal() {
 
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
+  const recurringEl = document.getElementById('fixedChargeRecurring');
+  if (recurringEl) recurringEl.checked = true;
 
   showModal('modalAddFixedCharge');
 }
@@ -97,6 +99,7 @@ export async function saveFixedCharge() {
   const category = document.getElementById('fixedChargeCategory').value;
   const paidBy = document.getElementById('fixedChargePaidBy').value;
   const destination = document.getElementById('fixedChargeDestination')?.value || '';
+  const recurring = document.getElementById('fixedChargeRecurring')?.checked ?? true;
 
   // Validation
   if (!description || description.length > 100) {
@@ -126,6 +129,7 @@ export async function saveFixedCharge() {
       category,
       paidBy,
       destination,
+      recurring,
       timestamp: Date.now(),
       deleted: false
     };
@@ -178,6 +182,8 @@ export function editFixedCharge(chargeId) {
   document.getElementById('fixedChargePaidBy').value = charge.paidBy;
   const destEl = document.getElementById('fixedChargeDestination');
   if (destEl) destEl.value = charge.destination || '';
+  const recurringEl = document.getElementById('fixedChargeRecurring');
+  if (recurringEl) recurringEl.checked = charge.recurring !== false;
 
   showModal('modalAddFixedCharge');
 }
@@ -285,9 +291,12 @@ export function renderFixedCharges() {
       const destinationTag = charge.destination
         ? `<span class="charge-destination">→ ${escapeHtml(charge.destination)}</span>`
         : '';
+      const ponctuelTag = charge.recurring === false
+        ? '<span class="charge-ponctuel">ponctuelle</span>'
+        : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${escapeHtml(charge.description)}</span>
+          <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag}</span>
           <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)} ${destinationTag}</span>
         </div>
         <div class="charge-actions">

@@ -128,7 +128,7 @@ function showReconductionModal(sourcePeriod, targetPeriod) {
               Reconduire les salaires
             </label>
           </div>
-          <p class="info-text">Les charges variables et remboursements ne seront pas reconduits.</p>
+          <p class="info-text">Seules les charges fixes <strong>récurrentes</strong> seront reconduites. Les charges ponctuelles, variables et remboursements ne seront pas reconduits.</p>
         </div>
         <div class="modal-footer">
           <button class="btn-secondary" onclick="closeModal('reconductionModal')">Annuler</button>
@@ -180,9 +180,9 @@ export async function executeReconduction(sourcePeriod, targetPeriod, options = 
       if (fixedSnapshot.exists()) {
         const charges = fixedSnapshot.val();
 
-        // Filtrer les charges non supprimées
+        // Filtrer les charges non supprimées ET récurrentes
         const activeCharges = Object.entries(charges)
-          .filter(([_, charge]) => !charge.deleted)
+          .filter(([_, charge]) => !charge.deleted && charge.recurring !== false)
           .reduce((acc, [_, charge]) => {
             // Créer nouvelle clé pour la charge
             const newKey = database.ref().push().key;
