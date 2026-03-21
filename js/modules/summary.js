@@ -256,6 +256,8 @@ function renderSummary(summary) {
       </div>
     </div>
 
+    ${renderBudgetGauge(totalCharges)}
+
     ${virementsByDestination && virementsByDestination.length > 0 ? `
     <div class="summary-card virements-recap">
       <h3>🏦 Récap Virements Conjointe</h3>
@@ -285,6 +287,58 @@ function renderSummary(summary) {
       </div>
     </div>
     ` : ''}
+  `;
+}
+
+/**
+ * Génère le HTML de la jauge budget si le budget est activé
+ * @param {number} totalCharges - Total des charges du mois
+ * @returns {string} HTML de la jauge ou chaîne vide
+ */
+function renderBudgetGauge(totalCharges) {
+  const budgetToggle = document.getElementById('reminderBudget');
+  const budgetInput = document.getElementById('budgetAmount');
+
+  if (!budgetToggle || !budgetToggle.checked || !budgetInput) return '';
+
+  const budgetLimit = parseFloat(budgetInput.value) || 0;
+  if (budgetLimit <= 0) return '';
+
+  const percentage = Math.min((totalCharges / budgetLimit) * 100, 100);
+  const isOver = totalCharges > budgetLimit;
+  const remaining = budgetLimit - totalCharges;
+
+  let statusClass = 'budget-ok';
+  let statusIcon = '✅';
+  let statusText = `Reste ${formatCurrency(remaining)}`;
+
+  if (percentage >= 100) {
+    statusClass = 'budget-over';
+    statusIcon = '🚨';
+    statusText = `Dépassé de ${formatCurrency(Math.abs(remaining))}`;
+  } else if (percentage >= 80) {
+    statusClass = 'budget-warning';
+    statusIcon = '⚠️';
+    statusText = `Reste ${formatCurrency(remaining)}`;
+  }
+
+  return `
+    <div class="summary-card budget-gauge ${statusClass}">
+      <h3>${statusIcon} Budget mensuel</h3>
+      <div class="budget-progress-container">
+        <div class="budget-progress-bar">
+          <div class="budget-progress-fill ${statusClass}" style="width: ${percentage}%"></div>
+        </div>
+        <div class="budget-progress-labels">
+          <span>${formatCurrency(totalCharges)}</span>
+          <span>${formatCurrency(budgetLimit)}</span>
+        </div>
+      </div>
+      <div class="budget-status">
+        <span class="budget-percentage">${Math.round(percentage)}%</span>
+        <span class="budget-remaining">${statusText}</span>
+      </div>
+    </div>
   `;
 }
 
