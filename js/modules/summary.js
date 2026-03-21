@@ -235,11 +235,17 @@ function renderSummary(summary) {
         <strong>${formatCurrency(partnerActualPayments)}</strong>
       </div>
 
+      <div class="summary-divider"></div>
+
+      <div class="summary-row">
+        <span>Solde avant remboursements :</span>
+        <strong class="${balanceBeforeReimbs > 0 ? 'positive' : balanceBeforeReimbs < 0 ? 'negative' : ''}">${balanceBeforeReimbs > 0 ? '+' : ''}${formatCurrency(balanceBeforeReimbs)}</strong>
+      </div>
+
       ${reimbursementAdjustment !== 0 ? `
-        <div class="summary-divider"></div>
         <div class="summary-row">
-          <span>Remboursements :</span>
-          <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${formatCurrency(reimbursementAdjustment)}</strong>
+          <span>Remboursements effectués :</span>
+          <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${reimbursementAdjustment > 0 ? '+' : ''}${formatCurrency(reimbursementAdjustment)}</strong>
         </div>
       ` : ''}
 
