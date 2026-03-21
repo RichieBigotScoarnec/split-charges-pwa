@@ -2,7 +2,7 @@
 // Fonctionnalités : visualisation géographique des dépenses avec Leaflet
 
 import { getState, setState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, formatPaidBy } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 
@@ -340,7 +340,7 @@ function createMarker(charge) {
         <h4>${escapeHtml(charge.description)}</h4>
         <p><strong>Montant :</strong> ${formatCurrency(charge.amount)}</p>
         <p><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'N/A')}</p>
-        <p><strong>Payé par :</strong> ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</p>
+        <p><strong>Payé par :</strong> ${formatPaidBy(charge.paidBy)}</p>
         <p><strong>Date :</strong> ${formatDate(charge.date)}</p>
         ${charge.location.name ? `<p><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</p>` : ''}
       </div>

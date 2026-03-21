@@ -444,3 +444,83 @@
   width: 100%;
   margin-top: 15px;
 }
+
+/* ===== RECAP VIREMENTS ===== */
+.virements-recap {
+  margin-top: 16px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.08), rgba(76, 175, 80, 0.08));
+  border: 2px solid #2196f3;
+  border-radius: 15px;
+  padding: 20px;
+}
+
+.virements-recap h3 {
+  color: #2196f3;
+  margin: 0 0 4px 0;
+  font-size: 18px;
+}
+
+.virements-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 16px 0;
+}
+
+.virement-group {
+  background: var(--dark-bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.virement-destination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.virement-dest-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.virement-dest-total {
+  font-size: 16px;
+  color: #2196f3;
+}
+
+.virement-details {
+  padding-left: 8px;
+  border-left: 2px solid rgba(33, 150, 243, 0.3);
+}
+
+.virement-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 3px 0 3px 8px;
+}
+
+.virement-grand-total {
+  font-size: 16px;
+}
+
+.virement-grand-total strong {
+  color: #2196f3;
+  font-size: 18px;
+}
+
+/* ===== TAG DESTINATION (charges fixes) ===== */
+.charge-destination {
+  display: inline-block;
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196f3;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 6px;
+  font-weight: 500;
+}

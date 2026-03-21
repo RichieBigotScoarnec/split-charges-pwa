@@ -10,7 +10,7 @@
 
 // ===== ENVIRONMENT =====
 export const ENV = 'TEST';
-export const VERSION = '3.1.0';
+export const VERSION = '3.2.0';
 
 // ===== FIREBASE CONFIGURATIONS =====
 const FIREBASE_CONFIGS = {
@@ -82,6 +82,16 @@ export const SPLIT_MODES = {
   FIFTY_FIFTY: '50-50',
   CUSTOM: 'custom'
 };
+
+// ===== DESTINATIONS DE VIREMENT =====
+export const DESTINATIONS = [
+  { id: 'env-charges-fixes', label: 'Env. Charges Fixes', icon: '🏦' },
+  { id: 'compte-joint', label: 'Compte Joint', icon: '🤝' },
+  { id: 'env-ordures', label: 'Env. Ordures', icon: '🗑️' },
+  { id: 'env-taxe-fonciere', label: 'Env. Taxe Foncière', icon: '🏡' },
+  { id: 'compte-perso', label: 'Compte Perso', icon: '👤' },
+  { id: 'autre', label: 'Autre', icon: '📋' }
+];
 
 // ===== VALIDATION LIMITS =====
 export const LIMITS = {

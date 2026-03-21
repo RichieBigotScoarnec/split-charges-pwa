@@ -2,7 +2,7 @@
 // Fonctionnalités : CSV, PDF (optionnel)
 
 import { getState } from '../state.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 
@@ -69,7 +69,7 @@ export function exportToCSV() {
     csv += '=== CHARGES FIXES ===\n';
     csv += 'Description;Catégorie;Montant;Payé par;Date\n';
     fixedCharges.forEach(charge => {
-      csv += `"${charge.description}";"${charge.category}";${charge.amount};"${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}";"${formatDate(charge.timestamp)}"\n`;
+      csv += `"${charge.description}";"${charge.category}";${charge.amount};"${formatPaidBy(charge.paidBy)}";"${formatDate(charge.timestamp)}"\n`;
     });
     csv += `\nTotal charges fixes: ${formatCurrency(fixedCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -78,7 +78,7 @@ export function exportToCSV() {
     csv += '=== CHARGES VARIABLES ===\n';
     csv += 'Description;Catégorie;Montant;Payé par;Date\n';
     variableCharges.forEach(charge => {
-      csv += `"${charge.description}";"${charge.category}";${charge.amount};"${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}";"${formatDate(charge.timestamp)}"\n`;
+      csv += `"${charge.description}";"${charge.category}";${charge.amount};"${formatPaidBy(charge.paidBy)}";"${formatDate(charge.timestamp)}"\n`;
     });
     csv += `\nTotal charges variables: ${formatCurrency(variableCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -216,7 +216,7 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.description)}</td>
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
-                <td>${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</td>
+                <td>${formatPaidBy(charge.paidBy)}</td>
                 <td>${formatDate(charge.timestamp)}</td>
               </tr>
             `).join('')}
@@ -242,7 +242,7 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.description)}</td>
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
-                <td>${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</td>
+                <td>${formatPaidBy(charge.paidBy)}</td>
                 <td>${formatDate(charge.timestamp)}</td>
               </tr>
             `).join('')}

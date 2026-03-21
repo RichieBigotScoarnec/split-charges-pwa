@@ -4,7 +4,7 @@
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 
 /**
@@ -96,6 +96,7 @@ export async function saveFixedCharge() {
   const amount = parseFloat(document.getElementById('fixedChargeAmount').value);
   const category = document.getElementById('fixedChargeCategory').value;
   const paidBy = document.getElementById('fixedChargePaidBy').value;
+  const destination = document.getElementById('fixedChargeDestination')?.value || '';
 
   // Validation
   if (!description || description.length > 100) {
@@ -124,6 +125,7 @@ export async function saveFixedCharge() {
       amount,
       category,
       paidBy,
+      destination,
       timestamp: Date.now(),
       deleted: false
     };
@@ -174,6 +176,8 @@ export function editFixedCharge(chargeId) {
   document.getElementById('fixedChargeAmount').value = charge.amount;
   document.getElementById('fixedChargeCategory').value = charge.category;
   document.getElementById('fixedChargePaidBy').value = charge.paidBy;
+  const destEl = document.getElementById('fixedChargeDestination');
+  if (destEl) destEl.value = charge.destination || '';
 
   showModal('modalAddFixedCharge');
 }
@@ -278,10 +282,13 @@ export function renderFixedCharges() {
       const chargeDiv = document.createElement('div');
       chargeDiv.className = 'charge-item';
       chargeDiv.dataset.id = charge.id;
+      const destinationTag = charge.destination
+        ? `<span class="charge-destination">→ ${escapeHtml(charge.destination)}</span>`
+        : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description)}</span>
-          <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
+          <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)} ${destinationTag}</span>
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>

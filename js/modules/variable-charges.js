@@ -4,7 +4,7 @@
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 
 /**
@@ -297,7 +297,7 @@ export function renderVariableCharges() {
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description || 'Sans description')}</span>
-          <span class="charge-payer">Payé par ${charge.paidBy === 'vous' ? 'Vous' : 'Conjointe'}</span>
+          <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)}</span>
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>

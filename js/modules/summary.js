@@ -99,6 +99,11 @@ export function calculateSummary() {
 
   const finalBalance = balanceBeforeReimbs + reimbursementAdjustment;
 
+  // Calculer le récap virements par destination
+  const virementsByDestination = calculateVirementsByDestination(activeFixed, {
+    shareMode, salaries, totalSalaries, customPercents
+  });
+
   // Afficher le résumé
   renderSummary({
     totalCharges,
@@ -108,7 +113,8 @@ export function calculateSummary() {
     partnerActualPayments,
     balanceBeforeReimbs,
     reimbursementAdjustment,
-    finalBalance
+    finalBalance,
+    virementsByDestination
   });
 
   return {
@@ -117,6 +123,47 @@ export function calculateSummary() {
     partnerShare: partnerTheoricalShare,
     balance: finalBalance
   };
+}
+
+/**
+ * Calcule les montants à virer par destination
+ * Groupé par destination, montant = part conjointe de chaque charge fixe
+ * @param {Array} fixedCharges - Charges fixes actives
+ * @param {Object} params - Paramètres de calcul (shareMode, salaries, etc.)
+ * @returns {Array} Liste triée [{destination, charges: [{description, amount, partnerShare}], total}]
+ */
+function calculateVirementsByDestination(fixedCharges, params) {
+  const { shareMode, salaries, totalSalaries, customPercents } = params;
+  const grouped = {};
+
+  fixedCharges.forEach(charge => {
+    const dest = charge.destination || '';
+    if (!dest) return; // Ignorer les charges sans destination
+
+    // Calculer la part conjointe pour cette charge
+    let partnerShare = 0;
+    if (shareMode === '50-50') {
+      partnerShare = charge.amount * 0.5;
+    } else if (shareMode === 'custom') {
+      partnerShare = charge.amount * (customPercents.conjointe / 100);
+    } else {
+      partnerShare = totalSalaries > 0
+        ? charge.amount * (salaries.conjointe / totalSalaries)
+        : charge.amount * 0.5;
+    }
+
+    if (!grouped[dest]) {
+      grouped[dest] = { destination: dest, charges: [], total: 0 };
+    }
+    grouped[dest].charges.push({
+      description: charge.description,
+      amount: charge.amount,
+      partnerShare
+    });
+    grouped[dest].total += partnerShare;
+  });
+
+  return Object.values(grouped).sort((a, b) => b.total - a.total);
 }
 
 /**
@@ -138,7 +185,8 @@ function renderSummary(summary) {
     partnerActualPayments,
     balanceBeforeReimbs,
     reimbursementAdjustment,
-    finalBalance
+    finalBalance,
+    virementsByDestination
   } = summary;
 
   // Déterminer qui doit à qui
@@ -201,6 +249,36 @@ function renderSummary(summary) {
         ${balanceText}
       </div>
     </div>
+
+    ${virementsByDestination && virementsByDestination.length > 0 ? `
+    <div class="summary-card virements-recap">
+      <h3>🏦 Récap Virements Conjointe</h3>
+      <p class="virements-subtitle">Montants à virer par destination</p>
+
+      ${virementsByDestination.map(group => `
+        <div class="virement-group">
+          <div class="virement-destination">
+            <span class="virement-dest-name">${group.destination}</span>
+            <strong class="virement-dest-total">${formatCurrency(group.total)}</strong>
+          </div>
+          <div class="virement-details">
+            ${group.charges.map(c => `
+              <div class="virement-detail-row">
+                <span>${c.description}</span>
+                <span>${formatCurrency(c.partnerShare)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+
+      <div class="summary-divider"></div>
+      <div class="summary-row virement-grand-total">
+        <span>Total virements :</span>
+        <strong>${formatCurrency(virementsByDestination.reduce((sum, g) => sum + g.total, 0))}</strong>
+      </div>
+    </div>
+    ` : ''}
   `;
 }
 

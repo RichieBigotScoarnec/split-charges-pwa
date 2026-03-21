@@ -83,3 +83,17 @@ export function escapeHtml(unsafe) {
   div.textContent = unsafe;
   return div.innerHTML;
 }
+
+/**
+ * Formate le nom du payeur pour affichage
+ * @param {string} paidBy - Valeur du payeur ('vous', 'conjointe', 'joint')
+ * @returns {string} Nom lisible
+ */
+export function formatPaidBy(paidBy) {
+  switch (paidBy) {
+    case 'vous': return 'Vous';
+    case 'conjointe': return 'Conjointe';
+    case 'joint': return 'Compte Joint';
+    default: return paidBy || 'Inconnu';
+  }
+}
