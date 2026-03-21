@@ -20,6 +20,13 @@ export function showAddVariableChargeModal() {
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
 
+  // Reset split override
+  const splitToggle = document.getElementById('variableChargeSplitToggle');
+  if (splitToggle) {
+    splitToggle.checked = false;
+    document.getElementById('variableChargeSplitOptions').style.display = 'none';
+  }
+
   showModal('modalAddVariableCharge');
 }
 
@@ -107,6 +114,20 @@ export async function saveVariableCharge() {
   const category = document.getElementById('variableChargeCategory').value;
   const paidBy = document.getElementById('variableChargePaidBy').value;
 
+  // Répartition spéciale
+  const splitToggle = document.getElementById('variableChargeSplitToggle');
+  let splitOverride = null;
+  if (splitToggle && splitToggle.checked) {
+    const splitMode = document.getElementById('variableChargeSplitMode').value;
+    if (splitMode === 'custom') {
+      const vous = parseInt(document.getElementById('variableChargeSplitVous').value) || 50;
+      const conjointe = parseInt(document.getElementById('variableChargeSplitConjointe').value) || 50;
+      splitOverride = { mode: 'custom', vous, conjointe };
+    } else {
+      splitOverride = { mode: '50-50' };
+    }
+  }
+
   // Validation
   if (!description || description.length > 100) {
     toast.error('Description requise (max 100 caractères)');
@@ -134,6 +155,7 @@ export async function saveVariableCharge() {
       amount,
       category,
       paidBy,
+      splitOverride,
       timestamp: Date.now(),
       deleted: false
     };
@@ -184,6 +206,26 @@ export function editVariableCharge(chargeId) {
   document.getElementById('variableChargeAmount').value = charge.amount;
   document.getElementById('variableChargeCategory').value = charge.category;
   document.getElementById('variableChargePaidBy').value = charge.paidBy;
+
+  // Restaurer splitOverride
+  const splitToggle = document.getElementById('variableChargeSplitToggle');
+  const splitOptions = document.getElementById('variableChargeSplitOptions');
+  if (splitToggle && charge.splitOverride) {
+    splitToggle.checked = true;
+    splitOptions.style.display = 'block';
+    document.getElementById('variableChargeSplitMode').value = charge.splitOverride.mode;
+    const customRow = document.getElementById('variableChargeSplitCustom');
+    if (charge.splitOverride.mode === 'custom') {
+      customRow.style.display = 'flex';
+      document.getElementById('variableChargeSplitVous').value = charge.splitOverride.vous || 50;
+      document.getElementById('variableChargeSplitConjointe').value = charge.splitOverride.conjointe || 50;
+    } else {
+      customRow.style.display = 'none';
+    }
+  } else if (splitToggle) {
+    splitToggle.checked = false;
+    splitOptions.style.display = 'none';
+  }
 
   showModal('modalAddVariableCharge');
 }
@@ -294,9 +336,12 @@ export function renderVariableCharges() {
       const chargeDiv = document.createElement('div');
       chargeDiv.className = 'charge-item';
       chargeDiv.dataset.id = charge.id;
+      const splitTag = charge.splitOverride
+        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${charge.splitOverride.vous}/${charge.splitOverride.conjointe}`}</span>`
+        : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${escapeHtml(charge.description || 'Sans description')}</span>
+          <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}</span>
           <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)}</span>
         </div>
         <div class="charge-actions">

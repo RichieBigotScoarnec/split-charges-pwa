@@ -10,7 +10,7 @@
 
 // ===== ENVIRONMENT =====
 export const ENV = 'TEST';
-export const VERSION = '3.5.0';
+export const VERSION = '4.0.0';
 
 // ===== FIREBASE CONFIGURATIONS =====
 const FIREBASE_CONFIGS = {

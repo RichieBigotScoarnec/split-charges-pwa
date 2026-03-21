@@ -22,6 +22,13 @@ export function showAddFixedChargeModal() {
   const recurringEl = document.getElementById('fixedChargeRecurring');
   if (recurringEl) recurringEl.checked = true;
 
+  // Reset split override
+  const splitToggle = document.getElementById('fixedChargeSplitToggle');
+  if (splitToggle) {
+    splitToggle.checked = false;
+    document.getElementById('fixedChargeSplitOptions').style.display = 'none';
+  }
+
   showModal('modalAddFixedCharge');
 }
 
@@ -101,6 +108,20 @@ export async function saveFixedCharge() {
   const destination = document.getElementById('fixedChargeDestination')?.value || '';
   const recurring = document.getElementById('fixedChargeRecurring')?.checked ?? true;
 
+  // Répartition spéciale
+  const splitToggle = document.getElementById('fixedChargeSplitToggle');
+  let splitOverride = null;
+  if (splitToggle && splitToggle.checked) {
+    const splitMode = document.getElementById('fixedChargeSplitMode').value;
+    if (splitMode === 'custom') {
+      const vous = parseInt(document.getElementById('fixedChargeSplitVous').value) || 50;
+      const conjointe = parseInt(document.getElementById('fixedChargeSplitConjointe').value) || 50;
+      splitOverride = { mode: 'custom', vous, conjointe };
+    } else {
+      splitOverride = { mode: '50-50' };
+    }
+  }
+
   // Validation
   if (!description || description.length > 100) {
     toast.error('Description requise (max 100 caractères)');
@@ -130,6 +151,7 @@ export async function saveFixedCharge() {
       paidBy,
       destination,
       recurring,
+      splitOverride,
       timestamp: Date.now(),
       deleted: false
     };
@@ -184,6 +206,26 @@ export function editFixedCharge(chargeId) {
   if (destEl) destEl.value = charge.destination || '';
   const recurringEl = document.getElementById('fixedChargeRecurring');
   if (recurringEl) recurringEl.checked = charge.recurring !== false;
+
+  // Restaurer splitOverride
+  const splitToggle = document.getElementById('fixedChargeSplitToggle');
+  const splitOptions = document.getElementById('fixedChargeSplitOptions');
+  if (splitToggle && charge.splitOverride) {
+    splitToggle.checked = true;
+    splitOptions.style.display = 'block';
+    document.getElementById('fixedChargeSplitMode').value = charge.splitOverride.mode;
+    const customRow = document.getElementById('fixedChargeSplitCustom');
+    if (charge.splitOverride.mode === 'custom') {
+      customRow.style.display = 'flex';
+      document.getElementById('fixedChargeSplitVous').value = charge.splitOverride.vous || 50;
+      document.getElementById('fixedChargeSplitConjointe').value = charge.splitOverride.conjointe || 50;
+    } else {
+      customRow.style.display = 'none';
+    }
+  } else if (splitToggle) {
+    splitToggle.checked = false;
+    splitOptions.style.display = 'none';
+  }
 
   showModal('modalAddFixedCharge');
 }
@@ -294,9 +336,12 @@ export function renderFixedCharges() {
       const ponctuelTag = charge.recurring === false
         ? '<span class="charge-ponctuel">ponctuelle</span>'
         : '';
+      const splitTag = charge.splitOverride
+        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${charge.splitOverride.vous}/${charge.splitOverride.conjointe}`}</span>`
+        : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag}</span>
+          <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}</span>
           <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)} ${destinationTag}</span>
         </div>
         <div class="charge-actions">

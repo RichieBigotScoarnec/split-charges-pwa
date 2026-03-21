@@ -326,6 +326,33 @@
           </select>
         </div>
 
+        <div class="form-group form-group-toggle">
+          <label for="variableChargeSplitToggle">Répartition spéciale</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargeSplitToggle" onchange="toggleVariableChargeSplit()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="variableChargeSplitOptions" class="split-override-options" style="display:none;">
+          <div class="split-override-row">
+            <select id="variableChargeSplitMode">
+              <option value="50-50">50 / 50</option>
+              <option value="custom">Personnalisé</option>
+            </select>
+          </div>
+          <div id="variableChargeSplitCustom" class="split-custom-row" style="display:none;">
+            <div class="split-custom-input">
+              <label>Vous (%)</label>
+              <input type="number" id="variableChargeSplitVous" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+            <div class="split-custom-input">
+              <label>Conjointe (%)</label>
+              <input type="number" id="variableChargeSplitConjointe" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddVariableCharge')">Annuler</button>
           <button type="button" class="btn btn-primary" id="saveVariableCharge">Ajouter</button>
@@ -392,6 +419,33 @@
             <input type="checkbox" id="fixedChargeRecurring" checked>
             <span class="toggle-slider"></span>
           </label>
+        </div>
+
+        <div class="form-group form-group-toggle">
+          <label for="fixedChargeSplitToggle">Répartition spéciale</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="fixedChargeSplitToggle" onchange="toggleFixedChargeSplit()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="fixedChargeSplitOptions" class="split-override-options" style="display:none;">
+          <div class="split-override-row">
+            <select id="fixedChargeSplitMode">
+              <option value="50-50">50 / 50</option>
+              <option value="custom">Personnalisé</option>
+            </select>
+          </div>
+          <div id="fixedChargeSplitCustom" class="split-custom-row" style="display:none;">
+            <div class="split-custom-input">
+              <label>Vous (%)</label>
+              <input type="number" id="fixedChargeSplitVous" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+            <div class="split-custom-input">
+              <label>Conjointe (%)</label>
+              <input type="number" id="fixedChargeSplitConjointe" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+          </div>
         </div>
 
         <div class="modal-actions">
@@ -2522,6 +2576,30 @@
       database.ref('reminderSettings').set(settings).catch(() => {
         showToast('Erreur : impossible de sauvegarder les paramètres', 'error');
       });
+    }
+
+    // === Split Override toggles ===
+    function toggleFixedChargeSplit() {
+      const checked = document.getElementById('fixedChargeSplitToggle').checked;
+      document.getElementById('fixedChargeSplitOptions').style.display = checked ? 'block' : 'none';
+      if (checked) setupSplitModeListener('fixedCharge');
+    }
+    window.toggleFixedChargeSplit = toggleFixedChargeSplit;
+
+    function toggleVariableChargeSplit() {
+      const checked = document.getElementById('variableChargeSplitToggle').checked;
+      document.getElementById('variableChargeSplitOptions').style.display = checked ? 'block' : 'none';
+      if (checked) setupSplitModeListener('variableCharge');
+    }
+    window.toggleVariableChargeSplit = toggleVariableChargeSplit;
+
+    function setupSplitModeListener(prefix) {
+      const modeSelect = document.getElementById(`${prefix}SplitMode`);
+      const customRow = document.getElementById(`${prefix}SplitCustom`);
+      modeSelect.onchange = () => {
+        customRow.style.display = modeSelect.value === 'custom' ? 'flex' : 'none';
+      };
+      customRow.style.display = modeSelect.value === 'custom' ? 'flex' : 'none';
     }
 
     function toggleBudgetInput() {

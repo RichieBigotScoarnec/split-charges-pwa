@@ -616,6 +616,63 @@
   font-weight: 500;
 }
 
+.charge-split-tag {
+  display: inline-block;
+  background: rgba(156, 39, 176, 0.15);
+  color: #9c27b0;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.split-override-options {
+  background: var(--dark-bg);
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.split-override-row select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 1em;
+}
+
+.split-custom-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.split-custom-input {
+  flex: 1;
+}
+
+.split-custom-input label {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.split-custom-input input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
 .charge-ponctuel {
   display: inline-block;
   background: rgba(255, 152, 0, 0.15);
