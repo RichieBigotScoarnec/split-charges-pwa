@@ -2,7 +2,7 @@
   "name": "FairSplit TEST",
   "short_name": "FairSplit TEST",
   "description": "Environnement de test - Partage équitable des charges",
-  "start_url": "./FairSplit-Test.html",
+  "start_url": "./FairSplit.html",
   "background_color": "#ff9800",
   "theme_color": "#ff5722",
   "display": "standalone",

@@ -12,7 +12,7 @@ import { initVariableCharges, loadVariableCharges } from './variable-charges.js'
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 import { initReimbursements, loadReimbursements } from './reimbursements.js';
 import { initSummary, calculateSummary } from './summary.js';
-import { initSearch, cleanupSearch } from './search.js';
+import { initSearch } from './search.js';
 import { initExport } from './export.js';
 import { initNotifications, cleanupNotifications } from './notifications.js';
 import { initCategories } from './categories.js';
@@ -151,14 +151,12 @@ export async function signOut() {
 function updateAuthUI(user) {
   const authOverlay = document.getElementById('authOverlay');
   const mainApp = document.getElementById('mainApp');
-  const testBadge = document.getElementById('testEnvironmentBadge');
   const userInfoBar = document.getElementById('userInfoBar');
 
   if (user) {
     // User authenticated
     if (authOverlay) authOverlay.style.display = 'none';
     if (mainApp) mainApp.style.display = 'block';
-    if (testBadge) testBadge.style.display = 'block';
     if (userInfoBar) userInfoBar.style.display = 'flex';
 
     // Update user info bar
@@ -200,7 +198,6 @@ function updateAuthUI(user) {
     // No user - show auth overlay
     if (authOverlay) authOverlay.style.display = 'flex';
     if (mainApp) mainApp.style.display = 'none';
-    if (testBadge) testBadge.style.display = 'none';
     if (userInfoBar) userInfoBar.style.display = 'none';
 
     // Clear global state
@@ -335,6 +332,10 @@ export function initAuth() {
   });
 
   // Expose auth functions globally for onclick handlers (legacy HTML compatibility)
+  // Uses _prefixed names to delegate from inline stubs defined in HTML
+  window._signInWithGoogle = signInWithGoogle;
+  window._signInWithEmail = signInWithEmail;
+  window._createAccount = createAccount;
   window.signInWithGoogle = signInWithGoogle;
   window.signInWithEmail = signInWithEmail;
   window.createAccount = createAccount;

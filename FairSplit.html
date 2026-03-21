@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="FairSplit TEST - Partage équitable des charges au prorata des salaires" />
   <meta name="theme-color" content="#ff5722" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>FairSplit TEST - Charges Partagées</title>
   <link rel="manifest" href="manifest-test.json" />
@@ -23,9 +23,7 @@
   <link rel="stylesheet" href="css/responsive.css">
 
   <!-- Leaflet.js CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 
 </head>
 <body>
@@ -128,15 +126,15 @@
       <div class="share-mode-selector">
         <div class="share-mode-label">⚖️ Mode de partage</div>
         <div class="share-mode-options">
-          <div class="share-mode-option selected" id="modeProrata" onclick="selectShareMode('prorata')">
-            📊 Prorata
-          </div>
-          <div class="share-mode-option" id="mode5050" onclick="selectShareMode('50-50')">
-            ⚖️ 50-50
-          </div>
-          <div class="share-mode-option" id="modeCustom" onclick="selectShareMode('custom')">
-            🎯 Custom
-          </div>
+          <button type="button" class="share-mode-option selected" id="modeProrata" onclick="selectShareMode('prorata')">
+            <span aria-hidden="true">📊</span> Prorata
+          </button>
+          <button type="button" class="share-mode-option" id="mode5050" onclick="selectShareMode('50-50')">
+            <span aria-hidden="true">⚖️</span> 50-50
+          </button>
+          <button type="button" class="share-mode-option" id="modeCustom" onclick="selectShareMode('custom')">
+            <span aria-hidden="true">🎯</span> Custom
+          </button>
         </div>
         <div class="custom-percentages" id="customPercentages">
           <div class="custom-percentage-group">
@@ -230,12 +228,12 @@
 
       <!-- Reminders / Notifications -->
       <div class="reminders-section">
-        <div class="reminders-header" onclick="toggleRemindersPanel()">
-          <div class="reminders-header-left">
-            <span>🔔</span> Rappels et Notifications
-          </div>
-          <span class="reminders-toggle-icon" id="remindersToggleIcon">▼</span>
-        </div>
+        <button type="button" class="reminders-header" onclick="toggleRemindersPanel()" aria-expanded="false" aria-controls="remindersBody">
+          <span class="reminders-header-left">
+            <span aria-hidden="true">🔔</span> Rappels et Notifications
+          </span>
+          <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
+        </button>
         <div class="reminders-body" id="remindersBody">
           <div class="reminder-toggle-row">
             <div>
@@ -303,7 +301,7 @@
 
         <div class="form-group">
           <label for="variableChargeAmount">Montant (€)</label>
-          <input type="number" id="variableChargeAmount" placeholder="Ex: 150.50" step="0.01" min="0" max="100000" required />
+          <input type="text" id="variableChargeAmount" placeholder="Ex: 150.50" inputmode="decimal" maxlength="10" required />
         </div>
 
         <div class="form-group">
@@ -349,7 +347,7 @@
 
         <div class="form-group">
           <label for="fixedChargeAmount">Montant (€)</label>
-          <input type="number" id="fixedChargeAmount" placeholder="Ex: 800" step="0.01" min="0" max="100000" required />
+          <input type="text" id="fixedChargeAmount" placeholder="Ex: 800" inputmode="decimal" maxlength="10" required />
         </div>
 
         <div class="form-group">
@@ -396,7 +394,7 @@
         </div>
         <div class="form-group">
           <label for="reimbursementAmount">Montant (€)</label>
-          <input type="number" id="reimbursementAmount" placeholder="Ex: 50" step="0.01" min="0" max="100000" required />
+          <input type="text" id="reimbursementAmount" placeholder="Ex: 50" inputmode="decimal" maxlength="10" required />
         </div>
         <div class="form-group">
           <label for="reimbursementNote">Note (optionnel)</label>
@@ -488,8 +486,7 @@
   </button>
 
   <!-- Leaflet.js -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-O2O5v8a2LTDLjnsUAqkG97QoEYEMUhGq01pk5G2gFU=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -498,6 +495,22 @@
 
   <!-- FairSplit JS Modules -->
   <script type="module" src="js/app.js"></script>
+
+  <!-- Auth function stubs — available immediately, delegate to module once loaded -->
+  <script>
+    function signInWithGoogle() {
+      if (window._signInWithGoogle) return window._signInWithGoogle();
+      console.warn('[Auth] Module pas encore chargé, veuillez patienter...');
+    }
+    function signInWithEmail() {
+      if (window._signInWithEmail) return window._signInWithEmail();
+      console.warn('[Auth] Module pas encore chargé, veuillez patienter...');
+    }
+    function createAccount() {
+      if (window._createAccount) return window._createAccount();
+      console.warn('[Auth] Module pas encore chargé, veuillez patienter...');
+    }
+  </script>
 
   <script>
     // ===== MIGRÉ VERS MODULES =====
@@ -2151,11 +2164,7 @@
     */
 
     // ===== QUICK ADD =====
-    // Note: Bouton et Enter appellent directement window.handleQuickAddSubmit() du module
-    // Le module (quick-add.js) lit les données depuis DOM et state (y compris GPS)
-
-    // Expose wrapper globally
-    window.handleQuickAddSubmit = handleQuickAddSubmit;
+    // Note: handleQuickAddSubmit est exposé globalement par le module quick-add.js
 
     // ===== EXPORT FONCTIONS =====
 
@@ -3148,7 +3157,7 @@
     // ===== INITIALIZATION =====
     // App data initialization moved into auth.onAuthStateChanged (above)
     // to ensure Firebase queries run only after user is authenticated
-    console.log('🔧 FairSplit TEST Environment');
+    console.log('🔧 FairSplit Environment');
     console.log('📅 Current Period:', currentPeriod);
 
     // ===== SERVICE WORKER REGISTRATION (PWA) =====

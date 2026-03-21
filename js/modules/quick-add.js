@@ -7,6 +7,8 @@ import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
 
+let _keydownHandler = null;
+
 /**
  * Initialise le module d'ajout rapide
  */

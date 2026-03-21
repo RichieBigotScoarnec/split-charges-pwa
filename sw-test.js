@@ -5,7 +5,7 @@ const CACHE_NAME = 'fairsplit-test-v22';
 
 // Fichiers à mettre en cache pour le mode offline
 const STATIC_ASSETS = [
-  './FairSplit-Test.html',
+  './FairSplit.html',
   './manifest-test.json',
   // CSS
   './css/variables.css',
@@ -119,7 +119,7 @@ self.addEventListener('fetch', (event) => {
       });
     }).catch(() => {
       // Hors ligne et pas en cache : retourner la page principale
-      return caches.match('./FairSplit-Test.html');
+      return caches.match('./FairSplit.html');
     })
   );
 });

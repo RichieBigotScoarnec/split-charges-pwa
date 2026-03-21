@@ -2,7 +2,7 @@
   "name": "FairSplit",
   "short_name": "FairSplit",
   "description": "Partage équitable des charges au prorata des salaires",
-  "start_url": "./FairSplit-Prod.html",
+  "start_url": "./FairSplit.html",
   "background_color": "#1a1a2e",
   "theme_color": "#667eea",
   "display": "standalone",

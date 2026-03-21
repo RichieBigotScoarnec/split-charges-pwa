@@ -97,7 +97,7 @@ export function getCurrentUserId() {
  * @returns {string} User-scoped path (e.g., 'salaries/uid123', 'periods/uid123/2026-01')
  * @private
  */
-function getUserPath(path) {
+export function getUserPath(path) {
   if (!currentUserId) {
     throw new Error('User not authenticated. Cannot access database.');
   }

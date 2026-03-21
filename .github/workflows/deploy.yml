@@ -28,10 +28,10 @@ jobs:
             echo "destination=test" >> $GITHUB_OUTPUT
           fi
 
-      - name: Prepare sync - copy FairSplit-Test.html into test/
+      - name: Prepare sync - copy FairSplit.html into test/
         run: |
           mkdir -p test
-          cp FairSplit-Test.html test/FairSplit-Test.html
+          cp FairSplit.html test/FairSplit.html
 
       - name: Display deployment info
         run: |

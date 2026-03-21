@@ -4,7 +4,6 @@
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
-import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 let searchTimeout = null;
 

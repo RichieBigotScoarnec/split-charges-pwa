@@ -1,22 +1,59 @@
 /**
  * FairSplit - Configuration
  * @description Constantes et configuration Firebase
+ *
+ * Pour basculer entre TEST et PROD :
+ *   - Branche develop → ENV = 'TEST'
+ *   - Branche main    → ENV = 'PROD'
+ * Seule cette ligne change entre les deux branches.
  */
 
 // ===== ENVIRONMENT =====
 export const ENV = 'TEST';
 export const VERSION = '3.1.0';
 
-// ===== FIREBASE CONFIGURATION =====
-export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAR3tFWBxdMHr27-NOK0jlOyQ8xZoXcVSU",
-  authDomain: "fairsplit-test.firebaseapp.com",
-  databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "fairsplit-test",
-  storageBucket: "fairsplit-test.firebasestorage.app",
-  messagingSenderId: "455299346967",
-  appId: "1:455299346967:web:7165ac7e84062657632252",
-  measurementId: "G-9HW1XN8EF1"
+// ===== FIREBASE CONFIGURATIONS =====
+const FIREBASE_CONFIGS = {
+  TEST: {
+    apiKey: "AIzaSyAR3tFWBxdMHr27-NOK0jlOyQ8xZoXcVSU",
+    authDomain: "fairsplit-test.firebaseapp.com",
+    databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "fairsplit-test",
+    storageBucket: "fairsplit-test.firebasestorage.app",
+    messagingSenderId: "455299346967",
+    appId: "1:455299346967:web:7165ac7e84062657632252",
+    measurementId: "G-9HW1XN8EF1"
+  },
+  PROD: {
+    apiKey: "VOTRE_CLE_API_PROD",
+    authDomain: "fairsplit-prod.firebaseapp.com",
+    databaseURL: "https://fairsplit-prod-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "fairsplit-prod",
+    storageBucket: "fairsplit-prod.firebasestorage.app",
+    messagingSenderId: "VOTRE_SENDER_ID_PROD",
+    appId: "VOTRE_APP_ID_PROD",
+    measurementId: "VOTRE_MEASUREMENT_ID_PROD"
+  }
+};
+
+export const FIREBASE_CONFIG = FIREBASE_CONFIGS[ENV];
+
+// ===== ENVIRONMENT METADATA =====
+export const ENV_META = {
+  TEST: {
+    title: 'FairSplit TEST - Charges Partagées',
+    manifest: 'manifest-test.json',
+    icon192: 'icon-192-test.png',
+    icon512: 'icon-512-test.png',
+    showBadge: true
+  },
+  PROD: {
+    title: 'FairSplit - Charges Partagées',
+    manifest: 'manifest.json',
+    icon192: 'icon-192.png',
+    icon512: 'icon-512.png',
+    showBadge: false
+  }
 };
 
 // ===== CATEGORIES =====

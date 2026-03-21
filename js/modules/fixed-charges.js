@@ -6,7 +6,6 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
-import { escapeHtml } from '../utils.js';  // ✅ FIX CRITIQUE 3: Import escapeHtml for XSS protection
 
 /**
  * Initialise le module de gestion des charges fixes

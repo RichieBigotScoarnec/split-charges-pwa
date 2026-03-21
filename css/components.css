@@ -45,7 +45,7 @@
   font-size: 16px;
   padding: 4px;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
   display: none;
 }
 
@@ -113,7 +113,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 .period-arrow:hover {
@@ -210,7 +210,7 @@
   background: var(--dark-bg);
   color: var(--text-primary);
   font-size: 16px;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .salary-input-group input:focus {
@@ -262,7 +262,7 @@
   gap: 10px;
   align-items: center;
   border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .charge-item:hover {
@@ -306,7 +306,7 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.3s ease;
   margin-right: 8px;
 }
 
@@ -323,7 +323,7 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 .btn-delete:hover {
@@ -375,7 +375,7 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -572,7 +572,8 @@
   color: var(--text-primary);
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, background 0.3s ease;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 600;
 }
@@ -739,7 +740,7 @@
   justify-content: center;
   box-shadow: 0 6px 20px rgba(255, 87, 34, 0.4);
   z-index: 9998;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .fab:hover {
@@ -750,3 +751,4 @@
 .fab:active {
   transform: scale(0.95);
 }
+

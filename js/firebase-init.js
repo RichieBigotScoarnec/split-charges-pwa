@@ -3,7 +3,7 @@
  * @description Initialise Firebase et exporte les références
  */
 
-import { FIREBASE_CONFIG } from './config.js';
+import { FIREBASE_CONFIG, ENV } from './config.js';
 
 let app = null;
 let database = null;
@@ -27,7 +27,7 @@ export function initFirebase() {
   database = firebase.database();
   auth = firebase.auth();
 
-  console.log('🔥 Firebase initialisé (TEST)');
+  console.log(`🔥 Firebase initialisé (${ENV})`);
 
   return { app, database, auth };
 }

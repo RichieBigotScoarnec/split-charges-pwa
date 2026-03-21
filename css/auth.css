@@ -59,7 +59,7 @@
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   margin-bottom: 16px;
 }
 
@@ -101,7 +101,7 @@
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
   margin-bottom: 12px;
 }
 
@@ -174,7 +174,7 @@
   border-radius: 20px;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .btn-logout:hover {
