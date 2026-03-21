@@ -116,6 +116,10 @@ export async function saveFixedCharge() {
     if (splitMode === 'custom') {
       const vous = parseInt(document.getElementById('fixedChargeSplitVous').value) || 50;
       const conjointe = parseInt(document.getElementById('fixedChargeSplitConjointe').value) || 50;
+      if (vous + conjointe !== 100) {
+        toast.error('La répartition doit totaliser 100%');
+        return;
+      }
       splitOverride = { mode: 'custom', vous, conjointe };
     } else {
       splitOverride = { mode: '50-50' };

@@ -122,6 +122,10 @@ export async function saveVariableCharge() {
     if (splitMode === 'custom') {
       const vous = parseInt(document.getElementById('variableChargeSplitVous').value) || 50;
       const conjointe = parseInt(document.getElementById('variableChargeSplitConjointe').value) || 50;
+      if (vous + conjointe !== 100) {
+        toast.error('La répartition doit totaliser 100%');
+        return;
+      }
       splitOverride = { mode: 'custom', vous, conjointe };
     } else {
       splitOverride = { mode: '50-50' };

@@ -1,0 +1,27 @@
+{
+  "name": "split-charges-pwa",
+  "version": "1.0.0",
+  "description": "> **Calculateur de répartition de charges au prorata des salaires nets avec synchronisation Firebase en temps réel**",
+  "main": "sw-test.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RichieBigotScoarnec/split-charges-pwa.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/RichieBigotScoarnec/split-charges-pwa/issues"
+  },
+  "homepage": "https://github.com/RichieBigotScoarnec/split-charges-pwa#readme",
+  "devDependencies": {
+    "vitest": "^4.1.0"
+  }
+}

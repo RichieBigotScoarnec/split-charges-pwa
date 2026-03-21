@@ -60,7 +60,7 @@ export function calculateSummary() {
       yourTheoricalShare += amount * 0.5;
       partnerTheoricalShare += amount * 0.5;
     } else if (effectiveMode === 'custom') {
-      const pcts = charge.splitOverride || customPercents;
+      const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined) ? charge.splitOverride : customPercents;
       yourTheoricalShare += amount * (pcts.vous / 100);
       partnerTheoricalShare += amount * (pcts.conjointe / 100);
     } else { // prorata
@@ -79,12 +79,21 @@ export function calculateSummary() {
     } else if (charge.paidBy === 'conjointe') {
       partnerActualPayments += charge.amount;
     } else {
-      // Compte joint : chacun a payé sa part théorique (pas de dette)
-      const totalShares = yourTheoricalShare + partnerTheoricalShare;
-      const yourRatio = totalShares > 0 ? yourTheoricalShare / totalShares : 0.5;
-      const partnerRatio = totalShares > 0 ? partnerTheoricalShare / totalShares : 0.5;
-      yourActualPayments += yourRatio * charge.amount;
-      partnerActualPayments += partnerRatio * charge.amount;
+      // Compte joint : répartir selon le mode effectif de cette charge
+      const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
+      let yourJointRatio = 0.5;
+
+      if (effectiveMode === '50-50') {
+        yourJointRatio = 0.5;
+      } else if (effectiveMode === 'custom') {
+        const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined) ? charge.splitOverride : customPercents;
+        yourJointRatio = pcts.vous / 100;
+      } else if (totalSalaries > 0) {
+        yourJointRatio = salaries.vous / totalSalaries;
+      }
+
+      yourActualPayments += yourJointRatio * charge.amount;
+      partnerActualPayments += (1 - yourJointRatio) * charge.amount;
     }
   });
 
@@ -151,7 +160,7 @@ function calculateVirementsByDestination(fixedCharges, params) {
     if (effectiveMode === '50-50') {
       partnerShare = charge.amount * 0.5;
     } else if (effectiveMode === 'custom') {
-      const pcts = charge.splitOverride || customPercents;
+      const pcts = (charge.splitOverride && charge.splitOverride.conjointe !== undefined) ? charge.splitOverride : customPercents;
       partnerShare = charge.amount * (pcts.conjointe / 100);
     } else {
       partnerShare = totalSalaries > 0
@@ -312,7 +321,6 @@ function renderBudgetGauge(totalCharges) {
   if (budgetLimit <= 0) return '';
 
   const percentage = Math.min((totalCharges / budgetLimit) * 100, 100);
-  const isOver = totalCharges > budgetLimit;
   const remaining = budgetLimit - totalCharges;
 
   let statusClass = 'budget-ok';
