@@ -35,6 +35,9 @@ const initialState = {
   previousMonthCharges: [],
   selectedReconductionItems: [],
 
+  // GPS background cache (pre-fetched position for instant quick-add)
+  cachedGpsPosition: null, // { lat, lng, accuracy, timestamp }
+
   // Map
   mapInstance: null,
 

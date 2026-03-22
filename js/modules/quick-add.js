@@ -13,6 +13,8 @@ import { log, warn, error as logError } from '../utils/debug.js';
 
 // ===== STATE INTERNE =====
 let _keydownHandler = null;
+let _gpsWatchId = null;       // watchPosition ID for background GPS
+let _gpsPermissionGranted = false; // tracks if user already granted GPS permission
 
 const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
@@ -28,7 +30,39 @@ const quickAddState = {
 export function initQuickAdd() {
   log('📦 Initialisation module ajout rapide');
   setupEventListeners();
+  initBackgroundGPS();
   log('✅ Module ajout rapide initialisé');
+}
+
+/**
+ * Vérifie si la permission GPS est déjà accordée et lance le watch en arrière-plan.
+ * Utilise l'API Permissions pour éviter de déclencher le prompt au chargement.
+ */
+async function initBackgroundGPS() {
+  if (!navigator.geolocation || !navigator.permissions) return;
+
+  try {
+    const status = await navigator.permissions.query({ name: 'geolocation' });
+    if (status.state === 'granted') {
+      _gpsPermissionGranted = true;
+      startBackgroundGPS();
+      log('📡 [GPS] Permission déjà accordée → watch démarré au chargement');
+    }
+
+    // Écouter les changements de permission (accordée/révoquée en cours de session)
+    status.addEventListener('change', () => {
+      if (status.state === 'granted' && !_gpsPermissionGranted) {
+        _gpsPermissionGranted = true;
+        startBackgroundGPS();
+      } else if (status.state === 'denied') {
+        _gpsPermissionGranted = false;
+        stopBackgroundGPS();
+      }
+    });
+  } catch {
+    // API Permissions non supportée — fallback : le watch démarre au premier clic
+    log('📡 [GPS] API Permissions non supportée, watch au premier usage');
+  }
 }
 
 /**
@@ -88,6 +122,7 @@ export function cleanupQuickAdd() {
     document.removeEventListener('keydown', _keydownHandler);
     _keydownHandler = null;
   }
+  stopBackgroundGPS();
   resetState();
   log('🧹 Listeners quick-add nettoyés');
 }
@@ -317,65 +352,116 @@ async function handleQuickAddSubmit() {
 
 // ===== GPS & GÉOCODAGE =====
 
+const GPS_CACHE_MAX_AGE = 60000; // 60s — position considérée fraîche
+
 /**
- * Lance la détection GPS (non bloquante)
+ * Démarre le suivi GPS en arrière-plan (watchPosition).
+ * Appelé après la première autorisation GPS réussie.
+ * Met à jour state.cachedGpsPosition en continu.
+ */
+function startBackgroundGPS() {
+  if (_gpsWatchId !== null) return; // déjà actif
+  if (!navigator.geolocation) return;
+
+  _gpsWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const cached = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: Date.now()
+      };
+      setState('cachedGpsPosition', cached);
+      log('📡 [GPS] Position mise en cache:', cached.lat.toFixed(5), cached.lng.toFixed(5));
+    },
+    (error) => {
+      if (error.code === 1) {
+        // Permission révoquée — arrêter le watch
+        stopBackgroundGPS();
+        _gpsPermissionGranted = false;
+        warn('⚠️ [GPS] Permission révoquée, watch arrêté');
+      }
+    },
+    {
+      enableHighAccuracy: false,
+      maximumAge: GPS_CACHE_MAX_AGE,
+      timeout: 15000
+    }
+  );
+  log('📡 [GPS] Watch en arrière-plan démarré');
+}
+
+/**
+ * Arrête le suivi GPS en arrière-plan
+ */
+function stopBackgroundGPS() {
+  if (_gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(_gpsWatchId);
+    _gpsWatchId = null;
+    log('📡 [GPS] Watch en arrière-plan arrêté');
+  }
+}
+
+/**
+ * Vérifie si une position en cache est disponible et fraîche (< 60s)
+ * @returns {Object|null} Position en cache ou null
+ */
+function getCachedPosition() {
+  const cached = getState('cachedGpsPosition');
+  if (!cached) return null;
+
+  const age = Date.now() - cached.timestamp;
+  if (age > GPS_CACHE_MAX_AGE) return null;
+
+  return cached;
+}
+
+/**
+ * Lance la détection GPS (non bloquante).
+ * Utilise la position en cache si disponible, sinon getCurrentPosition.
  */
 function startGPSDetection() {
   const locationEl = document.getElementById('quickAddLocation');
   if (!locationEl) return;
 
+  if (!navigator.geolocation) {
+    warn('⚠️ [GPS] Géolocalisation non disponible');
+    locationEl.textContent = '';
+    locationEl.className = 'quick-add-location';
+    return;
+  }
+
+  // Tenter d'utiliser la position en cache
+  const cached = getCachedPosition();
+  if (cached) {
+    log('⚡ [GPS] Position en cache utilisée (âge:', Date.now() - cached.timestamp, 'ms)');
+    locationEl.textContent = '📍 Géocodage...';
+    locationEl.className = 'quick-add-location loading';
+    processGPSPosition(cached, locationEl);
+    return;
+  }
+
+  // Pas de cache — lancer getCurrentPosition classique
   try {
     locationEl.textContent = '📍 Détection position...';
     locationEl.className = 'quick-add-location loading';
 
-    if (!navigator.geolocation) {
-      warn('⚠️ [GPS] Géolocalisation non disponible');
-      locationEl.textContent = '';
-      locationEl.className = 'quick-add-location';
-      return;
-    }
-
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const gpsData = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: Date.now()
-          };
+      (position) => {
+        const gpsData = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: Date.now()
+        };
 
-          quickAddState.gpsLocation = gpsData;
-
-          // Géocodage inversé pour obtenir le nom du lieu
-          try {
-            const place = await reverseGeocode(gpsData.lat, gpsData.lng);
-            if (place?.name) {
-              gpsData.name = place.name;
-              quickAddState.gpsLocation = gpsData;
-
-              locationEl.textContent = `✓ ${place.name}`;
-              locationEl.className = 'quick-add-location success';
-
-              // Auto-détection catégorie
-              const detected = detectCategoryFromPlace(place);
-              if (detected && !quickAddState.selectedCategory) {
-                selectCategory(detected.id);
-                toast.info(`📍 ${detected.label} détecté`);
-              }
-            } else {
-              locationEl.textContent = '✓ Position enregistrée';
-              locationEl.className = 'quick-add-location success';
-            }
-          } catch {
-            locationEl.textContent = '✓ Position enregistrée';
-            locationEl.className = 'quick-add-location success';
-          }
-        } catch (err) {
-          logError('❌ [GPS] Erreur traitement position:', err);
-          locationEl.textContent = '✗ Erreur GPS';
-          locationEl.className = 'quick-add-location error';
+        // Première autorisation réussie → démarrer le watch en arrière-plan
+        if (!_gpsPermissionGranted) {
+          _gpsPermissionGranted = true;
+          startBackgroundGPS();
         }
+
+        processGPSPosition(gpsData, locationEl);
       },
       (error) => {
         locationEl.textContent = '';
@@ -392,15 +478,51 @@ function startGPSDetection() {
       {
         enableHighAccuracy: false,
         timeout: 10000,
-        maximumAge: 60000
+        maximumAge: GPS_CACHE_MAX_AGE
       }
     );
   } catch (globalError) {
     logError('❌ [GPS] Erreur critique:', globalError);
-    if (locationEl) {
-      locationEl.textContent = '';
-      locationEl.className = 'quick-add-location';
+    locationEl.textContent = '';
+    locationEl.className = 'quick-add-location';
+  }
+}
+
+/**
+ * Traite une position GPS (cache ou fraîche) : reverse geocoding + auto-catégorie
+ */
+async function processGPSPosition(gpsData, locationEl) {
+  try {
+    quickAddState.gpsLocation = gpsData;
+
+    // Géocodage inversé pour obtenir le nom du lieu
+    try {
+      const place = await reverseGeocode(gpsData.lat, gpsData.lng);
+      if (place?.name) {
+        gpsData.name = place.name;
+        quickAddState.gpsLocation = gpsData;
+
+        locationEl.textContent = `✓ ${place.name}`;
+        locationEl.className = 'quick-add-location success';
+
+        // Auto-détection catégorie
+        const detected = detectCategoryFromPlace(place);
+        if (detected && !quickAddState.selectedCategory) {
+          selectCategory(detected.id);
+          toast.info(`📍 ${detected.label} détecté`);
+        }
+      } else {
+        locationEl.textContent = '✓ Position enregistrée';
+        locationEl.className = 'quick-add-location success';
+      }
+    } catch {
+      locationEl.textContent = '✓ Position enregistrée';
+      locationEl.className = 'quick-add-location success';
     }
+  } catch (err) {
+    logError('❌ [GPS] Erreur traitement position:', err);
+    locationEl.textContent = '✗ Erreur GPS';
+    locationEl.className = 'quick-add-location error';
   }
 }
 
