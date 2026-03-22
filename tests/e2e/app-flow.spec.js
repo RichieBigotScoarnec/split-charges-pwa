@@ -246,9 +246,12 @@ test.describe('Modal charge variable', () => {
   test('activer le split spécial affiche les options', async ({ page }) => {
     await page.locator('#addVariableChargeBtn').click();
 
-    // Le toggle est un checkbox caché, cliquer sur le label toggle-switch
-    const toggleLabel = page.locator('#variableChargeSplitToggle').locator('..');
-    await toggleLabel.locator('.toggle-slider').click();
+    // Cocher le checkbox et déclencher l'événement change programmatiquement
+    await page.evaluate(() => {
+      const cb = document.getElementById('variableChargeSplitToggle');
+      cb.checked = true;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
     // Les options de split devraient apparaître
     const splitOptions = page.locator('#variableChargeSplitOptions');

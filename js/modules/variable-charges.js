@@ -54,6 +54,19 @@ export function initVariableCharges() {
   window.showAddVariableChargeModal = showAddVariableChargeModal;
   window.editVariableCharge = editVariableCharge;
   window.deleteVariableCharge = deleteVariableCharge;
+  window.toggleVariableChargeSplit = function() {
+    const toggle = document.getElementById('variableChargeSplitToggle');
+    const options = document.getElementById('variableChargeSplitOptions');
+    if (toggle && options) {
+      options.style.display = toggle.checked ? 'block' : 'none';
+    }
+  };
+  window.toggleVariableChargeSplitMode = function(value) {
+    const customRow = document.getElementById('variableChargeSplitCustom');
+    if (customRow) {
+      customRow.style.display = value === 'custom' ? 'block' : 'none';
+    }
+  };
 
   log('✅ Module charges variables initialisé');
 }

@@ -29,7 +29,7 @@
 }
 
 .summary-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--hover-bg);
 }
 
 .summary-row span {
@@ -91,27 +91,63 @@
   font-family: var(--font-mono);
 }
 
-/* --- Balance finale --- */
+/* --- Balance finale (proéminente, en tête de bilan) --- */
 .summary-balance {
-  margin-top: var(--space-md);
-  padding: var(--space-md);
+  padding: var(--space-lg);
   border-radius: var(--radius);
   text-align: center;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text-primary);
+  margin-bottom: var(--space-md);
 }
 
 .summary-balance strong {
+  display: block;
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: var(--space-xs) 0;
 }
 
 .summary-balance small {
   display: block;
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
+}
+
+/* --- Détail pliable --- */
+.summary-details {
+  margin-top: var(--space-sm);
+}
+
+.summary-details summary {
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  list-style: none;
+  user-select: none;
+  transition: color var(--duration) var(--ease);
+}
+
+.summary-details summary::-webkit-details-marker { display: none; }
+
+.summary-details summary::after {
+  content: ' ▼';
+  font-size: 10px;
+}
+
+.summary-details[open] summary::after {
+  content: ' ▲';
+}
+
+.summary-details summary:hover {
+  color: var(--text-secondary);
 }
 
 .summary-balance.balance-positive {
@@ -288,7 +324,7 @@
 }
 
 .category-legend-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .category-legend-item-left {

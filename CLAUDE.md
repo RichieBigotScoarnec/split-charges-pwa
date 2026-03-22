@@ -1,101 +1,69 @@
 # CLAUDE.md — FairSplit PWA
 
-> **Version** : 2.0 | **Branche active** : develop | **Usage** : Claude Code CLI
+App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, multi-utilisateur (Owner/Partner).
 
----
-
-## Projet
-
-FairSplit — App web PWA de partage de charges en couple au prorata des salaires.
-Synchronisation temps réel Firebase, auth Google/Email, multi-utilisateur (Owner/Partner).
+> **Version** : 3.1 | **Mise à jour** : 2026-03-22 | **Branche active** : develop
 
 ## Stack
 
 - HTML5 sémantique, CSS3 (variables, responsive mobile-first)
 - JavaScript ES6 Modules (import/export, async/await)
 - Firebase Realtime Database (compat SDK 10.7.1), Firebase Auth
-- Leaflet.js (carte des dépenses)
-- PWA : Service Worker (sw-test.js), manifest
-- Tests : Vitest
+- Leaflet.js (carte), PWA (Service Worker, manifest)
+- Tests : Vitest (unitaires), Playwright (E2E)
 
 ## Architecture
 
 ```
 FairSplit/
-├── FairSplit.html                # Point d'entrée HTML (+ code legacy à nettoyer)
-├── index.html                    # Redirection vers FairSplit.html
+├── FairSplit.html          # Point d'entrée HTML
+├── index.html              # Redirection
 ├── css/
-│   ├── variables.css             # Tokens design (couleurs, espacements)
-│   ├── base.css                  # Reset, typographie, header
-│   ├── components.css            # Boutons, cards, formulaires, charges, FAB, toasts
-│   ├── modals.css                # Modales + quick-add
-│   ├── auth.css                  # Écran authentification
-│   ├── summary.css               # Bilan, catégories, tendances, rappels, virements
-│   ├── map.css                   # Carte Leaflet
-│   └── responsive.css            # Media queries + print
+│   ├── variables.css       # Tokens design (couleurs, espacements)
+│   ├── base.css            # Reset, typographie, header
+│   ├── components.css      # Boutons, cards, formulaires, charges, FAB, toasts
+│   ├── modals.css          # Modales + quick-add
+│   ├── auth.css            # Écran authentification
+│   ├── summary.css         # Bilan, catégories, tendances
+│   ├── map.css             # Carte Leaflet
+│   └── responsive.css      # Media queries + print
 ├── js/
-│   ├── app.js                    # Entry point — init Firebase, auth, modules
-│   ├── config.js                 # ENV, Firebase config, constantes (catégories, limites)
-│   ├── firebase-init.js          # Init Firebase, providers, connexion
-│   ├── db.js                     # Abstraction DB (UID-scoped, Partner support)
-│   ├── state.js                  # État global centralisé (Observer pattern)
-│   ├── utils.js                  # Legacy utils (escapeHtml, formatCurrency)
-│   ├── components/
-│   │   ├── modal.js              # showModal/closeModal
-│   │   └── toast.js              # Notifications toast
-│   ├── modules/
-│   │   ├── auth.js               # Hub : auth + init de TOUS les modules après login
-│   │   ├── period.js             # Gestion périodes, salaires, navigation
-│   │   ├── share-mode.js         # Prorata / 50-50 / Custom
-│   │   ├── variable-charges.js   # CRUD charges variables
-│   │   ├── fixed-charges.js      # CRUD charges fixes
-│   │   ├── reimbursements.js     # CRUD remboursements
-│   │   ├── summary.js            # Calcul bilan + rendu
-│   │   ├── categories.js         # Analyse par catégorie
-│   │   ├── search.js             # Recherche/filtres
-│   │   ├── export.js             # Export CSV/PDF
-│   │   ├── notifications.js      # Rappels navigateur
-│   │   ├── trends.js             # Graphiques tendances (SVG)
-│   │   ├── reconduction.js       # Reconduction charges fixes
-│   │   ├── quick-add.js          # Saisie rapide + GPS
-│   │   └── map.js                # Carte Leaflet
-│   └── utils/
-│       ├── calculations.js       # Fonctions pures (testables) : bilan, virements
-│       ├── date.js               # Formatage dates, périodes
-│       ├── format.js             # Formatage monétaire, escapeHtml
-│       └── validation.js         # Validation inputs
-├── tests/
-│   └── calculations.test.js      # Tests unitaires Vitest
-└── docs/
-    └── claude/prompts/           # Prompts d'audit HTML
+│   ├── app.js              # Entry point — init Firebase, auth, modules
+│   ├── config.js           # Firebase config, constantes
+│   ├── firebase-init.js    # Init Firebase, providers
+│   ├── db.js               # Abstraction DB (UID-scoped, Partner)
+│   ├── state.js            # État global (Observer pattern)
+│   ├── components/         # modal.js, toast.js
+│   ├── modules/            # 14 modules fonctionnels (auth, period, charges, summary...)
+│   └── utils/              # calculations.js, date.js, format.js, validation.js
+└── tests/
+    ├── calculations.test.js
+    └── e2e/
 ```
 
 ## Adhérences critiques
 
-| Module | Nb imports | Risque |
-|--------|-----------|--------|
-| `toast.js` | 13 | Critique — feedback utilisateur partout |
+Avant de modifier un module très importé, vérifier les dépendants : `grep -rl "from '.*MODULE_NAME" js/`
+
+| Module | Imports | Risque |
+|---|---|---|
 | `state.js` | 14 | Critique — état global |
-| `format.js` | 9 | Important — affichage monétaire |
-| `summary.js` | 7 | Important — calculs dépendants |
+| `toast.js` | 13 | Critique — feedback utilisateur partout |
 | `firebase-init.js` | 5 | Critique — connexion DB |
 | `auth.js` | Hub | Critique — initialise TOUS les modules |
 | `db.js` | 8 | Critique — abstraction DB + Partner |
-
-Avant de modifier un fichier très importé :
-```bash
-grep -rl "from '.*MODULE_NAME" js/
-```
+| `format.js` | 9 | Important — affichage monétaire |
+| `summary.js` | 7 | Important — calculs dépendants |
 
 ## Conventions
 
 ### CSS
-- Tokens dans `css/variables.css` via `var(--xxx)`, jamais de valeurs hardcodées ailleurs
+- Tokens dans `css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
 - Mobile-first, breakpoint principal : 600px
 - Classes en kebab-case
 
 ### JavaScript
-- ES6 modules partout, pas de globals sauf compatibilité legacy temporaire (`window.xxx`)
+- ES6 modules partout, pas de globals sauf compat legacy (`window.xxx`)
 - State centralisé : `getState('key')` / `setState('key', value)` via `state.js`
 - DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (paths auto-scopés par UID)
 - Async/await + try/catch sur tous les appels Firebase
@@ -110,21 +78,27 @@ grep -rl "from '.*MODULE_NAME" js/
 
 ### Git
 - Commits français : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `chore:`
-- develop = active, main = prod (non déployée)
+- develop = branche active, main = prod
 
 ## Commandes
 
-- `npx vitest run` — tests
+- `npx vitest run` — tests unitaires
 - `npx vitest --watch` — tests mode watch
+- `npx playwright test` — tests E2E
+- `npm run test:all` — tout (vitest + playwright)
+- `npm run emulators` — Firebase emulators
+- `npm run deploy:test` — deploy test
+- `npm run deploy:prod` — deploy prod
 - Live Server VS Code sur `FairSplit.html` — dev local
 
 ## Contraintes
 
 - NE PAS modifier `state.js`, `toast.js`, `firebase-init.js`, `db.js` sans vérifier tous les imports
 - NE PAS ajouter de JS dans `FairSplit.html` — tout dans les modules
-- NE PAS utiliser `innerHTML` avec données utilisateur non échappées
+- NE PAS utiliser `innerHTML` avec données utilisateur non échappées (XSS)
 - NE PAS stocker credentials, tokens ou PII dans le code/logs
 - NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`)
+- NE JAMAIS mettre `.read: true` ou `.write: true` sur données utilisateur dans Firebase rules
 - TOUJOURS utiliser `db.js` pour accéder Firebase (paths UID-scoped automatiques)
 - TOUJOURS écrire un test pour toute nouvelle fonction pure dans `utils/`
 - TOUJOURS tester les dépendants après modif d'un module critique
@@ -132,51 +106,42 @@ grep -rl "from '.*MODULE_NAME" js/
 ## Workflow
 
 1. Lire les fichiers concernés avant de modifier
-2. Vérifier les adhérences si module critique
+2. Vérifier les adhérences si module critique (`grep -rl`)
 3. Proposer un plan (3-5 lignes) avant d'implémenter
 4. Implémenter avec escapeHtml pour contenu dynamique
 5. Vérifier : `npx vitest run` passe
 
 ## Design
 
-### Secteur
-Finance personnelle / couple. Émotion : confiance, clarté, simplicité.
+Secteur : finance personnelle / couple. Émotion : confiance, clarté, simplicité.
 
-### Palette cible (non encore appliquée)
-```css
-:root {
-  --primary-color: #4A7CF7;
-  --primary-dark: #3B63C9;
-  --secondary-color: #7C5CFC;
-  --success-color: #22C55E;
-  --danger-color: #EF4444;
-  --warning-color: #F59E0B;
-  --info-color: #3B82F6;
-  --dark-bg: #F1F5F9;
-  --card-bg: #FFFFFF;
-  --text-primary: #1E293B;
-  --text-secondary: #64748B;
-  --border-color: #E2E8F0;
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-}
-```
-
-### Principes UX
+Principes UX :
 - Le BILAN doit être la première section visible après la période
 - Solde net en gros texte ("Conjointe vous doit X €") avant le détail
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte)
-- Whitespace généreux
+- Mobile-first, whitespace généreux
 
-## Problèmes connus
+## État de cohérence
 
-- ~1500 lignes de code commenté dans `FairSplit.html` (migré vers modules, à supprimer)
-- `window.quickAddState` legacy encore présent (à migrer vers `state.js`)
-- Font Awesome référencé dans modules JS mais non chargé → utiliser emoji
-- `FairSplit.html` contient encore du JS legacy (CATEGORIES, event listeners, GPS)
-- Thème dark actuel inadapté au secteur (voir palette cible ci-dessus)
+Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour cette section après chaque correction.
 
-## Liens
+| Déclaration CLAUDE.md | Fichier réel | État | Action |
+|---|---|---|---|
+| Design = clarté, confiance, thème clair | `css/variables.css` | ✅ RÉSOLU 2026-03-22 — thème clair + dark mode auto | — |
+| Tout JS dans les modules | `FairSplit.html` | ✅ RÉSOLU — HTML propre (604 lignes, aucun JS inline) | — |
+| `utils.js` = legacy à supprimer | `js/utils.js` | ⚠️ ÉCART — fichier existe encore | Supprimer après vérif aucun import résiduel |
+| `window.quickAddState` = legacy | `js/modules/quick-add.js` | ⚠️ ÉCART — global encore utilisé | Migrer vers `state.js` |
+| Font Awesome non chargé | `js/modules/variable-charges.js`, `fixed-charges.js` | ✅ RÉSOLU 2026-03-22 — emojis utilisés + `.btn-icon` stylé | — |
+| Prompts toolkit sync | `docs/claude/prompts/core/` | ⏳ PAS ENCORE — sync toolkit non fait | Lancer `Sync-Toolkit.ps1` |
+| `escapeHtml()` dans `js/utils/format.js` | `js/utils/format.js` + `js/utils.js` (legacy) | ⚠️ DUPLIQUÉ — 2 copies | Supprimer version dans `utils.js` |
+| Bilan en bas de page | `FairSplit.html` + `summary.js` | ✅ RÉSOLU 2026-03-22 — bilan en position 3, solde net 28px en tête | — |
 
-- @docs/MIGRATION-BONNES-PRATIQUES.md — plan migration 100% modulaire
-- @docs/claude/prompts/prompt_html_troubleshooting_v2.md — prompt audit exhaustif
+Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
+
+## Prompts disponibles
+
+Locaux (commandes Claude) : `.claude/commands/audit-design-fairsplit.md`, `.claude/commands/audit-web-fairsplit.md`
+Universels (après sync toolkit) : `@docs/claude/prompts/core/` (analyze-code, debug, etc.)
+Stack JS : `@docs/claude/prompts/stacks/javascript/` (conventions, security)
+Références : `@docs/claude/references/` (quality-grid, security-checklist)

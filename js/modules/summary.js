@@ -234,51 +234,51 @@ function renderSummary(summary) {
 
   summaryElement.innerHTML = `
     <div class="summary-card">
-      <h3>📊 Bilan du mois</h3>
-
-      <div class="summary-row summary-total-row">
-        <span>Total des charges</span>
-        <strong>${formatCurrency(totalCharges)}</strong>
-      </div>
-
-      <div class="summary-divider"></div>
-
-      <div class="summary-section-label">Répartition à payer</div>
-      <div class="summary-row">
-        <span>Vous <span class="summary-percent">${yourPercent}%</span></span>
-        <strong>${formatCurrency(yourTheoricalShare)}</strong>
-      </div>
-      <div class="summary-row">
-        <span>Conjointe <span class="summary-percent">${partnerPercent}%</span></span>
-        <strong>${formatCurrency(partnerTheoricalShare)}</strong>
-      </div>
-
-      <div class="summary-divider"></div>
-
-      <div class="summary-section-label">Paiements réels</div>
-      <div class="summary-row">
-        <span>Vous avez payé</span>
-        <strong>${formatCurrency(yourActualPayments)}</strong>
-      </div>
-      <div class="summary-row">
-        <span>Conjointe a payé</span>
-        <strong>${formatCurrency(partnerActualPayments)}</strong>
-      </div>
-
-      ${reimbursementAdjustment !== 0 ? `
-        <div class="summary-divider"></div>
-        <div class="summary-row">
-          <span>Remboursements effectués</span>
-          <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${reimbursementAdjustment > 0 ? '+' : ''}${formatCurrency(reimbursementAdjustment)}</strong>
-        </div>
-      ` : ''}
-
-      <div class="summary-divider"></div>
-
       <div class="summary-balance ${balanceClass}">
         ${balanceText}
         ${balanceExplanation}
       </div>
+
+      <details class="summary-details">
+        <summary>Voir le détail</summary>
+
+        <div class="summary-row summary-total-row">
+          <span>Total des charges</span>
+          <strong>${formatCurrency(totalCharges)}</strong>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <div class="summary-section-label">Répartition à payer</div>
+        <div class="summary-row">
+          <span>Vous <span class="summary-percent">${yourPercent}%</span></span>
+          <strong>${formatCurrency(yourTheoricalShare)}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Conjointe <span class="summary-percent">${partnerPercent}%</span></span>
+          <strong>${formatCurrency(partnerTheoricalShare)}</strong>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <div class="summary-section-label">Paiements réels</div>
+        <div class="summary-row">
+          <span>Vous avez payé</span>
+          <strong>${formatCurrency(yourActualPayments)}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Conjointe a payé</span>
+          <strong>${formatCurrency(partnerActualPayments)}</strong>
+        </div>
+
+        ${reimbursementAdjustment !== 0 ? `
+          <div class="summary-divider"></div>
+          <div class="summary-row">
+            <span>Remboursements effectués</span>
+            <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${reimbursementAdjustment > 0 ? '+' : ''}${formatCurrency(reimbursementAdjustment)}</strong>
+          </div>
+        ` : ''}
+      </details>
     </div>
 
     ${renderBudgetGauge(totalCharges)}

@@ -294,7 +294,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
   <script type="module">
-    import { FIREBASE_CONFIG } from './js/config.js';
+    import { FIREBASE_CONFIG, ALLOWED_EMAILS } from './js/config.js';
 
     // Initialize Firebase
     firebase.initializeApp(FIREBASE_CONFIG);
@@ -423,6 +423,13 @@
 
     // Wait for authentication
     auth.onAuthStateChanged(async (user) => {
+      // Vérification whitelist
+      if (user && !ALLOWED_EMAILS.includes(user.email)) {
+        await auth.signOut();
+        showStatus('❌ Accès non autorisé.', 'error');
+        return;
+      }
+
       currentUser = user;
 
       if (user) {

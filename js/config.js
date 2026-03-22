@@ -93,6 +93,12 @@ export const DESTINATIONS = [
   { id: 'autre', label: 'Autre', icon: '📋' }
 ];
 
+// ===== ACCÈS AUTORISÉS =====
+export const ALLOWED_EMAILS = [
+  'bigot.richard@gmail.com',
+  'cindypepe.cp95@gmail.com'
+];
+
 // ===== VALIDATION LIMITS =====
 export const LIMITS = {
   MAX_SALARY: 100000,

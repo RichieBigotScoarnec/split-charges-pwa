@@ -57,6 +57,13 @@ export function initFixedCharges() {
   window.showAddFixedChargeModal = showAddFixedChargeModal;
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
+  window.toggleFixedChargeSplit = function() {
+    const toggle = document.getElementById('fixedChargeSplitToggle');
+    const options = document.getElementById('fixedChargeSplitOptions');
+    if (toggle && options) {
+      options.style.display = toggle.checked ? 'block' : 'none';
+    }
+  };
 
   log('✅ Module charges fixes initialisé');
 }

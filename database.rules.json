@@ -2,32 +2,44 @@
   "rules": {
     "salaries": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
-        ".write": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
       }
     },
     "periods": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
-        ".write": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
       }
     },
     "shareMode": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
-        ".write": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
       }
     },
     "reminders": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
-        ".write": "auth != null && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
+      }
+    },
+    "customCategories": {
+      "$uid": {
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
+      }
+    },
+    "customDestinations": {
+      "$uid": {
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || root.child('partners').child(auth.uid).val() === $uid)"
       }
     },
     "partners": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && auth.uid === $uid",
+        ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && (auth.uid === $uid || newData.val() === auth.uid || (!newData.exists() && data.val() === auth.uid))"
       }
     }
   }

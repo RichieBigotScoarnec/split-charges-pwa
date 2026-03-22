@@ -6,6 +6,7 @@
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState, getState, resetState } from '../state.js';
 import { toast } from '../components/toast.js';
+import { ALLOWED_EMAILS } from '../config.js';
 import { initPeriod, loadPeriodData } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -29,36 +30,43 @@ let appInitialized = false;
 // ✅ FIX CRITIQUE 2: Stocker l'unsubscribe function pour éviter fuite mémoire
 let authUnsubscribe = null;
 
+// Guard against concurrent popup calls
+let signInPending = false;
+
 /**
  * Sign in with Google popup
  */
 export async function signInWithGoogle() {
+  if (signInPending) {
+    log('[Auth] ⏳ signInWithPopup déjà en cours, ignoré');
+    return;
+  }
+
   log('[Auth] 🔵 signInWithGoogle() appelé');
+  signInPending = true;
 
   const authErrorEl = document.getElementById('authError');
   if (authErrorEl) authErrorEl.textContent = '';
 
   try {
-    log('[Auth] 🔵 Récupération auth...');
     const auth = getFirebaseAuth();
-    log('[Auth] ✅ Auth récupéré:', auth ? 'OK' : 'NULL');
-
-    log('[Auth] 🔵 Création GoogleAuthProvider...');
     const googleProvider = getGoogleAuthProvider();
-    log('[Auth] ✅ GoogleProvider créé:', googleProvider ? 'OK' : 'NULL');
 
     log('[Auth] 🔵 Lancement signInWithPopup...');
     await auth.signInWithPopup(googleProvider);
     log('[Auth] ✅ Connexion Google réussie !');
   } catch (error) {
-    logError('[Auth] ❌ ERREUR Google sign-in:', error);
-    logError('[Auth] ❌ Type erreur:', error.constructor.name);
-    logError('[Auth] ❌ Code erreur:', error.code);
-    logError('[Auth] ❌ Message:', error.message);
-
-    const message = `Erreur Google : ${error.message}`;
-    if (authErrorEl) authErrorEl.textContent = message;
-    toast.error(message);
+    // Ignore cancelled-popup-request (user opened a new popup or clicked again)
+    if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+      warn('[Auth] ⚠️ Popup annulé/fermé:', error.code);
+    } else {
+      logError('[Auth] ❌ ERREUR Google sign-in:', error);
+      const message = `Erreur Google : ${error.message}`;
+      if (authErrorEl) authErrorEl.textContent = message;
+      toast.error(message);
+    }
+  } finally {
+    signInPending = false;
   }
 }
 
@@ -300,13 +308,21 @@ export function initAuth() {
   authUnsubscribe = auth.onAuthStateChanged(async (user) => {
     log('[Auth] État changé:', user ? user.email : 'Déconnecté');
 
-    // ✅ CRITIQUE 1 FIX: Set current user ID for multi-user database structure
-    // Also loads partner configuration if user is a Partner
+    // Vérification whitelist — refuser tout compte non autorisé
+    if (user && !ALLOWED_EMAILS.includes(user.email)) {
+      warn('[Auth] ⛔ Accès refusé pour :', user.email);
+      const authErrorEl = document.getElementById('authError');
+      if (authErrorEl) authErrorEl.textContent = 'Accès non autorisé. Ce compte n\'est pas autorisé à utiliser cette application.';
+      await auth.signOut();
+      return;
+    }
+
+    // Update UI immediately (don't wait for DB)
+    updateAuthUI(user);
+
+    // Set current user ID for multi-user database structure
     const { setCurrentUserId } = await import('../db.js');
     await setCurrentUserId(user ? user.uid : null);
-
-    // Update UI
-    updateAuthUI(user);
 
     // Initialize app data if user just logged in
     if (user && !appInitialized) {

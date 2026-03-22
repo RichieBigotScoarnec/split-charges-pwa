@@ -70,8 +70,8 @@ export async function requestNotificationPermission() {
       // Envoyer notification de test
       new Notification('FairSplit - Notifications activées', {
         body: 'Vous recevrez des rappels pour les échéances importantes',
-        icon: './icons/icon-192x192.png',
-        badge: './icons/icon-192x192.png'
+        icon: './icon-192-test.png',
+        badge: './icon-192-test.png'
       });
 
       return true;
@@ -281,8 +281,8 @@ function sendNotification(title, body, data = {}) {
   try {
     const notification = new Notification(title, {
       body: body,
-      icon: './icons/icon-192x192.png',
-      badge: './icons/icon-192x192.png',
+      icon: './icon-192-test.png',
+      badge: './icon-192-test.png',
       tag: data.type || 'fairsplit-notification',
       requireInteraction: false,
       data: data
@@ -367,12 +367,42 @@ function saveReminderSettings() {
   }
 
   // Save to Firebase via db.js abstraction
-  saveReminders(settings).catch(() => {
-    toast.error('Erreur : impossible de sauvegarder les paramètres');
-  });
+  log('💾 Sauvegarde rappels:', JSON.stringify(settings));
+  saveReminders(settings)
+    .then(() => toast.success('Rappels sauvegardés'))
+    .catch(() => toast.error('Erreur : impossible de sauvegarder les paramètres'));
+}
+
+/**
+ * Toggle le panneau Rappels et Notifications (expand/collapse)
+ */
+function toggleRemindersPanel() {
+  const body = document.getElementById('remindersBody');
+  const icon = document.getElementById('remindersToggleIcon');
+  const header = body?.closest('.reminders-section')?.querySelector('.reminders-header');
+
+  if (!body) return;
+
+  const isOpen = body.classList.toggle('open');
+  if (icon) icon.textContent = isOpen ? '▲' : '▼';
+  if (header) header.setAttribute('aria-expanded', String(isOpen));
 }
 
 // Exposer globalement pour compatibilité
 window.saveReminderSettings = saveReminderSettings;
+/**
+ * Affiche/masque le champ budget quand le toggle Budget est activé/désactivé
+ */
+function toggleBudgetInput() {
+  const budgetCheckbox = document.getElementById('reminderBudget');
+  const budgetRow = document.getElementById('budgetInputRow');
+  if (budgetRow) {
+    budgetRow.classList.toggle('visible', !!budgetCheckbox?.checked);
+  }
+}
+
+window.saveReminderSettings = saveReminderSettings;
+window.toggleRemindersPanel = toggleRemindersPanel;
+window.toggleBudgetInput = toggleBudgetInput;
 window.requestNotificationPermission = requestNotificationPermission;
 window.checkUpcomingDeadlines = checkUpcomingDeadlines;

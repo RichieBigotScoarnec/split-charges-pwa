@@ -2,14 +2,14 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://unpkg.com; style-src 'self' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://nominatim.openstreetmap.org wss://*.firebaseio.com;" />
+  <!-- CSP managed via Firebase Hosting headers (firebase.json) -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="FairSplit TEST - Partage équitable des charges au prorata des salaires" />
-  <meta name="theme-color" content="#ff5722" />
+  <meta name="theme-color" content="#4F46E5" />
   <meta property="og:title" content="FairSplit - Charges Partagées" />
   <meta property="og:description" content="Partage équitable des charges au prorata des salaires" />
   <meta property="og:type" content="website" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>FairSplit TEST - Charges Partagées</title>
   <link rel="manifest" href="manifest-test.json" />
@@ -114,6 +114,106 @@
     </div>
     </nav>
 
+    <!-- Summary Section -->
+    <section aria-labelledby="sectionResume">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionResume"><span aria-hidden="true">📊</span> Résumé du Mois</h2>
+      </div>
+
+      <!-- Bilan dynamically populated by summary.js module -->
+      <div id="summarySection">
+        <!-- Populated dynamically by summary.js -->
+      </div>
+
+      <!-- Analyse par Catégorie -->
+      <div id="categoryAnalysis" class="category-analysis" style="display: none;">
+        <div class="category-analysis-header"><span aria-hidden="true">📊</span> Analyse par Catégorie</div>
+        <div id="categoryAnalysisContent">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Stats GPS & Lieux -->
+      <div id="gpsStatsSection" class="gps-stats-section" style="display: none;">
+        <div class="gps-stats-header"><span aria-hidden="true">🗺️</span> Lieux de Dépenses</div>
+        <div class="gps-stats-content" id="gpsStatsContent">
+          <!-- Populated dynamically -->
+        </div>
+        <button type="button" class="btn btn-primary gps-view-map-btn" data-action="showMapModal">
+          📍 Voir la carte
+        </button>
+      </div>
+
+      <!-- Tendances Historiques -->
+      <div id="trendsSection" class="trends-section" style="display: none;">
+        <div class="trends-header"><span aria-hidden="true">📈</span> Tendances sur 6 mois</div>
+        <div id="trendsContent">
+          <div class="trends-loading">⏳ Chargement des données historiques...</div>
+        </div>
+      </div>
+
+      <!-- Reminders / Notifications -->
+      <div class="reminders-section">
+        <button type="button" class="reminders-header" data-action="toggleRemindersPanel" aria-expanded="false" aria-controls="remindersBody">
+          <span class="reminders-header-left">
+            <span aria-hidden="true">🔔</span> Rappels et Notifications
+          </span>
+          <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
+        </button>
+        <div class="reminders-body" id="remindersBody">
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Fin de mois</div>
+              <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderFinMois" data-on-change="saveReminderSettings" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Budget dépassé</div>
+              <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderBudget" data-on-change="saveReminderSettings,toggleBudgetInput" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div id="budgetInputRow" class="budget-input-row">
+            <label for="budgetAmount">Limite budget mensuel (€)</label>
+            <input type="text" id="budgetAmount" inputmode="decimal" placeholder="Ex: 3000" data-on-input="saveReminderSettings" />
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Remboursement en attente</div>
+              <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderReimbursement" data-on-change="saveReminderSettings" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div id="notificationsStatus" class="notifications-status">
+            📱 Activez les notifications pour recevoir les rappels
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Actions -->
+      <div class="export-actions">
+        <button type="button" class="btn btn-secondary" data-action="exportToCSV" title="Export compatible Excel">
+          <span aria-hidden="true">📊</span> Export CSV
+        </button>
+        <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
+          <span aria-hidden="true">📄</span> Imprimer PDF
+        </button>
+      </div>
+    </div>
+    </section>
+
     <!-- Search Bar -->
     <div class="search-bar-container">
       <div class="search-bar">
@@ -215,105 +315,6 @@
     </div>
     </section>
 
-    <!-- Summary Section -->
-    <section aria-labelledby="sectionResume">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title" id="sectionResume"><span aria-hidden="true">📊</span> Résumé du Mois</h2>
-      </div>
-
-      <!-- Bilan dynamically populated by summary.js module -->
-      <div id="summarySection">
-        <!-- Populated dynamically by summary.js -->
-      </div>
-
-      <!-- Analyse par Catégorie -->
-      <div id="categoryAnalysis" class="category-analysis" style="display: none;">
-        <div class="category-analysis-header"><span aria-hidden="true">📊</span> Analyse par Catégorie</div>
-        <div id="categoryAnalysisContent">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-
-      <!-- Stats GPS & Lieux -->
-      <div id="gpsStatsSection" class="gps-stats-section" style="display: none;">
-        <div class="gps-stats-header"><span aria-hidden="true">🗺️</span> Lieux de Dépenses</div>
-        <div class="gps-stats-content" id="gpsStatsContent">
-          <!-- Populated dynamically -->
-        </div>
-        <button type="button" class="btn btn-primary gps-view-map-btn" data-action="showMapModal">
-          📍 Voir la carte
-        </button>
-      </div>
-
-      <!-- Tendances Historiques -->
-      <div id="trendsSection" class="trends-section" style="display: none;">
-        <div class="trends-header"><span aria-hidden="true">📈</span> Tendances sur 6 mois</div>
-        <div id="trendsContent">
-          <div class="trends-loading">⏳ Chargement des données historiques...</div>
-        </div>
-      </div>
-
-      <!-- Reminders / Notifications -->
-      <div class="reminders-section">
-        <button type="button" class="reminders-header" data-action="toggleRemindersPanel" aria-expanded="false" aria-controls="remindersBody">
-          <span class="reminders-header-left">
-            <span aria-hidden="true">🔔</span> Rappels et Notifications
-          </span>
-          <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
-        </button>
-        <div class="reminders-body" id="remindersBody">
-          <div class="reminder-toggle-row">
-            <div>
-              <div class="reminder-toggle-label">Fin de mois</div>
-              <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
-            </div>
-            <label class="reminder-toggle">
-              <input type="checkbox" id="reminderFinMois" data-on-change="saveReminderSettings" />
-              <span class="reminder-toggle-slider"></span>
-            </label>
-          </div>
-          <div class="reminder-toggle-row">
-            <div>
-              <div class="reminder-toggle-label">Budget dépassé</div>
-              <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
-            </div>
-            <label class="reminder-toggle">
-              <input type="checkbox" id="reminderBudget" data-on-change="saveReminderSettings,toggleBudgetInput" />
-              <span class="reminder-toggle-slider"></span>
-            </label>
-          </div>
-          <div id="budgetInputRow" class="budget-input-row">
-            <label for="budgetAmount">Limite budget mensuel (€)</label>
-            <input type="text" id="budgetAmount" inputmode="decimal" placeholder="Ex: 3000" data-on-input="saveReminderSettings" />
-          </div>
-          <div class="reminder-toggle-row">
-            <div>
-              <div class="reminder-toggle-label">Remboursement en attente</div>
-              <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
-            </div>
-            <label class="reminder-toggle">
-              <input type="checkbox" id="reminderReimbursement" data-on-change="saveReminderSettings" />
-              <span class="reminder-toggle-slider"></span>
-            </label>
-          </div>
-          <div id="notificationsStatus" class="notifications-status">
-            📱 Activez les notifications pour recevoir les rappels
-          </div>
-        </div>
-      </div>
-
-      <!-- Export Actions -->
-      <div class="export-actions">
-        <button type="button" class="btn btn-secondary" data-action="exportToCSV" title="Export compatible Excel">
-          <span aria-hidden="true">📊</span> Export CSV
-        </button>
-        <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
-          <span aria-hidden="true">📄</span> Imprimer PDF
-        </button>
-      </div>
-    </div>
-    </section>
   </main>
 
   <!-- Modal: Add Variable Charge (Refactored for module) -->
@@ -360,7 +361,7 @@
 
         <div id="variableChargeSplitOptions" class="split-override-options" style="display:none;">
           <div class="split-override-row">
-            <select id="variableChargeSplitMode">
+            <select id="variableChargeSplitMode" data-on-change="toggleVariableChargeSplitMode">
               <option value="50-50">50 / 50</option>
               <option value="custom">Personnalisé</option>
             </select>
