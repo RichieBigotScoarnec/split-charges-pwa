@@ -1,3 +1,8 @@
+/* ===== PERIOD ARCHIVED LABEL ===== */
+.period-archived-label {
+  color: var(--text-secondary);
+}
+
 /* ===== SEARCH BAR ===== */
 .search-bar-container {
   margin-bottom: var(--space-md);
@@ -378,8 +383,8 @@
 }
 
 .btn-danger:hover {
-  background: #ef4444;
-  border-color: #ef4444;
+  background: var(--danger-dark);
+  border-color: var(--danger-dark);
 }
 
 .charge-actions {
@@ -443,6 +448,11 @@
   height: 0;
 }
 
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
 .toggle-slider {
   position: absolute;
   cursor: pointer;
@@ -502,7 +512,7 @@
 
 .btn-primary:hover {
   background: var(--primary-dark);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px var(--primary-glow);
 }
 
 .btn-primary:active {

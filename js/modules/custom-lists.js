@@ -278,12 +278,15 @@ function showManageModal(listType) {
     modal = document.createElement('div');
     modal.id = 'modalManageLists';
     modal.className = 'modal-overlay';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'manageListsTitle');
     document.body.appendChild(modal);
   }
 
   modal.innerHTML = `
     <div class="modal manage-lists-modal">
-      <div class="modal-header">${title}</div>
+      <h2 class="modal-header" id="manageListsTitle">${title}</h2>
       <div class="manage-lists-content">
         <div id="manageListItems" class="manage-list-items">
           ${items.map((item, index) => `

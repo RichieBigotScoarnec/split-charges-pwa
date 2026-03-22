@@ -172,6 +172,7 @@ function updateAuthUI(user) {
     if (userAvatarEl) {
       if (user.photoURL) {
         userAvatarEl.src = user.photoURL;
+        userAvatarEl.alt = `Photo de profil de ${user.displayName || user.email || 'utilisateur'}`;
         userAvatarEl.style.display = 'block';
       } else {
         userAvatarEl.style.display = 'none';

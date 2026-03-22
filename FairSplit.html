@@ -319,7 +319,7 @@
   <!-- Modal: Add Variable Charge (Refactored for module) -->
   <div id="modalAddVariableCharge" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddVariableChargeTitle">
     <div class="modal">
-      <div class="modal-header" id="modalAddVariableChargeTitle" role="heading" aria-level="2">Ajouter Charge Variable</div>
+      <h2 class="modal-header" id="modalAddVariableChargeTitle">Ajouter Charge Variable</h2>
       <form id="variableChargeForm">
         <input type="hidden" id="variableChargeId" value="" />
 
@@ -388,7 +388,7 @@
   <!-- Modal: Add Fixed Charge (Refactored for module) -->
   <div id="modalAddFixedCharge" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddFixedChargeTitle">
     <div class="modal">
-      <div class="modal-header" id="modalAddFixedChargeTitle" role="heading" aria-level="2">Ajouter Charge Fixe</div>
+      <h2 class="modal-header" id="modalAddFixedChargeTitle">Ajouter Charge Fixe</h2>
       <form id="fixedChargeForm">
         <input type="hidden" id="fixedChargeId" value="" />
 
@@ -472,7 +472,7 @@
   <!-- Modal: Add Reimbursement (Refactored for module) -->
   <div id="modalAddReimbursement" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddReimbursementTitle">
     <div class="modal">
-      <div class="modal-header" id="modalAddReimbursementTitle" role="heading" aria-level="2">Ajouter Remboursement</div>
+      <h2 class="modal-header" id="modalAddReimbursementTitle">Ajouter Remboursement</h2>
       <form id="reimbursementForm">
         <div class="form-group">
           <label for="reimbursementDirection">Direction</label>
@@ -501,8 +501,8 @@
   <!-- Modal: Quick Add (Saisie Express) -->
   <div id="modalQuickAdd" class="modal-overlay quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="modalQuickAddTitle">
     <div class="modal">
-      <div class="modal-header" id="modalQuickAddTitle" role="heading" aria-level="2"><span aria-hidden="true">⚡</span> Saisie Rapide</div>
-      <div class="quick-add-location" id="quickAddLocation">
+      <h2 class="modal-header" id="modalQuickAddTitle"><span aria-hidden="true">⚡</span> Saisie Rapide</h2>
+      <div class="quick-add-location" id="quickAddLocation" aria-live="polite" aria-atomic="true">
         <!-- GPS status will be shown here -->
       </div>
 
@@ -542,7 +542,7 @@
   <!-- Modal: Reconduction Charges Fixes -->
   <div id="modalReconduction" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReconductionTitle">
     <div class="modal">
-      <div class="modal-header" id="modalReconductionTitle" role="heading" aria-level="2"><span aria-hidden="true">📋</span> Reconduire les charges fixes</div>
+      <h2 class="modal-header" id="modalReconductionTitle"><span aria-hidden="true">📋</span> Reconduire les charges fixes</h2>
       <p class="modal-confirm-message">
         Sélectionnez les charges fixes du mois précédent à reconduire automatiquement :
       </p>
@@ -561,7 +561,7 @@
   <!-- Modal: Map View -->
   <div id="modalMapView" class="modal-overlay map-modal" role="dialog" aria-modal="true" aria-labelledby="modalMapViewTitle">
     <div class="modal modal-map-view">
-      <div class="modal-header" id="modalMapViewTitle" role="heading" aria-level="2"><span aria-hidden="true">📍</span> Carte des Dépenses</div>
+      <h2 class="modal-header" id="modalMapViewTitle"><span aria-hidden="true">📍</span> Carte des Dépenses</h2>
       <div id="mapContainer" class="map-view-container"></div>
       <div id="mapLegend" class="map-legend"></div>
       <div class="modal-actions">
@@ -573,7 +573,7 @@
   <!-- Modal: Confirmation générique -->
   <div id="modalConfirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalConfirmTitle">
     <div class="modal modal-confirm">
-      <div class="modal-header" id="modalConfirmTitle" role="heading" aria-level="2">Confirmation</div>
+      <h2 class="modal-header" id="modalConfirmTitle">Confirmation</h2>
       <p id="modalConfirmMessage" class="modal-confirm-message"></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="modalConfirmCancel">Annuler</button>
@@ -591,12 +591,12 @@
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Firebase SDK -->
-  <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha256-ryolx4J7WsDuzE4pOyZElYA3pMwIXtX1A4qtox86TPA=" crossorigin="anonymous"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js" integrity="sha256-RQ8Ysf5UrCvrpJ0O6N/qfx0Vjyh1PiCw+pvEQ7CeEg8=" crossorigin="anonymous"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" integrity="sha256-Tlmfg9LrmlgYFaJ0F4vwAqpRfDBbhb8kia619C0mvPs=" crossorigin="anonymous"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" integrity="sha384-g5H2aNdtgRBYOBLsuOAuHvUXWnw4bswmU+tYjmGc1G3JfKxl79uWwV4sQarJsLwu" crossorigin="anonymous"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
 
   <!-- FairSplit JS Modules -->
-  <script type="module" src="js/app.js?v=31"></script>
+  <script type="module" src="js/app.js"></script>
 
   <!-- FairSplit Init: event delegation, UI toggles, SW registration -->
   <script defer src="js/init.js"></script>

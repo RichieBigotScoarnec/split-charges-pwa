@@ -27,7 +27,7 @@
     "partners": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (auth.uid === $uid || newData.val() === auth.uid || data.val() === auth.uid)"
+        ".write": "auth != null && auth.uid === $uid"
       }
     }
   }

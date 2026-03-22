@@ -93,11 +93,14 @@ function createMapModal() {
   modal.id = 'mapModal';
   modal.className = 'map-modal';
   modal.style.display = 'none';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'mapModalTitle');
 
   modal.innerHTML = `
     <div class="map-modal-content">
       <div class="map-header">
-        <h2>🗺️ Carte des Dépenses</h2>
+        <h2 id="mapModalTitle">🗺️ Carte des Dépenses</h2>
         <button id="closeMapBtn" class="btn-close">&times;</button>
       </div>
 

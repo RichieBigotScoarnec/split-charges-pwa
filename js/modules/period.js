@@ -58,7 +58,7 @@ function updatePeriodInfo() {
   if (currentPeriod === actualCurrentPeriod) {
     info.innerHTML = '<span class="current-period-badge">✓ Période actuelle</span>';
   } else {
-    info.innerHTML = '<span style="color: var(--text-secondary);">📁 Période archivée (lecture seule)</span>';
+    info.innerHTML = '<span class="period-archived-label">📁 Période archivée (lecture seule)</span>';
   }
 }
 

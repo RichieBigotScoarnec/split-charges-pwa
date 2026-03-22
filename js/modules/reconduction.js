@@ -111,10 +111,13 @@ function showReconductionModal(sourcePeriod, targetPeriod) {
     modal = document.createElement('div');
     modal.id = 'reconductionModal';
     modal.className = 'modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'reconductionModalTitle');
     modal.innerHTML = `
       <div class="modal-content">
         <div class="modal-header">
-          <h2>🔄 Reconduction de période</h2>
+          <h2 id="reconductionModalTitle">🔄 Reconduction de période</h2>
           <button class="close-btn" data-action="closeModal" data-arg="reconductionModal">&times;</button>
         </div>
         <div class="modal-body">

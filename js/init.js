@@ -64,11 +64,9 @@ document.addEventListener('input', function (e) {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw-test.js')
-      .then(function (registration) {
-        console.log('[SW] Enregistré — scope :', registration.scope);
-      })
       .catch(function (err) {
-        console.error('[SW] Erreur d\'enregistrement :', err);
+        // Erreur non-bloquante : l'app fonctionne sans SW
+        void err;
       });
   });
 }
