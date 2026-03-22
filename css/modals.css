@@ -402,3 +402,15 @@
   border-color: var(--primary-color);
   transform: scale(1.15);
 }
+
+
+/* ===== MODAL CONFIRMATION ===== */
+.modal-confirm {
+  max-width: 360px;
+}
+
+.modal-confirm-message {
+  color: var(--text-secondary);
+  margin: var(--space-md) 0 var(--space-lg);
+  line-height: 1.6;
+}

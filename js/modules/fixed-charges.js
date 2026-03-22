@@ -3,7 +3,7 @@
 
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
@@ -259,9 +259,8 @@ export async function deleteFixedCharge(chargeId) {
     return;
   }
 
-  if (!confirm(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`)) {
-    return;
-  }
+  const confirmed = await showConfirmModal(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`);
+  if (!confirmed) return;
 
   try {
     // Use dbUpdate from db.js which handles UID-scoped paths
@@ -356,11 +355,11 @@ export function renderFixedCharges() {
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>
-          <button class="btn-icon" data-action="editFixedCharge" data-arg="${escapeHtml(charge.id)}" title="Modifier">
-            <i class="fas fa-edit"></i>
+          <button class="btn-icon" data-action="editFixedCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Modifier ${escapeHtml(charge.description || '')}">
+            ✏️
           </button>
-          <button class="btn-icon btn-delete" data-action="deleteFixedCharge" data-arg="${escapeHtml(charge.id)}" title="Supprimer">
-            <i class="fas fa-trash"></i>
+          <button class="btn-icon btn-delete" data-action="deleteFixedCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Supprimer ${escapeHtml(charge.description || '')}">
+            🗑️
           </button>
         </div>
       `;

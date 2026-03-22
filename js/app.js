@@ -81,8 +81,6 @@ async function initApp() {
       setState('isOnline', isConnected);
       log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
     });
-    // Store for potential cleanup (not needed for SPA lifecycle)
-    window._unsubscribeConnection = connectionUnsubscribe;
 
     // 3. Initialize UI components
     initModals();

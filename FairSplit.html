@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://unpkg.com; style-src 'self' https://fonts.googleapis.com https://unpkg.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://nominatim.openstreetmap.org wss://*.firebaseio.com;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://unpkg.com; style-src 'self' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://nominatim.openstreetmap.org wss://*.firebaseio.com;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="FairSplit TEST - Partage équitable des charges au prorata des salaires" />
   <meta name="theme-color" content="#ff5722" />
@@ -52,14 +52,16 @@
 
       <div class="auth-divider">ou</div>
 
-      <label for="authEmail" class="sr-only">Adresse email</label>
-      <input type="email" id="authEmail" class="auth-input" placeholder="Email" autocomplete="email" />
-      <label for="authPassword" class="sr-only">Mot de passe</label>
-      <input type="password" id="authPassword" class="auth-input" placeholder="Mot de passe" autocomplete="current-password" />
-      <button type="button" class="btn-email-signin" data-action="signInWithEmail">Connexion Email</button>
-      <button type="button" class="btn-email-signin btn-create-account" data-action="createAccount">Créer un compte</button>
+      <form id="authForm" novalidate>
+        <label for="authEmail" class="sr-only">Adresse email</label>
+        <input type="email" id="authEmail" class="auth-input" placeholder="Email" autocomplete="email" required />
+        <label for="authPassword" class="sr-only">Mot de passe</label>
+        <input type="password" id="authPassword" class="auth-input" placeholder="Mot de passe" autocomplete="current-password" required />
+        <button type="submit" class="btn-email-signin" data-action="signInWithEmail">Connexion Email</button>
+        <button type="button" class="btn-email-signin btn-create-account" data-action="createAccount">Créer un compte</button>
+      </form>
 
-      <div id="authError" class="auth-error"></div>
+      <div id="authError" class="auth-error" role="alert" aria-live="assertive"></div>
     </div>
   </div>
 
@@ -132,11 +134,11 @@
       <div class="salaries-grid">
         <div class="salary-input-group">
           <label for="salaireVous">Votre salaire (€)</label>
-          <input type="text" id="salaireVous" placeholder="Ex: 2500" inputmode="decimal" />
+          <input type="text" id="salaireVous" placeholder="Ex: 2500" inputmode="decimal" required />
         </div>
         <div class="salary-input-group">
           <label for="salaireConjointe">Salaire conjointe (€)</label>
-          <input type="text" id="salaireConjointe" placeholder="Ex: 1800" inputmode="decimal" />
+          <input type="text" id="salaireConjointe" placeholder="Ex: 1800" inputmode="decimal" required />
         </div>
       </div>
 
@@ -317,7 +319,7 @@
   <!-- Modal: Add Variable Charge (Refactored for module) -->
   <div id="modalAddVariableCharge" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddVariableChargeTitle">
     <div class="modal">
-      <div class="modal-header" id="modalAddVariableChargeTitle">Ajouter Charge Variable</div>
+      <div class="modal-header" id="modalAddVariableChargeTitle" role="heading" aria-level="2">Ajouter Charge Variable</div>
       <form id="variableChargeForm">
         <input type="hidden" id="variableChargeId" value="" />
 
@@ -386,7 +388,7 @@
   <!-- Modal: Add Fixed Charge (Refactored for module) -->
   <div id="modalAddFixedCharge" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddFixedChargeTitle">
     <div class="modal">
-      <div class="modal-header" id="modalAddFixedChargeTitle">Ajouter Charge Fixe</div>
+      <div class="modal-header" id="modalAddFixedChargeTitle" role="heading" aria-level="2">Ajouter Charge Fixe</div>
       <form id="fixedChargeForm">
         <input type="hidden" id="fixedChargeId" value="" />
 
@@ -470,7 +472,7 @@
   <!-- Modal: Add Reimbursement (Refactored for module) -->
   <div id="modalAddReimbursement" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddReimbursementTitle">
     <div class="modal">
-      <div class="modal-header" id="modalAddReimbursementTitle">Ajouter Remboursement</div>
+      <div class="modal-header" id="modalAddReimbursementTitle" role="heading" aria-level="2">Ajouter Remboursement</div>
       <form id="reimbursementForm">
         <div class="form-group">
           <label for="reimbursementDirection">Direction</label>
@@ -499,7 +501,7 @@
   <!-- Modal: Quick Add (Saisie Express) -->
   <div id="modalQuickAdd" class="modal-overlay quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="modalQuickAddTitle">
     <div class="modal">
-      <div class="modal-header" id="modalQuickAddTitle"><span aria-hidden="true">⚡</span> Saisie Rapide</div>
+      <div class="modal-header" id="modalQuickAddTitle" role="heading" aria-level="2"><span aria-hidden="true">⚡</span> Saisie Rapide</div>
       <div class="quick-add-location" id="quickAddLocation">
         <!-- GPS status will be shown here -->
       </div>
@@ -540,8 +542,8 @@
   <!-- Modal: Reconduction Charges Fixes -->
   <div id="modalReconduction" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReconductionTitle">
     <div class="modal">
-      <div class="modal-header" id="modalReconductionTitle"><span aria-hidden="true">📋</span> Reconduire les charges fixes</div>
-      <p style="color: var(--text-secondary); margin-bottom: 20px;">
+      <div class="modal-header" id="modalReconductionTitle" role="heading" aria-level="2"><span aria-hidden="true">📋</span> Reconduire les charges fixes</div>
+      <p class="modal-confirm-message">
         Sélectionnez les charges fixes du mois précédent à reconduire automatiquement :
       </p>
       <div id="reconductionPreviewList" class="reconduction-preview">
@@ -559,11 +561,23 @@
   <!-- Modal: Map View -->
   <div id="modalMapView" class="modal-overlay map-modal" role="dialog" aria-modal="true" aria-labelledby="modalMapViewTitle">
     <div class="modal modal-map-view">
-      <div class="modal-header" id="modalMapViewTitle"><span aria-hidden="true">📍</span> Carte des Dépenses</div>
+      <div class="modal-header" id="modalMapViewTitle" role="heading" aria-level="2"><span aria-hidden="true">📍</span> Carte des Dépenses</div>
       <div id="mapContainer" class="map-view-container"></div>
       <div id="mapLegend" class="map-legend"></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalMapView">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmation générique -->
+  <div id="modalConfirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalConfirmTitle">
+    <div class="modal modal-confirm">
+      <div class="modal-header" id="modalConfirmTitle" role="heading" aria-level="2">Confirmation</div>
+      <p id="modalConfirmMessage" class="modal-confirm-message"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modalConfirmCancel">Annuler</button>
+        <button type="button" class="btn btn-danger" id="modalConfirmOk">Supprimer</button>
       </div>
     </div>
   </div>

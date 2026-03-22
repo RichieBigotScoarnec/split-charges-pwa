@@ -3,7 +3,7 @@
 
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
@@ -258,9 +258,8 @@ export async function deleteVariableCharge(chargeId) {
     return;
   }
 
-  if (!confirm(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`)) {
-    return;
-  }
+  const confirmed = await showConfirmModal(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`);
+  if (!confirmed) return;
 
   try {
     // Use dbUpdate from db.js which handles UID-scoped paths
@@ -350,7 +349,7 @@ export function renderVariableCharges() {
         : '';
       const locationName = charge.location ? (charge.location.name || charge.location.place) : null;
       const locationTag = locationName
-        ? `<span class="charge-location"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(locationName)}</span>`
+        ? `<span class="charge-location">📍 ${escapeHtml(locationName)}</span>`
         : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
@@ -360,11 +359,11 @@ export function renderVariableCharges() {
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
-          <button class="btn-icon" data-action="editVariableCharge" data-arg="${escapeHtml(charge.id)}" title="Modifier">
-            <i class="fas fa-edit"></i>
+          <button class="btn-icon" data-action="editVariableCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Modifier ${escapeHtml(charge.description || '')}">
+            ✏️
           </button>
-          <button class="btn-icon btn-delete" data-action="deleteVariableCharge" data-arg="${escapeHtml(charge.id)}" title="Supprimer">
-            <i class="fas fa-trash"></i>
+          <button class="btn-icon btn-delete" data-action="deleteVariableCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Supprimer ${escapeHtml(charge.description || '')}">
+            🗑️
           </button>
         </div>
       `;

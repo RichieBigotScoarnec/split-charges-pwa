@@ -365,6 +365,23 @@
   color: var(--danger-color);
 }
 
+.btn-danger {
+  background: var(--danger-color);
+  color: #fff;
+  border: 1px solid var(--danger-color);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--duration) var(--ease);
+}
+
+.btn-danger:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
 .charge-actions {
   display: flex;
   gap: 4px;

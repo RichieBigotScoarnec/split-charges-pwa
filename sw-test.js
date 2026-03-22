@@ -23,6 +23,7 @@ const STATIC_ASSETS = [
   './js/config.js',
   './js/state.js',
   './js/db.js',
+  './js/utils/debug.js',
   './js/utils/format.js',
   './js/utils/date.js',
   './js/utils/validation.js',

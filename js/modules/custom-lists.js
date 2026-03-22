@@ -290,8 +290,8 @@ function showManageModal(listType) {
             <div class="manage-list-item" data-index="${index}">
               <span class="manage-item-icon">${escapeHtml(item.icon)}</span>
               <span class="manage-item-label">${escapeHtml(item.label)}</span>
-              <button type="button" class="btn-icon btn-delete manage-item-delete" data-index="${index}" title="Supprimer">
-                <i class="fas fa-times"></i>
+              <button type="button" class="btn-icon btn-delete manage-item-delete" data-index="${index}" aria-label="Supprimer ${escapeHtml(item.label || '')}">
+                ✕
               </button>
             </div>
           `).join('')}

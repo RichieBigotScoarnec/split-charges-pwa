@@ -3,7 +3,7 @@
 
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -154,9 +154,8 @@ export async function deleteReimbursement(reimbursementId) {
     ? 'Vous → Conjointe'
     : 'Conjointe → Vous';
 
-  if (!confirm(`Supprimer le remboursement ${directionText} de ${formatCurrency(reimbursement.amount)} ?`)) {
-    return;
-  }
+  const confirmed = await showConfirmModal(`Supprimer le remboursement ${directionText} de ${formatCurrency(reimbursement.amount)} ?`);
+  if (!confirmed) return;
 
   try {
     // Use dbUpdate from db.js which handles UID-scoped paths
@@ -224,8 +223,8 @@ export function renderReimbursements() {
     reimbDiv.className = 'reimbursement-item';
 
     const directionIcon = reimb.direction === 'vous-to-conjointe'
-      ? '<i class="fas fa-arrow-right"></i>'
-      : '<i class="fas fa-arrow-left"></i>';
+      ? '→'
+      : '←';
     const directionText = reimb.direction === 'vous-to-conjointe'
       ? 'Vous → Conjointe'
       : 'Conjointe → Vous';
@@ -242,8 +241,8 @@ export function renderReimbursements() {
       </div>
       <div class="reimbursement-actions">
         <span class="reimbursement-amount">${formatCurrency(reimb.amount)}</span>
-        <button class="btn-icon btn-delete" data-action="deleteReimbursement" data-arg="${escapeHtml(reimb.id)}" title="Supprimer">
-          <i class="fas fa-trash"></i>
+        <button class="btn-icon btn-delete" data-action="deleteReimbursement" data-arg="${escapeHtml(reimb.id)}" aria-label="Supprimer ce remboursement">
+          🗑️
         </button>
       </div>
     `;
