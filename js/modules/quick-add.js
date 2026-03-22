@@ -1,203 +1,247 @@
-// ===== MODULE : AJOUT RAPIDE =====
-// Fonctionnalités : ajout rapide de charge variable avec raccourci clavier
+// ===== MODULE : AJOUT RAPIDE (SAISIE EXPRESS) =====
+// Modale quick-add avec grille catégories, GPS, géocodage inversé
+// Toute la logique est centralisée ici (plus de JS inline dans FairSplit.html)
 
-import { getState } from '../state.js';
+import { getState, setState } from '../state.js';
 import { toast } from '../components/toast.js';
+import { showModal, closeModal } from '../components/modal.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
-import { getUserPath } from '../db.js';
-import { getCategories, populateCategorySelect } from './custom-lists.js';
+import { getCategories } from './custom-lists.js';
+import { escapeHtml } from '../utils/format.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
+// ===== STATE INTERNE =====
 let _keydownHandler = null;
+
+const quickAddState = {
+  selectedCategory: null,  // { id, icon, label, color }
+  splitMode: 'prorata',    // 'prorata' | '50-50'
+  gpsLocation: null        // { lat, lng, accuracy, timestamp, name? }
+};
+
+// ===== INITIALISATION =====
 
 /**
  * Initialise le module d'ajout rapide
  */
 export function initQuickAdd() {
-  console.log('📦 Initialisation module ajout rapide');
-
-  setupQuickAddUI();
-
-  // Note: showQuickAddModal et hideQuickAddModal sont gérés par le HTML legacy
-  // Ne pas exposer ici pour éviter conflits
-
-  console.log('✅ Module ajout rapide initialisé');
+  log('📦 Initialisation module ajout rapide');
+  setupEventListeners();
+  log('✅ Module ajout rapide initialisé');
 }
 
 /**
- * Configure l'interface utilisateur pour l'ajout rapide
+ * Configure les event listeners
  */
-function setupQuickAddUI() {
-  // Bouton ajout rapide
-  const quickAddBtn = document.getElementById('quickAddBtn');
-  if (quickAddBtn) {
-    quickAddBtn.addEventListener('click', () => {
-      showQuickAddForm();
-    });
-  }
-
-  // Raccourci clavier unique : Ctrl+Q (ouvrir) + Escape (fermer)
+function setupEventListeners() {
+  // Raccourci clavier Ctrl+Q
   if (_keydownHandler) {
     document.removeEventListener('keydown', _keydownHandler);
   }
   _keydownHandler = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'q') {
       e.preventDefault();
-      showQuickAddForm();
-    }
-    if (e.key === 'Escape') {
-      const quickAddContainer = document.getElementById('quickAddContainer');
-      if (quickAddContainer && quickAddContainer.style.display !== 'none') {
-        hideQuickAddForm();
-      }
+      showQuickAddModal();
     }
   };
   document.addEventListener('keydown', _keydownHandler);
 
-  // Listener pour le formulaire d'ajout rapide
-  const quickAddForm = document.getElementById('quickAddForm');
-  if (quickAddForm) {
-    quickAddForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await handleQuickAddSubmit();
-    });
-  }
-
-  // Listener pour annuler
-  const quickAddCancel = document.getElementById('quickAddCancel');
-  if (quickAddCancel) {
-    quickAddCancel.addEventListener('click', () => {
-      hideQuickAddForm();
-    });
-  }
-}
-
-/**
- * Affiche le formulaire d'ajout rapide
- */
-function showQuickAddForm() {
-  const container = document.getElementById('quickAddContainer');
-  if (!container) {
-    // Créer le container si inexistant
-    createQuickAddContainer();
-    // Peupler le select catégorie dynamiquement
-    populateCategorySelect('quickAddCategory', { addManageOption: false });
-  }
-
-  const quickAddContainer = document.getElementById('quickAddContainer');
-  quickAddContainer.style.display = 'block';
-
-  // Focus sur le champ montant
+  // Input montant : validation en temps réel + Enter pour soumettre
   const amountInput = document.getElementById('quickAddAmount');
   if (amountInput) {
-    setTimeout(() => amountInput.focus(), 100);
+    amountInput.addEventListener('input', validateForm);
+    amountInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.getElementById('btnQuickAdd');
+        if (btn && !btn.disabled) {
+          handleQuickAddSubmit();
+        }
+      }
+    });
+  }
+
+  // Split mode toggle
+  const prorataBtn = document.getElementById('quickSplitProrata');
+  const fiftyBtn = document.getElementById('quickSplit5050');
+  if (prorataBtn) prorataBtn.addEventListener('click', () => updateSplitMode('prorata'));
+  if (fiftyBtn) fiftyBtn.addEventListener('click', () => updateSplitMode('50-50'));
+
+  // Fermeture modale quick-add via overlay click (reset state interne)
+  const overlay = document.getElementById('modalQuickAdd');
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        e.stopImmediatePropagation(); // Empêcher le handler générique
+        closeQuickAddModal();
+      }
+    });
   }
 }
 
 /**
- * Nettoie les listeners du module quick-add (appelé au logout)
+ * Nettoie les listeners (appelé au logout)
  */
 export function cleanupQuickAdd() {
   if (_keydownHandler) {
     document.removeEventListener('keydown', _keydownHandler);
     _keydownHandler = null;
   }
-  console.log('🧹 Listeners quick-add nettoyés');
+  resetState();
+  log('🧹 Listeners quick-add nettoyés');
 }
 
+// ===== MODALE : OUVERTURE / FERMETURE =====
+
 /**
- * Masque le formulaire d'ajout rapide
+ * Ouvre la modale quick-add
  */
-function hideQuickAddForm() {
-  const container = document.getElementById('quickAddContainer');
-  if (container) {
-    container.style.display = 'none';
-    // Réinitialiser le formulaire
-    const form = document.getElementById('quickAddForm');
-    if (form) form.reset();
+function showQuickAddModal() {
+  // Reset state
+  resetState();
+
+  // Reset UI
+  const amountInput = document.getElementById('quickAddAmount');
+  if (amountInput) amountInput.value = '';
+
+  const btn = document.getElementById('btnQuickAdd');
+  if (btn) btn.disabled = true;
+
+  updateSplitMode('prorata');
+
+  // Peupler la grille catégories avec les catégories dynamiques
+  populateCategoryGrid();
+
+  // Reset GPS display
+  const locationEl = document.getElementById('quickAddLocation');
+  if (locationEl) {
+    locationEl.textContent = '';
+    locationEl.className = 'quick-add-location';
   }
+
+  // Ouvrir la modale
+  showModal('modalQuickAdd');
+
+  // Focus montant + scroll pour mobile
+  setTimeout(() => {
+    if (amountInput) amountInput.focus();
+  }, 100);
+  setTimeout(() => {
+    const modal = document.getElementById('modalQuickAdd');
+    if (modal) {
+      const inner = modal.querySelector('.modal');
+      if (inner) inner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 400);
+
+  // Lancer détection GPS en arrière-plan
+  startGPSDetection();
 }
 
 /**
- * Crée le container du formulaire d'ajout rapide dans le DOM
+ * Ferme et reset la modale quick-add
  */
-function createQuickAddContainer() {
-  const container = document.createElement('div');
-  container.id = 'quickAddContainer';
-  container.className = 'quick-add-container';
-  container.style.display = 'none';
+function closeQuickAddModal() {
+  closeModal('modalQuickAdd');
+  resetState();
 
-  container.innerHTML = `
-    <div class="quick-add-overlay" onclick="hideQuickAddForm()"></div>
-    <div class="quick-add-panel">
-      <div class="quick-add-header">
-        <h3>⚡ Ajout Rapide</h3>
-        <p class="quick-add-hint">Raccourci : Ctrl+Q</p>
-      </div>
-      <form id="quickAddForm" class="quick-add-form">
-        <div class="form-row">
-          <label for="quickAddAmount">Montant *</label>
-          <input
-            type="number"
-            id="quickAddAmount"
-            step="0.01"
-            min="0"
-            placeholder="Ex: 45.50"
-            required
-          />
-        </div>
-
-        <div class="form-row">
-          <label for="quickAddDescription">Description *</label>
-          <input
-            type="text"
-            id="quickAddDescription"
-            placeholder="Ex: Courses Carrefour"
-            required
-          />
-        </div>
-
-        <div class="form-row">
-          <label for="quickAddCategory">Catégorie</label>
-          <select id="quickAddCategory">
-            <option value="">-- Sélectionner --</option>
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label for="quickAddPaidBy">Payé par</label>
-          <select id="quickAddPaidBy">
-            <option value="vous">Vous</option>
-            <option value="conjointe">Conjointe</option>
-          </select>
-        </div>
-
-        <div class="form-row form-row-date">
-          <label for="quickAddDate">Date</label>
-          <input
-            type="date"
-            id="quickAddDate"
-            value="${new Date().toISOString().split('T')[0]}"
-          />
-        </div>
-
-        <div class="quick-add-actions">
-          <button type="button" id="quickAddCancel" class="btn-secondary">
-            Annuler
-          </button>
-          <button type="submit" class="btn-primary">
-            ✅ Ajouter
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  document.body.appendChild(container);
+  // Reset UI spécifique
+  const locationEl = document.getElementById('quickAddLocation');
+  if (locationEl) {
+    locationEl.textContent = '';
+    locationEl.className = 'quick-add-location';
+  }
+  document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('selected'));
+  updateSplitMode('prorata');
 }
 
 /**
- * Gère la soumission du formulaire d'ajout rapide
+ * Reset le state interne
+ */
+function resetState() {
+  quickAddState.selectedCategory = null;
+  quickAddState.splitMode = 'prorata';
+  quickAddState.gpsLocation = null;
+}
+
+// ===== GRILLE CATÉGORIES =====
+
+/**
+ * Peuple la grille de catégories depuis custom-lists (dynamique)
+ */
+function populateCategoryGrid() {
+  const grid = document.getElementById('categoryGrid');
+  if (!grid) return;
+
+  const categories = getCategories();
+
+  grid.innerHTML = categories.map(cat => `
+    <button type="button" class="category-btn" data-category-id="${escapeHtml(cat.id)}">
+      <div class="category-icon">${escapeHtml(cat.icon)}</div>
+      <div>${escapeHtml(cat.label)}</div>
+    </button>
+  `).join('');
+
+  // Bind click events (pas de onclick inline)
+  grid.querySelectorAll('.category-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const catId = btn.dataset.categoryId;
+      selectCategory(catId);
+    });
+  });
+}
+
+/**
+ * Sélectionne une catégorie
+ */
+function selectCategory(categoryId) {
+  const categories = getCategories();
+  const category = categories.find(c => c.id === categoryId);
+  if (!category) return;
+
+  quickAddState.selectedCategory = category;
+
+  // Update UI
+  document.querySelectorAll('.category-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
+  });
+
+  validateForm();
+}
+
+// ===== SPLIT MODE =====
+
+/**
+ * Met à jour le mode de répartition
+ */
+function updateSplitMode(mode) {
+  quickAddState.splitMode = mode;
+
+  const prorataBtn = document.getElementById('quickSplitProrata');
+  const fiftyBtn = document.getElementById('quickSplit5050');
+  if (prorataBtn) prorataBtn.classList.toggle('selected', mode === 'prorata');
+  if (fiftyBtn) fiftyBtn.classList.toggle('selected', mode === '50-50');
+}
+
+// ===== VALIDATION =====
+
+/**
+ * Valide le formulaire (catégorie + montant)
+ */
+function validateForm() {
+  const amount = parseFloat(document.getElementById('quickAddAmount')?.value) || 0;
+  const hasCategory = quickAddState.selectedCategory !== null;
+  const hasAmount = amount > 0;
+
+  const btn = document.getElementById('btnQuickAdd');
+  if (btn) btn.disabled = !(hasCategory && hasAmount);
+}
+
+// ===== SOUMISSION =====
+
+/**
+ * Gère la soumission du formulaire quick-add
  */
 async function handleQuickAddSubmit() {
   const currentPeriod = getState('currentPeriod');
@@ -206,87 +250,231 @@ async function handleQuickAddSubmit() {
     return;
   }
 
-  const amountEl = document.getElementById('quickAddAmount');
-  if (!amountEl) {
-    toast.error('Erreur: formulaire non trouvé');
-    return;
-  }
-
-  const amount = parseFloat(amountEl.value);
-
-  // Récupérer la catégorie depuis le state JavaScript (modale HTML wrapper)
-  const categoryFromState = window.quickAddState?.selectedCategory;
-
-  if (!categoryFromState) {
+  const category = quickAddState.selectedCategory;
+  if (!category) {
     toast.error('Veuillez sélectionner une catégorie');
     return;
   }
 
-  const description = categoryFromState.label;
-  const category = categoryFromState.label;
-  const paidBy = 'vous';
-  const date = new Date().toISOString().split('T')[0];
-
+  const amountEl = document.getElementById('quickAddAmount');
+  const amount = parseFloat(amountEl?.value);
   if (!amount || amount <= 0) {
     toast.error('Montant invalide');
     return;
   }
-
-  // Récupérer la géolocalisation si disponible (state modulaire OU window fallback)
-  let gpsLocation = getState('quickAddState.gpsLocation');
-  if (!gpsLocation && window.quickAddState?.gpsLocation) {
-    gpsLocation = window.quickAddState.gpsLocation;
+  if (amount > 50000) {
+    toast.error('Limite maximale : 50 000€ par charge');
+    return;
   }
 
+  const gps = quickAddState.gpsLocation;
+  const splitMode = quickAddState.splitMode;
+
+  // Construire la description : nom du lieu GPS ou label catégorie
+  const description = gps?.name || category.label;
+
   const chargeData = {
-    description: description,
-    amount: amount,
-    category: category,
-    paidBy: paidBy,
-    date: date,
+    description,
+    amount,
+    category: category.label,
+    categoryId: category.id,
+    categoryIcon: category.icon,
+    paidBy: 'vous',
+    splitMode,
+    date: new Date().toISOString().split('T')[0],
     timestamp: Date.now(),
     deleted: false
   };
 
-  // Ajouter GPS location si disponible
-  if (gpsLocation) {
+  // Ajouter GPS si disponible
+  if (gps) {
     chargeData.location = {
-      lat: gpsLocation.lat,
-      lng: gpsLocation.lng,
-      name: gpsLocation.name || 'Localisation',
-      timestamp: Date.now()
+      lat: gps.lat,
+      lng: gps.lng,
+      name: gps.name || 'Position',
+      timestamp: gps.timestamp
     };
   }
 
   try {
     const { dbPush } = await import('../db.js');
-
     await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
 
-    toast.success(`✅ ${description} ajouté (${amount.toFixed(2)} €)`);
+    const modeLabel = splitMode === 'prorata' ? 'Prorata' : '50-50';
+    toast.success(`${category.icon} ${description} — ${amount.toFixed(2)} € (${modeLabel})`);
 
-    // Mettre à jour le state local
+    // Refresh données
     await loadVariableCharges();
-
-    // Recalculer le bilan
     calculateSummary();
 
-    // Fermer la modale (compatibilité HTML wrapper)
-    if (typeof closeModal === 'function') {
-      closeModal('modalQuickAdd');
-    } else {
-      hideQuickAddForm();
-    }
+    // Fermer la modale
+    closeQuickAddModal();
   } catch (error) {
-    console.error('❌ Erreur ajout rapide :', error);
+    logError('❌ Erreur ajout rapide :', error);
     toast.error('Erreur lors de l\'ajout');
   }
 }
 
+// ===== GPS & GÉOCODAGE =====
+
+/**
+ * Lance la détection GPS (non bloquante)
+ */
+function startGPSDetection() {
+  const locationEl = document.getElementById('quickAddLocation');
+  if (!locationEl) return;
+
+  try {
+    locationEl.textContent = '📍 Détection position...';
+    locationEl.className = 'quick-add-location loading';
+
+    if (!navigator.geolocation) {
+      warn('⚠️ [GPS] Géolocalisation non disponible');
+      locationEl.textContent = '';
+      locationEl.className = 'quick-add-location';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const gpsData = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: Date.now()
+          };
+
+          quickAddState.gpsLocation = gpsData;
+
+          // Géocodage inversé pour obtenir le nom du lieu
+          try {
+            const place = await reverseGeocode(gpsData.lat, gpsData.lng);
+            if (place?.name) {
+              gpsData.name = place.name;
+              quickAddState.gpsLocation = gpsData;
+
+              locationEl.textContent = `✓ ${place.name}`;
+              locationEl.className = 'quick-add-location success';
+
+              // Auto-détection catégorie
+              const detected = detectCategoryFromPlace(place);
+              if (detected && !quickAddState.selectedCategory) {
+                selectCategory(detected.id);
+                toast.info(`📍 ${detected.label} détecté`);
+              }
+            } else {
+              locationEl.textContent = '✓ Position enregistrée';
+              locationEl.className = 'quick-add-location success';
+            }
+          } catch {
+            locationEl.textContent = '✓ Position enregistrée';
+            locationEl.className = 'quick-add-location success';
+          }
+        } catch (err) {
+          logError('❌ [GPS] Erreur traitement position:', err);
+          locationEl.textContent = '✗ Erreur GPS';
+          locationEl.className = 'quick-add-location error';
+        }
+      },
+      (error) => {
+        locationEl.textContent = '';
+        locationEl.className = 'quick-add-location';
+
+        if (error.code === 1) {
+          warn('⚠️ [GPS] Permission refusée');
+        } else if (error.code === 2) {
+          warn('⚠️ [GPS] Position indisponible');
+        } else if (error.code === 3) {
+          warn('⚠️ [GPS] Timeout');
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
+  } catch (globalError) {
+    logError('❌ [GPS] Erreur critique:', globalError);
+    if (locationEl) {
+      locationEl.textContent = '';
+      locationEl.className = 'quick-add-location';
+    }
+  }
+}
+
+/**
+ * Géocodage inversé via Nominatim (OpenStreetMap, gratuit)
+ */
+async function reverseGeocode(lat, lng) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'User-Agent': 'FairSplit/1.0' } }
+    );
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    return {
+      name: data.name || data.address?.shop || data.address?.amenity || data.address?.building,
+      address: data.display_name,
+      city: data.address?.city || data.address?.town,
+      type: data.type,
+      rawAddress: data.address
+    };
+  } catch (error) {
+    logError('Reverse geocoding failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Détecte la catégorie depuis le type de lieu OSM
+ */
+function detectCategoryFromPlace(place) {
+  if (!place) return null;
+
+  const categories = getCategories();
+  const findCat = (id) => categories.find(c => c.id === id);
+
+  // Mapping types OSM → catégories
+  const typeMapping = {
+    'supermarket': findCat('courses'),
+    'fuel': findCat('essence'),
+    'restaurant': findCat('restaurant'),
+    'pharmacy': findCat('sante')
+  };
+
+  if (place.type && typeMapping[place.type]) {
+    return typeMapping[place.type];
+  }
+
+  // Fallback : analyse du nom du lieu
+  const fullText = ((place.name || '') + ' ' + (place.address || '')).toLowerCase();
+
+  if (/leclerc|carrefour|intermarché|auchan|lidl|super u|picard/.test(fullText)) {
+    return findCat('courses');
+  }
+  if (/total|esso|shell|bp |engie|station/.test(fullText)) {
+    return findCat('essence');
+  }
+  if (/restaurant|pizzeria|brasserie|bistrot|kebab|mcdo|burger/.test(fullText)) {
+    return findCat('restaurant');
+  }
+  if (/pharmacie|clinique|hôpital|médecin/.test(fullText)) {
+    return findCat('sante');
+  }
+
+  return null;
+}
+
+// ===== API PROGRAMMATIQUE =====
+
 /**
  * Ajoute une charge rapide par programmation
- * @param {Object} chargeData - Données de la charge
- * @returns {Promise<void>}
+ * @param {Object} chargeData - { description, amount, category?, paidBy?, date? }
+ * @returns {Promise<Object>} Charge créée
  */
 export async function addQuickCharge(chargeData) {
   const currentPeriod = getState('currentPeriod');
@@ -294,7 +482,6 @@ export async function addQuickCharge(chargeData) {
     throw new Error('Aucune période sélectionnée');
   }
 
-  // Valeurs par défaut
   const charge = {
     description: chargeData.description,
     amount: parseFloat(chargeData.amount),
@@ -305,13 +492,11 @@ export async function addQuickCharge(chargeData) {
     deleted: false
   };
 
-  // Validation
   if (!charge.description || !charge.amount || charge.amount <= 0) {
     throw new Error('Données invalides');
   }
 
   try {
-    // Use dbPush from db.js which handles UID-scoped paths
     const { dbPush } = await import('../db.js');
     await dbPush(`periods/${currentPeriod}/variableCharges`, charge);
 
@@ -321,7 +506,7 @@ export async function addQuickCharge(chargeData) {
     toast.success('Charge ajoutée');
     return charge;
   } catch (error) {
-    console.error('❌ Erreur addQuickCharge :', error);
+    logError('❌ Erreur addQuickCharge :', error);
     toast.error('Erreur lors de l\'ajout de la charge');
     throw error;
   }
@@ -329,7 +514,7 @@ export async function addQuickCharge(chargeData) {
 
 /**
  * Ajoute plusieurs charges rapidement (batch)
- * @param {Array<Object>} charges - Liste de charges à ajouter
+ * @param {Array<Object>} charges - Liste de charges
  * @returns {Promise<void>}
  */
 export async function addQuickChargesBatch(charges) {
@@ -343,7 +528,6 @@ export async function addQuickChargesBatch(charges) {
   }
 
   try {
-    // Use dbPush from db.js which handles UID-scoped paths
     const { dbPush } = await import('../db.js');
 
     for (const chargeData of charges) {
@@ -356,48 +540,20 @@ export async function addQuickChargesBatch(charges) {
         timestamp: Date.now(),
         deleted: false
       };
-
       await dbPush(`periods/${currentPeriod}/variableCharges`, charge);
     }
 
     toast.success(`${charges.length} charge(s) ajoutée(s)`);
-
     await loadVariableCharges();
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur addQuickChargesBatch :', error);
+    logError('❌ Erreur addQuickChargesBatch :', error);
     throw error;
   }
 }
 
-/**
- * Détecte et suggère la catégorie selon la description
- * @param {string} description - Description de la charge
- * @returns {string} Catégorie suggérée
- */
-export function suggestCategory(description) {
-  const lowerDesc = description.toLowerCase();
-
-  // Patterns de détection par catégorie
-  const patterns = {
-    'Alimentation': ['courses', 'carrefour', 'auchan', 'lidl', 'restaurant', 'mcdo', 'pizza', 'boulangerie', 'marché'],
-    'Transport': ['essence', 'autoroute', 'péage', 'parking', 'bus', 'métro', 'train', 'uber', 'taxi'],
-    'Loisirs': ['cinéma', 'concert', 'théâtre', 'jeu', 'netflix', 'spotify', 'sport', 'gym'],
-    'Santé': ['pharmacie', 'médecin', 'dentiste', 'ophtalmo', 'kiné', 'hôpital', 'clinique']
-  };
-
-  for (const [category, keywords] of Object.entries(patterns)) {
-    if (keywords.some(keyword => lowerDesc.includes(keyword))) {
-      return category;
-    }
-  }
-
-  return 'Autre';
-}
-
-// Exposer les fonctions globalement pour compatibilité
-window.showQuickAddForm = showQuickAddForm;
-window.hideQuickAddForm = hideQuickAddForm;
+// ===== EXPORTS GLOBAUX (compatibilité HTML) =====
+window.showQuickAddModal = showQuickAddModal;
+window.closeQuickAddModal = closeQuickAddModal;
+window.handleQuickAddSubmit = handleQuickAddSubmit;
 window.addQuickCharge = addQuickCharge;
-window.handleQuickAddSubmit = handleQuickAddSubmit; // ✅ Exposer la fonction qui lit DOM + state
-window.suggestCategory = suggestCategory;

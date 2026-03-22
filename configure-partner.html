@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Configuration Partenaire - FairSplit</title>
+  <meta name="description" content="Configurez le partage de données FairSplit avec votre partenaire via UID" />
   <style>
     * {
       margin: 0;
@@ -50,7 +51,7 @@
       margin-bottom: 24px;
     }
 
-    .info-box h3 {
+    .info-box h2 {
       color: #334155;
       font-size: 14px;
       margin-bottom: 8px;
@@ -117,6 +118,7 @@
     input[type="text"]:focus {
       outline: none;
       border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
     }
 
     button {
@@ -203,7 +205,7 @@
       display: none;
     }
 
-    .partner-status h3 {
+    .partner-status h2 {
       color: #065f46;
       font-size: 16px;
       margin-bottom: 8px;
@@ -220,12 +222,12 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <main class="container">
     <h1>👥 Configuration Partenaire</h1>
     <p class="subtitle">FairSplit v2.0 - Partage de données couple</p>
 
     <div class="info-box">
-      <h3>ℹ️ Comment ça marche ?</h3>
+      <h2>ℹ️ Comment ça marche ?</h2>
       <p>
         Pour partager vos données avec votre conjoint(e), vous devez :
         <br>1. Copier votre UID ci-dessous et l'envoyer à votre partenaire
@@ -247,7 +249,7 @@
 
     <!-- Partner Status -->
     <div class="partner-status" id="partnerStatus">
-      <h3>✅ Partenaire lié</h3>
+      <h2>✅ Partenaire lié</h2>
       <p id="partnerInfo">UID: ...</p>
     </div>
 
@@ -283,8 +285,8 @@
       </button>
     </div>
 
-    <div id="status"></div>
-  </div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </main>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>

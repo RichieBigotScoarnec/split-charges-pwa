@@ -7,6 +7,7 @@ import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -34,7 +35,7 @@ export function showAddFixedChargeModal() {
 }
 
 export function initFixedCharges() {
-  console.log('📦 Initialisation module charges fixes');
+  log('📦 Initialisation module charges fixes');
 
   // Peupler les selects catégorie et destination dynamiquement
   populateCategorySelect('fixedChargeCategory');
@@ -57,7 +58,7 @@ export function initFixedCharges() {
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
 
-  console.log('✅ Module charges fixes initialisé');
+  log('✅ Module charges fixes initialisé');
 }
 
 /**
@@ -66,7 +67,7 @@ export function initFixedCharges() {
 export async function loadFixedCharges() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
-    console.warn('⚠️ Pas de période active, chargement charges fixes ignoré');
+    warn('⚠️ Pas de période active, chargement charges fixes ignoré');
     return;
   }
 
@@ -82,15 +83,15 @@ export async function loadFixedCharges() {
         .map(([id, charge]) => ({ id, ...charge }));
 
       setState('fixedCharges', activeCharges);
-      console.log(`📊 ${activeCharges.length} charges fixes chargées`);
+      log(`📊 ${activeCharges.length} charges fixes chargées`);
     } else {
       setState('fixedCharges', []);
-      console.log('📊 Aucune charge fixe pour cette période');
+      log('📊 Aucune charge fixe pour cette période');
     }
 
     renderFixedCharges();
   } catch (error) {
-    console.error('❌ Erreur chargement charges fixes :', error);
+    logError('❌ Erreur chargement charges fixes :', error);
     toast.error('Erreur de chargement des charges fixes');
   }
 }
@@ -187,7 +188,7 @@ export async function saveFixedCharge() {
     // Recalculer le bilan
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur sauvegarde charge fixe :', error);
+    logError('❌ Erreur sauvegarde charge fixe :', error);
     toast.error('Erreur de sauvegarde');
   }
 }
@@ -283,7 +284,7 @@ export async function deleteFixedCharge(chargeId) {
     // Recalculer le bilan
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur suppression charge fixe :', error);
+    logError('❌ Erreur suppression charge fixe :', error);
     toast.error('Erreur de suppression');
   }
 }
@@ -297,7 +298,7 @@ export function renderFixedCharges() {
   const totalElement = document.getElementById('fixedChargesTotal');
 
   if (!listElement) {
-    console.warn('⚠️ Element #fixedChargesList introuvable');
+    warn('⚠️ Element #fixedChargesList introuvable');
     return;
   }
 
@@ -355,10 +356,10 @@ export function renderFixedCharges() {
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>
-          <button class="btn-icon" onclick="editFixedCharge('${escapeHtml(charge.id)}')" title="Modifier">
+          <button class="btn-icon" data-action="editFixedCharge" data-arg="${escapeHtml(charge.id)}" title="Modifier">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn-icon btn-delete" onclick="deleteFixedCharge('${escapeHtml(charge.id)}')" title="Supprimer">
+          <button class="btn-icon btn-delete" data-action="deleteFixedCharge" data-arg="${escapeHtml(charge.id)}" title="Supprimer">
             <i class="fas fa-trash"></i>
           </button>
         </div>

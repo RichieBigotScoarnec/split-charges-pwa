@@ -7,6 +7,7 @@ import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -32,7 +33,7 @@ export function showAddVariableChargeModal() {
 }
 
 export function initVariableCharges() {
-  console.log('📦 Initialisation module charges variables');
+  log('📦 Initialisation module charges variables');
 
   // Peupler le select catégorie dynamiquement
   populateCategorySelect('variableChargeCategory');
@@ -54,7 +55,7 @@ export function initVariableCharges() {
   window.editVariableCharge = editVariableCharge;
   window.deleteVariableCharge = deleteVariableCharge;
 
-  console.log('✅ Module charges variables initialisé');
+  log('✅ Module charges variables initialisé');
 }
 
 /**
@@ -63,7 +64,7 @@ export function initVariableCharges() {
 export async function loadVariableCharges() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
-    console.warn('⚠️ Pas de période active, chargement charges variables ignoré');
+    warn('⚠️ Pas de période active, chargement charges variables ignoré');
     return;
   }
 
@@ -81,7 +82,7 @@ export async function loadVariableCharges() {
           // Filtrer les charges invalides (sans id ou amount invalide)
           // Note: description est optionnel (anciennes charges peuvent ne pas en avoir)
           if (!id || typeof charge.amount !== 'number') {
-            console.warn(`⚠️ Charge invalide ignorée:`, id, charge);
+            warn(`⚠️ Charge invalide ignorée:`, id, charge);
             return false;
           }
           return true;
@@ -89,15 +90,15 @@ export async function loadVariableCharges() {
         .map(([id, charge]) => ({ id, ...charge }));
 
       setState('variableCharges', activeCharges);
-      console.log(`📊 ${activeCharges.length} charges variables chargées`);
+      log(`📊 ${activeCharges.length} charges variables chargées`);
     } else {
       setState('variableCharges', []);
-      console.log('📊 Aucune charge variable pour cette période');
+      log('📊 Aucune charge variable pour cette période');
     }
 
     renderVariableCharges();
   } catch (error) {
-    console.error('❌ Erreur chargement charges variables :', error);
+    logError('❌ Erreur chargement charges variables :', error);
     toast.error('Erreur de chargement des charges variables');
   }
 }
@@ -190,7 +191,7 @@ export async function saveVariableCharge() {
     // Recalculer le bilan
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur sauvegarde charge variable :', error);
+    logError('❌ Erreur sauvegarde charge variable :', error);
     toast.error('Erreur de sauvegarde');
   }
 }
@@ -282,7 +283,7 @@ export async function deleteVariableCharge(chargeId) {
     // Recalculer le bilan
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur suppression charge variable :', error);
+    logError('❌ Erreur suppression charge variable :', error);
     toast.error('Erreur de suppression');
   }
 }
@@ -296,7 +297,7 @@ export function renderVariableCharges() {
   const totalElement = document.getElementById('variableChargesTotal');
 
   if (!listElement) {
-    console.warn('⚠️ Element #variableChargesList introuvable');
+    warn('⚠️ Element #variableChargesList introuvable');
     return;
   }
 
@@ -337,7 +338,7 @@ export function renderVariableCharges() {
     categoryCharges.forEach(charge => {
       // Validation supplémentaire
       if (!charge.id) {
-        console.warn('⚠️ Charge invalide ignorée dans le rendu (pas d\'ID):', charge);
+        warn('⚠️ Charge invalide ignorée dans le rendu (pas d\'ID):', charge);
         return;
       }
 
@@ -359,10 +360,10 @@ export function renderVariableCharges() {
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
-          <button class="btn-icon" onclick="editVariableCharge('${escapeHtml(charge.id)}')" title="Modifier">
+          <button class="btn-icon" data-action="editVariableCharge" data-arg="${escapeHtml(charge.id)}" title="Modifier">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn-icon btn-delete" onclick="deleteVariableCharge('${escapeHtml(charge.id)}')" title="Supprimer">
+          <button class="btn-icon btn-delete" data-action="deleteVariableCharge" data-arg="${escapeHtml(charge.id)}" title="Supprimer">
             <i class="fas fa-trash"></i>
           </button>
         </div>

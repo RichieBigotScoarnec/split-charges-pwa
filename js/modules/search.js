@@ -4,6 +4,7 @@
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
+import { log, warn } from '../utils/debug.js';
 
 let searchTimeout = null;
 
@@ -11,11 +12,11 @@ let searchTimeout = null;
  * Initialise le module de recherche
  */
 export function initSearch() {
-  console.log('📦 Initialisation module recherche');
+  log('📦 Initialisation module recherche');
 
   setupSearchUI();
 
-  console.log('✅ Module recherche initialisé');
+  log('✅ Module recherche initialisé');
 }
 
 /**

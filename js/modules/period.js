@@ -11,6 +11,7 @@ import { loadFixedCharges } from './fixed-charges.js';
 import { loadReimbursements } from './reimbursements.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
  * Populate period dropdown with last 12 months
@@ -137,10 +138,10 @@ export async function loadPeriodData() {
     const { checkReconductionNeeded } = await import('./reconduction.js');
     checkReconductionNeeded();
 
-    console.log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
+    log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
 
   } catch (error) {
-    console.error('❌ Erreur chargement données période:', error);
+    logError('❌ Erreur chargement données période:', error);
     toast.error('Erreur lors du chargement des données');
   }
 }
@@ -168,9 +169,9 @@ export async function savePeriodData() {
       reimbursements
     });
 
-    console.log('💾 Données période sauvegardées');
+    log('💾 Données période sauvegardées');
   } catch (error) {
-    console.error('❌ Erreur sauvegarde données période:', error);
+    logError('❌ Erreur sauvegarde données période:', error);
     toast.error('Erreur lors de la sauvegarde');
     throw error;
   }
@@ -249,7 +250,7 @@ export async function saveSalaries() {
     calculateSummary();
 
   } catch (error) {
-    console.error('❌ Erreur sauvegarde salaires:', error);
+    logError('❌ Erreur sauvegarde salaires:', error);
     if (indicator) indicator.className = 'save-indicator';
     toast.error('Erreur : impossible de sauvegarder les salaires');
   }
@@ -288,5 +289,5 @@ export function initPeriod() {
   window.navigatePeriod = navigatePeriod;
   window.saveSalaries = saveSalaries;
 
-  console.log('📅 Gestion périodes initialisée');
+  log('📅 Gestion périodes initialisée');
 }

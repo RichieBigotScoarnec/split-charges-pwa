@@ -8,6 +8,7 @@ import { showModal, closeModal } from '../components/modal.js';
 import { loadFixedCharges } from './fixed-charges.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 let database = null;
 
@@ -15,12 +16,12 @@ let database = null;
  * Initialise le module de reconduction
  */
 export function initReconduction() {
-  console.log('📦 Initialisation module reconduction');
+  log('📦 Initialisation module reconduction');
 
   database = getFirebaseDatabase();
   setupReconduction();
 
-  console.log('✅ Module reconduction initialisé');
+  log('✅ Module reconduction initialisé');
 }
 
 /**
@@ -92,7 +93,7 @@ export async function proposeReconduction(targetPeriod = null) {
     showReconductionModal(currentPeriod, targetPeriod);
 
   } catch (error) {
-    console.error('❌ Erreur vérification période :', error);
+    logError('❌ Erreur vérification période :', error);
     toast.error('Erreur lors de la vérification');
   }
 }
@@ -114,7 +115,7 @@ function showReconductionModal(sourcePeriod, targetPeriod) {
       <div class="modal-content">
         <div class="modal-header">
           <h2>🔄 Reconduction de période</h2>
-          <button class="close-btn" onclick="closeModal('reconductionModal')">&times;</button>
+          <button class="close-btn" data-action="closeModal" data-arg="reconductionModal">&times;</button>
         </div>
         <div class="modal-body">
           <p>Voulez-vous reconduire les données de <strong id="sourcePeriodLabel"></strong> vers <strong id="targetPeriodLabel"></strong> ?</p>
@@ -131,7 +132,7 @@ function showReconductionModal(sourcePeriod, targetPeriod) {
           <p class="info-text">Seules les charges fixes <strong>récurrentes</strong> seront reconduites. Les charges ponctuelles, variables et remboursements ne seront pas reconduits.</p>
         </div>
         <div class="modal-footer">
-          <button class="btn-secondary" onclick="closeModal('reconductionModal')">Annuler</button>
+          <button class="btn-secondary" data-action="closeModal" data-arg="reconductionModal">Annuler</button>
           <button class="btn-primary" id="confirmReconduction">Reconduire</button>
         </div>
       </div>
@@ -231,7 +232,7 @@ export async function executeReconduction(sourcePeriod, targetPeriod, options = 
     }
 
   } catch (error) {
-    console.error('❌ Erreur reconduction :', error);
+    logError('❌ Erreur reconduction :', error);
     toast.error('Erreur lors de la reconduction');
   }
 }
@@ -270,7 +271,7 @@ export async function periodExists(period) {
     const snapshot = await database.ref(getUserPath(`periods/${period}`)).once('value');
     return snapshot.exists();
   } catch (error) {
-    console.error('❌ Erreur vérification période :', error);
+    logError('❌ Erreur vérification période :', error);
     return false;
   }
 }

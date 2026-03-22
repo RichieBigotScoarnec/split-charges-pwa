@@ -1,367 +1,182 @@
-# CLAUDE.md - FairSplit PWA Audit & Troubleshooting
+# CLAUDE.md — FairSplit PWA
 
-> **Version**: 1.0 | **Usage**: Claude Code CLI | **Context**: Audit récursif HTML/CSS/JS avec gestion des adhérences
-
----
-
-## 🎯 Rôle
-
-Tu es un **Expert Lead Frontend + UX/UI Designer + Troubleshooter** spécialisé en :
-- HTML5 sémantique, CSS3 moderne (variables, responsive, dark mode)
-- JavaScript ES6 Modules (import/export)
-- Firebase (Firestore, Auth Google/Email)
-- PWA (Service Workers, manifest)
-- Accessibilité WCAG 2.2
-- Debugging avec logique humaine (ne jamais créer d'erreurs en corrigeant)
+> **Version** : 2.0 | **Branche active** : develop | **Usage** : Claude Code CLI
 
 ---
 
-## 📂 Structure du Projet
+## Projet
+
+FairSplit — App web PWA de partage de charges en couple au prorata des salaires.
+Synchronisation temps réel Firebase, auth Google/Email, multi-utilisateur (Owner/Partner).
+
+## Stack
+
+- HTML5 sémantique, CSS3 (variables, responsive mobile-first)
+- JavaScript ES6 Modules (import/export, async/await)
+- Firebase Realtime Database (compat SDK 10.7.1), Firebase Auth
+- Leaflet.js (carte des dépenses)
+- PWA : Service Worker (sw-test.js), manifest
+- Tests : Vitest
+
+## Architecture
 
 ```
 FairSplit/
-├── index.html                    # Point d'entrée HTML
-├── manifest.json                 # PWA manifest
+├── FairSplit.html                # Point d'entrée HTML (+ code legacy à nettoyer)
+├── index.html                    # Redirection vers FairSplit.html
 ├── css/
-│   ├── variables.css             # Variables CSS (couleurs, espacements)
-│   ├── base.css                  # Reset, typographie
-│   ├── components.css            # Boutons, formulaires, cards
-│   ├── modals.css                # Fenêtres modales
-│   ├── responsive.css            # Media queries
-│   ├── auth.css                  # Écrans authentification
-│   ├── map.css                   # Module cartographie
-│   └── summary.css               # Module résumé
+│   ├── variables.css             # Tokens design (couleurs, espacements)
+│   ├── base.css                  # Reset, typographie, header
+│   ├── components.css            # Boutons, cards, formulaires, charges, FAB, toasts
+│   ├── modals.css                # Modales + quick-add
+│   ├── auth.css                  # Écran authentification
+│   ├── summary.css               # Bilan, catégories, tendances, rappels, virements
+│   ├── map.css                   # Carte Leaflet
+│   └── responsive.css            # Media queries + print
 ├── js/
-│   ├── app.js                    # 🔴 ENTRY POINT - Orchestrateur principal
-│   ├── config.js                 # Configuration (ENV, VERSION)
-│   ├── firebase-init.js          # 🔴 CORE - Init Firebase, providers
-│   ├── db.js                     # 🔴 CORE - Abstraction Firestore
-│   ├── state.js                  # 🔴 CORE - État global (setState/getState)
-│   ├── utils.js                  # Utilitaires legacy (escapeHtml)
+│   ├── app.js                    # Entry point — init Firebase, auth, modules
+│   ├── config.js                 # ENV, Firebase config, constantes (catégories, limites)
+│   ├── firebase-init.js          # Init Firebase, providers, connexion
+│   ├── db.js                     # Abstraction DB (UID-scoped, Partner support)
+│   ├── state.js                  # État global centralisé (Observer pattern)
+│   ├── utils.js                  # Legacy utils (escapeHtml, formatCurrency)
 │   ├── components/
-│   │   ├── modal.js              # Gestion modales (showModal/closeModal)
+│   │   ├── modal.js              # showModal/closeModal
 │   │   └── toast.js              # Notifications toast
 │   ├── modules/
-│   │   ├── auth.js               # 🔴 HUB - Authentification + init modules
-│   │   ├── period.js             # Gestion périodes (mois/année)
-│   │   ├── share-mode.js         # Mode de partage (50/50, custom)
-│   │   ├── variable-charges.js   # Charges variables
-│   │   ├── fixed-charges.js      # Charges fixes
-│   │   ├── reimbursements.js     # Remboursements
-│   │   ├── summary.js            # 🔴 CALCULATEUR - Calcul soldes
-│   │   ├── categories.js         # Catégories de dépenses
+│   │   ├── auth.js               # Hub : auth + init de TOUS les modules après login
+│   │   ├── period.js             # Gestion périodes, salaires, navigation
+│   │   ├── share-mode.js         # Prorata / 50-50 / Custom
+│   │   ├── variable-charges.js   # CRUD charges variables
+│   │   ├── fixed-charges.js      # CRUD charges fixes
+│   │   ├── reimbursements.js     # CRUD remboursements
+│   │   ├── summary.js            # Calcul bilan + rendu
+│   │   ├── categories.js         # Analyse par catégorie
 │   │   ├── search.js             # Recherche/filtres
-│   │   ├── export.js             # Export données
-│   │   ├── notifications.js      # Notifications push
-│   │   ├── trends.js             # Graphiques tendances
+│   │   ├── export.js             # Export CSV/PDF
+│   │   ├── notifications.js      # Rappels navigateur
+│   │   ├── trends.js             # Graphiques tendances (SVG)
 │   │   ├── reconduction.js       # Reconduction charges fixes
-│   │   ├── quick-add.js          # Ajout rapide
-│   │   └── map.js                # Visualisation carte
+│   │   ├── quick-add.js          # Saisie rapide + GPS
+│   │   └── map.js                # Carte Leaflet
 │   └── utils/
-│       ├── date.js               # Formatage dates
-│       ├── format.js             # Formatage monétaire
+│       ├── calculations.js       # Fonctions pures (testables) : bilan, virements
+│       ├── date.js               # Formatage dates, périodes
+│       ├── format.js             # Formatage monétaire, escapeHtml
 │       └── validation.js         # Validation inputs
+├── tests/
+│   └── calculations.test.js      # Tests unitaires Vitest
+└── docs/
+    └── claude/prompts/           # Prompts d'audit HTML
 ```
 
----
+## Adhérences critiques
 
-## 🔗 Graphe des Adhérences (CRITIQUE)
+| Module | Nb imports | Risque |
+|--------|-----------|--------|
+| `toast.js` | 13 | Critique — feedback utilisateur partout |
+| `state.js` | 14 | Critique — état global |
+| `format.js` | 9 | Important — affichage monétaire |
+| `summary.js` | 7 | Important — calculs dépendants |
+| `firebase-init.js` | 5 | Critique — connexion DB |
+| `auth.js` | Hub | Critique — initialise TOUS les modules |
+| `db.js` | 8 | Critique — abstraction DB + Partner |
 
-### Dépendances Critiques (ne JAMAIS modifier sans impact analysis)
-
-```
-                    ┌─────────────────┐
-                    │    app.js       │ Entry Point
-                    │   (importe 7)   │
-                    └────────┬────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        ▼                    ▼                    ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│ firebase-init │    │    state.js   │    │   config.js   │
-│   (CORE)      │    │    (CORE)     │    │   (CORE)      │
-└───────┬───────┘    └───────┬───────┘    └───────────────┘
-        │                    │
-        │         ┌──────────┴──────────┐
-        │         ▼                     ▼
-        │   ┌───────────┐        ┌───────────┐
-        │   │  auth.js  │◄───────│   db.js   │
-        │   │   (HUB)   │        │  (CORE)   │
-        │   └─────┬─────┘        └───────────┘
-        │         │
-        │         │ Initialise TOUS les modules après login
-        │         ▼
-        │   ┌─────────────────────────────────────────┐
-        │   │ period, share-mode, variable-charges,   │
-        │   │ fixed-charges, reimbursements, summary, │
-        │   │ categories, search, export, etc.        │
-        │   └─────────────────────────────────────────┘
-        │
-        └──────────────────────┐
-                               ▼
-                    ┌───────────────────┐
-                    │  components/      │
-                    │  toast.js (13 imports)
-                    │  modal.js (4 imports)
-                    └───────────────────┘
-```
-
-### Modules les Plus Importés (risque élevé si modifiés)
-
-| Module             | Imports | Impact                                    |
-| ------------------ | ------- | ----------------------------------------- |
-| `toast.js`         | 13      | 🔴 Critique - Feedback utilisateur partout |
-| `state.js`         | 14      | 🔴 Critique - État global de l'app         |
-| `format.js`        | 9       | 🟠 Important - Affichage monétaire         |
-| `summary.js`       | 7       | 🟠 Important - Calculs dépendants          |
-| `firebase-init.js` | 5       | 🔴 Critique - Connexion DB                 |
-
----
-
-## 🛠️ Workflow d'Audit Autonome
-
-### Phase 1 : Scan & Mapping (automatique)
-
+Avant de modifier un fichier très importé :
 ```bash
-# 1. Lister tous les fichiers à analyser
-find . -type f \( -name "*.html" -o -name "*.css" -o -name "*.js" \) \
-  ! -path "./.git/*" ! -path "./node_modules/*" | sort
-
-# 2. Générer le graphe de dépendances JS
-grep -rh "^import" js/ --include="*.js" | \
-  sed 's/.*from ['"'"'"]//;s/['"'"'"].*//' | sort | uniq -c | sort -rn
-
-# 3. Détecter les exports non utilisés (dead code)
-for f in js/**/*.js; do
-  exports=$(grep -oE "export (function|const|let|class) \w+" "$f" | awk '{print $3}')
-  for exp in $exports; do
-    count=$(grep -r "$exp" js/ --include="*.js" | grep -v "^$f:" | wc -l)
-    [ "$count" -eq 0 ] && echo "⚠️ DEAD CODE: $exp in $f"
-  done
-done
-```
-
-### Phase 2 : Analyse par Couche
-
-**Ordre d'analyse obligatoire** (respecte les adhérences) :
-
-1. **CORE** (modifier en dernier)
-   - `js/config.js`
-   - `js/state.js`
-   - `js/firebase-init.js`
-   - `js/db.js`
-
-2. **UTILS** (peu de dépendants)
-   - `js/utils.js`
-   - `js/utils/*.js`
-
-3. **COMPONENTS** (dépendances intermédiaires)
-   - `js/components/toast.js`
-   - `js/components/modal.js`
-
-4. **MODULES** (dépendent de tout le reste)
-   - Commencer par les modules "leaf" (peu d'imports)
-   - Finir par `auth.js` et `summary.js`
-
-5. **HTML/CSS** (en parallèle)
-   - `index.html`
-   - `css/*.css`
-
-### Phase 3 : Catégorisation des Problèmes
-
-Pour chaque problème trouvé, classifier :
-
-| Criticité      | Emoji | Définition                             | Action          |
-| -------------- | ----- | -------------------------------------- | --------------- |
-| **Bloquant**   | 🔴     | Bug visible, crash, données corrompues | Fix immédiat    |
-| **Sécurité**   | 🛡️     | XSS, injection, auth bypass            | Fix immédiat    |
-| **Important**  | 🟠     | UX dégradée, accessibilité critique    | Fix prioritaire |
-| **Mineur**     | 🟡     | Maintenabilité, best practices         | Fix si temps    |
-| **Suggestion** | 💡     | Optimisation, amélioration             | Backlog         |
-
----
-
-## 📋 Checklist d'Audit
-
-### HTML (`index.html`)
-
-- [ ] Sémantique : `<main>`, `<nav>`, `<section>`, `<article>` appropriés
-- [ ] Headings : Hiérarchie h1→h6 sans saut
-- [ ] Formulaires : `<label for="">`, `aria-describedby` pour erreurs
-- [ ] Images : `alt` descriptifs (pas "image")
-- [ ] Liens vs Boutons : `<a>` pour navigation, `<button>` pour actions
-- [ ] Meta : viewport, description, charset
-- [ ] PWA : manifest linkrel, icons, theme-color
-
-### CSS (`css/*.css`)
-
-- [ ] Variables : Utilisées dans `variables.css`, pas de valeurs hardcodées
-- [ ] Spécificité : Pas de `!important` abusifs
-- [ ] Responsive : Breakpoints cohérents (mobile-first)
-- [ ] Contrastes : Ratio ≥ 4.5:1 pour texte normal
-- [ ] Focus : `:focus-visible` défini pour navigation clavier
-- [ ] Dark mode : `prefers-color-scheme` si applicable
-- [ ] Performance : Pas d'animations sur `width`/`height`
-
-### JavaScript (`js/**/*.js`)
-
-- [ ] ES6 Modules : `import`/`export` cohérents, pas de globals
-- [ ] Async/Await : Gestion erreurs avec try/catch
-- [ ] Firebase : États loading/error/success gérés
-- [ ] XSS : `escapeHtml()` pour tout contenu dynamique
-- [ ] Memory leaks : `unsubscribe()` pour listeners Firebase
-- [ ] DOM : Sélecteurs stables (`data-*`), pas de `.className` fragile
-- [ ] Null checks : Optional chaining (`?.`) pour données Firebase
-
-### Accessibilité (WCAG 2.2)
-
-- [ ] Navigation clavier : Tab order logique
-- [ ] Focus visible : Outline visible sur tous éléments interactifs
-- [ ] Cibles tactiles : Min 44x44px
-- [ ] Messages d'erreur : Associés aux champs (`aria-describedby`)
-- [ ] Live regions : `aria-live` pour toasts/notifications
-- [ ] Skip links : Lien "Aller au contenu" en premier
-
----
-
-## 📊 Format du Rapport
-
-Le rapport doit être généré en Markdown dans `docs/audit/AUDIT-REPORT.md` :
-
-```markdown
-# Rapport d'Audit FairSplit
-> Généré le: [DATE]
-> Version analysée: [VERSION]
-
-## Résumé Exécutif
-
-| Criticité    | Nombre | Status       |
-| ------------ | ------ | ------------ |
-| 🔴 Bloquant   | X      | ⬜ À corriger |
-| 🛡️ Sécurité   | X      | ⬜ À corriger |
-| 🟠 Important  | X      | ⬜ À corriger |
-| 🟡 Mineur     | X      | ⬜ Optionnel  |
-| 💡 Suggestion | X      | ⬜ Backlog    |
-
-## Problèmes par Criticité
-
-### 🔴 Bloquants
-
-#### [AUDIT-001] Titre du problème
-- **Fichier(s)**: `path/to/file.js:42`
-- **Impact**: Description de l'impact utilisateur
-- **Adhérences**: Modules impactés si correction
-- **Correction proposée**:
-```js
-// AVANT
-code problématique
-
-// APRÈS
-code corrigé
-```
-
-- **Étapes de correction**:
-  1. Modifier `fichier.js`
-  2. Tester dans `module-dependant.js`
-  3. Vérifier regression dans `autre-module.js`
-
-### 🛡️ Sécurité
-
-[...]
-
-### 🟠 Importants
-
-[...]
-
-## Plan de Correction Séquencé
-
-⚠️ **ORDRE OBLIGATOIRE** pour éviter les régressions :
-
-### Étape 1 : Corrections UTILS (sans dépendants)
-
-- [ ] AUDIT-005: Fix validation.js
-- [ ] AUDIT-008: Fix format.js
-
-### Étape 2 : Corrections COMPONENTS
-
-- [ ] AUDIT-003: Fix toast.js
-  - ⚠️ Tester ensuite: auth.js, variable-charges.js, fixed-charges.js...
-
-### Étape 3 : Corrections MODULES (ordre croissant de dépendants)
-
-- [ ] AUDIT-012: Fix map.js (0 dépendants)
-- [ ] AUDIT-007: Fix trends.js (0 dépendants)
-- [ ] AUDIT-002: Fix summary.js (7 dépendants)
-  - ⚠️ Tester: variable-charges, fixed-charges, reimbursements...
-
-### Étape 4 : Corrections CORE (en dernier)
-
-- [ ] AUDIT-001: Fix state.js
-  - ⚠️ Test de régression COMPLET requis
-
-## Annexe : Graphe des Dépendances
-
-[Inclure le graphe ASCII ou Mermaid]
-```
-
----
-
-## ⚠️ Règles Anti-Régression
-
-### JAMAIS faire sans analyse d'impact
-
-1. **Renommer une fonction exportée** → Vérifier tous les imports
-2. **Changer la signature d'une fonction** → Adapter tous les appels
-3. **Modifier `state.js`** → Impact sur TOUTE l'application
-4. **Modifier `toast.js`** → 13 modules utilisent les toasts
-5. **Toucher `firebase-init.js`** → Peut casser l'auth et la DB
-
-### TOUJOURS faire avant de corriger
-
-```bash
-# Lister les fichiers qui importent le module à modifier
 grep -rl "from '.*MODULE_NAME" js/
-
-# Exemple: Qui importe toast.js ?
-grep -rl "from '.*toast" js/
-# Résultat: 13 fichiers → tester les 13 après modification
 ```
 
-### Pattern de correction sécurisé
+## Conventions
 
-```javascript
-// 1. Ajouter la nouvelle version SANS supprimer l'ancienne
-export function newFunction() { /* nouvelle implémentation */ }
-export function oldFunction() { /* ancienne - deprecated */ }
+### CSS
+- Tokens dans `css/variables.css` via `var(--xxx)`, jamais de valeurs hardcodées ailleurs
+- Mobile-first, breakpoint principal : 600px
+- Classes en kebab-case
 
-// 2. Migrer les appelants un par un
-// 3. Supprimer l'ancienne UNIQUEMENT quand plus utilisée
+### JavaScript
+- ES6 modules partout, pas de globals sauf compatibilité legacy temporaire (`window.xxx`)
+- State centralisé : `getState('key')` / `setState('key', value)` via `state.js`
+- DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (paths auto-scopés par UID)
+- Async/await + try/catch sur tous les appels Firebase
+- `escapeHtml()` obligatoire pour tout contenu dynamique injecté en HTML
+- Toast pour feedback : `toast.success()`, `toast.error()`
+
+### Nommage
+- Fichiers JS : kebab-case (`variable-charges.js`)
+- Fonctions : camelCase (`loadVariableCharges`)
+- Constantes : UPPER_SNAKE (`MAX_SALARY`)
+- Classes CSS : kebab-case (`.charge-item`)
+
+### Git
+- Commits français : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `chore:`
+- develop = active, main = prod (non déployée)
+
+## Commandes
+
+- `npx vitest run` — tests
+- `npx vitest --watch` — tests mode watch
+- Live Server VS Code sur `FairSplit.html` — dev local
+
+## Contraintes
+
+- NE PAS modifier `state.js`, `toast.js`, `firebase-init.js`, `db.js` sans vérifier tous les imports
+- NE PAS ajouter de JS dans `FairSplit.html` — tout dans les modules
+- NE PAS utiliser `innerHTML` avec données utilisateur non échappées
+- NE PAS stocker credentials, tokens ou PII dans le code/logs
+- NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`)
+- TOUJOURS utiliser `db.js` pour accéder Firebase (paths UID-scoped automatiques)
+- TOUJOURS écrire un test pour toute nouvelle fonction pure dans `utils/`
+- TOUJOURS tester les dépendants après modif d'un module critique
+
+## Workflow
+
+1. Lire les fichiers concernés avant de modifier
+2. Vérifier les adhérences si module critique
+3. Proposer un plan (3-5 lignes) avant d'implémenter
+4. Implémenter avec escapeHtml pour contenu dynamique
+5. Vérifier : `npx vitest run` passe
+
+## Design
+
+### Secteur
+Finance personnelle / couple. Émotion : confiance, clarté, simplicité.
+
+### Palette cible (non encore appliquée)
+```css
+:root {
+  --primary-color: #4A7CF7;
+  --primary-dark: #3B63C9;
+  --secondary-color: #7C5CFC;
+  --success-color: #22C55E;
+  --danger-color: #EF4444;
+  --warning-color: #F59E0B;
+  --info-color: #3B82F6;
+  --dark-bg: #F1F5F9;
+  --card-bg: #FFFFFF;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --border-color: #E2E8F0;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
 ```
 
----
+### Principes UX
+- Le BILAN doit être la première section visible après la période
+- Solde net en gros texte ("Conjointe vous doit X €") avant le détail
+- Cibles tactiles minimum 44×44px
+- Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte)
+- Whitespace généreux
 
-## 🚀 Commande d'Exécution
+## Problèmes connus
 
-Pour lancer l'audit complet :
+- ~1500 lignes de code commenté dans `FairSplit.html` (migré vers modules, à supprimer)
+- `window.quickAddState` legacy encore présent (à migrer vers `state.js`)
+- Font Awesome référencé dans modules JS mais non chargé → utiliser emoji
+- `FairSplit.html` contient encore du JS legacy (CATEGORIES, event listeners, GPS)
+- Thème dark actuel inadapté au secteur (voir palette cible ci-dessus)
 
-```
-Analyse le projet FairSplit en suivant CLAUDE.md :
-1. Scanne récursivement tous les fichiers HTML/CSS/JS
-2. Mappe les dépendances entre modules
-3. Identifie les problèmes par criticité
-4. Génère le rapport dans docs/audit/AUDIT-REPORT.md
-5. Propose un plan de correction séquencé respectant les adhérences
-```
+## Liens
 
----
-
-## 📚 Références
-
-- [MDN Web Docs](https://developer.mozilla.org/)
-- [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/)
-- [Firebase Web Docs](https://firebase.google.com/docs/web/setup)
-- [ES6 Modules](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)
-
----
-
-**Maintainer**: Richie avec Claude Code
+- @docs/MIGRATION-BONNES-PRATIQUES.md — plan migration 100% modulaire
+- @docs/claude/prompts/prompt_html_troubleshooting_v2.md — prompt audit exhaustif

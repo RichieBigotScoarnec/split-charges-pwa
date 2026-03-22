@@ -6,13 +6,14 @@ import { formatCurrency } from '../utils/format.js';
 import { renderVariableCharges } from './variable-charges.js';
 import { renderFixedCharges } from './fixed-charges.js';
 import { renderReimbursements } from './reimbursements.js';
+import { log, warn } from '../utils/debug.js';
 
 /**
  * Initialise le module summary
  */
 export function initSummary() {
-  console.log('📦 Initialisation module summary/bilan');
-  console.log('✅ Module summary/bilan initialisé');
+  log('📦 Initialisation module summary/bilan');
+  log('✅ Module summary/bilan initialisé');
 }
 
 /**
@@ -189,7 +190,7 @@ function calculateVirementsByDestination(fixedCharges, params) {
 function renderSummary(summary) {
   const summaryElement = document.getElementById('summarySection');
   if (!summaryElement) {
-    console.warn('⚠️ Element #summarySection introuvable');
+    warn('⚠️ Element #summarySection introuvable');
     return;
   }
 
@@ -369,14 +370,14 @@ function renderBudgetGauge(totalCharges) {
  * Rafraîchit tous les affichages (après modification de données)
  */
 export function renderAll() {
-  console.log('🔄 Rafraîchissement de tous les affichages...');
+  log('🔄 Rafraîchissement de tous les affichages...');
 
   renderVariableCharges();
   renderFixedCharges();
   renderReimbursements();
   calculateSummary();
 
-  console.log('✅ Tous les affichages rafraîchis');
+  log('✅ Tous les affichages rafraîchis');
 }
 
 // Note : La reconduction de période est gérée par le module reconduction.js

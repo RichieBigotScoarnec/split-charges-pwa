@@ -10,6 +10,7 @@ import { setState, getState } from './state.js';
 import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
 import { initAuth } from './modules/auth.js';
+import { log, warn, error as logError } from './utils/debug.js';
 
 // Modules migrated (initialized by auth.js after login):
 // - period.js (Étape 3c) ✅
@@ -64,7 +65,7 @@ function applyEnvironment() {
  * Initialize the application
  */
 async function initApp() {
-  console.log(`🚀 FairSplit ${VERSION} (${ENV})`);
+  log(`🚀 FairSplit ${VERSION} (${ENV})`);
 
   // 0. Apply environment metadata (title, manifest, icons, badge)
   applyEnvironment();
@@ -78,7 +79,7 @@ async function initApp() {
     // ✅ FIX CRITIQUE 5: Stocker l'unsubscribe function
     connectionUnsubscribe = onConnectionChange((isConnected) => {
       setState('isOnline', isConnected);
-      console.log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
+      log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
     });
     // Store for potential cleanup (not needed for SPA lifecycle)
     window._unsubscribeConnection = connectionUnsubscribe;
@@ -95,7 +96,7 @@ async function initApp() {
     toast.success('FairSplit chargé');
 
   } catch (error) {
-    console.error('❌ Erreur initialisation:', error);
+    logError('❌ Erreur initialisation:', error);
     toast.error('Erreur de chargement');
   }
 }
@@ -117,7 +118,7 @@ export async function cleanupApp() {
   if (connectionUnsubscribe) {
     connectionUnsubscribe();
     connectionUnsubscribe = null;
-    console.log('[App] 🧹 Listener de connexion Firebase nettoyé');
+    log('[App] 🧹 Listener de connexion Firebase nettoyé');
   }
 
   // Cleanup auth listener

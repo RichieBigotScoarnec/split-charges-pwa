@@ -6,6 +6,7 @@
 
 import { DB_PATHS } from './config.js';
 import { getState } from './state.js';
+import { log, warn, error as logError } from './utils/debug.js';
 
 // Firebase database reference (set after initialization)
 let database = null;
@@ -43,14 +44,14 @@ export async function setCurrentUserId(uid) {
   if (uid) {
     // Check if this user is a Partner (has an Owner linked)
     await loadPartnerConfig();
-    console.log('[DB] Current user ID set:', uid.substring(0, 8) + '...');
+    log('[DB] Current user ID set:', uid.substring(0, 8) + '...');
     if (ownerUserId && ownerUserId !== uid) {
-      console.log('[DB] User is Partner, using Owner data:', ownerUserId.substring(0, 8) + '...');
+      log('[DB] User is Partner, using Owner data:', ownerUserId.substring(0, 8) + '...');
     } else {
-      console.log('[DB] User is Owner');
+      log('[DB] User is Owner');
     }
   } else {
-    console.log('[DB] User logged out');
+    log('[DB] User logged out');
   }
 }
 
@@ -77,7 +78,7 @@ async function loadPartnerConfig() {
       ownerUserId = currentUserId;
     }
   } catch (error) {
-    console.warn('[DB] Could not load partner config:', error);
+    warn('[DB] Could not load partner config:', error);
     ownerUserId = currentUserId; // Fallback to current user
   }
 }
@@ -144,9 +145,9 @@ export async function linkPartner(partnerUid) {
     // Reload partner config to apply changes
     await loadPartnerConfig();
 
-    console.log('[DB] Partner linked:', partnerUid.substring(0, 8) + '...');
+    log('[DB] Partner linked:', partnerUid.substring(0, 8) + '...');
   } catch (error) {
-    console.error('[DB] Failed to link partner:', error);
+    logError('[DB] Failed to link partner:', error);
     throw error;
   }
 }
@@ -166,7 +167,7 @@ export async function unlinkPartner() {
     const partnerUid = partnerSnapshot.val();
 
     if (!partnerUid) {
-      console.log('[DB] No partner to unlink');
+      log('[DB] No partner to unlink');
       return;
     }
 
@@ -180,9 +181,9 @@ export async function unlinkPartner() {
     // Reload partner config
     ownerUserId = currentUserId; // Reset to self
 
-    console.log('[DB] Partner unlinked');
+    log('[DB] Partner unlinked');
   } catch (error) {
-    console.error('[DB] Failed to unlink partner:', error);
+    logError('[DB] Failed to unlink partner:', error);
     throw error;
   }
 }
@@ -200,7 +201,7 @@ export async function getPartnerUid() {
     const snapshot = await database.ref(`partners/${currentUserId}`).once('value');
     return snapshot.val();
   } catch (error) {
-    console.warn('[DB] Could not get partner UID:', error);
+    warn('[DB] Could not get partner UID:', error);
     return null;
   }
 }

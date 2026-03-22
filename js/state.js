@@ -1,3 +1,4 @@
+import { log, warn } from './utils/debug.js';
 /**
  * FairSplit - State Management
  * @description Gestion d'état centralisée avec pattern Observer
@@ -91,8 +92,8 @@ export function setState(key, value) {
 
   // Debug log for GPS location updates
   if (key.includes('gpsLocation')) {
-    console.log(`📝 [STATE] setState("${key}") =`, JSON.stringify(value));
-    console.log('📝 [STATE] État complet quickAddState:', JSON.stringify(state.quickAddState));
+    log(`📝 [STATE] setState("${key}") =`, JSON.stringify(value));
+    log('📝 [STATE] État complet quickAddState:', JSON.stringify(state.quickAddState));
   }
 
   // Notify listeners
@@ -158,7 +159,7 @@ export function resetUserData() {
   setState('previousMonthCharges', []);
   setState('selectedReconductionItems', []);
 
-  console.log('🧹 User data reset on logout');
+  log('🧹 User data reset on logout');
 }
 
 // ===== ARRAY HELPERS =====

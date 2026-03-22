@@ -7,6 +7,7 @@ import { CATEGORIES, DESTINATIONS } from '../config.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { escapeHtml } from '../utils/format.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 // Emojis curatés pour sélection rapide (budget/finance)
 const EMOJI_PICKER = [
@@ -19,9 +20,9 @@ const EMOJI_PICKER = [
  * Initialise le module custom-lists
  */
 export async function initCustomLists() {
-  console.log('📦 Initialisation module listes personnalisables');
+  log('📦 Initialisation module listes personnalisables');
   await loadCustomLists();
-  console.log('✅ Module listes personnalisables initialisé');
+  log('✅ Module listes personnalisables initialisé');
 }
 
 /**
@@ -49,9 +50,9 @@ export async function loadCustomLists() {
       setState('destinations', [...DESTINATIONS]);
     }
 
-    console.log(`📊 ${getCategories().length} catégories, ${getDestinations().length} destinations chargées`);
+    log(`📊 ${getCategories().length} catégories, ${getDestinations().length} destinations chargées`);
   } catch (error) {
-    console.error('❌ Erreur chargement listes custom :', error);
+    logError('❌ Erreur chargement listes custom :', error);
     // Fallback sur defaults
     setState('categories', [...CATEGORIES]);
     setState('destinations', [...DESTINATIONS]);
@@ -67,7 +68,7 @@ async function saveCategories(categories) {
     await dbSet('customCategories', categories);
     setState('categories', categories);
   } catch (error) {
-    console.error('❌ Erreur sauvegarde catégories :', error);
+    logError('❌ Erreur sauvegarde catégories :', error);
     toast.error('Erreur de sauvegarde');
   }
 }
@@ -81,7 +82,7 @@ async function saveDestinations(destinations) {
     await dbSet('customDestinations', destinations);
     setState('destinations', destinations);
   } catch (error) {
-    console.error('❌ Erreur sauvegarde destinations :', error);
+    logError('❌ Erreur sauvegarde destinations :', error);
     toast.error('Erreur de sauvegarde');
   }
 }
@@ -287,7 +288,7 @@ function showManageModal(listType) {
         <div id="manageListItems" class="manage-list-items">
           ${items.map((item, index) => `
             <div class="manage-list-item" data-index="${index}">
-              <span class="manage-item-icon">${item.icon}</span>
+              <span class="manage-item-icon">${escapeHtml(item.icon)}</span>
               <span class="manage-item-label">${escapeHtml(item.label)}</span>
               <button type="button" class="btn-icon btn-delete manage-item-delete" data-index="${index}" title="Supprimer">
                 <i class="fas fa-times"></i>

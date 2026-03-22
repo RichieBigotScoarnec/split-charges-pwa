@@ -7,6 +7,7 @@ import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
  * Select and apply share mode
@@ -42,7 +43,7 @@ export function selectShareMode(mode) {
   // Recalculate summary
   calculateSummary();
 
-  console.log(`💰 Mode de partage : ${mode}`);
+  log(`💰 Mode de partage : ${mode}`);
 }
 
 /**
@@ -96,9 +97,9 @@ async function saveShareMode() {
       customPercents: shareMode === 'custom' ? customPercents : null
     });
 
-    console.log('💾 Mode de partage sauvegardé');
+    log('💾 Mode de partage sauvegardé');
   } catch (error) {
-    console.error('❌ Erreur sauvegarde mode partage:', error);
+    logError('❌ Erreur sauvegarde mode partage:', error);
     toast.error('Erreur : impossible de sauvegarder le mode de partage');
   }
 }
@@ -131,7 +132,7 @@ export async function loadShareMode() {
       selectShareMode(mode);
       _isLoading = false;
 
-      console.log(`📥 Mode de partage chargé : ${mode}`);
+      log(`📥 Mode de partage chargé : ${mode}`);
     } else {
       // No saved mode, use default 'prorata'
       _isLoading = true;
@@ -139,7 +140,7 @@ export async function loadShareMode() {
       _isLoading = false;
     }
   } catch (error) {
-    console.error('❌ Erreur chargement mode partage:', error);
+    logError('❌ Erreur chargement mode partage:', error);
     toast.error('Erreur lors du chargement du mode de partage');
     // Fallback to prorata
     _isLoading = true;
@@ -172,5 +173,5 @@ export function initShareMode() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.selectShareMode = selectShareMode;
 
-  console.log('💰 Gestion mode de partage initialisée');
+  log('💰 Gestion mode de partage initialisée');
 }

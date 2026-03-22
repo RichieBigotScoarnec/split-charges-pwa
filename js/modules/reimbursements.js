@@ -6,6 +6,7 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -21,7 +22,7 @@ export function showAddReimbursementModal() {
 }
 
 export function initReimbursements() {
-  console.log('📦 Initialisation module remboursements');
+  log('📦 Initialisation module remboursements');
 
   // Listener sur le bouton d'ajout
   const addBtn = document.getElementById('addReimbursementBtn');
@@ -39,7 +40,7 @@ export function initReimbursements() {
   window.showAddReimbursementModal = showAddReimbursementModal;
   window.deleteReimbursement = deleteReimbursement;
 
-  console.log('✅ Module remboursements initialisé');
+  log('✅ Module remboursements initialisé');
 }
 
 /**
@@ -48,7 +49,7 @@ export function initReimbursements() {
 export async function loadReimbursements() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
-    console.warn('⚠️ Pas de période active, chargement remboursements ignoré');
+    warn('⚠️ Pas de période active, chargement remboursements ignoré');
     return;
   }
 
@@ -64,15 +65,15 @@ export async function loadReimbursements() {
         .map(([id, reimb]) => ({ id, ...reimb }));
 
       setState('reimbursements', activeReimbursements);
-      console.log(`📊 ${activeReimbursements.length} remboursements chargés`);
+      log(`📊 ${activeReimbursements.length} remboursements chargés`);
     } else {
       setState('reimbursements', []);
-      console.log('📊 Aucun remboursement pour cette période');
+      log('📊 Aucun remboursement pour cette période');
     }
 
     renderReimbursements();
   } catch (error) {
-    console.error('❌ Erreur chargement remboursements :', error);
+    logError('❌ Erreur chargement remboursements :', error);
     toast.error('Erreur de chargement des remboursements');
   }
 }
@@ -125,7 +126,7 @@ export async function saveReimbursement() {
     // Recalculer le bilan
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur sauvegarde remboursement :', error);
+    logError('❌ Erreur sauvegarde remboursement :', error);
     toast.error('Erreur de sauvegarde');
   }
 }
@@ -178,7 +179,7 @@ export async function deleteReimbursement(reimbursementId) {
     // Recalculer le bilan
     calculateSummary();
   } catch (error) {
-    console.error('❌ Erreur suppression remboursement :', error);
+    logError('❌ Erreur suppression remboursement :', error);
     toast.error('Erreur de suppression');
   }
 }
@@ -192,7 +193,7 @@ export function renderReimbursements() {
   const totalElement = document.getElementById('reimbursementsTotal');
 
   if (!listElement) {
-    console.warn('⚠️ Element #reimbursementsList introuvable');
+    warn('⚠️ Element #reimbursementsList introuvable');
     return;
   }
 
@@ -241,7 +242,7 @@ export function renderReimbursements() {
       </div>
       <div class="reimbursement-actions">
         <span class="reimbursement-amount">${formatCurrency(reimb.amount)}</span>
-        <button class="btn-icon btn-delete" onclick="deleteReimbursement('${escapeHtml(reimb.id)}')" title="Supprimer">
+        <button class="btn-icon btn-delete" data-action="deleteReimbursement" data-arg="${escapeHtml(reimb.id)}" title="Supprimer">
           <i class="fas fa-trash"></i>
         </button>
       </div>

@@ -5,6 +5,7 @@ import { getState, setState } from '../state.js';
 import { formatCurrency, formatPaidBy } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 let map = null;
 let markers = [];
@@ -14,11 +15,11 @@ let markerClusterGroup = null;
  * Initialise le module de carte interactive
  */
 export function initMap() {
-  console.log('📦 Initialisation module carte');
+  log('📦 Initialisation module carte');
 
   setupMapUI();
 
-  console.log('✅ Module carte initialisé');
+  log('✅ Module carte initialisé');
 }
 
 /**
@@ -161,7 +162,7 @@ function initializeLeafletMap() {
   // Vérifier que Leaflet est chargé
   if (typeof L === 'undefined') {
     toast.error('Leaflet n\'est pas chargé. Vérifiez le CDN.');
-    console.error('❌ Leaflet non disponible');
+    logError('❌ Leaflet non disponible');
     return;
   }
 
@@ -189,9 +190,9 @@ function initializeLeafletMap() {
       map.addLayer(markerClusterGroup);
     }
 
-    console.log('✅ Carte Leaflet initialisée');
+    log('✅ Carte Leaflet initialisée');
   } catch (error) {
-    console.error('❌ Erreur initialisation carte :', error);
+    logError('❌ Erreur initialisation carte :', error);
     toast.error('Erreur lors de l\'initialisation de la carte');
   }
 }
@@ -201,19 +202,19 @@ function initializeLeafletMap() {
  */
 async function loadChargesOnMap() {
   if (!map) {
-    console.warn('⚠️ Carte non initialisée');
+    warn('⚠️ Carte non initialisée');
     return;
   }
 
-  console.log('🗺️ [MAP-1] Chargement des charges sur la carte');
+  log('🗺️ [MAP-1] Chargement des charges sur la carte');
 
   // Récupérer les charges
   const variableCharges = getState('variableCharges') || [];
   const fixedCharges = getState('fixedCharges') || [];
   const allCharges = [...variableCharges, ...fixedCharges];
 
-  console.log(`🗺️ [MAP-2] Charges récupérées: ${variableCharges.length} variables, ${fixedCharges.length} fixes`);
-  console.log('🗺️ [MAP-2b] Charges variables avec location:',
+  log(`🗺️ [MAP-2] Charges récupérées: ${variableCharges.length} variables, ${fixedCharges.length} fixes`);
+  log('🗺️ [MAP-2b] Charges variables avec location:',
     variableCharges.filter(c => c.location).map(c => ({
       desc: c.description,
       location: c.location
@@ -229,7 +230,7 @@ async function loadChargesOnMap() {
     .map(charge => addGeolocationToCharge(charge))
     .filter(charge => charge.location);
 
-  console.log(`🗺️ [MAP-3] Charges géolocalisées après traitement: ${geoCharges.length}`);
+  log(`🗺️ [MAP-3] Charges géolocalisées après traitement: ${geoCharges.length}`);
 
   // Créer les marqueurs
   let totalAmount = 0;
@@ -255,7 +256,7 @@ async function loadChargesOnMap() {
     map.fitBounds(group.getBounds().pad(0.1));
   }
 
-  console.log(`📍 ${markers.length} marqueur(s) affiché(s) sur la carte`);
+  log(`📍 ${markers.length} marqueur(s) affiché(s) sur la carte`);
 }
 
 /**
@@ -267,7 +268,7 @@ async function loadChargesOnMap() {
 function addGeolocationToCharge(charge) {
   // ✅ IMPORTANT: Si la charge a déjà une vraie géolocalisation, la préserver
   if (charge.location && charge.location.lat && charge.location.lng) {
-    console.log('📍 [GEO-PRESERVE] Vraie géolocalisation préservée:',
+    log('📍 [GEO-PRESERVE] Vraie géolocalisation préservée:',
       charge.description,
       'GPS:', charge.location.lat.toFixed(5), charge.location.lng.toFixed(5),
       'Nom:', charge.location.name
@@ -275,7 +276,7 @@ function addGeolocationToCharge(charge) {
     return charge;
   }
 
-  console.log('🔍 [GEO-SIMULATE] Pas de GPS réel pour:', charge.description, '- tentative simulation');
+  log('🔍 [GEO-SIMULATE] Pas de GPS réel pour:', charge.description, '- tentative simulation');
 
   // Simulation : détection de mots-clés dans la description pour assigner des coordonnées
   const description = charge.description.toLowerCase();
@@ -294,7 +295,7 @@ function addGeolocationToCharge(charge) {
   // Rechercher un match pour simulation
   for (const [keyword, location] of Object.entries(locationDatabase)) {
     if (description.includes(keyword)) {
-      console.log('📍 Géolocalisation simulée:', charge.description, keyword);
+      log('📍 Géolocalisation simulée:', charge.description, keyword);
       return {
         ...charge,
         location: {
@@ -353,7 +354,7 @@ function createMarker(charge) {
 
     return marker;
   } catch (error) {
-    console.error('❌ Erreur création marqueur :', error);
+    logError('❌ Erreur création marqueur :', error);
     return null;
   }
 }
@@ -479,7 +480,7 @@ function updateMapStats(totalAmount, markerCount) {
  */
 export async function addGeoCharge(chargeId, chargeType, lat, lng, locationName) {
   if (!chargeId || !chargeType) {
-    console.error('❌ addGeoCharge: chargeId et chargeType requis');
+    logError('❌ addGeoCharge: chargeId et chargeType requis');
     return;
   }
 
@@ -497,7 +498,7 @@ export async function addGeoCharge(chargeId, chargeType, lat, lng, locationName)
 
     await dbUpdate(`periods/${currentPeriod}/${chargeType}/${chargeId}/location`, locationData);
 
-    console.log('📍 Géolocalisation sauvegardée :', locationData);
+    log('📍 Géolocalisation sauvegardée :', locationData);
     toast.success('📍 Localisation ajoutée');
 
     // Mettre à jour le state local
@@ -512,7 +513,7 @@ export async function addGeoCharge(chargeId, chargeType, lat, lng, locationName)
       loadChargesOnMap();
     }
   } catch (error) {
-    console.error('❌ Erreur sauvegarde géolocalisation :', error);
+    logError('❌ Erreur sauvegarde géolocalisation :', error);
     toast.error('Erreur lors de l\'ajout de la localisation');
   }
 }
@@ -543,7 +544,7 @@ export function cleanupMap() {
   if (modal) {
     modal.remove();
   }
-  console.log('🧹 Ressources carte nettoyées');
+  log('🧹 Ressources carte nettoyées');
 }
 
 // Exposer les fonctions globalement pour compatibilité

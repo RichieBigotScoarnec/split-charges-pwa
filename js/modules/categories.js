@@ -3,16 +3,17 @@
 
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { log, warn } from '../utils/debug.js';
 
 /**
  * Initialise le module d'analyse par catégorie
  */
 export function initCategories() {
-  console.log('📦 Initialisation module analyse catégories');
+  log('📦 Initialisation module analyse catégories');
 
   setupCategoryAnalysisUI();
 
-  console.log('✅ Module analyse catégories initialisé');
+  log('✅ Module analyse catégories initialisé');
 }
 
 /**
@@ -149,7 +150,7 @@ export function renderCategoryAnalysis() {
   const container = document.getElementById('categoryAnalysisContainer');
 
   if (!container) {
-    console.warn('⚠️ Element #categoryAnalysisContainer introuvable');
+    warn('⚠️ Element #categoryAnalysisContainer introuvable');
     return;
   }
 

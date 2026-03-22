@@ -4,6 +4,7 @@
  */
 
 import { FIREBASE_CONFIG, ENV } from './config.js';
+import { log, warn } from './utils/debug.js';
 
 let app = null;
 let database = null;
@@ -27,7 +28,7 @@ export function initFirebase() {
   database = firebase.database();
   auth = firebase.auth();
 
-  console.log(`🔥 Firebase initialisé (${ENV})`);
+  log(`🔥 Firebase initialisé (${ENV})`);
 
   return { app, database, auth };
 }

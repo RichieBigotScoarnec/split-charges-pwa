@@ -22,6 +22,7 @@ import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
 import { initMap, cleanupMap } from './map.js';
 import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 let appInitialized = false;
 
@@ -32,28 +33,28 @@ let authUnsubscribe = null;
  * Sign in with Google popup
  */
 export async function signInWithGoogle() {
-  console.log('[Auth] 🔵 signInWithGoogle() appelé');
+  log('[Auth] 🔵 signInWithGoogle() appelé');
 
   const authErrorEl = document.getElementById('authError');
   if (authErrorEl) authErrorEl.textContent = '';
 
   try {
-    console.log('[Auth] 🔵 Récupération auth...');
+    log('[Auth] 🔵 Récupération auth...');
     const auth = getFirebaseAuth();
-    console.log('[Auth] ✅ Auth récupéré:', auth ? 'OK' : 'NULL');
+    log('[Auth] ✅ Auth récupéré:', auth ? 'OK' : 'NULL');
 
-    console.log('[Auth] 🔵 Création GoogleAuthProvider...');
+    log('[Auth] 🔵 Création GoogleAuthProvider...');
     const googleProvider = getGoogleAuthProvider();
-    console.log('[Auth] ✅ GoogleProvider créé:', googleProvider ? 'OK' : 'NULL');
+    log('[Auth] ✅ GoogleProvider créé:', googleProvider ? 'OK' : 'NULL');
 
-    console.log('[Auth] 🔵 Lancement signInWithPopup...');
+    log('[Auth] 🔵 Lancement signInWithPopup...');
     await auth.signInWithPopup(googleProvider);
-    console.log('[Auth] ✅ Connexion Google réussie !');
+    log('[Auth] ✅ Connexion Google réussie !');
   } catch (error) {
-    console.error('[Auth] ❌ ERREUR Google sign-in:', error);
-    console.error('[Auth] ❌ Type erreur:', error.constructor.name);
-    console.error('[Auth] ❌ Code erreur:', error.code);
-    console.error('[Auth] ❌ Message:', error.message);
+    logError('[Auth] ❌ ERREUR Google sign-in:', error);
+    logError('[Auth] ❌ Type erreur:', error.constructor.name);
+    logError('[Auth] ❌ Code erreur:', error.code);
+    logError('[Auth] ❌ Message:', error.message);
 
     const message = `Erreur Google : ${error.message}`;
     if (authErrorEl) authErrorEl.textContent = message;
@@ -87,7 +88,7 @@ export async function signInWithEmail() {
     const message = `Erreur : ${error.message}`;
     if (authErrorEl) authErrorEl.textContent = message;
     toast.error(message);
-    console.error('[Auth] Email sign-in error:', error);
+    logError('[Auth] Email sign-in error:', error);
   }
 }
 
@@ -124,7 +125,7 @@ export async function createAccount() {
     const message = `Erreur : ${error.message}`;
     if (authErrorEl) authErrorEl.textContent = message;
     toast.error(message);
-    console.error('[Auth] Account creation error:', error);
+    logError('[Auth] Account creation error:', error);
   }
 }
 
@@ -141,7 +142,7 @@ export async function signOut() {
     const authErrorEl = document.getElementById('authError');
     if (authErrorEl) authErrorEl.textContent = message;
     toast.error(message);
-    console.error('[Auth] Sign-out error:', error);
+    logError('[Auth] Sign-out error:', error);
   }
 }
 
@@ -194,7 +195,7 @@ function updateAuthUI(user) {
       photoURL: user.photoURL
     });
 
-    console.log(`✅ Utilisateur connecté : ${user.displayName || user.email}`);
+    log(`✅ Utilisateur connecté : ${user.displayName || user.email}`);
   } else {
     // No user - show auth overlay
     if (authOverlay) authOverlay.style.display = 'flex';
@@ -207,7 +208,7 @@ function updateAuthUI(user) {
     // Reset app initialization flag
     appInitialized = false;
 
-    console.log('⚠️ Utilisateur déconnecté');
+    log('⚠️ Utilisateur déconnecté');
   }
 }
 
@@ -218,7 +219,7 @@ function updateAuthUI(user) {
 async function initializeAppData() {
   if (appInitialized) return;
 
-  console.log('📦 Initialisation des données utilisateur...');
+  log('📦 Initialisation des données utilisateur...');
 
   try {
   // Custom lists (categories/destinations) — must init before modules using selects
@@ -274,9 +275,9 @@ async function initializeAppData() {
   initMap();
 
   appInitialized = true;
-  console.log('✅ Données utilisateur initialisées');
+  log('✅ Données utilisateur initialisées');
   } catch (error) {
-    console.error('❌ Erreur initialisation modules:', error);
+    logError('❌ Erreur initialisation modules:', error);
     toast.error('Erreur lors du chargement des données');
   }
 }
@@ -291,12 +292,12 @@ export function initAuth() {
   // ✅ FIX CRITIQUE 2: Nettoyer l'ancien listener s'il existe
   if (authUnsubscribe) {
     authUnsubscribe();
-    console.log('[Auth] 🧹 Ancien listener nettoyé');
+    log('[Auth] 🧹 Ancien listener nettoyé');
   }
 
   // ✅ FIX CRITIQUE 2: Stocker la fonction unsubscribe
   authUnsubscribe = auth.onAuthStateChanged(async (user) => {
-    console.log('[Auth] État changé:', user ? user.email : 'Déconnecté');
+    log('[Auth] État changé:', user ? user.email : 'Déconnecté');
 
     // ✅ CRITIQUE 1 FIX: Set current user ID for multi-user database structure
     // Also loads partner configuration if user is a Partner
@@ -332,7 +333,7 @@ export function initAuth() {
       if (reimbursementsList) reimbursementsList.innerHTML = '<p class="empty-state">Connectez-vous pour voir vos remboursements</p>';
       if (summarySection) summarySection.innerHTML = '<p class="empty-state">Connectez-vous pour voir le bilan</p>';
 
-      console.log('🔒 User logged out, data cleared');
+      log('🔒 User logged out, data cleared');
     }
   });
 
@@ -346,7 +347,7 @@ export function initAuth() {
   window.createAccount = createAccount;
   window.signOut = signOut;
 
-  console.log('🔐 Authentification initialisée');
+  log('🔐 Authentification initialisée');
 }
 
 /**
@@ -358,6 +359,6 @@ export function cleanupAuth() {
   if (authUnsubscribe) {
     authUnsubscribe();
     authUnsubscribe = null;
-    console.log('[Auth] 🧹 Listener d\'authentification nettoyé');
+    log('[Auth] 🧹 Listener d\'authentification nettoyé');
   }
 }

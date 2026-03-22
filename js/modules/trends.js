@@ -6,6 +6,7 @@ import { getState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
 import { toast } from '../components/toast.js';
 import { getUserPath } from '../db.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 let database = null;
 
@@ -13,12 +14,12 @@ let database = null;
  * Initialise le module de tendances
  */
 export function initTrends() {
-  console.log('📦 Initialisation module tendances');
+  log('📦 Initialisation module tendances');
 
   database = getFirebaseDatabase();
   setupTrendsUI();
 
-  console.log('✅ Module tendances initialisé');
+  log('✅ Module tendances initialisé');
 }
 
 /**
@@ -80,7 +81,7 @@ export async function fetchHistoricalData(months = 6) {
     return historicalData;
 
   } catch (error) {
-    console.error('❌ Erreur récupération données historiques :', error);
+    logError('❌ Erreur récupération données historiques :', error);
     toast.error('Erreur lors de la récupération des données');
     return null;
   }
@@ -107,7 +108,7 @@ export async function generateTrendsChart(months = 6) {
   const canvas = document.getElementById('trendsCanvas');
 
   if (!canvas) {
-    console.warn('⚠️ Element #trendsCanvas introuvable');
+    warn('⚠️ Element #trendsCanvas introuvable');
     return;
   }
 

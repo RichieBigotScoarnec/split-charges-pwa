@@ -8,29 +8,31 @@
 
 .map-container {
   height: 500px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: hidden;
-  margin: 15px 0;
+  margin: var(--space-md) 0;
 }
 
 .map-legend {
-  margin-top: 15px;
-  padding: 15px;
-  background: var(--dark-bg);
-  border-radius: 10px;
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
 }
 
 .map-legend-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 10px;
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .map-legend-items {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-xs);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -39,74 +41,75 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px;
+  padding: var(--space-sm);
   background: var(--card-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
 }
 
 .map-legend-item-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .map-legend-marker {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
 }
 
 .map-legend-item-right {
   display: flex;
-  gap: 10px;
+  gap: var(--space-sm);
   align-items: center;
 }
 
 .map-legend-count {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 .map-legend-amount {
   font-weight: 600;
+  font-family: var(--font-mono);
   color: var(--text-primary);
+  font-size: 13px;
 }
 
 /* ===== LEAFLET CUSTOMIZATION ===== */
-/* Leaflet popup customization */
 .leaflet-popup-content {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font);
   min-width: 200px;
 }
 
 .popup-content {
-  padding: 5px;
+  padding: 4px;
 }
 
 .popup-title {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 8px;
-  color: #333;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
 }
 
 .popup-detail {
   font-size: 12px;
-  margin-bottom: 4px;
-  color: #666;
+  margin-bottom: var(--space-xs);
+  color: var(--text-muted);
 }
 
 .popup-detail strong {
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Custom marker */
 .custom-marker {
   background-color: var(--primary-color);
   border: 2px solid white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  border-radius: var(--radius-full);
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }

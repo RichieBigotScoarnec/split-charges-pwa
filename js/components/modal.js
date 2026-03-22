@@ -1,3 +1,4 @@
+import { log, warn } from '../utils/debug.js';
 /**
  * FairSplit - Modal Management
  * @description Gestion centralisée des modales
@@ -102,5 +103,5 @@ export function cleanupModals() {
     document.removeEventListener('keydown', _escapeHandler);
     _escapeHandler = null;
   }
-  console.log('🧹 Listeners modals nettoyés');
+  log('🧹 Listeners modals nettoyés');
 }

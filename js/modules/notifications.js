@@ -3,7 +3,9 @@
 
 import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
+import { saveReminders } from '../db.js';
 import { formatDate } from '../utils/date.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 let _hourlyIntervalId = null;
 let _dailyTimeoutId = null;
@@ -12,12 +14,12 @@ let _dailyTimeoutId = null;
  * Initialise le module de notifications
  */
 export function initNotifications() {
-  console.log('📦 Initialisation module notifications');
+  log('📦 Initialisation module notifications');
 
   setupNotificationPermissions();
   scheduleNotificationChecks();
 
-  console.log('✅ Module notifications initialisé');
+  log('✅ Module notifications initialisé');
 }
 
 /**
@@ -25,24 +27,24 @@ export function initNotifications() {
  */
 async function setupNotificationPermissions() {
   if (!('Notification' in window)) {
-    console.warn('⚠️ Les notifications ne sont pas supportées par ce navigateur');
+    warn('⚠️ Les notifications ne sont pas supportées par ce navigateur');
     return;
   }
 
   // Vérifier si déjà accordées
   if (Notification.permission === 'granted') {
-    console.log('✅ Permissions de notification accordées');
+    log('✅ Permissions de notification accordées');
     return;
   }
 
   // Si refusées, ne pas redemander
   if (Notification.permission === 'denied') {
-    console.log('❌ Permissions de notification refusées');
+    log('❌ Permissions de notification refusées');
     return;
   }
 
   // Si "default", on peut demander (mais on attend une action utilisateur)
-  console.log('ℹ️ Permissions de notification non encore demandées');
+  log('ℹ️ Permissions de notification non encore demandées');
 }
 
 /**
@@ -78,7 +80,7 @@ export async function requestNotificationPermission() {
       return false;
     }
   } catch (error) {
-    console.error('❌ Erreur demande permission notification :', error);
+    logError('❌ Erreur demande permission notification :', error);
     toast.error('Erreur lors de l\'activation des notifications');
     return false;
   }
@@ -162,7 +164,7 @@ export function checkUpcomingDeadlines() {
     });
 
   } catch (error) {
-    console.error('❌ Erreur vérification échéances :', error);
+    logError('❌ Erreur vérification échéances :', error);
   }
 }
 
@@ -298,10 +300,10 @@ function sendNotification(title, body, data = {}) {
       notification.close();
     }, 10000);
 
-    console.log('📬 Notification envoyée :', title);
+    log('📬 Notification envoyée :', title);
 
   } catch (error) {
-    console.error('❌ Erreur envoi notification :', error);
+    logError('❌ Erreur envoi notification :', error);
   }
 }
 
@@ -343,9 +345,34 @@ export function cleanupNotifications() {
     clearTimeout(_dailyTimeoutId);
     _dailyTimeoutId = null;
   }
-  console.log('🧹 Timers notifications nettoyés');
+  log('🧹 Timers notifications nettoyés');
+}
+
+/**
+ * Sauvegarde les paramètres de rappels depuis le DOM vers Firebase
+ * Appelée via data-on-change depuis FairSplit.html
+ */
+function saveReminderSettings() {
+  const budgetAmount = parseFloat(document.getElementById('budgetAmount').value) || 3000;
+  const settings = {
+    finMois: document.getElementById('reminderFinMois').checked,
+    budget: document.getElementById('reminderBudget').checked,
+    budgetAmount: budgetAmount,
+    reimbursement: document.getElementById('reminderReimbursement').checked
+  };
+
+  // Request notification permission if any toggle is on
+  if (settings.finMois || settings.budget || settings.reimbursement) {
+    requestNotificationPermission();
+  }
+
+  // Save to Firebase via db.js abstraction
+  saveReminders(settings).catch(() => {
+    toast.error('Erreur : impossible de sauvegarder les paramètres');
+  });
 }
 
 // Exposer globalement pour compatibilité
+window.saveReminderSettings = saveReminderSettings;
 window.requestNotificationPermission = requestNotificationPermission;
 window.checkUpcomingDeadlines = checkUpcomingDeadlines;

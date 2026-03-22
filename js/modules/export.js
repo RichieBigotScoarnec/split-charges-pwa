@@ -5,16 +5,17 @@ import { getState } from '../state.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
  * Initialise le module d'export
  */
 export function initExport() {
-  console.log('📦 Initialisation module export');
+  log('📦 Initialisation module export');
 
   setupExportUI();
 
-  console.log('✅ Module export initialisé');
+  log('✅ Module export initialisé');
 }
 
 /**
@@ -110,7 +111,7 @@ export function exportToCSV() {
     toast.success('Export CSV réussi');
 
   } catch (error) {
-    console.error('❌ Erreur export CSV :', error);
+    logError('❌ Erreur export CSV :', error);
     toast.error('Erreur lors de l\'export CSV');
   }
 }
@@ -286,7 +287,7 @@ export function exportToPDF() {
     toast.info('Fenêtre d\'impression ouverte');
 
   } catch (error) {
-    console.error('❌ Erreur export PDF :', error);
+    logError('❌ Erreur export PDF :', error);
     toast.error('Erreur lors de l\'export PDF');
   }
 }

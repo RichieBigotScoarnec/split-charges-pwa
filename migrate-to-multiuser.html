@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Migration Multi-Utilisateur - FairSplit</title>
+  <meta name="description" content="Migration des données FairSplit vers la structure multi-utilisateur sécurisée" />
   <style>
     * {
       margin: 0;
@@ -50,7 +51,7 @@
       margin-bottom: 24px;
     }
 
-    .warning h3 {
+    .warning h2 {
       color: #b45309;
       font-size: 16px;
       margin-bottom: 8px;
@@ -82,7 +83,7 @@
       margin-right: 12px;
     }
 
-    .step h3 {
+    .step h2 {
       display: inline;
       color: #1e293b;
       font-size: 16px;
@@ -170,12 +171,12 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <main class="container">
     <h1>🚀 Migration Multi-Utilisateur</h1>
     <p class="subtitle">FairSplit v2.0 - Migration vers structure sécurisée</p>
 
     <div class="warning">
-      <h3>⚠️ Avant de commencer</h3>
+      <h2>⚠️ Avant de commencer</h2>
       <p>
         Cette migration est <strong>irréversible</strong>. Vos données seront déplacées
         vers une structure sécurisée par utilisateur. Assurez-vous d'être connecté avec
@@ -183,7 +184,7 @@
       </p>
       <p style="margin-top: 12px;">
         <strong>👥 Partage en couple :</strong> Après la migration, utilisez
-        <a href="configure-partner.html" style="color: #b45309; font-weight: bold;">configure-partner.html</a>
+        <a href="configure-partner.html" style="color: #b45309; font-weight: bold;" rel="noopener">configure-partner.html</a>
         pour lier votre conjoint(e) et partager vos données. Vous verrez tous les deux
         les mêmes charges et salaires.
       </p>
@@ -191,25 +192,25 @@
 
     <div class="step">
       <span class="step-number">1</span>
-      <h3>Connexion Firebase</h3>
+      <h2>Connexion Firebase</h2>
       <p>Le script va se connecter à votre base de données Firebase.</p>
     </div>
 
     <div class="step">
       <span class="step-number">2</span>
-      <h3>Vérification des données</h3>
+      <h2>Vérification des données</h2>
       <p>Détection des données existantes (salaires, périodes, charges).</p>
     </div>
 
     <div class="step">
       <span class="step-number">3</span>
-      <h3>Migration automatique</h3>
+      <h2>Migration automatique</h2>
       <p>Déplacement des données sous votre UID utilisateur.</p>
     </div>
 
     <div class="step">
       <span class="step-number">4</span>
-      <h3>Nettoyage</h3>
+      <h2>Nettoyage</h2>
       <p>Suppression des anciennes données (structure mono-utilisateur).</p>
     </div>
 
@@ -217,9 +218,9 @@
       🔄 Lancer la Migration
     </button>
 
-    <div id="status"></div>
-    <div id="log" class="log"></div>
-  </div>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div id="log" class="log" role="log" aria-live="polite"></div>
+  </main>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
