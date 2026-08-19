@@ -1,4 +1,4 @@
-import { log, warn } from './utils/debug.js';
+import { log } from './utils/debug.js';
 /**
  * FairSplit - State Management
  * @description Gestion d'état centralisée avec pattern Observer

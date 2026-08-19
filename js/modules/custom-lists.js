@@ -5,9 +5,8 @@
 import { getState, setState } from '../state.js';
 import { CATEGORIES, DESTINATIONS } from '../config.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal } from '../components/modal.js';
 import { escapeHtml } from '../utils/format.js';
-import { log, warn, error as logError } from '../utils/debug.js';
+import { log, error as logError } from '../utils/debug.js';
 
 // Emojis curatés pour sélection rapide (budget/finance)
 const EMOJI_PICKER = [

@@ -6,11 +6,11 @@
 import { VERSION } from './config.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
 import { initDatabase } from './db.js';
-import { setState, getState } from './state.js';
+import { setState } from './state.js';
 import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
 import { initAuth } from './modules/auth.js';
-import { log, warn, error as logError } from './utils/debug.js';
+import { log, error as logError } from './utils/debug.js';
 
 // Modules migrated (initialized by auth.js after login):
 // - period.js (Étape 3c) ✅

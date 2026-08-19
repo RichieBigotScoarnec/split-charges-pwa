@@ -209,7 +209,7 @@ export async function saveSalaries() {
     return;
   }
 
-  let salaries = {
+  const salaries = {
     vous: isNaN(rawVous) ? 0 : rawVous,
     conjointe: isNaN(rawConjointe) ? 0 : rawConjointe
   };

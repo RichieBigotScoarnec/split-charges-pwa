@@ -1,4 +1,4 @@
-import { log, warn } from '../utils/debug.js';
+import { log } from '../utils/debug.js';
 /**
  * FairSplit - Modal Management
  * @description Gestion centralisée des modales

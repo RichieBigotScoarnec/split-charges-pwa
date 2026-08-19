@@ -89,7 +89,6 @@ function renderSummary(summary) {
     partnerTheoricalShare,
     yourActualPayments,
     partnerActualPayments,
-    balanceBeforeReimbs,
     reimbursementAdjustment,
     finalBalance,
     virementsByDestination
@@ -100,8 +99,8 @@ function renderSummary(summary) {
   const partnerPercent = totalCharges > 0 ? 100 - yourPercent : 50;
 
   // Déterminer qui doit à qui
-  let balanceText = '';
-  let balanceClass = '';
+  let balanceText;
+  let balanceClass;
 
   if (finalBalance > 0) {
     balanceText = `Conjointe vous doit <strong>${formatCurrency(Math.abs(finalBalance))}</strong>`;

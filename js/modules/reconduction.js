@@ -8,7 +8,7 @@ import { showModal, closeModal } from '../components/modal.js';
 import { loadFixedCharges } from './fixed-charges.js';
 import { calculateSummary } from './summary.js';
 import { getUserPath } from '../db.js';
-import { log, warn, error as logError } from '../utils/debug.js';
+import { log, error as logError } from '../utils/debug.js';
 
 let database = null;
 

@@ -4,7 +4,7 @@
  */
 
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
-import { setState, getState, resetState } from '../state.js';
+import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { ALLOWED_EMAILS } from '../config.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
@@ -334,6 +334,16 @@ export function initAuth() {
 
     // If user logged out, cleanup and reset app state
     if (!user) {
+      // Libérer les ressources encore actives : intervalle horaire et timeout
+      // quotidien des notifications, écouteurs keydown, polling GPS de fond et
+      // instance Leaflet. Ces fonctions étaient importées mais jamais appelées :
+      // tout continuait de tourner après déconnexion, et se cumulait à la
+      // reconnexion suivante.
+      cleanupNotifications();
+      cleanupQuickAdd();
+      cleanupMap();
+      cleanupModals();
+
       // ✅ FIX: Reset user data on logout for security/privacy
       const { resetUserData } = await import('../state.js');
       resetUserData();
