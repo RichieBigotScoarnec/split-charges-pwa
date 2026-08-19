@@ -148,37 +148,6 @@ export async function loadPeriodData() {
 }
 
 /**
- * Save current period data to Firebase
- */
-export async function savePeriodData() {
-  const currentPeriod = getState('currentPeriod');
-
-  const fixedCharges = getState('fixedCharges') || [];
-  const variableCharges = getState('variableCharges') || [];
-  const reimbursements = getState('reimbursements') || [];
-
-  try {
-    // Note: Summary is NOT saved to Firebase because it's calculated dynamically
-    // from charges + reimbursements. Saving it would be redundant and could cause
-    // data inconsistency. Summary is recalculated on every page load.
-
-    // Use dbSet from db.js which handles UID-scoped paths
-    const { dbSet } = await import('../db.js');
-    await dbSet(`periods/${currentPeriod}`, {
-      fixedCharges,
-      variableCharges,
-      reimbursements
-    });
-
-    log('💾 Données période sauvegardées');
-  } catch (error) {
-    logError('❌ Erreur sauvegarde données période:', error);
-    toast.error('Erreur lors de la sauvegarde');
-    throw error;
-  }
-}
-
-/**
  * Save salaries (global, not period-specific)
  */
 export async function saveSalaries() {
