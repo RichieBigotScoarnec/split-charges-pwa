@@ -46,10 +46,9 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
-          exclude_assets: >-
-            .github,node_modules,tests,test-results,.claude,
-            package.json,package-lock.json,playwright.config.js,
-            vitest.config.js,firebase.json,.firebaserc,database.rules.json
+          # Liste sur UNE ligne : un bloc replié insère une espace après chaque
+          # saut, et " package.json" ne matche alors plus rien.
+          exclude_assets: '.github,node_modules,tests,test-results,.claude,.firebase,docs,package.json,package-lock.json,playwright.config.js,vitest.config.js,firebase.json,.firebaserc,database.rules.json,create-fairsplit-files.ps1,migrate-to-multiuser.html,ARBORESCENCE.txt,CHANGELOG-MULTIUSER.md,CLAUDE.md,CLEAR-CACHE.md,COMMANDES-GIT-RAPIDES.md,DEPLOIEMENT-GITHUB-PAGES.md,GUIDE-MIGRATION-MULTIUSER.md,README-MIGRATION.md,README.md,REGLES-FIREBASE-A-APPLIQUER.txt,SECURITY.md,TROUBLESHOOTING-AUTH.md,WORKFLOW-DEV.md'
           keep_files: false
           enable_jekyll: false
           force_orphan: true
