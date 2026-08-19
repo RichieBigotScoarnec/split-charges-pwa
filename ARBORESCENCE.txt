@@ -18,14 +18,12 @@ C:.
 |   manifest-test.json
 |   manifest.json
 |   migrate-to-multiuser.html
-|   PROCHAINES-ETAPES.md
 |   README-MIGRATION.md
 |   README.md
 |   REGLES-FIREBASE-A-APPLIQUER.txt
 |   SECURITY.md
 |   sw-test.js
 |   TROUBLESHOOTING-AUTH.md
-|   VERSION-INFO.md
 |   WORKFLOW-DEV.md
 |   
 +---.github
