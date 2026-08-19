@@ -2,59 +2,40 @@
  * FairSplit - Configuration
  * @description Constantes et configuration Firebase
  *
- * Pour basculer entre TEST et PROD :
- *   - Branche develop → ENV = 'TEST'
- *   - Branche main    → ENV = 'PROD'
- * Seule cette ligne change entre les deux branches.
+ * Un seul environnement Firebase (fairsplit-test), une seule branche (main).
+ *
+ * Le double environnement TEST/PROD a été retiré : il imposait une divergence
+ * permanente de ce fichier entre branches, donc un conflit à chaque merge, et
+ * la PROD n'a jamais été alimentée (config en placeholders, base désactivée).
+ *
+ * Pour développer sans toucher aux données réelles, utiliser l'émulateur :
+ *   npm run emulators   puis   FairSplit.html?emulator=1
  */
 
-// ===== ENVIRONMENT =====
-export const ENV = 'TEST';
+// ===== VERSION =====
 export const VERSION = '4.0.0';
 
-// ===== FIREBASE CONFIGURATIONS =====
-const FIREBASE_CONFIGS = {
-  TEST: {
-    apiKey: "AIzaSyAR3tFWBxdMHr27-NOK0jlOyQ8xZoXcVSU",
-    authDomain: "fairsplit-test.firebaseapp.com",
-    databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "fairsplit-test",
-    storageBucket: "fairsplit-test.firebasestorage.app",
-    messagingSenderId: "455299346967",
-    appId: "1:455299346967:web:7165ac7e84062657632252",
-    measurementId: "G-9HW1XN8EF1"
-  },
-  PROD: {
-    apiKey: "VOTRE_CLE_API_PROD",
-    authDomain: "fairsplit-prod.firebaseapp.com",
-    databaseURL: "https://fairsplit-prod-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "fairsplit-prod",
-    storageBucket: "fairsplit-prod.firebasestorage.app",
-    messagingSenderId: "VOTRE_SENDER_ID_PROD",
-    appId: "VOTRE_APP_ID_PROD",
-    measurementId: "VOTRE_MEASUREMENT_ID_PROD"
-  }
+// ===== FIREBASE CONFIGURATION =====
+export const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAR3tFWBxdMHr27-NOK0jlOyQ8xZoXcVSU",
+  authDomain: "fairsplit-test.firebaseapp.com",
+  databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "fairsplit-test",
+  storageBucket: "fairsplit-test.firebasestorage.app",
+  messagingSenderId: "455299346967",
+  appId: "1:455299346967:web:7165ac7e84062657632252",
+  measurementId: "G-9HW1XN8EF1"
 };
 
-export const FIREBASE_CONFIG = FIREBASE_CONFIGS[ENV];
+// ===== ÉMULATEUR LOCAL (opt-in) =====
+// Activé uniquement via ?emulator=1 dans l'URL : brancher l'émulateur
+// automatiquement sur localhost casserait `npm run serve` quand il n'est
+// pas lancé.
+export const USE_EMULATOR =
+  typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).get('emulator') === '1';
 
-// ===== ENVIRONMENT METADATA =====
-export const ENV_META = {
-  TEST: {
-    title: 'FairSplit TEST - Charges Partagées',
-    manifest: 'manifest-test.json',
-    icon192: 'icon-192-test.png',
-    icon512: 'icon-512-test.png',
-    showBadge: true
-  },
-  PROD: {
-    title: 'FairSplit - Charges Partagées',
-    manifest: 'manifest.json',
-    icon192: 'icon-192.png',
-    icon512: 'icon-512.png',
-    showBadge: false
-  }
-};
+export const EMULATOR_PORTS = { database: 9000, auth: 9099 };
 
 // ===== CATEGORIES =====
 export const CATEGORIES = [

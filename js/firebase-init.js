@@ -3,7 +3,7 @@
  * @description Initialise Firebase et exporte les références
  */
 
-import { FIREBASE_CONFIG, ENV } from './config.js';
+import { FIREBASE_CONFIG, USE_EMULATOR, EMULATOR_PORTS } from './config.js';
 import { log, warn } from './utils/debug.js';
 
 let app = null;
@@ -28,7 +28,17 @@ export function initFirebase() {
   database = firebase.database();
   auth = firebase.auth();
 
-  log(`🔥 Firebase initialisé (${ENV})`);
+  if (USE_EMULATOR) {
+    try {
+      database.useEmulator('localhost', EMULATOR_PORTS.database);
+      auth.useEmulator(`http://localhost:${EMULATOR_PORTS.auth}`);
+      log('🧪 Émulateurs Firebase branchés (données locales isolées)');
+    } catch (error) {
+      warn('⚠️ Émulateurs indisponibles, bascule sur Firebase distant :', error.message);
+    }
+  }
+
+  log('🔥 Firebase initialisé');
 
   return { app, database, auth };
 }

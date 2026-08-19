@@ -2,7 +2,7 @@
   "name": "split-charges-pwa",
   "version": "1.0.0",
   "description": "> **Calculateur de répartition de charges au prorata des salaires nets avec synchronisation Firebase en temps réel**",
-  "main": "sw-test.js",
+  "main": "FairSplit.html",
   "directories": {
     "doc": "docs"
   },

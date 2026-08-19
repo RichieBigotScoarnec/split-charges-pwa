@@ -1,14 +1,14 @@
-// Service Worker — FairSplit TEST
+// Service Worker — FairSplit
 // Stratégie : cache-first pour assets statiques, network-first pour Firebase
 
 // Auto-version based on asset list hash — bump this date on each deploy
 const CACHE_VERSION = '2026-03-22';
-const CACHE_NAME = `fairsplit-test-${CACHE_VERSION}`;
+const CACHE_NAME = `fairsplit-${CACHE_VERSION}`;
 
 // Fichiers à mettre en cache pour le mode offline
 const STATIC_ASSETS = [
   './FairSplit.html',
-  './manifest-test.json',
+  './manifest.json',
   // CSS
   './css/variables.css',
   './css/base.css',

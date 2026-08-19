@@ -103,8 +103,8 @@ export async function requestNotificationPermission() {
       // Envoyer notification de test
       new Notification('FairSplit - Notifications activées', {
         body: 'Vous recevrez des rappels pour les échéances importantes',
-        icon: './icon-192-test.png',
-        badge: './icon-192-test.png'
+        icon: './icon-192.png',
+        badge: './icon-192.png'
       });
 
       return true;
@@ -314,8 +314,8 @@ function sendNotification(title, body, data = {}) {
   try {
     const notification = new Notification(title, {
       body: body,
-      icon: './icon-192-test.png',
-      badge: './icon-192-test.png',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
       tag: data.type || 'fairsplit-notification',
       requireInteraction: false,
       data: data

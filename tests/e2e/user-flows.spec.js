@@ -633,7 +633,7 @@ test.describe('Robustesse', () => {
     // Filtrer les erreurs non-critiques (ex: SW non disponible en test)
     const criticalErrors = errors.filter(e =>
       !e.includes('ServiceWorker') &&
-      !e.includes('sw-test') &&
+      !e.includes('sw.js') &&
       !e.includes('manifest')
     );
     expect(criticalErrors).toHaveLength(0);

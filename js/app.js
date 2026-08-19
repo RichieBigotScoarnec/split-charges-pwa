@@ -3,7 +3,7 @@
  * @description Initialise l'application et coordonne les modules
  */
 
-import { ENV, VERSION, ENV_META } from './config.js';
+import { VERSION } from './config.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
 import { initDatabase } from './db.js';
 import { setState, getState } from './state.js';
@@ -24,51 +24,10 @@ import { log, warn, error as logError } from './utils/debug.js';
 let connectionUnsubscribe = null;
 
 /**
- * Apply environment-specific metadata (title, manifest, icons, badge)
- * Allows a single HTML file to serve both TEST and PROD environments
- */
-function applyEnvironment() {
-  const meta = ENV_META[ENV];
-  if (!meta) return;
-
-  // Page title
-  document.title = meta.title;
-
-  // Manifest link
-  const manifestLink = document.querySelector('link[rel="manifest"]');
-  if (manifestLink) manifestLink.href = meta.manifest;
-
-  // Icon 192
-  const iconLink = document.querySelector('link[rel="icon"][sizes="192x192"]');
-  if (iconLink) iconLink.href = meta.icon192;
-
-  // Apple touch icon
-  const appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-  if (appleIcon) appleIcon.href = meta.icon192;
-
-  // Meta description
-  const descMeta = document.querySelector('meta[name="description"]');
-  if (descMeta) {
-    descMeta.content = ENV === 'TEST'
-      ? 'FairSplit TEST - Partage équitable des charges au prorata des salaires'
-      : 'FairSplit - Partage équitable des charges au prorata des salaires';
-  }
-
-  // Test environment badge visibility
-  const testBadge = document.getElementById('testEnvironmentBadge');
-  if (testBadge) {
-    testBadge.style.display = meta.showBadge ? '' : 'none';
-  }
-}
-
-/**
  * Initialize the application
  */
 async function initApp() {
-  log(`🚀 FairSplit ${VERSION} (${ENV})`);
-
-  // 0. Apply environment metadata (title, manifest, icons, badge)
-  applyEnvironment();
+  log(`🚀 FairSplit ${VERSION}`);
 
   try {
     // 1. Initialize Firebase

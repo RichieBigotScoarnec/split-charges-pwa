@@ -63,7 +63,7 @@ document.addEventListener('input', function (e) {
 // ===== 4. SERVICE WORKER =====
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw-test.js')
+    navigator.serviceWorker.register('./sw.js')
       .catch(function (err) {
         // Erreur non-bloquante : l'app fonctionne sans SW
         void err;

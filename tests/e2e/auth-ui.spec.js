@@ -42,16 +42,7 @@ test.describe('Page de connexion (pré-auth)', () => {
     await expect(mainApp).toBeHidden();
   });
 
-  test('affiche le badge TEST', async ({ page }) => {
-    // Le badge TEST est contrôlé par JS après init, attendons un peu
-    await page.waitForTimeout(2000);
-    const badge = page.locator('#testEnvironmentBadge');
-    // Le badge peut être visible ou non selon si le JS a pu s'exécuter
-    // Au minimum, l'élément existe
-    await expect(badge).toBeAttached();
-  });
-
-  test('le titre contient FairSplit TEST', async ({ page }) => {
+  test('le titre contient FairSplit', async ({ page }) => {
     await expect(page).toHaveTitle(/FairSplit/);
   });
 });

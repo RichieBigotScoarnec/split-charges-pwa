@@ -48,26 +48,6 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* ===== TEST ENVIRONMENT BADGE ===== */
-#testEnvironmentBadge {
-  position: sticky;
-  top: 0;
-  background: var(--warning-color);
-  color: #1E293B;
-  padding: 8px var(--space-md);
-  text-align: center;
-  font-weight: 600;
-  font-size: 13px;
-  z-index: 99999;
-  letter-spacing: 0.02em;
-  animation: pulse 3s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
-}
-
 /* ===== CONTAINER ===== */
 .container {
   max-width: 720px;
