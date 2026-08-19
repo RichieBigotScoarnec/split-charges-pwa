@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, multi-utilisateur (Owner/Partner).
 
-> **Version** : 3.1 | **Mise à jour** : 2026-03-22 | **Branche active** : develop
+> **Version** : 3.2 | **Mise à jour** : 2026-08-19 | **Branche unique** : main
 
 ## Stack
 
@@ -78,7 +78,8 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 
 ### Git
 - Commits français : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `chore:`
-- develop = branche active, main = prod
+- main = branche unique et déployée. Travailler sur des branches courtes `fix/…` `feat/…`, puis PR vers main.
+- Un seul projet Firebase (fairsplit-test). Pour développer isolé : `npm run emulators` puis `FairSplit.html?emulator=1`
 
 ## Commandes
 
