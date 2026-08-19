@@ -2,7 +2,8 @@
 // Fonctionnalités : calculateSummary, renderSummary
 
 import { getState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
 import { renderVariableCharges } from './variable-charges.js';
 import { renderFixedCharges } from './fixed-charges.js';
 import { renderReimbursements } from './reimbursements.js';
@@ -39,148 +40,36 @@ export function calculateSummary() {
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
   }
 
-  // Filtrer les éléments actifs (non supprimés)
+  // Calculs purs délégués à utils/calculations.js (couverts par tests unitaires)
+  const summary = computeSummary({
+    salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents
+  });
+
+  // Récap virements par destination (charges fixes actives uniquement)
   const activeFixed = fixedCharges.filter(c => !c.deleted);
-  const activeVariable = variableCharges.filter(c => !c.deleted);
-  const activeReimbs = reimbursements.filter(r => !r.deleted);
-
-  // Calculer le total des charges
-  const totalCharges = [...activeFixed, ...activeVariable].reduce((sum, c) => sum + c.amount, 0);
-
-  // Calculer les parts théoriques (ce que chacun DOIT payer)
-  let yourTheoricalShare = 0;
-  let partnerTheoricalShare = 0;
-
-  [...activeFixed, ...activeVariable].forEach(charge => {
-    const amount = charge.amount;
-
-    // Utiliser splitOverride par charge si défini, sinon mode global
-    const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
-
-    if (effectiveMode === '50-50') {
-      yourTheoricalShare += amount * 0.5;
-      partnerTheoricalShare += amount * 0.5;
-    } else if (effectiveMode === 'custom') {
-      const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined) ? charge.splitOverride : customPercents;
-      yourTheoricalShare += amount * (pcts.vous / 100);
-      partnerTheoricalShare += amount * (pcts.conjointe / 100);
-    } else { // prorata
-      yourTheoricalShare += amount * (salaries.vous / totalSalaries);
-      partnerTheoricalShare += amount * (salaries.conjointe / totalSalaries);
-    }
-  });
-
-  // Calculer les paiements réels (ce que chacun a PAYÉ)
-  let yourActualPayments = 0;
-  let partnerActualPayments = 0;
-
-  [...activeFixed, ...activeVariable].forEach(charge => {
-    if (charge.paidBy === 'vous') {
-      yourActualPayments += charge.amount;
-    } else if (charge.paidBy === 'conjointe') {
-      partnerActualPayments += charge.amount;
-    } else {
-      // Partagé (joint/partage) : répartir selon le mode effectif de cette charge
-      const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
-      let yourJointRatio = 0.5;
-
-      if (effectiveMode === '50-50') {
-        yourJointRatio = 0.5;
-      } else if (effectiveMode === 'custom') {
-        const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined) ? charge.splitOverride : customPercents;
-        yourJointRatio = pcts.vous / 100;
-      } else if (totalSalaries > 0) {
-        yourJointRatio = salaries.vous / totalSalaries;
-      }
-
-      yourActualPayments += yourJointRatio * charge.amount;
-      partnerActualPayments += (1 - yourJointRatio) * charge.amount;
-    }
-  });
-
-  // Calculer le solde AVANT remboursements
-  let balanceBeforeReimbs = yourActualPayments - yourTheoricalShare;
-
-  // Appliquer les remboursements
-  let reimbursementAdjustment = 0;
-  activeReimbs.forEach(reimb => {
-    if (reimb.direction === 'vous-to-conjointe') {
-      reimbursementAdjustment -= reimb.amount;
-    } else {
-      reimbursementAdjustment += reimb.amount;
-    }
-  });
-
-  const finalBalance = balanceBeforeReimbs + reimbursementAdjustment;
-
-  // Calculer le récap virements par destination
-  const virementsByDestination = calculateVirementsByDestination(activeFixed, {
+  const virementsByDestination = computeVirementsByDestination(activeFixed, {
     shareMode, salaries, totalSalaries, customPercents
   });
 
   // Afficher le résumé
   renderSummary({
-    totalCharges,
-    yourTheoricalShare,
-    partnerTheoricalShare,
-    yourActualPayments,
-    partnerActualPayments,
-    balanceBeforeReimbs,
-    reimbursementAdjustment,
-    finalBalance,
+    totalCharges: summary.total,
+    yourTheoricalShare: summary.yourShare,
+    partnerTheoricalShare: summary.partnerShare,
+    yourActualPayments: summary.yourActualPayments,
+    partnerActualPayments: summary.partnerActualPayments,
+    balanceBeforeReimbs: summary.balanceBeforeReimbs,
+    reimbursementAdjustment: summary.reimbursementAdjustment,
+    finalBalance: summary.balance,
     virementsByDestination
   });
 
   return {
-    total: totalCharges,
-    yourShare: yourTheoricalShare,
-    partnerShare: partnerTheoricalShare,
-    balance: finalBalance
+    total: summary.total,
+    yourShare: summary.yourShare,
+    partnerShare: summary.partnerShare,
+    balance: summary.balance
   };
-}
-
-/**
- * Calcule les montants à virer par destination
- * Groupé par destination, montant = part conjointe de chaque charge fixe
- * @param {Array} fixedCharges - Charges fixes actives
- * @param {Object} params - Paramètres de calcul (shareMode, salaries, etc.)
- * @returns {Array} Liste triée [{destination, charges: [{description, amount, partnerShare}], total}]
- */
-function calculateVirementsByDestination(fixedCharges, params) {
-  const { shareMode, salaries, totalSalaries, customPercents } = params;
-  const grouped = {};
-
-  fixedCharges.forEach(charge => {
-    const dest = charge.destination || '';
-    if (!dest) return; // Ignorer les charges sans destination
-
-    // Calculer la part conjointe pour cette charge (splitOverride prioritaire)
-    let partnerShare = 0;
-    const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
-
-    if (effectiveMode === '50-50') {
-      partnerShare = charge.amount * 0.5;
-    } else if (effectiveMode === 'custom') {
-      const pcts = (charge.splitOverride && charge.splitOverride.conjointe !== undefined) ? charge.splitOverride : customPercents;
-      partnerShare = charge.amount * (pcts.conjointe / 100);
-    } else {
-      partnerShare = totalSalaries > 0
-        ? charge.amount * (salaries.conjointe / totalSalaries)
-        : charge.amount * 0.5;
-    }
-
-    if (!grouped[dest]) {
-      grouped[dest] = { destination: dest, charges: [], total: 0 };
-    }
-    grouped[dest].charges.push({
-      description: charge.description,
-      amount: charge.amount,
-      partnerShare
-    });
-    grouped[dest].total += partnerShare;
-  });
-
-  return Object.values(grouped).sort((a, b) => b.total - a.total);
 }
 
 /**
@@ -291,13 +180,13 @@ function renderSummary(summary) {
       ${virementsByDestination.map(group => `
         <div class="virement-group">
           <div class="virement-destination">
-            <span class="virement-dest-name">${group.destination}</span>
+            <span class="virement-dest-name">${escapeHtml(group.destination)}</span>
             <strong class="virement-dest-total">${formatCurrency(group.total)}</strong>
           </div>
           <div class="virement-details">
             ${group.charges.map(c => `
               <div class="virement-detail-row">
-                <span>${c.description}</span>
+                <span>${escapeHtml(c.description)}</span>
                 <span>${formatCurrency(c.partnerShare)}</span>
               </div>
             `).join('')}
