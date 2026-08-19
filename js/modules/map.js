@@ -2,7 +2,7 @@
 // Fonctionnalités : visualisation géographique des dépenses avec Leaflet
 
 import { getState, setState } from '../state.js';
-import { formatCurrency, formatPaidBy } from '../utils/format.js';
+import { formatCurrency, formatPaidBy, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { log, warn, error as logError } from '../utils/debug.js';

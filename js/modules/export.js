@@ -5,7 +5,7 @@ import { getState } from '../state.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
-import { log, warn, error as logError } from '../utils/debug.js';
+import { log, error as logError } from '../utils/debug.js';
 
 /**
  * Initialise le module d'export

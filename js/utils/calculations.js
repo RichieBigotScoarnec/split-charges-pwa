@@ -155,7 +155,7 @@ export function computeVirementsByDestination(fixedCharges, params) {
     if (!dest) return;
 
     const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
-    let partnerShare = 0;
+    let partnerShare;
 
     if (effectiveMode === '50-50') {
       partnerShare = charge.amount * 0.5;

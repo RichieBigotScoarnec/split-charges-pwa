@@ -4,6 +4,7 @@
  */
 
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
+import { resolveSalaries, normalizeSalaries } from '../utils/salaries.js';
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { loadVariableCharges } from './variable-charges.js';
@@ -100,20 +101,21 @@ export async function loadPeriodData() {
   const currentPeriod = getState('currentPeriod');
 
   try {
-    // 1. Load salaries (global, not period-specific)
-    // Use dbGet from db.js which handles UID-scoped paths
+    // 1. Salaires : l'instantané de la période fait foi, à défaut les globaux
     const { dbGet } = await import('../db.js');
-    const salaries = await dbGet('salaries');
+    const [periodSalaries, globalSalaries] = await Promise.all([
+      dbGet(`periods/${currentPeriod}/salaries`),
+      dbGet('salaries')
+    ]);
 
-    if (salaries) {
-      setState('salaries', salaries);
+    const { salaries } = resolveSalaries(periodSalaries, globalSalaries);
+    setState('salaries', salaries);
 
-      // Update UI inputs
-      const vousInput = document.getElementById('salaireVous');
-      const conjointeInput = document.getElementById('salaireConjointe');
-      if (vousInput) vousInput.value = salaries.vous || 0;
-      if (conjointeInput) conjointeInput.value = salaries.conjointe || 0;
-    }
+    // Update UI inputs
+    const vousInput = document.getElementById('salaireVous');
+    const conjointeInput = document.getElementById('salaireConjointe');
+    if (vousInput) vousInput.value = salaries.vous;
+    if (conjointeInput) conjointeInput.value = salaries.conjointe;
 
     // 2. Load period-specific data using individual module loaders
     // This ensures proper object-to-array conversion from Firebase
@@ -207,7 +209,7 @@ export async function saveSalaries() {
     return;
   }
 
-  let salaries = {
+  const salaries = {
     vous: isNaN(rawVous) ? 0 : rawVous,
     conjointe: isNaN(rawConjointe) ? 0 : rawConjointe
   };
@@ -233,9 +235,19 @@ export async function saveSalaries() {
   }
 
   try {
-    // Use dbSet from db.js which handles UID-scoped paths
     const { dbSet } = await import('../db.js');
-    await dbSet('salaries', salaries);
+    const currentPeriod = getState('currentPeriod');
+
+    // L'instantané de la période consultée fait toujours foi pour son calcul.
+    await dbSet(`periods/${currentPeriod}/salaries`, salaries);
+
+    // Les salaires globaux ne suivent que si l'on édite le mois en cours :
+    // corriger un mois archivé ne doit pas redéfinir la valeur par défaut des
+    // mois suivants.
+    if (currentPeriod === getCurrentPeriod()) {
+      await dbSet('salaries', salaries);
+    }
+
     setState('salaries', salaries);
 
     if (indicator) {
@@ -252,6 +264,49 @@ export async function saveSalaries() {
     logError('❌ Erreur sauvegarde salaires:', error);
     if (indicator) indicator.className = 'save-indicator';
     toast.error('Erreur : impossible de sauvegarder les salaires');
+  }
+}
+
+/**
+ * Dote d'un instantané de salaires les périodes qui n'en ont pas
+ *
+ * Les périodes créées avant l'introduction des instantanés se calculaient avec
+ * les salaires globaux courants. Les figer sur cette même valeur ne change
+ * donc aucun montant affiché : on gèle l'existant, et l'historique devient
+ * exact à partir de maintenant.
+ *
+ * Idempotente : n'écrit que là où l'instantané manque, donc sans effet dès la
+ * deuxième exécution.
+ *
+ * @returns {Promise<number>} Nombre de périodes complétées
+ */
+export async function backfillPeriodSalaries() {
+  try {
+    const { dbGet, dbSet } = await import('../db.js');
+
+    const globalSalaries = normalizeSalaries(await dbGet('salaries'));
+    if (!globalSalaries) {
+      log('💤 Backfill salaires ignoré : aucun salaire global défini');
+      return 0;
+    }
+
+    const periods = await dbGet('periods');
+    if (!periods || typeof periods !== 'object') return 0;
+
+    const missing = Object.keys(periods).filter(p => !periods[p]?.salaries);
+    if (missing.length === 0) return 0;
+
+    for (const period of missing) {
+      await dbSet(`periods/${period}/salaries`, globalSalaries);
+    }
+
+    log(`🧬 Instantané de salaires ajouté à ${missing.length} période(s) : ${missing.join(', ')}`);
+    return missing.length;
+  } catch (error) {
+    // Non bloquant : sans instantané, la période retombe sur les salaires
+    // globaux, soit exactement le comportement précédent.
+    warn('⚠️ Backfill des salaires par période impossible :', error);
+    return 0;
   }
 }
 

@@ -4,7 +4,6 @@
 import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { saveReminders, loadReminders } from '../db.js';
-import { formatDate } from '../utils/date.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 
 let _hourlyIntervalId = null;

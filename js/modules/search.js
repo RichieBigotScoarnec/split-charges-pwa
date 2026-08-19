@@ -2,9 +2,8 @@
 // Fonctionnalités : recherche dans les charges avec debounce et highlighting
 
 import { getState } from '../state.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
-import { formatDate } from '../utils/date.js';
-import { log, warn } from '../utils/debug.js';
+import { escapeHtml } from '../utils/format.js';
+import { log } from '../utils/debug.js';
 
 let searchTimeout = null;
 

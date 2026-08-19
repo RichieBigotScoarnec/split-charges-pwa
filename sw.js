@@ -2,13 +2,18 @@
 // Stratégie : cache-first pour assets statiques, network-first pour Firebase
 
 // Auto-version based on asset list hash — bump this date on each deploy
-const CACHE_VERSION = '2026-03-22';
+const CACHE_VERSION = '2026-08-19';
 const CACHE_NAME = `fairsplit-${CACHE_VERSION}`;
 
 // Fichiers à mettre en cache pour le mode offline
 const STATIC_ASSETS = [
   './FairSplit.html',
   './manifest.json',
+  // Icônes (absentes du cache jusqu'ici : PWA sans icône hors ligne)
+  './icon-192.png',
+  './icon-512.png',
+  './icon-192-maskable.png',
+  './icon-512-maskable.png',
   // CSS
   './css/variables.css',
   './css/base.css',
