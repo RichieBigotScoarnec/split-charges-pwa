@@ -6,7 +6,6 @@
 import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
-import { getUserPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 
 /**

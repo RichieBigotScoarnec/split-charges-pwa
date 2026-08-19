@@ -3,7 +3,7 @@
 
 import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { saveReminders } from '../db.js';
+import { saveReminders, loadReminders } from '../db.js';
 import { formatDate } from '../utils/date.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 
@@ -18,8 +18,41 @@ export function initNotifications() {
 
   setupNotificationPermissions();
   scheduleNotificationChecks();
+  restoreReminderSettings();
 
   log('✅ Module notifications initialisé');
+}
+
+/**
+ * Restaure les réglages de rappels depuis Firebase vers le DOM
+ *
+ * Sans cet appel, saveReminderSettings() écrivait dans Firebase sans que
+ * rien ne relise jamais : les cases revenaient à leurs valeurs par défaut
+ * du HTML à chaque rechargement.
+ */
+async function restoreReminderSettings() {
+  try {
+    const settings = await loadReminders();
+
+    const finMoisEl = document.getElementById('reminderFinMois');
+    const budgetEl = document.getElementById('reminderBudget');
+    const budgetAmountEl = document.getElementById('budgetAmount');
+    const reimbursementEl = document.getElementById('reminderReimbursement');
+
+    if (finMoisEl) finMoisEl.checked = !!settings.finMois;
+    if (budgetEl) budgetEl.checked = !!settings.budget;
+    if (reimbursementEl) reimbursementEl.checked = !!settings.reimbursement;
+    if (budgetAmountEl && settings.budgetAmount) {
+      budgetAmountEl.value = settings.budgetAmount;
+    }
+
+    // Réaligner la visibilité du champ budget sur l'état restauré
+    toggleBudgetInput();
+
+    log('🔔 Réglages de rappels restaurés');
+  } catch (error) {
+    warn('⚠️ Impossible de restaurer les réglages de rappels :', error);
+  }
 }
 
 /**

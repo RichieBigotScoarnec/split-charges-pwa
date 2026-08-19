@@ -346,14 +346,12 @@
       btn.textContent = '⏳ Liaison en cours...';
 
       try {
-        // Bidirectional link
-        const updates = {};
-        updates[`partners/${currentUser.uid}`] = partnerUid;
-        updates[`partners/${partnerUid}`] = currentUser.uid;
+        // Chacun ne déclare que SON propre pointeur : le partage n'est effectif
+        // qu'une fois que les deux se sont mutuellement déclarés (consentement
+        // mutuel appliqué par database.rules.json).
+        await database.ref(`partners/${currentUser.uid}`).set(partnerUid);
 
-        await database.ref().update(updates);
-
-        showStatus('✅ Partenaire lié avec succès ! Rechargement...', 'success');
+        showStatus('✅ Votre côté est configuré. Votre partenaire doit faire de même avec VOTRE UID pour activer le partage. Rechargement...', 'success');
 
         // Reload page after 2 seconds
         setTimeout(() => {
@@ -375,13 +373,9 @@
       }
 
       try {
-        const updates = {};
-        updates[`partners/${currentUser.uid}`] = null;
-        if (currentPartnerUid) {
-          updates[`partners/${currentPartnerUid}`] = null;
-        }
-
-        await database.ref().update(updates);
+        // Retirer uniquement son propre pointeur : cela suffit à rompre le lien,
+        // le consentement mutuel n'étant plus satisfait des deux côtés.
+        await database.ref(`partners/${currentUser.uid}`).remove();
 
         showStatus('✅ Partenaire délié. Rechargement...', 'success');
 

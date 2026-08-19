@@ -5,8 +5,7 @@
  */
 
 import { DB_PATHS } from './config.js';
-import { getState } from './state.js';
-import { log, warn, error as logError } from './utils/debug.js';
+import { log, warn } from './utils/debug.js';
 
 // Firebase database reference (set after initialization)
 let database = null;
@@ -23,14 +22,6 @@ let ownerUserId = null;
  */
 export function initDatabase(db) {
   database = db;
-}
-
-/**
- * Get database reference
- * @returns {Object} Firebase database
- */
-export function getDatabase() {
-  return database;
 }
 
 /**
@@ -84,14 +75,6 @@ async function loadPartnerConfig() {
 }
 
 /**
- * Get current user ID
- * @returns {string|null} Current user ID
- */
-export function getCurrentUserId() {
-  return currentUserId;
-}
-
-/**
  * Build user-scoped path
  * Uses ownerUserId (may be Partner's owner or current user if Owner)
  * @param {string} path - Base path (e.g., 'salaries', 'periods/2026-01')
@@ -115,111 +98,6 @@ export function getUserPath(path) {
   return rest.length > 0
     ? `${firstSegment}/${effectiveUid}/${rest.join('/')}`
     : `${firstSegment}/${effectiveUid}`;
-}
-
-// ===== PARTNER MANAGEMENT =====
-
-/**
- * Link a partner to the current user (bidirectional)
- * Owner links Partner, Partner links Owner
- * @param {string} partnerUid - UID of the partner to link
- * @returns {Promise<void>}
- */
-export async function linkPartner(partnerUid) {
-  if (!database || !currentUserId) {
-    throw new Error('User not authenticated');
-  }
-
-  if (partnerUid === currentUserId) {
-    throw new Error('Cannot link yourself as partner');
-  }
-
-  try {
-    // Bidirectional link: current user → partner, partner → current user
-    const updates = {};
-    updates[`partners/${currentUserId}`] = partnerUid;
-    updates[`partners/${partnerUid}`] = currentUserId;
-
-    await database.ref().update(updates);
-
-    // Reload partner config to apply changes
-    await loadPartnerConfig();
-
-    log('[DB] Partner linked:', partnerUid.substring(0, 8) + '...');
-  } catch (error) {
-    logError('[DB] Failed to link partner:', error);
-    throw error;
-  }
-}
-
-/**
- * Unlink the current partner
- * @returns {Promise<void>}
- */
-export async function unlinkPartner() {
-  if (!database || !currentUserId) {
-    throw new Error('User not authenticated');
-  }
-
-  try {
-    // Get current partner UID
-    const partnerSnapshot = await database.ref(`partners/${currentUserId}`).once('value');
-    const partnerUid = partnerSnapshot.val();
-
-    if (!partnerUid) {
-      log('[DB] No partner to unlink');
-      return;
-    }
-
-    // Remove bidirectional link
-    const updates = {};
-    updates[`partners/${currentUserId}`] = null;
-    updates[`partners/${partnerUid}`] = null;
-
-    await database.ref().update(updates);
-
-    // Reload partner config
-    ownerUserId = currentUserId; // Reset to self
-
-    log('[DB] Partner unlinked');
-  } catch (error) {
-    logError('[DB] Failed to unlink partner:', error);
-    throw error;
-  }
-}
-
-/**
- * Get the UID of the linked partner (if any)
- * @returns {Promise<string|null>} Partner UID or null
- */
-export async function getPartnerUid() {
-  if (!database || !currentUserId) {
-    return null;
-  }
-
-  try {
-    const snapshot = await database.ref(`partners/${currentUserId}`).once('value');
-    return snapshot.val();
-  } catch (error) {
-    warn('[DB] Could not get partner UID:', error);
-    return null;
-  }
-}
-
-/**
- * Check if current user is a Partner (accessing Owner's data)
- * @returns {boolean} True if user is Partner
- */
-export function isPartner() {
-  return ownerUserId !== null && ownerUserId !== currentUserId;
-}
-
-/**
- * Get the effective owner UID (current user or partner's owner)
- * @returns {string|null} Owner UID
- */
-export function getOwnerUid() {
-  return ownerUserId || currentUserId;
 }
 
 // ===== GENERIC OPERATIONS =====
@@ -309,128 +187,6 @@ export function dbListen(path, callback) {
   return () => ref.off('value', handler);
 }
 
-// ===== SALARIES =====
-
-/**
- * Load salaries
- * @returns {Promise<{vous: number, conjointe: number}>}
- */
-export async function loadSalaries() {
-  const data = await dbGet(getUserPath(DB_PATHS.SALARIES));
-  return data || { vous: 0, conjointe: 0 };
-}
-
-/**
- * Save salaries
- * @param {{vous: number, conjointe: number}} salaries
- * @returns {Promise<void>}
- */
-export async function saveSalaries(salaries) {
-  await dbSet(getUserPath(DB_PATHS.SALARIES), salaries);
-}
-
-/**
- * Listen to salary changes
- * @param {Function} callback
- * @returns {Function} Unsubscribe
- */
-export function listenSalaries(callback) {
-  return dbListen(getUserPath(DB_PATHS.SALARIES), callback);
-}
-
-// ===== PERIOD DATA =====
-
-/**
- * Get period path
- * @param {string} period - Period string (YYYY-MM)
- * @returns {string} Database path
- */
-function getPeriodPath(period) {
-  return getUserPath(`${DB_PATHS.PERIODS}/${period}`);
-}
-
-/**
- * Load period data
- * @param {string} period - Period string (YYYY-MM)
- * @returns {Promise<Object>}
- */
-export async function loadPeriodData(period) {
-  const data = await dbGet(getPeriodPath(period));
-  return data || {
-    fixedCharges: [],
-    variableCharges: [],
-    reimbursements: [],
-    summary: null
-  };
-}
-
-/**
- * Save period data
- * @param {string} period - Period string
- * @param {Object} data - Period data
- * @returns {Promise<void>}
- */
-export async function savePeriodData(period, data) {
-  await dbSet(getPeriodPath(period), data);
-}
-
-/**
- * Save fixed charges for period
- * @param {string} period
- * @param {Array} charges
- */
-export async function saveFixedCharges(period, charges) {
-  await dbSet(`${getPeriodPath(period)}/fixedCharges`, charges);
-}
-
-/**
- * Save variable charges for period
- * @param {string} period
- * @param {Array} charges
- */
-export async function saveVariableCharges(period, charges) {
-  await dbSet(`${getPeriodPath(period)}/variableCharges`, charges);
-}
-
-/**
- * Save reimbursements for period
- * @param {string} period
- * @param {Array} reimbursements
- */
-export async function saveReimbursements(period, reimbursements) {
-  await dbSet(`${getPeriodPath(period)}/reimbursements`, reimbursements);
-}
-
-/**
- * Listen to period data changes
- * @param {string} period
- * @param {Function} callback
- * @returns {Function} Unsubscribe
- */
-export function listenPeriodData(period, callback) {
-  return dbListen(getPeriodPath(period), callback);
-}
-
-// ===== SHARE MODE =====
-
-/**
- * Load share mode settings
- * @returns {Promise<{mode: string, customPercents: Object}>}
- */
-export async function loadShareMode() {
-  const data = await dbGet(getUserPath(DB_PATHS.SHARE_MODE));
-  return data || { mode: 'prorata', customPercents: { vous: 50, conjointe: 50 } };
-}
-
-/**
- * Save share mode settings
- * @param {string} mode
- * @param {Object} customPercents
- */
-export async function saveShareMode(mode, customPercents) {
-  await dbSet(getUserPath(DB_PATHS.SHARE_MODE), { mode, customPercents });
-}
-
 // ===== REMINDERS =====
 
 /**
@@ -438,7 +194,9 @@ export async function saveShareMode(mode, customPercents) {
  * @returns {Promise<Object>}
  */
 export async function loadReminders() {
-  const data = await dbGet(getUserPath(DB_PATHS.REMINDERS));
+  // dbGet applique déjà getUserPath() — ne pas le pré-appliquer ici,
+  // le chemin deviendrait reminders/{uid}/{uid}.
+  const data = await dbGet(DB_PATHS.REMINDERS);
   return data || {
     finMois: false,
     budget: false,
@@ -452,5 +210,6 @@ export async function loadReminders() {
  * @param {Object} settings
  */
 export async function saveReminders(settings) {
-  await dbSet(getUserPath(DB_PATHS.REMINDERS), settings);
+  // dbSet applique déjà getUserPath() — cf. loadReminders().
+  await dbSet(DB_PATHS.REMINDERS, settings);
 }

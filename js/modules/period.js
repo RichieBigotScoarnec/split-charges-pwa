@@ -10,7 +10,6 @@ import { loadVariableCharges } from './variable-charges.js';
 import { loadFixedCharges } from './fixed-charges.js';
 import { loadReimbursements } from './reimbursements.js';
 import { calculateSummary } from './summary.js';
-import { getUserPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 
 /**
