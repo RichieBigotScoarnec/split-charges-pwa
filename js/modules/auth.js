@@ -7,7 +7,7 @@ import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState, getState, resetState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { ALLOWED_EMAILS } from '../config.js';
-import { initPeriod, loadPeriodData } from './period.js';
+import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
@@ -237,6 +237,9 @@ async function initializeAppData() {
 
   // Étape 3c : Period management
   initPeriod();
+  // Fige les salaires des périodes antérieures aux instantanés, avant tout
+  // calcul : sinon le premier bilan affiché serait encore rétro-actif.
+  await backfillPeriodSalaries();
   await loadPeriodData();
 
   // Étape 3d : Share mode management
