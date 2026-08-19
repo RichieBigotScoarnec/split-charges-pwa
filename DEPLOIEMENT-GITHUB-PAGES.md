@@ -191,11 +191,17 @@ git push
 
 ### Firebase :
 
-Vos données Firebase sont protégées par :
-1. Les **règles Firebase** (`".read": true, ".write": true` pour v2.0.0)
-2. L'**authentification anonyme** (quand vous passerez en v2.1.0)
+Vos données Firebase sont protégées par [`database.rules.json`](database.rules.json) :
 
-Même si le code est public, personne ne peut accéder à **vos données spécifiques** sans l'URL Firebase exacte.
+1. **Authentification obligatoire** — `auth != null` sur chaque nœud
+2. **Whitelist d'emails côté serveur** — seuls les comptes autorisés passent
+3. **Scoping par UID** — chaque utilisateur n'atteint que ses propres données
+
+> ⚠️ La sécurité ne repose **pas** sur la confidentialité de l'URL Firebase :
+> celle-ci est publique par nature, présente en clair dans le JavaScript livré.
+> Seules les règles côté serveur protègent les données. C'est aussi pour cette
+> raison que la clé API Firebase visible dans le code n'est pas un secret —
+> c'est un identifiant de projet, pas une autorisation.
 
 ---
 

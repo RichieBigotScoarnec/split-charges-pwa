@@ -132,27 +132,18 @@ git add . && git commit -m "feat: description" && git push
 
 ## ⚠️ Règles de Sécurité
 
-### 🔧 TEST - Ouvert (développement)
+La **source de vérité unique** est [`database.rules.json`](database.rules.json), versionné
+dans le dépôt et déployé via `npm run deploy:rules`.
 
-```json
-{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}
-```
+Ne jamais éditer les règles à la main dans la console Firebase : la console serait
+écrasée au prochain déploiement, et l'écart ne serait visible nulle part.
 
-### ✅ PROD - Sécurisé (après ajout authentification)
+Les règles en vigueur scopent chaque nœud par UID, exigent `auth != null` et
+restreignent l'accès à une whitelist d'emails côté serveur.
 
-```json
-{
-  "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
-  }
-}
-```
+> 🚫 **Jamais `".read": true` ni `".write": true`** sur des données utilisateur,
+> y compris « temporairement » ou en environnement de développement.
+> Pour du développement sans contrainte, utiliser l'émulateur : `npm run emulators`.
 
 ---
 

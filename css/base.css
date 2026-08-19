@@ -1,0 +1,103 @@
+/* ===== ACCESSIBILITY ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  z-index: 10000;
+  padding: 12px 24px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ===== RESET & BASE ===== */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--dark-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md);
+  padding-bottom: 100px;
+}
+
+/* ===== HEADER ===== */
+header {
+  text-align: center;
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--primary-light), var(--secondary-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

@@ -1,0 +1,272 @@
+// ===== MODULE : GESTION DU BILAN/SUMMARY =====
+// Fonctionnalités : calculateSummary, renderSummary
+
+import { getState } from '../state.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
+import { renderVariableCharges } from './variable-charges.js';
+import { renderFixedCharges } from './fixed-charges.js';
+import { renderReimbursements } from './reimbursements.js';
+import { log, warn } from '../utils/debug.js';
+
+/**
+ * Initialise le module summary
+ */
+export function initSummary() {
+  log('📦 Initialisation module summary/bilan');
+  log('✅ Module summary/bilan initialisé');
+}
+
+/**
+ * Calcule le bilan financier complet
+ * @returns {Object} Résumé du bilan
+ */
+export function calculateSummary() {
+  const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
+  const fixedCharges = getState('fixedCharges') || [];
+  const variableCharges = getState('variableCharges') || [];
+  const reimbursements = getState('reimbursements') || [];
+  const shareMode = getState('shareMode') || 'prorata';
+  const customPercents = getState('customPercents') || { vous: 50, conjointe: 50 };
+
+  const totalSalaries = salaries.vous + salaries.conjointe;
+
+  // Si pas de salaires, impossible de calculer
+  if (totalSalaries === 0) {
+    const summaryElement = document.getElementById('summarySection');
+    if (summaryElement) {
+      summaryElement.innerHTML = '<p class="empty-state">Veuillez renseigner les salaires pour calculer le bilan</p>';
+    }
+    return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
+  }
+
+  // Calculs purs délégués à utils/calculations.js (couverts par tests unitaires)
+  const summary = computeSummary({
+    salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents
+  });
+
+  // Récap virements par destination (charges fixes actives uniquement)
+  const activeFixed = fixedCharges.filter(c => !c.deleted);
+  const virementsByDestination = computeVirementsByDestination(activeFixed, {
+    shareMode, salaries, totalSalaries, customPercents
+  });
+
+  // Afficher le résumé
+  renderSummary({
+    totalCharges: summary.total,
+    yourTheoricalShare: summary.yourShare,
+    partnerTheoricalShare: summary.partnerShare,
+    yourActualPayments: summary.yourActualPayments,
+    partnerActualPayments: summary.partnerActualPayments,
+    balanceBeforeReimbs: summary.balanceBeforeReimbs,
+    reimbursementAdjustment: summary.reimbursementAdjustment,
+    finalBalance: summary.balance,
+    virementsByDestination
+  });
+
+  return {
+    total: summary.total,
+    yourShare: summary.yourShare,
+    partnerShare: summary.partnerShare,
+    balance: summary.balance
+  };
+}
+
+/**
+ * Affiche le bilan dans le DOM
+ * @param {Object} summary - Résumé calculé
+ */
+function renderSummary(summary) {
+  const summaryElement = document.getElementById('summarySection');
+  if (!summaryElement) {
+    warn('⚠️ Element #summarySection introuvable');
+    return;
+  }
+
+  const {
+    totalCharges,
+    yourTheoricalShare,
+    partnerTheoricalShare,
+    yourActualPayments,
+    partnerActualPayments,
+    balanceBeforeReimbs,
+    reimbursementAdjustment,
+    finalBalance,
+    virementsByDestination
+  } = summary;
+
+  // Calculer les pourcentages de répartition
+  const yourPercent = totalCharges > 0 ? Math.round((yourTheoricalShare / totalCharges) * 100) : 50;
+  const partnerPercent = totalCharges > 0 ? 100 - yourPercent : 50;
+
+  // Déterminer qui doit à qui
+  let balanceText = '';
+  let balanceClass = '';
+
+  if (finalBalance > 0) {
+    balanceText = `Conjointe vous doit <strong>${formatCurrency(Math.abs(finalBalance))}</strong>`;
+    balanceClass = 'balance-positive';
+  } else if (finalBalance < 0) {
+    balanceText = `Vous devez <strong>${formatCurrency(Math.abs(finalBalance))}</strong> à Conjointe`;
+    balanceClass = 'balance-negative';
+  } else {
+    balanceText = `<strong>Comptes équilibrés</strong> — rien à se rembourser`;
+    balanceClass = 'balance-zero';
+  }
+
+  // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
+  let balanceExplanation = '';
+  if (finalBalance !== 0) {
+    const overpayer = finalBalance > 0 ? 'Vous' : 'Conjointe';
+    balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
+  }
+
+  summaryElement.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-balance ${balanceClass}">
+        ${balanceText}
+        ${balanceExplanation}
+      </div>
+
+      <details class="summary-details">
+        <summary>Voir le détail</summary>
+
+        <div class="summary-row summary-total-row">
+          <span>Total des charges</span>
+          <strong>${formatCurrency(totalCharges)}</strong>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <div class="summary-section-label">Répartition à payer</div>
+        <div class="summary-row">
+          <span>Vous <span class="summary-percent">${yourPercent}%</span></span>
+          <strong>${formatCurrency(yourTheoricalShare)}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Conjointe <span class="summary-percent">${partnerPercent}%</span></span>
+          <strong>${formatCurrency(partnerTheoricalShare)}</strong>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <div class="summary-section-label">Paiements réels</div>
+        <div class="summary-row">
+          <span>Vous avez payé</span>
+          <strong>${formatCurrency(yourActualPayments)}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Conjointe a payé</span>
+          <strong>${formatCurrency(partnerActualPayments)}</strong>
+        </div>
+
+        ${reimbursementAdjustment !== 0 ? `
+          <div class="summary-divider"></div>
+          <div class="summary-row">
+            <span>Remboursements effectués</span>
+            <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${reimbursementAdjustment > 0 ? '+' : ''}${formatCurrency(reimbursementAdjustment)}</strong>
+          </div>
+        ` : ''}
+      </details>
+    </div>
+
+    ${renderBudgetGauge(totalCharges)}
+
+    ${virementsByDestination && virementsByDestination.length > 0 ? `
+    <div class="summary-card virements-recap">
+      <h3>🏦 Récap Virements Conjointe</h3>
+      <p class="virements-subtitle">Montants à virer par destination</p>
+
+      ${virementsByDestination.map(group => `
+        <div class="virement-group">
+          <div class="virement-destination">
+            <span class="virement-dest-name">${escapeHtml(group.destination)}</span>
+            <strong class="virement-dest-total">${formatCurrency(group.total)}</strong>
+          </div>
+          <div class="virement-details">
+            ${group.charges.map(c => `
+              <div class="virement-detail-row">
+                <span>${escapeHtml(c.description)}</span>
+                <span>${formatCurrency(c.partnerShare)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+
+      <div class="summary-divider"></div>
+      <div class="summary-row virement-grand-total">
+        <span>Total virements :</span>
+        <strong>${formatCurrency(virementsByDestination.reduce((sum, g) => sum + g.total, 0))}</strong>
+      </div>
+    </div>
+    ` : ''}
+  `;
+}
+
+/**
+ * Génère le HTML de la jauge budget si le budget est activé
+ * @param {number} totalCharges - Total des charges du mois
+ * @returns {string} HTML de la jauge ou chaîne vide
+ */
+function renderBudgetGauge(totalCharges) {
+  const budgetToggle = document.getElementById('reminderBudget');
+  const budgetInput = document.getElementById('budgetAmount');
+
+  if (!budgetToggle || !budgetToggle.checked || !budgetInput) return '';
+
+  const budgetLimit = parseFloat(budgetInput.value) || 0;
+  if (budgetLimit <= 0) return '';
+
+  const percentage = Math.min((totalCharges / budgetLimit) * 100, 100);
+  const remaining = budgetLimit - totalCharges;
+
+  let statusClass = 'budget-ok';
+  let statusIcon = '✅';
+  let statusText = `Reste ${formatCurrency(remaining)}`;
+
+  if (percentage >= 100) {
+    statusClass = 'budget-over';
+    statusIcon = '🚨';
+    statusText = `Dépassé de ${formatCurrency(Math.abs(remaining))}`;
+  } else if (percentage >= 80) {
+    statusClass = 'budget-warning';
+    statusIcon = '⚠️';
+    statusText = `Reste ${formatCurrency(remaining)}`;
+  }
+
+  return `
+    <div class="summary-card budget-gauge ${statusClass}">
+      <h3>${statusIcon} Budget mensuel</h3>
+      <div class="budget-progress-container">
+        <div class="budget-progress-bar">
+          <div class="budget-progress-fill ${statusClass}" style="width: ${percentage}%"></div>
+        </div>
+        <div class="budget-progress-labels">
+          <span>${formatCurrency(totalCharges)}</span>
+          <span>${formatCurrency(budgetLimit)}</span>
+        </div>
+      </div>
+      <div class="budget-status">
+        <span class="budget-percentage">${Math.round(percentage)}%</span>
+        <span class="budget-remaining">${statusText}</span>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Rafraîchit tous les affichages (après modification de données)
+ */
+export function renderAll() {
+  log('🔄 Rafraîchissement de tous les affichages...');
+
+  renderVariableCharges();
+  renderFixedCharges();
+  renderReimbursements();
+  calculateSummary();
+
+  log('✅ Tous les affichages rafraîchis');
+}
+
+// Note : La reconduction de période est gérée par le module reconduction.js

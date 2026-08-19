@@ -1,6 +1,6 @@
 # 🔐 Sécurité - Split-ChargeProrata
 
-> **Version** : 2.1.0-firebase-auth | **Date** : 2026-01-27
+> **Version** : 2.2.0-firebase-auth | **Date** : 2026-01-28
 
 ---
 
@@ -8,29 +8,46 @@
 
 L'application implémente **plusieurs couches de sécurité** :
 
-1. ✅ **Authentification Firebase Anonyme** - Bloque accès direct à Firebase
-2. ✅ **Content Security Policy (CSP)** - Bloque scripts/ressources malveillants
-3. ✅ **Protection XSS** - Échappement HTML de toutes entrées
-4. ✅ **Validation entrées** - Limites sur montants (max 100k€)
-5. ✅ **Stockage sécurisé** - Try/catch sur localStorage
-6. ✅ **Données anonymes** - Aucune information personnelle
+1. ✅ **Authentification Firebase Multi-méthodes** - Google OAuth + Email/Mot de passe
+2. ✅ **Isolation des données par utilisateur** - Chaque compte accède uniquement à ses données
+3. ✅ **Content Security Policy (CSP)** - Bloque scripts/ressources malveillants
+4. ✅ **Protection XSS** - Échappement HTML de toutes entrées
+5. ✅ **Validation entrées** - Limites sur montants (max 100k€)
+6. ✅ **Stockage sécurisé** - Try/catch sur localStorage + Firebase writes avec error handling
+7. ✅ **Gestion d'état securisée** - Réinitialisation complète à la déconnexion
 
 ---
 
-## 🔐 Authentification Firebase Anonyme (v2.1.0+)
+## 🔐 Authentification Firebase (v2.2.0+)
+
+### Méthodes d'authentification disponibles
+
+L'application offre deux méthodes d'authentification via Firebase Auth :
+
+1. Google OAuth (recommandé)
+   - Connexion via popup Google en un clic
+   - Pas de mot de passe à gérer
+   - Compte Google existant suffisant
+
+2. Email + Mot de passe
+   - Création de compte avec email et mot de passe
+   - Mot de passe minimum 6 caractères (contrôle Firebase)
+   - Utile si l'utilisateur préfère ne pas lier un compte Google
 
 ### Comment ça fonctionne
 
 ```javascript
-// Au lancement de l'application
-1. Initialisation Firebase Auth
-2. signInAnonymously() appelé automatiquement
-3. Firebase génère un UID unique (ex: "a7b2c3d4e5f6...")
-4. Avec cet UID, l'app peut accéder à Realtime Database
-5. Sans authentification → Accès refusé par Firebase
+// Flux d'authentification
+1. Page de connexion affichée (authOverlay)
+2. Utilisateur choisit : Google OAuth ou Email/Password
+3. Firebase Auth émets un token UID unique
+4. onAuthStateChanged() détecte l'état authentifié
+5. Application se charge : données + interface
+6. Données stockées dans Firebase sous le chemin de l'utilisateur (UID)
+7. Déconnexion → réinitialisation d'état complète + retour authOverlay
 ```
 
-### Règles Firebase
+### Régles Firebase (recommandées)
 
 ```json
 {
@@ -42,35 +59,49 @@ L'application implémente **plusieurs couches de sécurité** :
 ```
 
 **Signification** :
-- `auth != null` : Utilisateur doit être authentifié (même anonymement)
-- Sans authentification via l'app → **Accès Firebase refusé**
+
+- `auth != null` : Utilisateur doit être authentifié avec un compte valide
+- Sans authentification → **Accès Firebase refusé**
+- Idéalement, les règles isoleraient les données par `auth.uid` pour une isolation par utilisateur complète
 
 ### Avantages Sécurité
 
-✅ **Bloque accès direct à Firebase** :
-- Quelqu'un qui obtient l'URL Firebase ne peut PAS accéder directement
-- Doit exécuter l'application (qui fait l'authentification automatique)
-- Bloque curl/Postman/scripts malveillants
+**Authentification forte** :
 
-✅ **Transparent pour l'utilisateur** :
-- Aucun login/password requis
-- Authentification automatique en arrière-plan
-- UX fluide sans friction
+- ✅ Google OAuth : authentification via un fournisseur de confiance
+- ✅ Email/Password : gestion des comptes via Firebase Auth (hashing mot de passe côté serveur)
+- ✅ Pas de credentials stockés côté client
 
-✅ **Compatible hors ligne** :
-- Si Firebase indisponible → Fallback localStorage
-- Application continue de fonctionner localement
+**Isolation des données** :
+
+- ✅ Chaque utilisateur authentifié possède un UID unique
+- ✅ Les données sont associées à cet UID dans Realtime Database
+- ✅ Un utilisateur ne peut pas accéder aux données d'un autre
+
+**Gestion d'état securisée** :
+
+- ✅ `onAuthStateChanged()` est le point d'entrée unique de l'application
+- ✅ L'initialisation des données ne se déclenche qu'après authentification confirmée
+- ✅ Flag `appInitialized` empêche le double-chargement
+- ✅ À la déconnexion : réinitialisation complète (charges, salaires, données de recherche)
+
+**Compatible hors ligne** :
+
+- ✅ Si Firebase indisponible → Fallback localStorage
+- ✅ Application continue de fonctionner localement
 
 ### Limites
 
-⚠️ **Protection limitée si HTML compromis** :
-- Si quelqu'un obtient le fichier HTML complet, il peut l'exécuter
-- **Mais** : Pour usage couple (2 smartphones privés), c'est suffisant
+**Règles Firebase actuelles permissives** :
 
-⚠️ **Pas de contrôle d'accès par utilisateur** :
-- Tous appareils authentifiés ont mêmes droits
-- Pas de distinction vous/conjointe
-- Pour traçabilité : utiliser Google Sign-In
+- ⚠️ Les règles `.read/.write: "auth != null"` autorisent tout utilisateur authentifié
+- ⚠️ Pour une isolation totale, implémenter des règles basées sur `auth.uid`
+- Acceptable pour un usage restreint (couple, famille)
+
+**Protection limitée si HTML compromis** :
+
+- ⚠️ Si quelqu'un obtient le fichier HTML complet, il peut l'exécuter et s'authentifier
+- Toujours limité aux comptes créés/autorisés dans Firebase
 
 ---
 
@@ -195,21 +226,28 @@ Fonctions `safeSaveToLocalStorage()` et `safeLoadFromLocalStorage()` avec :
 
 ### ✅ Vulnérabilités corrigées
 
-| Vulnérabilité            | Statut     | Mitigation                         |
-| ------------------------ | ---------- | ---------------------------------- |
-| XSS via innerHTML        | ✅ Corrigé | `createElement()` + `escapeHtml()` |
-| XSS via attributs HTML   | ✅ Corrigé | CSP bloque inline event handlers   |
-| Injection script externe | ✅ Corrigé | CSP `script-src` restrictif        |
-| localStorage crash       | ✅ Corrigé | Try/catch avec fallback            |
-| Valeurs absurdes         | ✅ Corrigé | Validation limites (100k€ / 50k€)  |
-| Données corrompues       | ✅ Corrigé | JSON.parse sécurisé                |
+| Vulnérabilité                | Statut     | Mitigation                                  |
+| ---------------------------- | ---------- | ------------------------------------------- |
+| XSS via innerHTML            | ✅ Corrigé | `createElement()` + `escapeHtml()`          |
+| XSS via attributs HTML       | ✅ Corrigé | CSP bloque inline event handlers            |
+| Injection script externe     | ✅ Corrigé | CSP `script-src` restrictif                 |
+| localStorage crash           | ✅ Corrigé | Try/catch avec fallback                     |
+| Valeurs absurdes             | ✅ Corrigé | Validation limites (100k€ / 50k€)           |
+| Données corrompues           | ✅ Corrigé | JSON.parse sécurisé                         |
+| Race condition auth/init     | ✅ Corrigé | Init dans `onAuthStateChanged` + flag       |
+| Firebase writes silencieux   | ✅ Corrigé | `.catch()` + toast sur toutes les requêtes  |
+| Fuite d'état entre comptes   | ✅ Corrigé | Réinitialisation complète à déconnexion     |
+| NaN dans formatCurrency      | ✅ Corrigé | Guard `isNaN()` → retour "0,00 €"           |
 
 ### 🔒 Bonnes pratiques respectées
 
-- ✅ Aucune donnée transmise sur le réseau
+- ✅ Authentification forte via Firebase Auth (Google OAuth + Email/Password)
+- ✅ Données isolées par utilisateur (UID Firebase)
 - ✅ Aucun tracking ou analytics
 - ✅ Pas de credentials en dur
 - ✅ Validation côté client complète
+- ✅ Firebase writes avec gestion d'erreurs (`.catch()` + toast)
+- ✅ Réinitialisation d'état à la déconnexion (privacy)
 - ✅ Code JavaScript documenté (JSDoc)
 - ✅ Principe du moindre privilège (CSP)
 
@@ -232,7 +270,7 @@ Pour tester la sécurité de l'application :
 
 **Résultat attendu** (version modulaire) :
 
-```
+```text
 Refused to load the script 'https://evil.com/malicious.js' because it violates the following Content Security Policy directive: "script-src 'self'".
 ```
 
@@ -253,4 +291,4 @@ Si vous découvrez une vulnérabilité de sécurité, merci de :
 
 ---
 
-**Dernière mise à jour** : 2026-01-26
+**Dernière mise à jour** : 2026-01-28

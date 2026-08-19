@@ -1,31 +1,56 @@
 ╔══════════════════════════════════════════════════════════════════╗
-║   RÈGLES FIREBASE À APPLIQUER MAINTENANT (2 minutes)            ║
+║   RÈGLES FIREBASE — SOURCE DE VÉRITÉ : database.rules.json       ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-1. Ouvrir Firebase Console :
-   👉 https://console.firebase.google.com/project/split-charges/database/split-charges-default-rtdb/rules
+⚠️ Ce fichier ne contient PLUS de règles à copier-coller.
 
-2. Dans l'éditeur de règles, REMPLACER tout le contenu par :
+Les règles vivent dans database.rules.json, versionné dans le dépôt.
+C'est la seule source de vérité.
 
-{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}
 
-3. Cliquer sur "Publier" (bouton bleu en haut)
+─── DÉPLOYER LES RÈGLES ───────────────────────────────────────────
 
-4. Attendre le message de confirmation
+    npm run deploy:rules
 
-5. Actualiser l'application dans votre navigateur
+Ne jamais éditer les règles à la main dans la console Firebase :
+la console serait écrasée au prochain déploiement, et l'écart ne
+serait visible nulle part.
 
-✅ L'APPLICATION DEVRAIT FONCTIONNER IMMÉDIATEMENT !
 
-═══════════════════════════════════════════════════════════════════
+─── POURQUOI CE CHANGEMENT ────────────────────────────────────────
 
-Note: Ces règles sont temporaires pour que l'app fonctionne.
-Pour activer la sécurité plus tard, on devra résoudre le problème
-d'API Key d'authentification Firebase.
+Ce fichier contenait une copie manuelle des règles. Elle avait déjà
+divergé de database.rules.json : whitelist d'emails absente, nœuds
+customCategories et customDestinations manquants, règle partners
+différente. Deux sources de vérité pour un contrôle d'accès, c'est
+la garantie qu'un des deux sera faux sans que personne le voie.
+
+Il pointait aussi vers un projet Firebase qui n'existe plus
+(split-charges — retourne 404).
+
+
+─── EXPLICATION DES RÈGLES ────────────────────────────────────────
+
+1. Whitelist d'emails
+   Seuls les comptes listés dans les règles peuvent lire ou écrire,
+   quelle que soit l'authentification. Doit rester aligné avec
+   ALLOWED_EMAILS dans js/config.js.
+
+2. Accès Owner
+   L'utilisateur accède à ses propres données : auth.uid === $uid
+
+3. Accès Partner
+   Le partenaire lié accède aux données de l'Owner :
+   root.child('partners').child(auth.uid).val() === $uid
+
+   Exemple : si partners/uidPartner = uidOwner, alors Partner lit et
+   écrit dans salaries/uidOwner, periods/uidOwner, etc.
+
+⚠️ IMPORTANT : les deux partenaires voient et modifient LES MÊMES
+   DONNÉES. C'est voulu pour un couple partageant des charges.
+
+🚫 JAMAIS ".read": true ni ".write": true sur des données utilisateur,
+   y compris « temporairement ». Pour du développement sans contrainte,
+   utiliser l'émulateur : npm run emulators
 
 ═══════════════════════════════════════════════════════════════════

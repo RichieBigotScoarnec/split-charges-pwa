@@ -1,0 +1,179 @@
+/* ===== PRINT CSS (for PDF export) ===== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* Hide interactive elements (high specificity instead of !important) */
+  body .fab, body .btn, body button, body .modal-overlay, body .reconduction-banner,
+  body .export-actions, body .period-navigation, body .card-header button,
+  body .btn-delete, body .save-indicator {
+    display: none;
+  }
+
+  /* Hide unnecessary sections */
+  body .share-mode-selector {
+    display: none;
+  }
+
+  /* Optimize spacing */
+  .card {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+
+  .card-header {
+    background: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+    page-break-after: avoid;
+  }
+
+  /* Make sure charts and tables fit */
+  .category-chart-container {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure readability */
+  .charge-item, .reimbursement-item, .reconduction-preview-item {
+    border: 1px solid #eee;
+    page-break-inside: avoid;
+  }
+
+  /* Add page header */
+  @page {
+    margin: 2cm;
+  }
+
+  header {
+    text-align: center;
+    border-bottom: 2px solid black;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  header::before {
+    display: none;
+  }
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 600px) {
+  .container {
+    padding: var(--space-sm);
+  }
+
+  header {
+    padding: var(--space-lg) var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  header h1 {
+    font-size: 22px;
+  }
+
+  .salaries-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charge-item {
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  .fab {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    bottom: 88px;
+    right: var(--space-md);
+  }
+
+  .category-btn .category-icon {
+    font-size: 22px;
+  }
+
+  .category-btn {
+    aspect-ratio: auto;
+    gap: 2px;
+    font-size: 11px;
+    padding: var(--space-sm);
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  .modal-header {
+    font-size: 16px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .quick-add-location {
+    margin-bottom: var(--space-xs);
+    min-height: 14px;
+    font-size: 11px;
+  }
+
+  .quick-add-header {
+    margin-bottom: var(--space-sm);
+  }
+
+  .amount-input-large {
+    margin-bottom: var(--space-sm);
+  }
+
+  .amount-input-large input {
+    padding: 10px 36px 10px 10px;
+    font-size: 20px;
+  }
+
+  .payer-toggle {
+    margin-bottom: var(--space-sm);
+  }
+
+  .modal-actions {
+    margin-top: var(--space-sm);
+  }
+
+  .category-chart-container {
+    justify-content: center;
+  }
+
+  .category-legend {
+    min-width: 100%;
+  }
+}
+
+/* ===== REDUCED MOTION (Accessibility) ===== */
+@media (prefers-reduced-motion: reduce) {
+  html *,
+  html *::before,
+  html *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}
