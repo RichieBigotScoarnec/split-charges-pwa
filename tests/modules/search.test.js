@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../js/components/toast.js', () => ({
+vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
 
-import { setState, resetState } from '../../js/state.js';
-import { performSearch, clearSearch } from '../../js/modules/search.js';
+import { setState, resetState } from '../../public/js/state.js';
+import { performSearch, clearSearch } from '../../public/js/modules/search.js';
 
 /**
  * Configure le DOM avec des charge-items dont les data-id correspondent aux IDs des

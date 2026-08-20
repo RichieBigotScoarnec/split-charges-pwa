@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getState, setState, subscribe, resetState, resetUserData,
   addToArray, updateInArray, removeFromArray, getActiveItems
-} from '../js/state.js';
+} from '../public/js/state.js';
 
 beforeEach(() => {
   resetState();

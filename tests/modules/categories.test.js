@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { setState, resetState } from '../../js/state.js';
+import { setState, resetState } from '../../public/js/state.js';
 import {
   analyzeCategoriesData,
   getCategoryStats,
   compareCategories
-} from '../../js/modules/categories.js';
+} from '../../public/js/modules/categories.js';
 
 beforeEach(() => {
   resetState();

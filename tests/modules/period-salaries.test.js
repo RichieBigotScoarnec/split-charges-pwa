@@ -1,44 +1,44 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../js/components/toast.js', () => ({
+vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
-vi.mock('../../js/db.js', () => ({
+vi.mock('../../public/js/db.js', () => ({
   dbSet: vi.fn(() => Promise.resolve()),
   dbGet: vi.fn(() => Promise.resolve(null)),
   dbPush: vi.fn(() => Promise.resolve('mock-key')),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`)
 }));
-vi.mock('../../js/modules/summary.js', () => ({
+vi.mock('../../public/js/modules/summary.js', () => ({
   calculateSummary: vi.fn()
 }));
-vi.mock('../../js/modules/variable-charges.js', () => ({
+vi.mock('../../public/js/modules/variable-charges.js', () => ({
   loadVariableCharges: vi.fn(() => Promise.resolve()),
   initVariableCharges: vi.fn()
 }));
-vi.mock('../../js/modules/fixed-charges.js', () => ({
+vi.mock('../../public/js/modules/fixed-charges.js', () => ({
   loadFixedCharges: vi.fn(() => Promise.resolve()),
   initFixedCharges: vi.fn()
 }));
-vi.mock('../../js/modules/reimbursements.js', () => ({
+vi.mock('../../public/js/modules/reimbursements.js', () => ({
   loadReimbursements: vi.fn(() => Promise.resolve()),
   initReimbursements: vi.fn()
 }));
-vi.mock('../../js/modules/reconduction.js', () => ({
+vi.mock('../../public/js/modules/reconduction.js', () => ({
   checkReconductionNeeded: vi.fn(() => Promise.resolve())
 }));
-vi.mock('../../js/utils/date.js', () => ({
+vi.mock('../../public/js/utils/date.js', () => ({
   getCurrentPeriod: vi.fn(() => '2026-03'),
   formatPeriod: vi.fn(p => p),
   formatDate: vi.fn(() => '01/01/2026')
 }));
 
-import { getState, setState, resetState } from '../../js/state.js';
-import { saveSalaries } from '../../js/modules/period.js';
-import { toast } from '../../js/components/toast.js';
-import { dbSet } from '../../js/db.js';
+import { getState, setState, resetState } from '../../public/js/state.js';
+import { saveSalaries } from '../../public/js/modules/period.js';
+import { toast } from '../../public/js/components/toast.js';
+import { dbSet } from '../../public/js/db.js';
 
 function setupDOM(vousValue = '3000', conjointeValue = '2000') {
   document.body.innerHTML = `

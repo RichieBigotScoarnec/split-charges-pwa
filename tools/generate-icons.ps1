@@ -3,7 +3,7 @@
     Génère les icônes PWA de FairSplit aux couleurs de la marque.
 
 .DESCRIPTION
-    Produit quatre fichiers à la racine du dépôt :
+    Produit quatre fichiers dans public/ :
       icon-192.png / icon-512.png                   → purpose "any"
       icon-192-maskable.png / icon-512-maskable.png → purpose "maskable"
 
@@ -21,12 +21,12 @@
 
 .EXAMPLE
     pwsh -NoProfile -File tools/generate-icons.ps1
-    Régénère les quatre icônes à la racine du dépôt.
+    Régénère les quatre icônes dans public/.
 #>
 [CmdletBinding()]
 param(
     [ValidateNotNullOrEmpty()]
-    [string]$OutputPath = (Join-Path $PSScriptRoot '..')
+    [string]$OutputPath = (Join-Path $PSScriptRoot '..' 'public')
 )
 
 Set-StrictMode -Version Latest

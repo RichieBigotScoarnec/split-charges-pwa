@@ -13,7 +13,7 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npx http-server . -p 3333 -c-1 --silent',
+    command: 'npx http-server public -p 3333 -c-1 --silent',
     port: 3333,
     reuseExistingServer: true,
   },

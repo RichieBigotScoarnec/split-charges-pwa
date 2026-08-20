@@ -2,17 +2,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mocker toast et modal pour éviter effets de bord DOM non essentiels
-vi.mock('../../js/components/toast.js', () => ({
+vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
-vi.mock('../../js/components/modal.js', () => ({
+vi.mock('../../public/js/components/modal.js', () => ({
   showModal: vi.fn(),
   closeModal: vi.fn(),
   showConfirmModal: vi.fn()
 }));
 
-import { setState, resetState } from '../../js/state.js';
-import { calculateSummary } from '../../js/modules/summary.js';
+import { setState, resetState } from '../../public/js/state.js';
+import { calculateSummary } from '../../public/js/modules/summary.js';
 
 beforeEach(() => {
   resetState();

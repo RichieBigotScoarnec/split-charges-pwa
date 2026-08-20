@@ -8,19 +8,19 @@ const { mockRef, mockDatabase } = vi.hoisted(() => {
   return { mockRef, mockDatabase };
 });
 
-vi.mock('../../js/components/toast.js', () => ({
+vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
-vi.mock('../../js/db.js', () => ({
+vi.mock('../../public/js/db.js', () => ({
   getDataPath: vi.fn(path => `household/${path}`)
 }));
-vi.mock('../../js/firebase-init.js', () => ({
+vi.mock('../../public/js/firebase-init.js', () => ({
   getFirebaseDatabase: vi.fn(() => mockDatabase)
 }));
 
-import { getState, setState, resetState } from '../../js/state.js';
-import { initTrends, fetchHistoricalData } from '../../js/modules/trends.js';
-import { toast } from '../../js/components/toast.js';
+import { getState, setState, resetState } from '../../public/js/state.js';
+import { initTrends, fetchHistoricalData } from '../../public/js/modules/trends.js';
+import { toast } from '../../public/js/components/toast.js';
 
 const mockPeriods = {
   '2026-01': {

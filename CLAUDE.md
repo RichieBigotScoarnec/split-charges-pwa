@@ -14,32 +14,39 @@ App web PWA de partage de charges en couple au prorata des salaires. Synchronisa
 
 ## Architecture
 
-```
+```text
 FairSplit/
-├── FairSplit.html          # Point d'entrée HTML
-├── index.html              # Redirection
-├── css/
-│   ├── variables.css       # Tokens design (couleurs, espacements)
-│   ├── base.css            # Reset, typographie, header
-│   ├── components.css      # Boutons, cards, formulaires, charges, FAB, toasts
-│   ├── modals.css          # Modales + quick-add
-│   ├── auth.css            # Écran authentification
-│   ├── summary.css         # Bilan, catégories, tendances
-│   ├── map.css             # Carte Leaflet
-│   └── responsive.css      # Media queries + print
-├── js/
-│   ├── app.js              # Entry point — init Firebase, auth, modules
-│   ├── config.js           # Firebase config, constantes
-│   ├── firebase-init.js    # Init Firebase, providers
-│   ├── db.js               # Abstraction DB (préfixage household/)
-│   ├── state.js            # État global (Observer pattern)
-│   ├── components/         # modal.js, toast.js
-│   ├── modules/            # 14 modules fonctionnels (auth, period, charges, summary...)
-│   └── utils/              # calculations.js, date.js, format.js, validation.js
-└── tests/
-    ├── calculations.test.js
-    └── e2e/
+├── public/                     # Tout ce qui est publié — et rien d'autre
+│   ├── FairSplit.html          # Point d'entrée HTML
+│   ├── index.html              # Redirection
+│   ├── sw.js  manifest.json  icon-*.png
+│   ├── css/
+│   │   ├── variables.css       # Tokens design (couleurs, espacements)
+│   │   ├── base.css            # Reset, typographie, header
+│   │   ├── components.css      # Boutons, cards, formulaires, charges, FAB, toasts
+│   │   ├── modals.css          # Modales + quick-add
+│   │   ├── auth.css            # Écran authentification
+│   │   ├── summary.css         # Bilan, catégories, tendances
+│   │   ├── map.css             # Carte Leaflet
+│   │   └── responsive.css      # Media queries + print
+│   └── js/
+│       ├── app.js              # Entry point — init Firebase, auth, modules
+│       ├── config.js           # Firebase config, DATA_ROOT, liste blanche
+│       ├── firebase-init.js    # Init Firebase, providers, émulateurs
+│       ├── db.js               # Abstraction DB (préfixage DATA_ROOT)
+│       ├── state.js            # État global (Observer pattern)
+│       ├── components/         # modal.js, toast.js
+│       ├── modules/            # 16 modules fonctionnels
+│       └── utils/              # calculations, date, format, validation, salaries
+├── tests/                      # Vitest (unitaires) + Playwright (E2E)
+├── tools/                      # generate-icons.ps1
+├── docs/                       # Dépannage, déploiement, aide-mémoire Git
+└── database.rules.json         # Règles de sécurité — source de vérité unique
 ```
+
+Le déploiement publie `public/` et rien d'autre. Ne jamais placer à la racine
+un fichier destiné à être servi, ni dans `public/` un fichier qui ne doit pas
+l'être.
 
 ## Adhérences critiques
 

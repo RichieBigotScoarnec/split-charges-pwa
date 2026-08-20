@@ -11,7 +11,7 @@ import {
   formatDate,
   formatDateTime,
   getRelativeTime
-} from '../js/utils/date.js';
+} from '../public/js/utils/date.js';
 
 // ===== getCurrentPeriod =====
 describe('getCurrentPeriod', () => {

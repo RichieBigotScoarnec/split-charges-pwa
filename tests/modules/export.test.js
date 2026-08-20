@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../js/components/toast.js', () => ({
+vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
 
@@ -15,9 +15,9 @@ global.Blob = class MockBlob {
 global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = vi.fn();
 
-import { getState, setState, resetState } from '../../js/state.js';
-import { exportToCSV } from '../../js/modules/export.js';
-import { toast } from '../../js/components/toast.js';
+import { getState, setState, resetState } from '../../public/js/state.js';
+import { exportToCSV } from '../../public/js/modules/export.js';
+import { toast } from '../../public/js/components/toast.js';
 
 beforeEach(() => {
   resetState();
