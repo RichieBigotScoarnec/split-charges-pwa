@@ -99,12 +99,24 @@ export function setState(key, value) {
   } else {
     let current = state;
     for (let i = 0; i < keys.length - 1; i++) {
-      if (!Object.prototype.hasOwnProperty.call(current, keys[i])) {
-        current[keys[i]] = {};
+      const k = keys[i];
+      // Comparaison littérale, volontairement redondante avec UNSAFE_KEYS :
+      // l'analyse statique ne suit pas un Set défini hors de la fonction, et
+      // un invariant de sécurité gagne à être vérifiable là où il s'applique.
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') return;
+
+      // hasOwnProperty plutôt que `in` : ce dernier traverse la chaîne de
+      // prototypes et ferait passer une propriété héritée pour un niveau
+      // existant.
+      if (!Object.prototype.hasOwnProperty.call(current, k)) {
+        current[k] = {};
       }
-      current = current[keys[i]];
+      current = current[k];
     }
-    current[keys[keys.length - 1]] = value;
+
+    const last = keys[keys.length - 1];
+    if (last === '__proto__' || last === 'constructor' || last === 'prototype') return;
+    current[last] = value;
   }
 
   // Debug log for GPS location updates
