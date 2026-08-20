@@ -225,66 +225,82 @@ function updateAuthUI(user) {
  * Initialize app data after authentication
  * Called once after first successful auth
  */
+/**
+ * Exécute une étape d'initialisation en isolant son échec
+ *
+ * Toute la séquence tenait auparavant dans un seul try/catch : l'échec du
+ * premier `await` — le chargement des listes personnalisées — empêchait
+ * silencieusement tout le reste, salaires et charges compris, avec pour seul
+ * retour un toast générique. Un module défaillant ne doit pas en emporter
+ * quinze, et le message doit nommer le coupable.
+ *
+ * @param {string} name - Nom de l'étape, affiché en cas d'échec
+ * @param {Function} fn - Fonction à exécuter (peut être asynchrone)
+ * @param {string[]} failures - Accumulateur des étapes en échec
+ */
+async function runStep(name, fn, failures) {
+  try {
+    await fn();
+  } catch (error) {
+    failures.push(name);
+    logError(`❌ Étape « ${name} » échouée :`, error?.code || '', error?.message || error);
+  }
+}
+
 async function initializeAppData() {
   if (appInitialized) return;
 
   log('📦 Initialisation des données utilisateur...');
+  const failures = [];
 
-  try {
-  // Custom lists (categories/destinations) — must init before modules using selects
-  await initCustomLists();
-  populateAllSelects();
+  // Les listes personnalisées alimentent les <select> des autres modules :
+  // elles restent en tête, mais leur échec ne bloque plus la suite.
+  await runStep('listes personnalisées', async () => {
+    await initCustomLists();
+    populateAllSelects();
+  }, failures);
 
-  // Étape 3c : Period management
-  initPeriod();
-  // Fige les salaires des périodes antérieures aux instantanés, avant tout
-  // calcul : sinon le premier bilan affiché serait encore rétro-actif.
-  await backfillPeriodSalaries();
-  await loadPeriodData();
+  await runStep('périodes et salaires', async () => {
+    initPeriod();
+    // Fige les salaires des périodes antérieures aux instantanés, avant tout
+    // calcul : sinon le premier bilan affiché serait encore rétro-actif.
+    await backfillPeriodSalaries();
+    await loadPeriodData();
+  }, failures);
 
-  // Étape 3d : Share mode management
-  initShareMode();
-  await loadShareMode();
+  await runStep('mode de partage', async () => {
+    initShareMode();
+    await loadShareMode();
+  }, failures);
 
-  // Étape 3e : Variable charges management
-  initVariableCharges();
-  await loadVariableCharges();
+  await runStep('charges variables', async () => {
+    initVariableCharges();
+    await loadVariableCharges();
+  }, failures);
 
-  // Étape 3f : Fixed charges management
-  initFixedCharges();
-  await loadFixedCharges();
+  await runStep('charges fixes', async () => {
+    initFixedCharges();
+    await loadFixedCharges();
+  }, failures);
 
-  // Étape 3g : Reimbursements management
-  initReimbursements();
-  await loadReimbursements();
+  await runStep('remboursements', async () => {
+    initReimbursements();
+    await loadReimbursements();
+  }, failures);
 
-  // Étape 3h : Summary/Bilan management
-  initSummary();
-  calculateSummary();
+  await runStep('bilan', () => {
+    initSummary();
+    calculateSummary();
+  }, failures);
 
-  // Étape 4a : Search module
-  initSearch();
-
-  // Étape 4b : Export module
-  initExport();
-
-  // Étape 4c : Notifications module
-  initNotifications();
-
-  // Étape 4d : Categories analysis module
-  initCategories();
-
-  // Étape 4e : Trends module
-  initTrends();
-
-  // Étape 4f : Reconduction module
-  initReconduction();
-
-  // Étape 4g : Quick Add module
-  initQuickAdd();
-
-  // Étape 4h : Map module
-  initMap();
+  await runStep('recherche', () => initSearch(), failures);
+  await runStep('export', () => initExport(), failures);
+  await runStep('notifications', () => initNotifications(), failures);
+  await runStep('analyse par catégorie', () => initCategories(), failures);
+  await runStep('tendances', () => initTrends(), failures);
+  await runStep('reconduction', () => initReconduction(), failures);
+  await runStep('saisie rapide', () => initQuickAdd(), failures);
+  await runStep('carte', () => initMap(), failures);
 
   appInitialized = true;
 
@@ -294,10 +310,11 @@ async function initializeAppData() {
   // sert aux tests E2E et au diagnostic.
   document.body.dataset.appReady = 'true';
 
-  log('✅ Données utilisateur initialisées');
-  } catch (error) {
-    logError('❌ Erreur initialisation modules:', error);
-    toast.error('Erreur lors du chargement des données');
+  if (failures.length) {
+    warn('⚠️ Modules en échec :', failures.join(', '));
+    toast.error(`Chargement partiel — en échec : ${failures.join(', ')}`);
+  } else {
+    log('✅ Données utilisateur initialisées');
   }
 }
 
