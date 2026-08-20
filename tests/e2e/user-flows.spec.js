@@ -634,6 +634,80 @@ test.describe('Structure et accessibilité', () => {
 });
 
 // ============================================================
+// Mise en page — débordements
+// ============================================================
+/*
+   Un <input> revendique une largeur intrinsèque d'environ vingt caractères.
+   Dans une piste `1fr` (soit `minmax(auto, 1fr)`) ou un élément flex, cette
+   revendication l'emporte : la colonne s'élargit au-delà de son conteneur.
+   Le champ « Salaire conjointe » débordait ainsi de sa carte, sans que rien
+   ne le signale — le défaut ne s'est manifesté qu'après le passage en deux
+   colonnes, qui a réduit de moitié la largeur disponible.
+*/
+test.describe('Mise en page', () => {
+
+  test.beforeEach(async ({ page }) => { await loadApp(page); });
+
+  /**
+   * Vérifie qu'un élément reste dans les bornes horizontales d'un ancêtre.
+   * @param {import('@playwright/test').Page} page - Page de test
+   * @param {string} enfant - Sélecteur de l'élément contenu
+   * @param {string} conteneur - Sélecteur du conteneur
+   */
+  async function resteDansLesBornes(page, enfant, conteneur) {
+    const dedans = await page.locator(enfant).boundingBox();
+    const dehors = await page.locator(conteneur).boundingBox();
+    expect(dedans, `${enfant} sans boîte`).not.toBeNull();
+    expect(dehors, `${conteneur} sans boîte`).not.toBeNull();
+
+    // Une tolérance d'un pixel absorbe les arrondis de rendu.
+    expect(dedans.x + dedans.width,
+      `${enfant} déborde à droite de ${conteneur}`).toBeLessThanOrEqual(dehors.x + dehors.width + 1);
+    expect(dedans.x, `${enfant} déborde à gauche de ${conteneur}`).toBeGreaterThanOrEqual(dehors.x - 1);
+  }
+
+  test.describe('sur grand écran', () => {
+    test.use({ viewport: { width: 1280, height: 900 } });
+
+    test('les deux champs de salaire tiennent dans leur carte', async ({ page }) => {
+      await resteDansLesBornes(page, '#salaireVous', '.salaries-grid');
+      await resteDansLesBornes(page, '#salaireConjointe', '.salaries-grid');
+    });
+
+    test('les champs de pourcentage tiennent dans leur bloc', async ({ page }) => {
+      await page.locator('#modeCustom').click();
+      await expect(page.locator('#customPercentages')).toBeVisible();
+
+      await resteDansLesBornes(page, '#customPercentYou', '.share-mode-selector');
+      await resteDansLesBornes(page, '#customPercentPartner', '.share-mode-selector');
+    });
+
+    test('la page ne défile pas horizontalement', async ({ page }) => {
+      const debordement = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      );
+      expect(debordement).toBeLessThanOrEqual(0);
+    });
+  });
+
+  test.describe('sur mobile', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('les deux champs de salaire tiennent dans leur carte', async ({ page }) => {
+      await resteDansLesBornes(page, '#salaireVous', '.salaries-grid');
+      await resteDansLesBornes(page, '#salaireConjointe', '.salaries-grid');
+    });
+
+    test('la page ne défile pas horizontalement', async ({ page }) => {
+      const debordement = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      );
+      expect(debordement).toBeLessThanOrEqual(0);
+    });
+  });
+});
+
+// ============================================================
 // Résistance aux erreurs
 // ============================================================
 test.describe('Robustesse', () => {

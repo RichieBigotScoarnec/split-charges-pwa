@@ -206,7 +206,14 @@
 /* ===== SALARIES ===== */
 .salaries-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /*
+     `1fr` vaut `minmax(auto, 1fr)` : la piste ne peut pas devenir plus étroite
+     que le contenu intrinsèque de son élément. Un <input> revendique environ
+     vingt caractères, si bien que les deux colonnes débordaient de la carte.
+     Le défaut est resté invisible tant que la carte occupait toute la largeur ;
+     le passage en deux colonnes l'a réduite de moitié et l'a révélé.
+  */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -214,6 +221,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+  /* Même raison : sans cela, l'élément de grille impose sa largeur minimale. */
+  min-width: 0;
 }
 
 .salary-input-group label {
@@ -225,6 +234,9 @@
 }
 
 .salary-input-group input {
+  /* L'élément remplit sa colonne au lieu de la dicter. */
+  width: 100%;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: var(--radius);
   border: 1px solid var(--border-color);
@@ -748,6 +760,9 @@
 
 .custom-percentage-group {
   flex: 1;
+  /* Un élément flex ne rétrécit pas sous la largeur intrinsèque de son
+     contenu sans cela — même débordement que la grille des salaires. */
+  min-width: 0;
 }
 
 .custom-percentage-group label {
