@@ -287,6 +287,13 @@ async function initializeAppData() {
   initMap();
 
   appInitialized = true;
+
+  // Signal de disponibilité réelle. #mainApp devient visible dès la réussite
+  // de l'authentification, bien avant que les modules soient initialisés :
+  // s'y fier laisse une fenêtre où une saisie part dans le vide. Ce marqueur
+  // sert aux tests E2E et au diagnostic.
+  document.body.dataset.appReady = 'true';
+
   log('✅ Données utilisateur initialisées');
   } catch (error) {
     logError('❌ Erreur initialisation modules:', error);
@@ -339,6 +346,8 @@ export function initAuth() {
       // instance Leaflet. Ces fonctions étaient importées mais jamais appelées :
       // tout continuait de tourner après déconnexion, et se cumulait à la
       // reconnexion suivante.
+      delete document.body.dataset.appReady;
+
       cleanupNotifications();
       cleanupQuickAdd();
       cleanupMap();

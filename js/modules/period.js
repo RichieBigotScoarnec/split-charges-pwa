@@ -98,7 +98,8 @@ export function navigatePeriod(direction) {
  * Loads both salaries (global) and period-specific data
  */
 export async function loadPeriodData() {
-  const currentPeriod = getState('currentPeriod');
+  // Même repli que saveSalaries : jamais lire sous `periods/undefined`
+  const currentPeriod = getState('currentPeriod') || getCurrentPeriod();
 
   try {
     // 1. Salaires : l'instantané de la période fait foi, à défaut les globaux
@@ -205,7 +206,12 @@ export async function saveSalaries() {
 
   try {
     const { dbSet } = await import('../db.js');
-    const currentPeriod = getState('currentPeriod');
+
+    // Repli sur le mois calendaire : l'écran principal s'affiche dès la
+    // réussite de l'authentification, avant qu'initPeriod() ait renseigné
+    // l'état. Une saisie de salaire dans cet intervalle écrivait sous
+    // `periods/undefined/salaries` et était perdue au rechargement.
+    const currentPeriod = getState('currentPeriod') || getCurrentPeriod();
 
     // L'instantané de la période consultée fait toujours foi pour son calcul.
     await dbSet(`periods/${currentPeriod}/salaries`, salaries);
