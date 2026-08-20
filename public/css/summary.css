@@ -476,14 +476,22 @@
   display: block;
 }
 
-.reminder-toggle-row {
+/*
+   Le sélecteur à bascule sert aussi à des réglages qui ne sont pas des
+   rappels. Les noms en `reminder-` sont historiques : les nouveaux réglages
+   utilisent `setting-`, qui partage la même apparence.
+*/
+.reminder-toggle-row,
+.setting-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-md);
   padding: var(--space-sm) 0;
 }
 
-.reminder-toggle-label {
+.reminder-toggle-label,
+.setting-toggle-label {
   font-size: 13px;
   color: var(--text-primary);
 }
@@ -492,6 +500,20 @@
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* --text-muted tombe à 2,56:1 sur fond clair. Une description qui porte le
+   sens du réglage doit rester lisible : --text-secondary atteint 4,76:1. */
+.setting-toggle-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.setting-toggle-row {
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-md);
 }
 
 .budget-input-row {

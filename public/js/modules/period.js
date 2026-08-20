@@ -136,6 +136,11 @@ export async function loadPeriodData() {
     if (searchClearBtn) searchClearBtn.classList.remove('visible');
     if (searchResultsInfo) searchResultsInfo.classList.remove('visible');
 
+    // Le report d'un mois ne dépend que des mois qui le précèdent : il se
+    // recalcule au changement de période, pas à chaque charge ajoutée.
+    const { refreshCarryOver } = await import('./carry-over.js');
+    await refreshCarryOver();
+
     // Calculate summary (rendering is done by individual loaders)
     calculateSummary();
 

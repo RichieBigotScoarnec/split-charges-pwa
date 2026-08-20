@@ -47,9 +47,13 @@ export function calculateSummary() {
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
   }
 
+  // Report du mois précédent : nul tant que la fonction n'est pas activée,
+  // l'ajout est donc sans effet sur le comportement historique.
+  const carryOver = getState('carryOver') || 0;
+
   // Calculs purs délégués à utils/calculations.js (couverts par tests unitaires)
   const summary = computeSummary({
-    salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents
+    salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver
   });
 
   // Récap virements par destination (charges fixes actives uniquement)
@@ -67,6 +71,7 @@ export function calculateSummary() {
     partnerActualPayments: summary.partnerActualPayments,
     balanceBeforeReimbs: summary.balanceBeforeReimbs,
     reimbursementAdjustment: summary.reimbursementAdjustment,
+    carryOver: summary.carryOver,
     finalBalance: summary.balance,
     virementsByDestination
   });
@@ -97,6 +102,7 @@ function renderSummary(summary) {
     yourActualPayments,
     partnerActualPayments,
     reimbursementAdjustment,
+    carryOver,
     finalBalance,
     virementsByDestination
   } = summary;
@@ -122,7 +128,13 @@ function renderSummary(summary) {
 
   // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
   let balanceExplanation = '';
-  if (finalBalance !== 0) {
+  if (carryOver !== 0) {
+    // Avec un report, « a payé plus que sa part » serait faux : le solde
+    // affiché mêle le mois courant et l'ardoise des mois précédents. On dit
+    // donc explicitement quelle part vient du passé.
+    const debiteur = carryOver > 0 ? 'la conjointe devait' : 'vous deviez';
+    balanceExplanation = `<small>dont ${formatCurrency(Math.abs(carryOver))} que ${debiteur} déjà au titre des mois précédents</small>`;
+  } else if (finalBalance !== 0) {
     const overpayer = finalBalance > 0 ? 'Vous' : 'Conjointe';
     balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }

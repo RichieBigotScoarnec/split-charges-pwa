@@ -268,6 +268,20 @@
           </div>
         </div>
         <div class="share-mode-validation" id="shareModeValidation"></div>
+
+        <!-- Report du solde : politique comptable globale, pas un choix
+             mensuel. Désactivé par défaut — l'activer change la lecture de
+             tous les mois passés. -->
+        <div class="setting-toggle-row">
+          <div>
+            <div class="setting-toggle-label">Reporter le solde d'un mois sur l'autre</div>
+            <div class="setting-toggle-desc">Un mois non réglé reste dû le mois suivant, au lieu de repartir de zéro</div>
+          </div>
+          <label class="reminder-toggle">
+            <input type="checkbox" id="carryOverToggle" data-on-change="toggleCarryOver" aria-label="Reporter le solde d'un mois sur l'autre" />
+            <span class="reminder-toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="save-indicator" id="salariesSaveIndicator">
