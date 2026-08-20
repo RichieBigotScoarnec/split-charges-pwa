@@ -71,6 +71,17 @@ export const PAYMENT_TYPES = {
   BOTH: 'both'
 };
 
+// ===== SENS D'UN REMBOURSEMENT =====
+// Ces valeurs sont écrites en base ET comparées dans les calculs : elles
+// doivent aussi être les `value` des <option> du formulaire. L'absence de
+// constante partagée avait laissé le HTML dériver vers from-you/from-partner
+// pendant que la logique testait encore vous-to-conjointe — donc aucune
+// correspondance, et tout remboursement compté à l'envers.
+export const REIMBURSEMENT_DIRECTIONS = {
+  YOU_TO_PARTNER: 'vous-to-conjointe',
+  PARTNER_TO_YOU: 'conjointe-to-vous'
+};
+
 // ===== SPLIT MODES =====
 export const SPLIT_MODES = {
   PRORATA: 'prorata',

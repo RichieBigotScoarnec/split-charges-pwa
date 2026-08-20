@@ -182,8 +182,11 @@ describe('exportToCSV — remboursements', () => {
   });
 
   it('direction inconnue → "?" dans le CSV', () => {
+    // Volontairement hors des deux valeurs reconnues : ce test éprouve le
+    // repli. Une substitution globale l'avait rendu vide de sens en lui
+    // donnant une direction valide.
     setState('reimbursements', [
-      { id: 'r1', amount: 50, direction: 'from-you', timestamp: 1700000000000 }
+      { id: 'r1', amount: 50, direction: 'valeur-non-reconnue', timestamp: 1700000000000 }
     ]);
     exportToCSV();
     expect(capturedCSV).toContain('?');

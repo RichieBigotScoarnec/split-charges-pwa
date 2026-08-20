@@ -378,14 +378,14 @@ test.describe('Remboursements — formulaire', () => {
 
   test('sélectionner la direction vous→conjointe', async ({ page }) => {
     await page.locator('#addReimbursementBtn').click();
-    await page.locator('#reimbursementDirection').selectOption('from-you');
-    await expect(page.locator('#reimbursementDirection')).toHaveValue('from-you');
+    await page.locator('#reimbursementDirection').selectOption('vous-to-conjointe');
+    await expect(page.locator('#reimbursementDirection')).toHaveValue('vous-to-conjointe');
   });
 
   test('sélectionner la direction conjointe→vous', async ({ page }) => {
     await page.locator('#addReimbursementBtn').click();
-    await page.locator('#reimbursementDirection').selectOption('from-partner');
-    await expect(page.locator('#reimbursementDirection')).toHaveValue('from-partner');
+    await page.locator('#reimbursementDirection').selectOption('conjointe-to-vous');
+    await expect(page.locator('#reimbursementDirection')).toHaveValue('conjointe-to-vous');
   });
 
   test('remplir montant et note', async ({ page }) => {
