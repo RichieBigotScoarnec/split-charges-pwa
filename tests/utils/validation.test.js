@@ -10,8 +10,8 @@ import {
   validateCustomSplit,
   validatePeriod,
   validateCharge
-} from '../public/js/utils/validation.js';
-import { LIMITS } from '../public/js/config.js';
+} from '../../public/js/utils/validation.js';
+import { LIMITS } from '../../public/js/config.js';
 
 // ===== validateAmount =====
 describe('validateAmount', () => {
