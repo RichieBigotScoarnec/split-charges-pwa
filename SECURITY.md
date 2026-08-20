@@ -48,25 +48,26 @@ pas une protection** : seules les règles serveur font autorité.
 > Ajouter un utilisateur impose donc de modifier `ALLOWED_EMAILS` **et**
 > `database.rules.json`, puis de redéployer les règles (`npm run deploy:rules`).
 
-### 3. Cloisonnement par UID
+### 3. Espace unique, refus par défaut
 
-Chaque nœud est indexé par l'UID du propriétaire : `periods/{uid}`,
-`salaries/{uid}`, etc. Un utilisateur ne peut atteindre que sa propre branche.
+Toutes les données vivent sous `household/`. La racine est explicitement en
+`".read": false, ".write": false` : tout nœud non déclaré est inaccessible,
+y compris à un compte autorisé.
 
-### 4. Partage par consentement mutuel
+Il n'y a **pas** de cloisonnement entre les deux comptes, et c'est délibéré :
+ils partagent un budget de foyer, donc le même jeu de données. Aucune
+configuration n'est requise — un compte autorisé se connecte et voit tout.
 
-Le partage entre les deux comptes passe par `partners/{uid}`. L'accès aux
-données de A par B exige que **les deux pointeurs se répondent** :
-`partners/B === A` **et** `partners/A === B`.
+> **Historique.** Une architecture précédente scopait chaque nœud par UID et
+> ajoutait une table `partners` redirigeant un « Partner » vers l'espace d'un
+> « Owner ». Elle a été retirée : la liste blanche étant figée à deux adresses,
+> il n'y avait aucun cloisonnement à assurer, et l'indirection n'apportait
+> aucune capacité. Elle coûtait en revanche une sémantique trompeuse —
+> `partners/{moi} = X` signifiait « je lis les données de X », alors que
+> l'interface laissait croire à une relation mutuelle — qui a produit un accès
+> rompu dès la première utilisation réelle.
 
-Chacun n'écrit que son propre pointeur — la règle d'écriture est restreinte à
-`auth.uid === $uid`. Se déclarer partenaire de quelqu'un ne donne donc aucun
-accès tant que l'intéressé n'a pas fait de même de son côté.
-
-Configuration : [`configure-partner.html`](configure-partner.html), à exécuter
-une fois par chaque personne avec l'UID de l'autre.
-
-### 5. Échappement des données affichées
+### 4. Échappement des données affichées
 
 Toute donnée saisie et réinjectée en HTML passe par `escapeHtml()`
 ([`js/utils/format.js`](js/utils/format.js)). Les champs concernés sont libres :
@@ -77,12 +78,12 @@ personnalisée.
 relecture (avertissement — voir [`eslint.config.mjs`](eslint.config.mjs) pour
 la justification de la sévérité).
 
-### 6. Intégrité des ressources externes
+### 5. Intégrité des ressources externes
 
 Firebase SDK et Leaflet sont chargés depuis un CDN avec attribut `integrity`
 (SRI) et `crossorigin`. Un CDN compromis ne peut pas substituer son code.
 
-### 7. Validation des saisies
+### 6. Validation des saisies
 
 [`js/utils/validation.js`](js/utils/validation.js) : bornes sur les montants
 (50 000 € par charge, 100 000 € par salaire), longueurs maximales, format de

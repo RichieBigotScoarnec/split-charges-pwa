@@ -1,6 +1,6 @@
 # CLAUDE.md — FairSplit PWA
 
-App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, multi-utilisateur (Owner/Partner).
+App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
 > **Version** : 3.2 | **Mise à jour** : 2026-08-19 | **Branche unique** : main
 
@@ -31,7 +31,7 @@ FairSplit/
 │   ├── app.js              # Entry point — init Firebase, auth, modules
 │   ├── config.js           # Firebase config, constantes
 │   ├── firebase-init.js    # Init Firebase, providers
-│   ├── db.js               # Abstraction DB (UID-scoped, Partner)
+│   ├── db.js               # Abstraction DB (préfixage household/)
 │   ├── state.js            # État global (Observer pattern)
 │   ├── components/         # modal.js, toast.js
 │   ├── modules/            # 14 modules fonctionnels (auth, period, charges, summary...)
@@ -51,7 +51,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 | `toast.js` | 13 | Critique — feedback utilisateur partout |
 | `firebase-init.js` | 5 | Critique — connexion DB |
 | `auth.js` | Hub | Critique — initialise TOUS les modules |
-| `db.js` | 8 | Critique — abstraction DB + Partner |
+| `db.js` | 8 | Critique — abstraction DB |
 | `format.js` | 9 | Important — affichage monétaire |
 | `summary.js` | 7 | Important — calculs dépendants |
 
@@ -65,7 +65,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ### JavaScript
 - ES6 modules partout, pas de globals sauf compat legacy (`window.xxx`)
 - State centralisé : `getState('key')` / `setState('key', value)` via `state.js`
-- DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (paths auto-scopés par UID)
+- DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (chemins auto-préfixés par `household/`)
 - Async/await + try/catch sur tous les appels Firebase
 - `escapeHtml()` obligatoire pour tout contenu dynamique injecté en HTML
 - Toast pour feedback : `toast.success()`, `toast.error()`
@@ -100,7 +100,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 - NE PAS stocker credentials, tokens ou PII dans le code/logs
 - NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`)
 - NE JAMAIS mettre `.read: true` ou `.write: true` sur données utilisateur dans Firebase rules
-- TOUJOURS utiliser `db.js` pour accéder Firebase (paths UID-scoped automatiques)
+- TOUJOURS utiliser `db.js` pour accéder Firebase (préfixage `household/` automatique)
 - TOUJOURS écrire un test pour toute nouvelle fonction pure dans `utils/`
 - TOUJOURS tester les dépendants après modif d'un module critique
 
