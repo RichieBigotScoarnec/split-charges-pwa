@@ -119,12 +119,20 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   // Solde
   const balanceBeforeReimbs = yourActualPayments - yourTheoricalShare;
 
+  // Un remboursement est un transfert d'argent déjà effectué, et il déplace le
+  // solde dans le sens du transfert :
+  //   Vous → Conjointe : vous avez avancé davantage, elle vous doit plus.
+  //   Conjointe → Vous : elle s'est acquittée, elle vous doit moins.
+  //
+  // Les deux branches étaient inversées. Exemple mesuré : loyer de 1 000 €
+  // payé par vous, salaires égaux — elle vous doit 500 €. Après qu'elle vous
+  // ait remboursé ces 500 €, le solde affichait 1 000 € au lieu de zéro.
   let reimbursementAdjustment = 0;
   activeReimbs.forEach(reimb => {
     if (reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) {
-      reimbursementAdjustment -= reimb.amount;
-    } else {
       reimbursementAdjustment += reimb.amount;
+    } else {
+      reimbursementAdjustment -= reimb.amount;
     }
   });
 
