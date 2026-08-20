@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+import { ALLOWED_EMAILS } from '../../js/config.js';
+
+// L'application refuse tout compte hors liste blanche (js/modules/auth.js).
+// Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
+// se cassent silencieusement à chaque évolution de la whitelist — ce qui est
+// exactement ce qui s'était produit.
+const TEST_EMAIL = ALLOWED_EMAILS[0];
+
 /**
  * Mock Firebase réactif — supporte on('value'), set(), push(), remove(), update()
  * Notifie les listeners en temps réel, comme Firebase Realtime Database.
@@ -115,7 +123,7 @@ const REACTIVE_FIREBASE_MOCK = `
         onAuthStateChanged: function(cb) {
           window.__mockAuthCallback = cb;
           setTimeout(function() {
-            cb({ uid: 'test-user-123', email: 'test@fairsplit.dev', displayName: 'Test User', photoURL: null });
+            cb({ uid: 'test-user-123', email: '${TEST_EMAIL}', displayName: 'Test User', photoURL: null });
           }, 100);
           return function() {};
         },
@@ -126,7 +134,7 @@ const REACTIVE_FIREBASE_MOCK = `
           if (window.__mockAuthCallback) window.__mockAuthCallback(null);
           return Promise.resolve();
         },
-        currentUser: { uid: 'test-user-123', email: 'test@fairsplit.dev' }
+        currentUser: { uid: 'test-user-123', email: '${TEST_EMAIL}' }
       };
     }
   };
