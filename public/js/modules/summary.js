@@ -127,8 +127,18 @@ function renderSummary(summary) {
     balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }
 
+  // L'action n'a de sens que s'il reste quelque chose à régler. Elle vit dans
+  // la barre, qui reste visible au défilement : c'est là qu'on lit le solde,
+  // c'est donc là qu'on doit pouvoir le solder.
+  const settleButton = finalBalance !== 0
+    ? '<button type="button" class="btn-settle" data-action="settleBalance">Régler ce solde</button>'
+    : '';
+
+  // Le texte est enveloppé : sans cela, la mise en page flex de la barre
+  // scinderait « Conjointe vous doit » et le montant en deux éléments séparés
+  // par un intervalle.
   // Même texte que le bilan : une seule source, pas de calcul dupliqué
-  updateBalanceBar(balanceText, balanceClass);
+  updateBalanceBar(`<span>${balanceText}</span>${settleButton}`, balanceClass);
 
   summaryElement.innerHTML = `
     <div class="summary-card">

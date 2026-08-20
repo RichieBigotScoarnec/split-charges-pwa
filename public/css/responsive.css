@@ -228,6 +228,11 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
   margin-bottom: var(--space-md);
   padding: 10px var(--space-md);
   border-radius: var(--radius);
@@ -242,6 +247,31 @@
 
 .balance-bar strong {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+   Régler le solde est l'aboutissement du mois, pas une opération courante :
+   le bouton reste discret à côté du montant plutôt que de lui disputer
+   l'attention. Il ne s'affiche que lorsqu'il y a effectivement à régler.
+*/
+.btn-settle {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-settle:hover,
+.btn-settle:focus-visible {
+  background: var(--primary-color);
+  color: #FFFFFF;
 }
 
 .balance-bar.balance-positive strong { color: var(--success-color); }
