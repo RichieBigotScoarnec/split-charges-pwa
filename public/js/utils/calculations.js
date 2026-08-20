@@ -1,3 +1,5 @@
+import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
+
 // ===== FONCTIONS DE CALCUL PURES (testables) =====
 // Extraites de summary.js pour permettre les tests unitaires
 
@@ -119,7 +121,7 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
 
   let reimbursementAdjustment = 0;
   activeReimbs.forEach(reimb => {
-    if (reimb.direction === 'vous-to-conjointe') {
+    if (reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) {
       reimbursementAdjustment -= reimb.amount;
     } else {
       reimbursementAdjustment += reimb.amount;

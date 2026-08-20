@@ -341,7 +341,7 @@ test.describe('CRUD — Remboursements', () => {
   test('ajout → remboursement apparaît dans la liste', async ({ page }) => {
     await page.locator('#addReimbursementBtn').click();
     await page.locator('#reimbursementAmount').fill('150');
-    await page.locator('#reimbursementDirection').selectOption('from-partner');
+    await page.locator('#reimbursementDirection').selectOption('conjointe-to-vous');
     await page.locator('#saveReimbursement').click();
 
     await expect(
@@ -352,7 +352,7 @@ test.describe('CRUD — Remboursements', () => {
   test('la modal se ferme après l\'ajout', async ({ page }) => {
     await page.locator('#addReimbursementBtn').click();
     await page.locator('#reimbursementAmount').fill('50');
-    await page.locator('#reimbursementDirection').selectOption('from-you');
+    await page.locator('#reimbursementDirection').selectOption('vous-to-conjointe');
     await page.locator('#saveReimbursement').click();
 
     await expect(page.locator('#modalAddReimbursement')).toBeHidden({ timeout: 5000 });

@@ -2,6 +2,7 @@
 // Fonctionnalités : add, delete, render
 
 import { setState, getState } from '../state.js';
+import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
@@ -150,7 +151,7 @@ export async function deleteReimbursement(reimbursementId) {
     return;
   }
 
-  const directionText = reimbursement.direction === 'vous-to-conjointe'
+  const directionText = reimbursement.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
     ? 'Vous → Conjointe'
     : 'Conjointe → Vous';
 
@@ -210,7 +211,7 @@ export function renderReimbursements() {
   let totalPartnerToYou = 0;
 
   reimbursements.forEach(reimb => {
-    if (reimb.direction === 'vous-to-conjointe') {
+    if (reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) {
       totalYouToPartner += reimb.amount;
     } else {
       totalPartnerToYou += reimb.amount;
@@ -222,13 +223,13 @@ export function renderReimbursements() {
     const reimbDiv = document.createElement('div');
     reimbDiv.className = 'reimbursement-item';
 
-    const directionIcon = reimb.direction === 'vous-to-conjointe'
+    const directionIcon = reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
       ? '→'
       : '←';
-    const directionText = reimb.direction === 'vous-to-conjointe'
+    const directionText = reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
       ? 'Vous → Conjointe'
       : 'Conjointe → Vous';
-    const directionClass = reimb.direction === 'vous-to-conjointe'
+    const directionClass = reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
       ? 'direction-you-to-partner'
       : 'direction-partner-to-you';
 
