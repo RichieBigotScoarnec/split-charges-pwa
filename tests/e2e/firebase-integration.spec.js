@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { ALLOWED_EMAILS } from '../../js/config.js';
+import { ALLOWED_EMAILS, DATA_ROOT } from '../../js/config.js';
 
 // L'application refuse tout compte hors liste blanche (js/modules/auth.js).
 // Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
@@ -25,47 +25,19 @@ const EMULATOR_DB_URL = 'http://127.0.0.1:9000';
  * Configure la page pour utiliser les emulators Firebase
  * Intercepte l'initialisation Firebase pour rediriger vers les emulators
  */
-async function setupEmulatorConnection(page) {
-  // Injecter le code de connexion aux emulators AVANT le chargement de la page
-  await page.addInitScript(`
-    window.__FIREBASE_EMULATOR_MODE = true;
-    window.__emulatorsConnected = false;
-
-    // Intercepter la création du script Firebase SDK pour ajouter la connexion emulator
-    const origCreateElement = document.createElement.bind(document);
-
-    // Observer quand firebase est chargé et patché
-    let patchAttempts = 0;
-    const patchFirebase = setInterval(() => {
-      patchAttempts++;
-      if (patchAttempts > 500) { clearInterval(patchFirebase); return; }
-
-      if (typeof window.firebase !== 'undefined' && window.firebase.initializeApp && !window.__emulatorsConnected) {
-        const originalInit = window.firebase.initializeApp;
-        window.firebase.initializeApp = function(config) {
-          const app = originalInit.call(window.firebase, config);
-
-          if (!window.__emulatorsConnected) {
-            window.__emulatorsConnected = true;
-            try {
-              window.firebase.auth().useEmulator('${EMULATOR_AUTH_URL}');
-              console.log('[TEST] Auth emulator connecté');
-            } catch(e) { console.warn('[TEST] Auth emulator:', e.message); }
-
-            try {
-              window.firebase.database().useEmulator('127.0.0.1', 9000);
-              console.log('[TEST] Database emulator connecté');
-            } catch(e) { console.warn('[TEST] Database emulator:', e.message); }
-          }
-
-          return app;
-        };
-        clearInterval(patchFirebase);
-        console.log('[TEST] Firebase patché pour emulators');
-      }
-    }, 5);
-  `);
-}
+/**
+ * URL de l'application branchée sur les émulateurs
+ *
+ * L'application expose nativement `?emulator=1` (js/config.js → js/firebase-init.js).
+ * L'ancien montage détournait window.firebase.initializeApp depuis un
+ * setInterval de 5 ms, en course avec le chargement des scripts `defer` :
+ * la bascule arrivait après l'initialisation, l'application parlait au
+ * Firebase réel, et l'authentification échouait.
+ *
+ * Passer par le paramètre supporté rend le branchement déterministe et fait
+ * tester le chemin de code que le développeur utilise réellement.
+ */
+const APP_URL = '/FairSplit.html?emulator=1';
 
 /**
  * Crée un utilisateur de test via l'API REST de l'emulator Auth
@@ -76,7 +48,7 @@ async function createTestUser(request) {
     `${EMULATOR_AUTH_URL}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
     {
       data: {
-        email: 'test-integration@fairsplit.dev',
+        email: TEST_EMAIL,
         password: 'TestPassword123!',
         displayName: 'Integration Test User',
         returnSecureToken: true
@@ -147,8 +119,7 @@ test.describe('Firebase Emulator Integration', () => {
   });
 
   test('création de compte et connexion email/password', async ({ page, request }) => {
-    await setupEmulatorConnection(page);
-    await page.goto('/FairSplit.html');
+    await page.goto(APP_URL);
 
     // Attendre que l'overlay d'auth soit visible
     await page.waitForSelector('#authOverlay', { state: 'visible', timeout: 10000 });
@@ -182,11 +153,10 @@ test.describe('Firebase Emulator Integration', () => {
     // Créer un utilisateur via l'API REST
     await createTestUser(request);
 
-    await setupEmulatorConnection(page);
-    await page.goto('/FairSplit.html');
+    await page.goto(APP_URL);
 
     // Se connecter
-    await page.locator('#authEmail').fill('test-integration@fairsplit.dev');
+    await page.locator('#authEmail').fill(TEST_EMAIL);
     await page.locator('#authPassword').fill('TestPassword123!');
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
@@ -217,13 +187,12 @@ test.describe('Firebase Emulator Integration', () => {
 
   test('les données survivent à un rechargement de page', async ({ page, request }) => {
     // Créer un utilisateur
-    const userData = await createTestUser(request);
+    await createTestUser(request);
 
-    await setupEmulatorConnection(page);
-    await page.goto('/FairSplit.html');
+    await page.goto(APP_URL);
 
     // Se connecter
-    await page.locator('#authEmail').fill('test-integration@fairsplit.dev');
+    await page.locator('#authEmail').fill(TEST_EMAIL);
     await page.locator('#authPassword').fill('TestPassword123!');
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
@@ -252,14 +221,12 @@ test.describe('Firebase Emulator Integration', () => {
   });
 
   test('changement de mode de partage persisté', async ({ page, request }) => {
-    const userData = await createTestUser(request);
-    const uid = userData.localId;
+    await createTestUser(request);
 
-    await setupEmulatorConnection(page);
-    await page.goto('/FairSplit.html');
+    await page.goto(APP_URL);
 
     // Se connecter
-    await page.locator('#authEmail').fill('test-integration@fairsplit.dev');
+    await page.locator('#authEmail').fill(TEST_EMAIL);
     await page.locator('#authPassword').fill('TestPassword123!');
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
@@ -271,7 +238,7 @@ test.describe('Firebase Emulator Integration', () => {
 
     // Vérifier dans la DB
     const dbResponse = await request.get(
-      `${EMULATOR_DB_URL}/shareMode/${uid}.json?ns=fairsplit-test-default-rtdb`
+      `${EMULATOR_DB_URL}/${DATA_ROOT}/shareMode.json?ns=fairsplit-test-default-rtdb`
     );
     const shareMode = await dbResponse.json();
 
@@ -282,11 +249,10 @@ test.describe('Firebase Emulator Integration', () => {
   test('déconnexion et reconnexion', async ({ page, request }) => {
     await createTestUser(request);
 
-    await setupEmulatorConnection(page);
-    await page.goto('/FairSplit.html');
+    await page.goto(APP_URL);
 
     // Se connecter
-    await page.locator('#authEmail').fill('test-integration@fairsplit.dev');
+    await page.locator('#authEmail').fill(TEST_EMAIL);
     await page.locator('#authPassword').fill('TestPassword123!');
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
@@ -297,7 +263,7 @@ test.describe('Firebase Emulator Integration', () => {
     await page.waitForSelector('#authOverlay', { state: 'visible', timeout: 5000 });
 
     // Se reconnecter
-    await page.locator('#authEmail').fill('test-integration@fairsplit.dev');
+    await page.locator('#authEmail').fill(TEST_EMAIL);
     await page.locator('#authPassword').fill('TestPassword123!');
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
