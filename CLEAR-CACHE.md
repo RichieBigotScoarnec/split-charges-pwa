@@ -32,9 +32,8 @@
 
 Après connexion Google, vous DEVEZ voir :
 
-```
-[DB] Current user ID set: abcd1234...
-[DB] User is Owner
+```text
+[DB] Utilisateur authentifié
 📅 Gestion périodes initialisée
 💾 Mode de partage sauvegardé
 📊 0 charges variables chargées

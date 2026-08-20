@@ -1,20 +1,36 @@
 /**
  * FairSplit - Database Abstraction
- * @description Abstraction layer for Firebase Realtime Database
- * @version 2.0.0 - Multi-user support with UID-based paths
+ * @description Couche d'accès à Firebase Realtime Database
+ * @version 3.0.0 - Espace foyer unique
+ *
+ * Toutes les données vivent sous un espace unique `household/`, partagé par
+ * les comptes de la liste blanche.
+ *
+ * L'architecture précédente scopait chaque nœud par UID et ajoutait une table
+ * `partners` redirigeant un « Partner » vers l'espace d'un « Owner ». Elle a
+ * été retirée : la liste blanche est figée à deux adresses dans les règles, il
+ * n'y a donc aucun cloisonnement à assurer, et l'indirection n'apportait pas
+ * une capacité de plus. Elle coûtait en revanche une sémantique trompeuse —
+ * `partners/{moi} = X` signifiait « je lis les données de X » alors que
+ * l'interface laissait croire à une relation mutuelle — qui a produit des
+ * accès rompus.
+ *
+ * Conséquence : plus rien à configurer. Un compte autorisé se connecte et voit
+ * les données du foyer.
  */
 
 import { DB_PATHS } from './config.js';
-import { log, warn } from './utils/debug.js';
+import { log } from './utils/debug.js';
+
+/** Racine de l'espace partagé du foyer */
+const HOUSEHOLD_ROOT = 'household';
 
 // Firebase database reference (set after initialization)
 let database = null;
 
-// Current authenticated user ID
-let currentUserId = null;
-
-// Owner user ID (may differ from currentUserId if user is a Partner)
-let ownerUserId = null;
+// Un utilisateur est-il authentifié ? Sert uniquement de garde-fou : le
+// contrôle d'accès réel est assuré par database.rules.json.
+let isAuthenticated = false;
 
 /**
  * Initialize database reference
@@ -25,165 +41,103 @@ export function initDatabase(db) {
 }
 
 /**
- * Set current user ID (called on auth state change)
- * @param {string|null} uid - User ID or null if logged out
+ * Enregistre l'état d'authentification (appelé au changement d'état auth)
+ * @param {string|null} uid - UID de l'utilisateur, ou null à la déconnexion
  */
-export async function setCurrentUserId(uid) {
-  currentUserId = uid;
-  ownerUserId = null;
-
-  if (uid) {
-    // Check if this user is a Partner (has an Owner linked)
-    await loadPartnerConfig();
-    log('[DB] Current user ID set:', uid.substring(0, 8) + '...');
-    if (ownerUserId && ownerUserId !== uid) {
-      log('[DB] User is Partner, using Owner data:', ownerUserId.substring(0, 8) + '...');
-    } else {
-      log('[DB] User is Owner');
-    }
-  } else {
-    log('[DB] User logged out');
-  }
+export function setAuthenticatedUser(uid) {
+  isAuthenticated = Boolean(uid);
+  log(isAuthenticated ? '[DB] Utilisateur authentifié' : '[DB] Utilisateur déconnecté');
 }
 
 /**
- * Load partner configuration
- * Checks if current user has a partner link (is a Partner accessing Owner data)
- * @private
+ * Construit un chemin dans l'espace du foyer
+ * @param {string} path - Chemin relatif (ex. 'salaries', 'periods/2026-01')
+ * @returns {string} Chemin absolu (ex. 'household/periods/2026-01')
  */
-async function loadPartnerConfig() {
-  if (!database || !currentUserId) {
-    ownerUserId = null;
-    return;
-  }
-
-  try {
-    const partnerSnapshot = await database.ref(`partners/${currentUserId}`).once('value');
-    const linkedOwnerUid = partnerSnapshot.val();
-
-    if (linkedOwnerUid) {
-      // Current user is a Partner, use Owner's UID for data access
-      ownerUserId = linkedOwnerUid;
-    } else {
-      // Current user is Owner (or has no partner configured)
-      ownerUserId = currentUserId;
-    }
-  } catch (error) {
-    warn('[DB] Could not load partner config:', error);
-    ownerUserId = currentUserId; // Fallback to current user
-  }
-}
-
-/**
- * Build user-scoped path
- * Uses ownerUserId (may be Partner's owner or current user if Owner)
- * @param {string} path - Base path (e.g., 'salaries', 'periods/2026-01')
- * @returns {string} User-scoped path (e.g., 'salaries/uid123', 'periods/uid123/2026-01')
- * @private
- */
-export function getUserPath(path) {
-  if (!currentUserId) {
+export function getHouseholdPath(path) {
+  if (!isAuthenticated) {
     throw new Error('User not authenticated. Cannot access database.');
   }
-
-  // Use ownerUserId (Partner's owner) or currentUserId (if user is Owner)
-  const effectiveUid = ownerUserId || currentUserId;
-
-  // Split path to insert UID after the first segment
-  const segments = path.split('/');
-  const firstSegment = segments[0];
-  const rest = segments.slice(1);
-
-  // Build: firstSegment/uid/rest
-  return rest.length > 0
-    ? `${firstSegment}/${effectiveUid}/${rest.join('/')}`
-    : `${firstSegment}/${effectiveUid}`;
+  return path ? `${HOUSEHOLD_ROOT}/${path}` : HOUSEHOLD_ROOT;
 }
 
 // ===== GENERIC OPERATIONS =====
 
 /**
- * Get data from path (user-scoped)
- * @param {string} path - Database path (will be scoped to current user)
+ * Get data from path
+ * @param {string} path - Chemin relatif à l'espace du foyer
  * @returns {Promise<*>} Data at path
  */
 export async function dbGet(path) {
   if (!database) throw new Error('Database not initialized');
 
-  const userPath = getUserPath(path);
-  const snapshot = await database.ref(userPath).once('value');
+  const snapshot = await database.ref(getHouseholdPath(path)).once('value');
   return snapshot.val();
 }
 
 /**
- * Set data at path (user-scoped)
- * @param {string} path - Database path (will be scoped to current user)
+ * Set data at path
+ * @param {string} path - Chemin relatif à l'espace du foyer
  * @param {*} data - Data to set
  * @returns {Promise<void>}
  */
 export async function dbSet(path, data) {
   if (!database) throw new Error('Database not initialized');
 
-  const userPath = getUserPath(path);
-  await database.ref(userPath).set(data);
+  await database.ref(getHouseholdPath(path)).set(data);
 }
 
 /**
- * Update data at path (user-scoped)
- * @param {string} path - Database path (will be scoped to current user)
+ * Update data at path
+ * @param {string} path - Chemin relatif à l'espace du foyer
  * @param {Object} updates - Partial updates
  * @returns {Promise<void>}
  */
 export async function dbUpdate(path, updates) {
   if (!database) throw new Error('Database not initialized');
 
-  const userPath = getUserPath(path);
-  await database.ref(userPath).update(updates);
+  await database.ref(getHouseholdPath(path)).update(updates);
 }
 
 /**
- * Push new data to path with auto-generated key (user-scoped)
- * @param {string} path - Database path (will be scoped to current user)
+ * Push new data to path with auto-generated key
+ * @param {string} path - Chemin relatif à l'espace du foyer
  * @param {*} data - Data to push
  * @returns {Promise<string>} The generated key
  */
 export async function dbPush(path, data) {
   if (!database) throw new Error('Database not initialized');
 
-  const userPath = getUserPath(path);
-  const newRef = database.ref(userPath).push();
+  const newRef = database.ref(getHouseholdPath(path)).push();
   await newRef.set(data);
   return newRef.key;
 }
 
 /**
- * Remove data at path (user-scoped)
- * @param {string} path - Database path (will be scoped to current user)
+ * Remove data at path
+ * @param {string} path - Chemin relatif à l'espace du foyer
  * @returns {Promise<void>}
  */
 export async function dbRemove(path) {
   if (!database) throw new Error('Database not initialized');
 
-  const userPath = getUserPath(path);
-  await database.ref(userPath).remove();
+  await database.ref(getHouseholdPath(path)).remove();
 }
 
 /**
- * Listen to data changes (user-scoped)
- * @param {string} path - Database path (will be scoped to current user)
+ * Listen to data changes
+ * @param {string} path - Chemin relatif à l'espace du foyer
  * @param {Function} callback - Callback function(data)
  * @returns {Function} Unsubscribe function
  */
 export function dbListen(path, callback) {
   if (!database) throw new Error('Database not initialized');
 
-  const userPath = getUserPath(path);
-  const ref = database.ref(userPath);
+  const ref = database.ref(getHouseholdPath(path));
   const handler = snapshot => callback(snapshot.val());
 
   ref.on('value', handler);
 
-  // Return unsubscribe function
   return () => ref.off('value', handler);
 }
 
@@ -194,8 +148,6 @@ export function dbListen(path, callback) {
  * @returns {Promise<Object>}
  */
 export async function loadReminders() {
-  // dbGet applique déjà getUserPath() — ne pas le pré-appliquer ici,
-  // le chemin deviendrait reminders/{uid}/{uid}.
   const data = await dbGet(DB_PATHS.REMINDERS);
   return data || {
     finMois: false,
@@ -210,6 +162,5 @@ export async function loadReminders() {
  * @param {Object} settings
  */
 export async function saveReminders(settings) {
-  // dbSet applique déjà getUserPath() — cf. loadReminders().
   await dbSet(DB_PATHS.REMINDERS, settings);
 }
