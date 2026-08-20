@@ -27,6 +27,20 @@ export const FIREBASE_CONFIG = {
   measurementId: "G-9HW1XN8EF1"
 };
 
+// ===== ESPACE DE DONNÉES =====
+// `?sandbox=1` bascule l'application sur un espace isolé, dans le même projet
+// Firebase et sous la même liste blanche. Il remplace l'ancienne base de test
+// séparée : essayer librement, puis saisir pour de vrai dans l'espace du foyer.
+//
+// L'émulateur reste préférable sur une machine qui peut l'exécuter, mais il
+// exige un JDK 21+ et un port libre — deux conditions non réunies partout.
+export const IS_SANDBOX =
+  typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).get('sandbox') === '1';
+
+/** Racine des données : espace du foyer, ou bac à sable isolé */
+export const DATA_ROOT = IS_SANDBOX ? 'sandbox' : 'household';
+
 // ===== ÉMULATEUR LOCAL (opt-in) =====
 // Activé uniquement via ?emulator=1 dans l'URL : brancher l'émulateur
 // automatiquement sur localhost casserait `npm run serve` quand il n'est

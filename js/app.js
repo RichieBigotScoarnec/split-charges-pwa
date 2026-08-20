@@ -3,7 +3,7 @@
  * @description Initialise l'application et coordonne les modules
  */
 
-import { VERSION } from './config.js';
+import { VERSION, IS_SANDBOX, DATA_ROOT } from './config.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
 import { initDatabase } from './db.js';
 import { setState } from './state.js';
@@ -27,7 +27,14 @@ let connectionUnsubscribe = null;
  * Initialize the application
  */
 async function initApp() {
-  log(`🚀 FairSplit ${VERSION}`);
+  log(`🚀 FairSplit ${VERSION} — espace « ${DATA_ROOT} »`);
+
+  // Repère permanent : sans lui, rien ne distingue un essai des vraies données
+  if (IS_SANDBOX) {
+    const banner = document.getElementById('sandboxBanner');
+    if (banner) banner.hidden = false;
+    document.title = `[Bac à sable] ${document.title}`;
+  }
 
   try {
     // 1. Initialize Firebase
