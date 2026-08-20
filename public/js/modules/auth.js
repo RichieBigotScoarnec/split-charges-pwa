@@ -16,7 +16,6 @@ import { initSummary, calculateSummary } from './summary.js';
 import { initSearch } from './search.js';
 import { initExport } from './export.js';
 import { initNotifications, cleanupNotifications } from './notifications.js';
-import { initCategories } from './categories.js';
 import { initTrends } from './trends.js';
 import { initReconduction } from './reconduction.js';
 import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
@@ -326,7 +325,10 @@ async function initializeAppData() {
   await runStep('recherche', () => initSearch(), failures);
   await runStep('export', () => initExport(), failures);
   await runStep('notifications', () => initNotifications(), failures);
-  await runStep('analyse par catégorie', () => initCategories(), failures);
+  await runStep('budgets par catégorie', async () => {
+    const { initCategoryBudgets } = await import('./category-budgets.js');
+    await initCategoryBudgets();
+  }, failures);
   await runStep('tendances', () => initTrends(), failures);
   await runStep('reconduction', () => initReconduction(), failures);
   await runStep('saisie rapide', () => initQuickAdd(), failures);

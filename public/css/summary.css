@@ -912,3 +912,111 @@
   font-weight: 500;
   vertical-align: middle;
 }
+
+/* ===== BUDGETS PAR CATÉGORIE ===== */
+/*
+   Le budget global disait qu'on avait trop dépensé, jamais en quoi. Chaque
+   catégorie porte ici sa propre jauge ; les plus tendues passent en tête,
+   puisque c'est là qu'une décision se prend.
+*/
+.budget-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-sm);
+}
+
+.budget-row {
+  padding: var(--space-sm) 0;
+}
+
+.budget-row + .budget-row {
+  border-top: 1px solid var(--border-color);
+}
+
+.budget-row-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.budget-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.budget-row-amounts {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.budget-row-track {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: var(--radius-full);
+  background: var(--elevated-bg);
+  overflow: hidden;
+}
+
+.budget-row-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--duration) var(--ease);
+}
+
+.budget-row-fill.budget-ok { background: var(--success-color); }
+.budget-row-fill.budget-warning { background: var(--warning-color); }
+.budget-row-fill.budget-over { background: var(--danger-color); }
+
+.budget-row-status {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.budget-row.budget-over .budget-row-status {
+  color: var(--danger-color);
+  font-weight: 600;
+}
+
+.budget-editor-list {
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  margin-bottom: var(--space-md);
+}
+
+.budget-editor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+}
+
+.budget-editor-label {
+  /* Sans cela, un nom long pousserait le champ hors de la modale. */
+  min-width: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.budget-editor-input {
+  flex: 0 0 110px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-align: right;
+}

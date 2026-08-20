@@ -34,6 +34,7 @@ changer le mode des autres.
 | **Report** | Option : un mois non réglé reste dû le mois suivant au lieu de repartir de zéro |
 | **Périodes** | Navigation mensuelle, reconduction des charges fixes récurrentes d'un mois sur l'autre |
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
+| **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
 | **Analyse** | Répartition par catégorie, tendances sur 6 mois |
 | **Saisie rapide** | Ajout en un geste avec géolocalisation et pré-cache GPS |
 | **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap) |

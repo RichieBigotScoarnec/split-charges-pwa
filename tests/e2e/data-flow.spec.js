@@ -1184,3 +1184,103 @@ test.describe('Revenus complémentaires', () => {
     await expect(page.locator('.toast.error').last()).toContainText(/invalide/, { timeout: 5000 });
   });
 });
+
+// ============================================================
+// Budgets par catégorie
+// ============================================================
+/*
+   Le budget mensuel global dit qu'on a trop dépensé, jamais en quoi. Le
+   panneau « Analyse par Catégorie » existait dans le HTML depuis longtemps
+   mais n'affichait rien : sa cible de rendu n'existait pas et personne ne
+   l'appelait. Il porte désormais les budgets par catégorie.
+*/
+test.describe('Budgets par catégorie', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /** Ajoute une charge variable dans une catégorie donnée */
+  async function depense(page, description, montant, categorie) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill(description);
+    await page.locator('#variableChargeAmount').fill(String(montant));
+    await page.locator('#variableChargeCategory').selectOption(categorie);
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText(description)).toBeVisible({ timeout: 5000 });
+  }
+
+  /** Fixe un budget pour une catégorie via l'éditeur */
+  async function fixerBudget(page, categorie, montant) {
+    await page.locator('[data-action="showBudgetEditor"]').click();
+    await page.locator(`#budgetEditorList input[data-category="${categorie}"]`).fill(String(montant));
+    await page.locator('[data-action="saveCategoryBudgets"]').click();
+    await expect(page.locator('#modalBudgets')).not.toHaveClass(/active/, { timeout: 5000 });
+  }
+
+  test('le panneau reste masqué sans dépense ni budget', async ({ page }) => {
+    await expect(page.locator('#categoryAnalysis')).toBeHidden();
+  });
+
+  test('une dépense fait apparaître le panneau, sans jugement', async ({ page }) => {
+    await depense(page, 'Courses Lidl', 80, 'Courses');
+
+    await expect(page.locator('#categoryAnalysis')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('Courses');
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('Aucun budget défini');
+  });
+
+  test('fixer un budget affiche la part consommée', async ({ page }) => {
+    await depense(page, 'Courses Lidl', 100, 'Courses');
+    await fixerBudget(page, 'Courses', 400);
+
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('25 %', { timeout: 5000 });
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('Reste');
+  });
+
+  test('un dépassement est signalé avec son montant', async ({ page }) => {
+    await depense(page, 'Courses Lidl', 450, 'Courses');
+    await fixerBudget(page, 'Courses', 400);
+
+    await expect(page.locator('.budget-row.budget-over')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('Dépassé de');
+  });
+
+  test('le budget survit au changement de mois', async ({ page }) => {
+    // Un budget est une intention durable, pas une donnée du mois.
+    await depense(page, 'Courses Lidl', 100, 'Courses');
+    await fixerBudget(page, 'Courses', 400);
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await depense(page, 'Courses mois passe', 380, 'Courses');
+
+    await expect(page.locator('.budget-row.budget-warning')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('95 %');
+  });
+
+  test('un montant invalide est refusé sans rien enregistrer', async ({ page }) => {
+    await depense(page, 'Courses Lidl', 100, 'Courses');
+
+    await page.locator('[data-action="showBudgetEditor"]').click();
+    await page.locator('#budgetEditorList input[data-category="Courses"]').fill('beaucoup');
+    await page.locator('[data-action="saveCategoryBudgets"]').click();
+
+    await expect(page.locator('.toast.error').last()).toContainText(/invalide/, { timeout: 5000 });
+    await expect(page.locator('#modalBudgets')).toHaveClass(/active/);
+  });
+
+  test('vider un champ retire le budget de la catégorie', async ({ page }) => {
+    await depense(page, 'Courses Lidl', 100, 'Courses');
+    await fixerBudget(page, 'Courses', 400);
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('Reste', { timeout: 5000 });
+
+    await fixerBudget(page, 'Courses', '');
+    await expect(page.locator('#categoryAnalysisContent')).toContainText('Aucun budget défini', { timeout: 5000 });
+  });
+});
