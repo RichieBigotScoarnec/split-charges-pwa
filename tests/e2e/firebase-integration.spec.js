@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+import { ALLOWED_EMAILS } from '../../js/config.js';
+
+// L'application refuse tout compte hors liste blanche (js/modules/auth.js).
+// Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
+// se cassent silencieusement à chaque évolution de la whitelist — ce qui est
+// exactement ce qui s'était produit.
+const TEST_EMAIL = ALLOWED_EMAILS[0];
+
 /**
  * Tests d'intégration Firebase avec Emulators
  *
@@ -154,7 +162,7 @@ test.describe('Firebase Emulator Integration', () => {
     await expect(passwordInput).toBeAttached();
 
     // Remplir les champs
-    await emailInput.fill('test@fairsplit.dev');
+    await emailInput.fill(TEST_EMAIL);
     await passwordInput.fill('TestPassword123!');
 
     // Cliquer sur le bouton de création de compte

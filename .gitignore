@@ -67,3 +67,7 @@ tmp/
 # Old versions (cleanup)
 Split-ChargeProrata*.html
 Split-Charge*.html
+
+# Artefacts d'exécution Playwright
+test-results/
+playwright-report/

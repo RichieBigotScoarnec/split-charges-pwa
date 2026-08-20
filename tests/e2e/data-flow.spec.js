@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+import { ALLOWED_EMAILS } from '../../js/config.js';
+
+// L'application refuse tout compte hors liste blanche (js/modules/auth.js).
+// Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
+// se cassent silencieusement à chaque évolution de la whitelist — ce qui est
+// exactement ce qui s'était produit.
+const TEST_EMAIL = ALLOWED_EMAILS[0];
+
 /**
  * Mock Firebase hiérarchique — push().set() stocke sous le chemin parent
  * Permet à loadVariableCharges() de retrouver les données via dbGet(parentPath)
@@ -120,7 +128,7 @@ const REACTIVE_FIREBASE_MOCK = `
           setTimeout(function() {
             cb({
               uid: 'test-user-123',
-              email: 'test@fairsplit.dev',
+              email: '${TEST_EMAIL}',
               displayName: 'Test User',
               photoURL: null
             });
@@ -134,7 +142,7 @@ const REACTIVE_FIREBASE_MOCK = `
           if (window.__mockAuthCallback) window.__mockAuthCallback(null);
           return Promise.resolve();
         },
-        currentUser: { uid: 'test-user-123', email: 'test@fairsplit.dev' }
+        currentUser: { uid: 'test-user-123', email: '${TEST_EMAIL}' }
       };
     }
   };

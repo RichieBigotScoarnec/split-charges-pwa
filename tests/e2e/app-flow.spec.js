@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+import { ALLOWED_EMAILS } from '../../js/config.js';
+
+// L'application refuse tout compte hors liste blanche (js/modules/auth.js).
+// Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
+// se cassent silencieusement à chaque évolution de la whitelist — ce qui est
+// exactement ce qui s'était produit.
+const TEST_EMAIL = ALLOWED_EMAILS[0];
+
 /**
  * Mock Firebase pour les tests E2E post-auth
  * Intercepte les scripts Firebase CDN et injecte des mocks
@@ -70,7 +78,7 @@ const FIREBASE_MOCK_SCRIPT = `
           setTimeout(function() {
             cb({
               uid: 'test-user-123',
-              email: 'test@fairsplit.dev',
+              email: '${TEST_EMAIL}',
               displayName: 'Test User',
               photoURL: null
             });
@@ -88,7 +96,7 @@ const FIREBASE_MOCK_SCRIPT = `
         },
         currentUser: {
           uid: 'test-user-123',
-          email: 'test@fairsplit.dev'
+          email: '${TEST_EMAIL}'
         }
       };
     }
