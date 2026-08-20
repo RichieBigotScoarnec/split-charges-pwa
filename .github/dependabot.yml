@@ -1,0 +1,21 @@
+version: 2
+
+updates:
+  # Les 900 paquets sont tous en dépendances de développement — ils ne sont pas
+  # livrés au navigateur — mais ils s'exécutent sur le poste et dans la CI.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        patterns:
+          - '*'
+
+  # Indispensable ici : les actions sont épinglées par SHA de commit, donc
+  # figées jusqu'à mise à jour explicite. Dependabot sait relever ces SHA.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
