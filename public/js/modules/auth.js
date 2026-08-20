@@ -255,15 +255,21 @@ async function initializeAppData() {
   log('📦 Initialisation des données utilisateur...');
   const failures = [];
 
+  // Le sélecteur de mois se calcule à partir de la date courante, sans aucune
+  // lecture en base. Il passe donc en premier et hors de toute étape réseau :
+  // même base injoignable, l'utilisateur garde sa navigation entre les mois.
+  // L'ordre inverse rendait la navigation otage d'un incident de connexion.
+  await runStep('sélecteur de période', () => initPeriod(), failures);
+
   // Les listes personnalisées alimentent les <select> des autres modules :
-  // elles restent en tête, mais leur échec ne bloque plus la suite.
+  // elles restent en tête des étapes réseau, mais leur échec ne bloque plus
+  // la suite.
   await runStep('listes personnalisées', async () => {
     await initCustomLists();
     populateAllSelects();
   }, failures);
 
-  await runStep('périodes et salaires', async () => {
-    initPeriod();
+  await runStep('salaires de la période', async () => {
     // Fige les salaires des périodes antérieures aux instantanés, avant tout
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.
     await backfillPeriodSalaries();
