@@ -414,3 +414,59 @@
   margin: var(--space-md) 0 var(--space-lg);
   line-height: 1.6;
 }
+
+/* ===== CORBEILLE ===== */
+/*
+   Les suppressions sont douces depuis toujours : la donnée restait en base
+   sans qu'aucun écran ne la montre. Cette liste est cette fenêtre.
+*/
+.modal-hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.trash-list {
+  /* Une corbeille peut s'allonger : elle défile plutôt que d'étirer la modale
+     au-delà de l'écran. */
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  margin-bottom: var(--space-md);
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.trash-item:last-child {
+  border-bottom: none;
+}
+
+.trash-item-info {
+  /* Sans cela, une longue description élargirait la ligne au-delà de la modale. */
+  min-width: 0;
+}
+
+.trash-item-desc {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.trash-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.btn-restore {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  font-size: 13px;
+}

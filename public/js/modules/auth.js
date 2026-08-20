@@ -282,6 +282,13 @@ async function initializeAppData() {
     await initCarryOver();
   }, failures);
 
+  // Aucune lecture : la corbeille se peuple à partir de ce que les chargeurs
+  // recueillent au passage. Elle précède donc leur exécution.
+  await runStep('corbeille', async () => {
+    const { initTrash } = await import('./trash.js');
+    initTrash();
+  }, failures);
+
   await runStep('salaires de la période', async () => {
     // Fige les salaires des périodes antérieures aux instantanés, avant tout
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.

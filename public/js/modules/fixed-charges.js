@@ -2,6 +2,8 @@
 // Fonctionnalités : add, edit, delete, render, validation
 
 import { setState, getState } from '../state.js';
+import { collectDeleted } from '../utils/soft-delete.js';
+import { refreshTrashButton } from './trash.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
@@ -89,14 +91,20 @@ export async function loadFixedCharges() {
         .filter(([_, charge]) => !charge.deleted)
         .map(([id, charge]) => ({ id, ...charge }));
 
+      // Le nœud complet est déjà lu : recueillir les entrées supprimées
+      // ici évite une seconde lecture pour la corbeille.
+      setState('deleted.fixedCharges', collectDeleted(charges));
       setState('fixedCharges', activeCharges);
       log(`📊 ${activeCharges.length} charges fixes chargées`);
     } else {
+      setState('deleted.fixedCharges', []);
       setState('fixedCharges', []);
       log('📊 Aucune charge fixe pour cette période');
     }
 
     renderFixedCharges();
+    // Le nombre d'éléments supprimés vient de changer.
+    refreshTrashButton();
   } catch (error) {
     logError('❌ Erreur chargement charges fixes :', error);
     toast.error('Erreur de chargement des charges fixes');

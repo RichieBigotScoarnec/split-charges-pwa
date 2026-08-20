@@ -36,6 +36,17 @@
   box-sizing: border-box;
 }
 
+/*
+   L'attribut `hidden` ne masque que via la feuille de style du navigateur,
+   dont la spécificité est la plus faible qui soit : la moindre règle posant
+   un `display` la neutralise. `.btn { display: inline-flex }` rendait ainsi
+   visible tout bouton porteur de `hidden`, et `#mainApp` avait déjà reçu son
+   correctif particulier. La règle appartient ici, une fois pour toutes.
+*/
+[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: var(--font);
   background: var(--dark-bg);

@@ -802,3 +802,143 @@ test.describe('Report du solde', () => {
     await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
   });
 });
+
+// ============================================================
+// Corbeille
+// ============================================================
+/*
+   Les suppressions sont douces depuis l'origine : la donnée restait en base
+   avec `deleted: true`, sans qu'aucun écran ne la montre ni ne la rende.
+   Une suppression accidentelle était irréversible côté utilisateur.
+*/
+test.describe('Corbeille', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /** Ajoute une charge variable payée par vous */
+  async function ajouter(page, description, montant) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill(description);
+    await page.locator('#variableChargeAmount').fill(String(montant));
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText(description)).toBeVisible({ timeout: 5000 });
+  }
+
+  /** Supprime la charge affichée et confirme */
+  async function supprimer(page) {
+    await page.locator('#variableChargesList .btn-delete').first().click();
+    await page.locator('#modalConfirmOk').click();
+  }
+
+  test('le bouton reste masqué tant que rien n\'a été supprimé', async ({ page }) => {
+    await ajouter(page, 'Charge conservee', 100);
+    await expect(page.locator('#trashButton')).toBeHidden();
+  });
+
+  test('supprimer révèle la corbeille et son compte', async ({ page }) => {
+    await ajouter(page, 'Charge a jeter', 100);
+    await supprimer(page);
+
+    await expect(page.locator('#trashButton')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#trashCount')).toHaveText('1');
+  });
+
+  test('la corbeille montre l\'élément supprimé', async ({ page }) => {
+    await ajouter(page, 'Charge a jeter', 100);
+    await supprimer(page);
+
+    await page.locator('#trashButton').click();
+    await expect(page.locator('#trashList')).toContainText('Charge a jeter');
+    await expect(page.locator('#trashList')).toContainText('Charge variable');
+  });
+
+  test('rétablir remet la charge dans la liste et dans le bilan', async ({ page }) => {
+    await ajouter(page, 'Charge a retablir', 100);
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+
+    await supprimer(page);
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
+
+    await page.locator('#trashButton').click();
+    await page.locator('#trashList .btn-restore').first().click();
+
+    await expect(page.locator('#variableChargesList').getByText('Charge a retablir')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+  });
+
+  test('la corbeille vidée par rétablissement se referme et disparaît', async ({ page }) => {
+    await ajouter(page, 'Dernier element', 100);
+    await supprimer(page);
+
+    await page.locator('#trashButton').click();
+    await page.locator('#trashList .btn-restore').first().click();
+
+    await expect(page.locator('#modalTrash')).not.toHaveClass(/active/, { timeout: 5000 });
+    await expect(page.locator('#trashButton')).toBeHidden();
+  });
+
+  test('une description hostile est affichée en texte, jamais interprétée', async ({ page }) => {
+    // La corbeille rend des données saisies par l'utilisateur : elle construit
+    // des nœuds DOM plutôt que du HTML, ce test le verrouille.
+    const hostile = '<img src=x onerror=alert(1)>';
+    await ajouter(page, hostile, 50);
+    await supprimer(page);
+
+    await page.locator('#trashButton').click();
+    await expect(page.locator('#trashList')).toContainText(hostile);
+    await expect(page.locator('#trashList img')).toHaveCount(0);
+  });
+});
+
+// ============================================================
+// Attribut hidden — masquage effectif
+// ============================================================
+/*
+   L'attribut `hidden` ne masque que par la feuille de style du navigateur,
+   la moins spécifique qui soit : toute règle posant un `display` l'annule.
+   Deux éléments étaient ainsi visibles alors qu'ils se croyaient masqués —
+   la barre de solde, vide et bordée, et la barre de recherche sans rien à
+   filtrer. Chaque nouvelle règle `display` sur un élément masquable rouvrait
+   la brèche ; ces tests la referment.
+*/
+test.describe('Éléments masqués', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  test('sans salaires, la barre de solde ne s\'affiche pas', async ({ page }) => {
+    await expect(page.locator('#balanceBar')).toBeHidden();
+  });
+
+  test('sans charges, la barre de recherche ne s\'affiche pas', async ({ page }) => {
+    await expect(page.locator('#searchBarContainer')).toBeHidden();
+  });
+
+  test('les deux apparaissent dès qu\'elles ont un objet', async ({ page }) => {
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Une charge');
+    await page.locator('#variableChargeAmount').fill('100');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+
+    await expect(page.locator('#balanceBar')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#searchBarContainer')).toBeVisible({ timeout: 5000 });
+  });
+});

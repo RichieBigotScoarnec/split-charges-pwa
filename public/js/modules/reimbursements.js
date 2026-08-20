@@ -2,6 +2,8 @@
 // Fonctionnalités : add, delete, render
 
 import { setState, getState } from '../state.js';
+import { collectDeleted } from '../utils/soft-delete.js';
+import { refreshTrashButton } from './trash.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
@@ -66,14 +68,20 @@ export async function loadReimbursements() {
         .filter(([_, reimb]) => !reimb.deleted)
         .map(([id, reimb]) => ({ id, ...reimb }));
 
+      // Le nœud complet est déjà lu : recueillir les entrées supprimées
+      // ici évite une seconde lecture pour la corbeille.
+      setState('deleted.reimbursements', collectDeleted(reimbursements));
       setState('reimbursements', activeReimbursements);
       log(`📊 ${activeReimbursements.length} remboursements chargés`);
     } else {
+      setState('deleted.reimbursements', []);
       setState('reimbursements', []);
       log('📊 Aucun remboursement pour cette période');
     }
 
     renderReimbursements();
+    // Le nombre d'éléments supprimés vient de changer.
+    refreshTrashButton();
   } catch (error) {
     logError('❌ Erreur chargement remboursements :', error);
     toast.error('Erreur de chargement des remboursements');
