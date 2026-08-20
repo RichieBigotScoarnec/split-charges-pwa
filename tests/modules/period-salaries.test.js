@@ -27,7 +27,7 @@ vi.mock('../../public/js/modules/reimbursements.js', () => ({
   initReimbursements: vi.fn()
 }));
 vi.mock('../../public/js/modules/reconduction.js', () => ({
-  checkReconductionNeeded: vi.fn(() => Promise.resolve())
+  applyRecurringCharges: vi.fn(() => Promise.resolve(0))
 }));
 vi.mock('../../public/js/utils/date.js', () => ({
   getCurrentPeriod: vi.fn(() => '2026-03'),

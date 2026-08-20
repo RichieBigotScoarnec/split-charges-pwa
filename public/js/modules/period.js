@@ -145,9 +145,10 @@ export async function loadPeriodData() {
     // Calculate summary (rendering is done by individual loaders)
     calculateSummary();
 
-    // ✅ Check for reconduction banner
-    const { checkReconductionNeeded } = await import('./reconduction.js');
-    checkReconductionNeeded();
+    // Reconduction des charges récurrentes : silencieuse si le mois n'est pas
+    // neuf, et ne s'exécute qu'une fois par mois cible.
+    const { applyRecurringCharges } = await import('./reconduction.js');
+    await applyRecurringCharges();
 
     log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
 
