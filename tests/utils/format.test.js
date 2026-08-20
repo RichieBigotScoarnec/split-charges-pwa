@@ -8,7 +8,7 @@ import {
   parseCurrency,
   escapeHtml,
   formatPaidBy
-} from '../public/js/utils/format.js';
+} from '../../public/js/utils/format.js';
 
 // ===== formatCurrency =====
 describe('formatCurrency', () => {
