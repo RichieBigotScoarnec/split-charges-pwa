@@ -634,46 +634,6 @@ export async function addQuickCharge(chargeData) {
   }
 }
 
-/**
- * Ajoute plusieurs charges rapidement (batch)
- * @param {Array<Object>} charges - Liste de charges
- * @returns {Promise<void>}
- */
-export async function addQuickChargesBatch(charges) {
-  const currentPeriod = getState('currentPeriod');
-  if (!currentPeriod) {
-    throw new Error('Aucune période sélectionnée');
-  }
-
-  if (!Array.isArray(charges) || charges.length === 0) {
-    throw new Error('Liste de charges invalide');
-  }
-
-  try {
-    const { dbPush } = await import('../db.js');
-
-    for (const chargeData of charges) {
-      const charge = {
-        description: chargeData.description,
-        amount: parseFloat(chargeData.amount),
-        category: chargeData.category || 'Autre',
-        paidBy: chargeData.paidBy || 'vous',
-        date: chargeData.date || new Date().toISOString().split('T')[0],
-        timestamp: Date.now(),
-        deleted: false
-      };
-      await dbPush(`periods/${currentPeriod}/variableCharges`, charge);
-    }
-
-    toast.success(`${charges.length} charge(s) ajoutée(s)`);
-    await loadVariableCharges();
-    calculateSummary();
-  } catch (error) {
-    logError('❌ Erreur addQuickChargesBatch :', error);
-    throw error;
-  }
-}
-
 // ===== EXPORTS GLOBAUX (compatibilité HTML) =====
 window.showQuickAddModal = showQuickAddModal;
 window.closeQuickAddModal = closeQuickAddModal;

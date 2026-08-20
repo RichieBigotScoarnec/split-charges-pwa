@@ -1,6 +1,6 @@
 # Sécurité — FairSplit
 
-> **Dernière révision** : 2026-08-19 · Correspond au code de la branche `main`.
+> **Dernière révision** : 2026-08-20 · Correspond au code de la branche `main`.
 
 Ce document décrit ce qui est **effectivement implémenté**. Toute affirmation
 ici doit être vérifiable dans le code ; à défaut, elle doit être retirée.
@@ -80,12 +80,31 @@ personnalisée.
 relecture (avertissement — voir [`eslint.config.mjs`](eslint.config.mjs) pour
 la justification de la sévérité).
 
-### 5. Intégrité des ressources externes
+### 5. Content Security Policy
+
+Politique posée en balise `<meta>` dans [`FairSplit.html`](FairSplit.html) :
+GitHub Pages ne permet pas de définir d'en-têtes HTTP, donc celle de
+[`firebase.json`](firebase.json) n'a jamais été appliquée. Elle n'y sert plus
+que si le site est un jour servi par Firebase Hosting.
+
+`default-src 'self'`, plus les seules origines réellement utilisées : gstatic
+et unpkg pour les scripts, Google Fonts, les tuiles OpenStreetMap, Firebase en
+`connect-src`. Complétée par `object-src 'none'`, `base-uri 'self'` et
+`form-action 'self'`. Aucun script inline ni gestionnaire `on*` dans les pages,
+ce qui permet de se passer de `'unsafe-inline'` sur `script-src`.
+
+`index.html` porte une politique plus stricte encore — `default-src 'none'` —
+son script de redirection ayant été retiré au profit du seul `meta refresh`.
+
+Limite : `frame-ancestors` et `report-uri` sont ignorés en balise `<meta>`.
+Ni l'un ni l'autre n'est utilisé ici.
+
+### 6. Intégrité des ressources externes
 
 Firebase SDK et Leaflet sont chargés depuis un CDN avec attribut `integrity`
 (SRI) et `crossorigin`. Un CDN compromis ne peut pas substituer son code.
 
-### 6. Validation des saisies
+### 7. Validation des saisies
 
 [`js/utils/validation.js`](js/utils/validation.js) : bornes sur les montants
 (50 000 € par charge, 100 000 € par salaire), longueurs maximales, format de
@@ -95,16 +114,6 @@ une frontière de sécurité, étant contournables côté client.
 ---
 
 ## Limites connues, assumées
-
-### Pas de Content Security Policy active
-
-Une CSP est définie dans [`firebase.json`](firebase.json), sous forme d'en-tête
-HTTP. **Elle ne s'applique pas** : le déploiement se fait sur GitHub Pages, qui
-ne permet pas de définir d'en-têtes de réponse. Elle ne prendrait effet que sur
-Firebase Hosting.
-
-Une balise `<meta http-equiv="Content-Security-Policy">` fonctionnerait sur
-GitHub Pages et reste une amélioration possible.
 
 ### La clé API Firebase est publique — et ce n'est pas une fuite
 
@@ -118,14 +127,12 @@ sécurité. Toute documentation affirmant le contraire est fausse.
 
 ### Un seul environnement
 
-Un seul projet Firebase. Pour développer sans toucher aux données réelles,
-utiliser l'émulateur :
+Un seul projet Firebase. Pour essayer sans toucher aux données réelles :
+`FairSplit.html?sandbox=1`, qui bascule sur le nœud `sandbox/`.
 
-```bash
-npm run emulators
-```
-
-puis ouvrir `FairSplit.html?emulator=1`.
+Isolation plus stricte, si la machine dispose d'un JDK 21+ et du port 9000
+libre : `npm run emulators` puis `FairSplit.html?emulator=1`, qui n'écrit rien
+dans le cloud.
 
 ### Suppression logique
 

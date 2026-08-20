@@ -264,21 +264,6 @@ export function getPreviousPeriod(period) {
   return `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
 }
 
-/**
- * Vérifie si une période existe
- * @param {string} period - Période à vérifier
- * @returns {Promise<boolean>} True si existe
- */
-export async function periodExists(period) {
-  try {
-    const snapshot = await database.ref(getDataPath(`periods/${period}`)).once('value');
-    return snapshot.exists();
-  } catch (error) {
-    logError('❌ Erreur vérification période :', error);
-    return false;
-  }
-}
-
 // Exposer globalement pour compatibilité
 window.proposeReconduction = proposeReconduction;
 window.executeReconduction = executeReconduction;

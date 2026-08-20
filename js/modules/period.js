@@ -16,7 +16,7 @@ import { log, warn, error as logError } from '../utils/debug.js';
 /**
  * Populate period dropdown with last 12 months
  */
-export function populatePeriodDropdown() {
+function populatePeriodDropdown() {
   const select = document.getElementById('periodSelect');
   if (!select) return;
 
@@ -58,7 +58,10 @@ function updatePeriodInfo() {
   if (currentPeriod === actualCurrentPeriod) {
     info.innerHTML = '<span class="current-period-badge">✓ Période actuelle</span>';
   } else {
-    info.innerHTML = '<span class="period-archived-label">📁 Période archivée (lecture seule)</span>';
+    // « lecture seule » était faux : rien n'empêche de modifier un mois passé,
+    // et c'est voulu — corriger une charge oubliée est un besoin normal, et
+    // l'instantané de salaires par période rend la correction sûre.
+    info.innerHTML = '<span class="period-archived-label">📁 Mois archivé — modifiable</span>';
   }
 }
 

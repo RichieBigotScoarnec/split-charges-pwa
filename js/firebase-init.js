@@ -77,17 +77,6 @@ export function getGoogleAuthProvider() {
 }
 
 /**
- * Get Firebase global object (for compatibility)
- * @returns {Object} Firebase global object
- */
-export function getFirebaseGlobal() {
-  if (typeof firebase === 'undefined') {
-    throw new Error('Firebase SDK not loaded.');
-  }
-  return firebase;
-}
-
-/**
  * Check Firebase connection status
  * @param {Function} callback - Called with boolean (isConnected)
  * @returns {Function} Unsubscribe function

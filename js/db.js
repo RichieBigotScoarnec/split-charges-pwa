@@ -113,34 +113,6 @@ export async function dbPush(path, data) {
   return newRef.key;
 }
 
-/**
- * Remove data at path
- * @param {string} path - Chemin relatif à l'espace de données
- * @returns {Promise<void>}
- */
-export async function dbRemove(path) {
-  if (!database) throw new Error('Database not initialized');
-
-  await database.ref(getDataPath(path)).remove();
-}
-
-/**
- * Listen to data changes
- * @param {string} path - Chemin relatif à l'espace de données
- * @param {Function} callback - Callback function(data)
- * @returns {Function} Unsubscribe function
- */
-export function dbListen(path, callback) {
-  if (!database) throw new Error('Database not initialized');
-
-  const ref = database.ref(getDataPath(path));
-  const handler = snapshot => callback(snapshot.val());
-
-  ref.on('value', handler);
-
-  return () => ref.off('value', handler);
-}
-
 // ===== REMINDERS =====
 
 /**
