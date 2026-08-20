@@ -65,7 +65,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ## Conventions
 
 ### CSS
-- Tokens dans `css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
+- Tokens dans `public/css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
 - Mobile-first, breakpoint principal : 600px
 - Classes en kebab-case
 
@@ -96,12 +96,12 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 - `npm run test:all` — tout (vitest + playwright)
 - `npm run emulators` — Firebase emulators
 - `npm run deploy:hosting` — deploy Firebase Hosting (optionnel ; la prod est GitHub Pages)
-- Live Server VS Code sur `FairSplit.html` — dev local
+- `npm run serve` puis http://localhost:3333 — dev local
 
 ## Contraintes
 
 - NE PAS modifier `state.js`, `toast.js`, `firebase-init.js`, `db.js` sans vérifier tous les imports
-- NE PAS ajouter de JS dans `FairSplit.html` — tout dans les modules
+- NE PAS ajouter de JS dans `public/FairSplit.html` — tout dans les modules
 - NE PAS utiliser `innerHTML` avec données utilisateur non échappées (XSS)
 - NE PAS stocker credentials, tokens ou PII dans le code/logs
 - NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`)
@@ -135,20 +135,26 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 
 | Déclaration CLAUDE.md | Fichier réel | État | Action |
 |---|---|---|---|
-| Design = clarté, confiance, thème clair | `css/variables.css` | ✅ RÉSOLU 2026-03-22 — thème clair + dark mode auto | — |
-| Tout JS dans les modules | `FairSplit.html` | ✅ RÉSOLU — HTML propre (604 lignes, aucun JS inline) | — |
-| `utils.js` = legacy à supprimer | `js/utils.js` | ✅ RÉSOLU 2026-03-22 — git rm, aucun import résiduel | — |
-| `window.quickAddState` = legacy | `js/modules/quick-add.js` | ✅ RÉSOLU — local const, plus de global `window.quickAddState` | — |
-| Font Awesome non chargé | `js/modules/variable-charges.js`, `fixed-charges.js` | ✅ RÉSOLU 2026-03-22 — emojis utilisés + `.btn-icon` stylé | — |
-| Prompts toolkit sync | `docs/claude/prompts/core/` | ⏳ PAS ENCORE — sync toolkit non fait | Lancer `Sync-Toolkit.ps1` |
-| `escapeHtml()` dans `js/utils/format.js` | `js/utils/format.js` + `js/utils.js` (legacy) | ✅ RÉSOLU 2026-03-22 — utils.js supprimé, une seule copie dans format.js | — |
-| Bilan en bas de page | `FairSplit.html` + `summary.js` | ✅ RÉSOLU 2026-03-22 — bilan en position 3, solde net 28px en tête | — |
+| Design = clarté, confiance, thème clair | `public/css/variables.css` | ✅ RÉSOLU 2026-03-22 — thème clair + dark mode auto | — |
+| Tout JS dans les modules | `public/FairSplit.html` | ✅ RÉSOLU — HTML propre (604 lignes, aucun JS inline) | — |
+| `utils.js` = legacy à supprimer | `js/utils.js` (supprimé) | ✅ RÉSOLU 2026-03-22 — git rm, aucun import résiduel | — |
+| `window.quickAddState` = legacy | `public/js/modules/quick-add.js` | ✅ RÉSOLU — local const, plus de global `window.quickAddState` | — |
+| Font Awesome non chargé | `public/js/modules/variable-charges.js`, `fixed-charges.js` | ✅ RÉSOLU 2026-03-22 — emojis utilisés + `.btn-icon` stylé | — |
+| `escapeHtml()` dupliqué | `public/js/utils/format.js` | ✅ RÉSOLU 2026-03-22 — utils.js supprimé, une seule copie dans format.js | — |
+| Bilan en bas de page | `public/FairSplit.html` + `summary.js` | ✅ RÉSOLU 2026-03-22 — bilan en position 3, solde net 28px en tête | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles
 
-Locaux (commandes Claude) : `.claude/commands/audit-design-fairsplit.md`, `.claude/commands/audit-web-fairsplit.md`
-Universels (après sync toolkit) : `@docs/claude/prompts/core/` (analyze-code, debug, etc.)
-Stack JS : `@docs/claude/prompts/stacks/javascript/` (conventions, security)
-Références : `@docs/claude/references/` (quality-grid, security-checklist)
+Commandes Claude Code (chargées automatiquement) :
+`.claude/commands/audit-design-fairsplit.md`, `.claude/commands/audit-web-fairsplit.md`
+
+Prompts d'audit locaux : `docs/claude/prompts/local/` — dette technique,
+règles Firebase, design PWA.
+
+> Les entrées `docs/claude/prompts/core/`, `stacks/javascript/`,
+> `docs/claude/references/` et le script `Sync-Toolkit.ps1` figuraient ici
+> sans jamais avoir existé dans ce dépôt. Une documentation qui annonce un
+> mécanisme absent finit par le faire croire actif : ne rétablir ces lignes
+> que le jour où les fichiers existent.
