@@ -59,30 +59,45 @@ async function createTestUser(request) {
 }
 
 /**
+ * En-têtes d'administration de l'émulateur
+ *
+ * L'émulateur RTDB applique database.rules.json aux appels REST comme au
+ * client. Les règles refusant tout à la racine, un DELETE sur `/.json`
+ * échouait — silencieusement, `failOnStatusCode: false` masquant le 401.
+ * Résultat : l'état d'un test fuyait dans le suivant, qui lisait la valeur
+ * du précédent.
+ *
+ * Le jeton littéral `owner` est le contournement d'administration prévu par
+ * l'émulateur. Il n'a aucune valeur hors émulateur.
+ */
+const ADMIN = { headers: { Authorization: 'Bearer owner' } };
+
+/**
  * Nettoie les données de l'emulator Auth
  */
 async function clearEmulatorAuth(request) {
-  try {
-    await request.delete(
-      `${EMULATOR_AUTH_URL}/emulator/v1/projects/fairsplit-test/accounts`,
-      { failOnStatusCode: false }
-    );
-  } catch (e) {
-    // Ignorer si pas encore de données
+  const res = await request.delete(
+    `${EMULATOR_AUTH_URL}/emulator/v1/projects/fairsplit-test/accounts`,
+    { failOnStatusCode: false }
+  );
+  if (!res.ok()) {
+    throw new Error(`Nettoyage Auth échoué (${res.status()}) — les tests ne seraient plus isolés`);
   }
 }
 
 /**
  * Nettoie les données de l'emulator Database
+ *
+ * Volontairement bloquant en cas d'échec : un nettoyage muet rend les tests
+ * dépendants de leur ordre d'exécution, ce qui est pire qu'un échec franc.
  */
 async function clearEmulatorDatabase(request) {
-  try {
-    await request.delete(
-      `${EMULATOR_DB_URL}/.json?ns=fairsplit-test-default-rtdb`,
-      { failOnStatusCode: false }
-    );
-  } catch (e) {
-    // Ignorer si pas encore de données
+  const res = await request.delete(
+    `${EMULATOR_DB_URL}/.json?ns=fairsplit-test-default-rtdb`,
+    { ...ADMIN, failOnStatusCode: false }
+  );
+  if (!res.ok()) {
+    throw new Error(`Nettoyage Database échoué (${res.status()}) — les tests ne seraient plus isolés`);
   }
 }
 
@@ -114,7 +129,7 @@ test.describe('Firebase Emulator Integration', () => {
     const authResponse = await request.get(EMULATOR_AUTH_URL);
     expect(authResponse.ok()).toBeTruthy();
 
-    const dbResponse = await request.get(`${EMULATOR_DB_URL}/.json`);
+    const dbResponse = await request.get(`${EMULATOR_DB_URL}/.json?ns=fairsplit-test-default-rtdb`, ADMIN);
     expect(dbResponse.ok()).toBeTruthy();
   });
 
@@ -238,12 +253,16 @@ test.describe('Firebase Emulator Integration', () => {
 
     // Vérifier dans la DB
     const dbResponse = await request.get(
-      `${EMULATOR_DB_URL}/${DATA_ROOT}/shareMode.json?ns=fairsplit-test-default-rtdb`
+      `${EMULATOR_DB_URL}/${DATA_ROOT}/shareMode.json?ns=fairsplit-test-default-rtdb`,
+      ADMIN
     );
     const shareMode = await dbResponse.json();
 
-    // Le mode de partage doit être sauvegardé
+    // Assertion réelle sur la valeur : sans le bypass admin, la lecture était
+    // refusée par les règles et renvoyait un objet d'erreur — non nul, donc
+    // « not.toBeNull() » passait quoi qu'il arrive.
     expect(shareMode).not.toBeNull();
+    expect(shareMode.mode).toBe('50-50');
   });
 
   test('déconnexion et reconnexion', async ({ page, request }) => {
