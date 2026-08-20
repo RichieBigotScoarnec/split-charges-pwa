@@ -72,7 +72,7 @@ jobs:
       # tout. Les émulateurs chargent database.rules.json : firebase-integration
       # valide donc les règles de sécurité réelles, et non un mock.
       - name: Run E2E tests
-        run: npx firebase emulators:exec --only auth,database --project fairsplit-test "npx playwright test --reporter=line"
+        run: npx firebase emulators:exec --only auth,database --project fairsplit-foyer "npx playwright test --reporter=line"
 
       - name: Upload traces on failure
         if: failure()

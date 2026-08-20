@@ -13,7 +13,7 @@ fonctionnement réel — s'il diverge du dépôt, c'est le dépôt qui fait foi.
 | --- | --- |
 | Branche déployée | `main` — seule branche longue |
 | Hébergement | GitHub Pages, via `.github/workflows/deploy.yml` |
-| Projet Firebase | `fairsplit-test` — unique |
+| Projet Firebase | `fairsplit-foyer` — unique |
 | Données réelles | nœud `household/` |
 | Essais | nœud `sandbox/`, via `?sandbox=1` |
 
@@ -77,7 +77,7 @@ deux conditions manque, utiliser le bac à sable.
 
 ## 🔥 Firebase
 
-Un seul projet : `fairsplit-test` (`.firebaserc`).
+Un seul projet : `fairsplit-foyer` (`.firebaserc`).
 
 ```bash
 npm run deploy:rules      # publie database.rules.json

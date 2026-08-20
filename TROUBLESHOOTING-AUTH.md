@@ -16,7 +16,7 @@
 ### Étape 1 : Ouvrir la console Firebase
 
 1. Allez sur : https://console.firebase.google.com/
-2. Sélectionnez votre projet **fairsplit-test**
+2. Sélectionnez votre projet **fairsplit-foyer**
 3. Dans le menu de gauche, cliquez sur **Authentication**
 
 ### Étape 2 : Ajouter localhost aux domaines autorisés
@@ -49,7 +49,7 @@
    - `http://127.0.0.1:5500`
 6. Dans **Authorized redirect URIs**, vérifiez que vous avez :
    - `http://localhost`
-   - `https://fairsplit-test.firebaseapp.com/__/auth/handler`
+   - `https://fairsplit-foyer.firebaseapp.com/__/auth/handler`
 7. Si manquant, ajoutez-les et cliquez sur **Save**
 
 ---

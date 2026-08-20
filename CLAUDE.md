@@ -79,7 +79,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ### Git
 - Commits français : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `chore:`
 - main = branche unique et déployée. Travailler sur des branches courtes `fix/…` `feat/…`, puis PR vers main.
-- Un seul projet Firebase (fairsplit-test). Pour développer isolé : `npm run emulators` puis `FairSplit.html?emulator=1`
+- Un seul projet Firebase (fairsplit-foyer). Pour développer isolé : `npm run emulators` puis `FairSplit.html?emulator=1`
 
 ## Commandes
 
