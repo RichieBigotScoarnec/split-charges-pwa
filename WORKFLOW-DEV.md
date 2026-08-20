@@ -130,7 +130,7 @@ Détail complet : [SECURITY.md](SECURITY.md).
    <https://github.com/RichieBigotScoarnec/split-charges-pwa/actions>
    — un lint ou un test rouge bloque le déploiement, c'est voulu.
 2. Attendre deux à trois minutes (propagation GitHub Pages).
-3. Forcer le rechargement : voir [CLEAR-CACHE.md](CLEAR-CACHE.md). Le service
+3. Forcer le rechargement : voir [CLEAR-CACHE.md](docs/CLEAR-CACHE.md). Le service
    worker sert volontiers une version périmée.
 
 ### Le bandeau ambre apparaît alors que je veux les vraies données
@@ -152,7 +152,7 @@ git diff main HEAD       # identifier les divergences
 
 ### L'authentification Google échoue
 
-Voir [TROUBLESHOOTING-AUTH.md](TROUBLESHOOTING-AUTH.md).
+Voir [TROUBLESHOOTING-AUTH.md](docs/TROUBLESHOOTING-AUTH.md).
 
 ---
 

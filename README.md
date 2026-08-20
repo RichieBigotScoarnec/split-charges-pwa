@@ -150,6 +150,6 @@ désormais par l'émulateur.
 | [SECURITY.md](SECURITY.md) | Modèle de menace, protections en place, limites assumées |
 | [CLAUDE.md](CLAUDE.md) | Conventions de code et contraintes |
 | [WORKFLOW-DEV.md](WORKFLOW-DEV.md) | Workflow Git et déploiement |
-| [DEPLOIEMENT-GITHUB-PAGES.md](DEPLOIEMENT-GITHUB-PAGES.md) | Détail du déploiement |
-| [TROUBLESHOOTING-AUTH.md](TROUBLESHOOTING-AUTH.md) | Dépannage de l'authentification Google |
-| [CLEAR-CACHE.md](CLEAR-CACHE.md) | Forcer le rechargement (service worker) |
+| [DEPLOIEMENT-GITHUB-PAGES.md](docs/DEPLOIEMENT-GITHUB-PAGES.md) | Détail du déploiement |
+| [TROUBLESHOOTING-AUTH.md](docs/TROUBLESHOOTING-AUTH.md) | Dépannage de l'authentification Google |
+| [CLEAR-CACHE.md](docs/CLEAR-CACHE.md) | Forcer le rechargement (service worker) |
