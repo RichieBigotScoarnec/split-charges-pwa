@@ -65,7 +65,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ### JavaScript
 - ES6 modules partout, pas de globals sauf compat legacy (`window.xxx`)
 - State centralisé : `getState('key')` / `setState('key', value)` via `state.js`
-- DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (chemins auto-préfixés par `household/`)
+- DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (chemins auto-préfixés par `DATA_ROOT` : `household/`, ou `sandbox/` avec `?sandbox=1`)
 - Async/await + try/catch sur tous les appels Firebase
 - `escapeHtml()` obligatoire pour tout contenu dynamique injecté en HTML
 - Toast pour feedback : `toast.success()`, `toast.error()`
@@ -100,7 +100,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 - NE PAS stocker credentials, tokens ou PII dans le code/logs
 - NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`)
 - NE JAMAIS mettre `.read: true` ou `.write: true` sur données utilisateur dans Firebase rules
-- TOUJOURS utiliser `db.js` pour accéder Firebase (préfixage `household/` automatique)
+- TOUJOURS utiliser `db.js` pour accéder Firebase (préfixage `DATA_ROOT` automatique)
 - TOUJOURS écrire un test pour toute nouvelle fonction pure dans `utils/`
 - TOUJOURS tester les dépendants après modif d'un module critique
 

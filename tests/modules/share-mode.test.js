@@ -9,7 +9,7 @@ vi.mock('../../js/db.js', () => ({
   dbGet: vi.fn(() => Promise.resolve(null)),
   dbPush: vi.fn(() => Promise.resolve('mock-key')),
   dbUpdate: vi.fn(() => Promise.resolve()),
-  getHouseholdPath: vi.fn(path => `household/${path}`)
+  getDataPath: vi.fn(path => `household/${path}`)
 }));
 vi.mock('../../js/modules/summary.js', () => ({
   calculateSummary: vi.fn()

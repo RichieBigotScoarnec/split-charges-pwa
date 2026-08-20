@@ -101,3 +101,19 @@ header p {
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* ===== BANDEAU BAC À SABLE ===== */
+/* Affiché uniquement avec ?sandbox=1 — repère permanent pour ne jamais
+   confondre les données d'essai avec celles du foyer. */
+.sandbox-banner {
+  position: sticky;
+  top: 0;
+  z-index: 99999;
+  padding: 8px var(--space-md);
+  background: var(--warning-color);
+  color: var(--on-warning);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}

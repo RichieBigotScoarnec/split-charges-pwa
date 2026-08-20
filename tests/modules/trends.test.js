@@ -12,7 +12,7 @@ vi.mock('../../js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
 vi.mock('../../js/db.js', () => ({
-  getHouseholdPath: vi.fn(path => `household/${path}`)
+  getDataPath: vi.fn(path => `household/${path}`)
 }));
 vi.mock('../../js/firebase-init.js', () => ({
   getFirebaseDatabase: vi.fn(() => mockDatabase)

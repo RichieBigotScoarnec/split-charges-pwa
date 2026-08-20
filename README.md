@@ -73,12 +73,19 @@ npm run check           # lint + tests unitaires (ce que la CI exécute)
 
 ### Travailler sans toucher aux données réelles
 
-```bash
-npm run emulators
+Ajouter `?sandbox=1` à l'URL — en local comme en ligne :
+
+```text
+FairSplit.html?sandbox=1
 ```
 
-puis ouvrir `FairSplit.html?emulator=1`. Sans ce paramètre, l'application se
-connecte au Firebase réel, y compris en local.
+L'application bascule sur le nœud `sandbox/`, isolé de `household/` mais dans
+le même projet Firebase et sous la même liste blanche. Un bandeau ambre le
+signale en permanence.
+
+Alternative plus stricte, si la machine le permet : `npm run emulators` puis
+`FairSplit.html?emulator=1`, qui n'écrit rien dans le cloud. Elle exige un
+**JDK 21+** et le port 9000 libre — conditions non réunies partout.
 
 ### Icônes
 

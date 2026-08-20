@@ -50,7 +50,9 @@ pas une protection** : seules les règles serveur font autorité.
 
 ### 3. Espace unique, refus par défaut
 
-Toutes les données vivent sous `household/`. La racine est explicitement en
+Les données vivent sous `household/`, et les essais sous `sandbox/`
+(`?sandbox=1`). Les deux nœuds portent la même liste blanche : le bac à sable
+isole les *données*, pas les droits. La racine est explicitement en
 `".read": false, ".write": false` : tout nœud non déclaré est inaccessible,
 y compris à un compte autorisé.
 

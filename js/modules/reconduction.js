@@ -7,7 +7,7 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { loadFixedCharges } from './fixed-charges.js';
 import { calculateSummary } from './summary.js';
-import { getHouseholdPath } from '../db.js';
+import { getDataPath } from '../db.js';
 import { log, error as logError } from '../utils/debug.js';
 
 let database = null;
@@ -82,7 +82,7 @@ export async function proposeReconduction(targetPeriod = null) {
 
   // Vérifier si la période cible existe déjà
   try {
-    const snapshot = await database.ref(getHouseholdPath(`periods/${targetPeriod}`)).once('value');
+    const snapshot = await database.ref(getDataPath(`periods/${targetPeriod}`)).once('value');
 
     if (snapshot.exists()) {
       toast.warning(`La période ${targetPeriod} existe déjà`);
@@ -180,7 +180,7 @@ export async function executeReconduction(sourcePeriod, targetPeriod, options = 
 
     // Copier les charges fixes
     if (fixedCharges) {
-      const fixedSnapshot = await database.ref(getHouseholdPath(`periods/${sourcePeriod}/fixedCharges`)).once('value');
+      const fixedSnapshot = await database.ref(getDataPath(`periods/${sourcePeriod}/fixedCharges`)).once('value');
       if (fixedSnapshot.exists()) {
         const charges = fixedSnapshot.val();
 
@@ -190,7 +190,7 @@ export async function executeReconduction(sourcePeriod, targetPeriod, options = 
           .reduce((acc, [_, charge]) => {
             // Créer nouvelle clé pour la charge
             const newKey = database.ref().push().key;
-            acc[getHouseholdPath(`periods/${targetPeriod}/fixedCharges/${newKey}`)] = {
+            acc[getDataPath(`periods/${targetPeriod}/fixedCharges/${newKey}`)] = {
               ...charge,
               timestamp: Date.now()
             };
@@ -203,16 +203,16 @@ export async function executeReconduction(sourcePeriod, targetPeriod, options = 
 
     // Copier les salaires
     if (salaries) {
-      const salariesSnapshot = await database.ref(getHouseholdPath(`periods/${sourcePeriod}/salaries`)).once('value');
+      const salariesSnapshot = await database.ref(getDataPath(`periods/${sourcePeriod}/salaries`)).once('value');
       if (salariesSnapshot.exists()) {
-        updates[getHouseholdPath(`periods/${targetPeriod}/salaries`)] = salariesSnapshot.val();
+        updates[getDataPath(`periods/${targetPeriod}/salaries`)] = salariesSnapshot.val();
       }
     }
 
     // Copier le mode de partage
-    const shareModeSnapshot = await database.ref(getHouseholdPath(`periods/${sourcePeriod}/shareMode`)).once('value');
+    const shareModeSnapshot = await database.ref(getDataPath(`periods/${sourcePeriod}/shareMode`)).once('value');
     if (shareModeSnapshot.exists()) {
-      updates[getHouseholdPath(`periods/${targetPeriod}/shareMode`)] = shareModeSnapshot.val();
+      updates[getDataPath(`periods/${targetPeriod}/shareMode`)] = shareModeSnapshot.val();
     }
 
     // Appliquer les mises à jour
@@ -271,7 +271,7 @@ export function getPreviousPeriod(period) {
  */
 export async function periodExists(period) {
   try {
-    const snapshot = await database.ref(getHouseholdPath(`periods/${period}`)).once('value');
+    const snapshot = await database.ref(getDataPath(`periods/${period}`)).once('value');
     return snapshot.exists();
   } catch (error) {
     logError('❌ Erreur vérification période :', error);

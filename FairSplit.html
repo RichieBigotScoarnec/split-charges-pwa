@@ -38,6 +38,11 @@
 <body>
   <a href="#mainApp" class="skip-link">Aller au contenu principal</a>
 
+  <!-- Affiché uniquement en mode bac à sable (?sandbox=1), par js/app.js -->
+  <div id="sandboxBanner" class="sandbox-banner" role="status" hidden>
+    <span aria-hidden="true">🧪</span> Bac à sable — données d'essai, isolées de celles du foyer
+  </div>
+
   <!-- Authentication Overlay -->
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card">

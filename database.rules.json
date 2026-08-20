@@ -6,6 +6,11 @@
     "household": {
       ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
       ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
+    },
+
+    "sandbox": {
+      ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+      ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
     }
   }
 }
