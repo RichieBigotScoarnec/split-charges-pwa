@@ -940,3 +940,40 @@
 .fab {
   animation: fabPulse 3s ease-in-out 2s infinite;
 }
+
+/* ===== REVENUS COMPLÉMENTAIRES ===== */
+/*
+   Repliés par défaut : la plupart des foyers n'ont que des salaires, et deux
+   champs de plus en permanence alourdiraient un écran déjà dense.
+*/
+.extra-income-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: var(--space-sm) 0;
+  border: none;
+  background: none;
+  color: var(--primary-color);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.extra-income-hint {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.extra-income-toggle[aria-expanded="true"] {
+  margin-bottom: var(--space-xs);
+}
+
+#extraIncomeFields {
+  margin-bottom: var(--space-sm);
+}

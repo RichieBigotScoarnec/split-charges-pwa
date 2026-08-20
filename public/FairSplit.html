@@ -240,7 +240,7 @@
       <div class="card-header">
         <h2 class="card-title" id="sectionSalaires"><span aria-hidden="true">💵</span> Salaires</h2>
       </div>
-      <div class="salaries-grid">
+      <div class="salaries-grid" id="salariesGrid">
         <div class="salary-input-group">
           <label for="salaireVous">Votre salaire (€)</label>
           <input type="text" id="salaireVous" placeholder="Ex: 2500" inputmode="decimal" required />
@@ -248,6 +248,24 @@
         <div class="salary-input-group">
           <label for="salaireConjointe">Salaire conjointe (€)</label>
           <input type="text" id="salaireConjointe" placeholder="Ex: 1800" inputmode="decimal" required />
+        </div>
+      </div>
+
+      <!-- Revenus complémentaires — replié par défaut : la plupart des foyers
+           n'ont que des salaires. Déplié automatiquement si le mois en porte. -->
+      <button type="button" class="extra-income-toggle" id="extraIncomeToggle"
+              aria-expanded="false" aria-controls="extraIncomeFields">
+        <span aria-hidden="true">➕</span> Revenus complémentaires
+        <span class="extra-income-hint">allocations, loyers perçus, activité annexe</span>
+      </button>
+      <div class="salaries-grid" id="extraIncomeFields" hidden>
+        <div class="salary-input-group">
+          <label for="revenusVous">Vos autres revenus (€)</label>
+          <input type="text" id="revenusVous" placeholder="0" inputmode="decimal" />
+        </div>
+        <div class="salary-input-group">
+          <label for="revenusConjointe">Autres revenus conjointe (€)</label>
+          <input type="text" id="revenusConjointe" placeholder="0" inputmode="decimal" />
         </div>
       </div>
 

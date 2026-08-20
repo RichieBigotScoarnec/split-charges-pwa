@@ -5,6 +5,7 @@ import { getState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
+import { resolveIncomeBase } from '../utils/salaries.js';
 import { log, warn } from '../utils/debug.js';
 
 /**
@@ -30,7 +31,10 @@ export function calculateSummary() {
   const shareMode = getState('shareMode') || 'prorata';
   const customPercents = getState('customPercents') || { vous: 50, conjointe: 50 };
 
-  const totalSalaries = salaries.vous + salaries.conjointe;
+  // Le prorata porte sur l'ensemble des revenus, salaires et revenus
+  // complémentaires confondus : c'est cette assiette qui décide des parts.
+  const incomeBase = resolveIncomeBase(salaries);
+  const totalSalaries = incomeBase.total;
 
   // Si pas de salaires, impossible de calculer
   if (totalSalaries === 0) {
@@ -59,7 +63,7 @@ export function calculateSummary() {
   // Récap virements par destination (charges fixes actives uniquement)
   const activeFixed = fixedCharges.filter(c => !c.deleted);
   const virementsByDestination = computeVirementsByDestination(activeFixed, {
-    shareMode, salaries, totalSalaries, customPercents
+    shareMode, salaries: incomeBase, totalSalaries, customPercents
   });
 
   // Afficher le résumé

@@ -1081,3 +1081,106 @@ test.describe('Sauvegarde', () => {
     await expect(page.locator('#salaireVous')).toHaveValue('2000');
   });
 });
+
+// ============================================================
+// Revenus complémentaires
+// ============================================================
+/*
+   Le prorata ne portait que sur les salaires. Un conjoint au salaire modeste
+   mais percevant des allocations conséquentes se voyait attribuer une part
+   trop faible, et l'autre payait pour un écart de revenus qui n'existait pas.
+*/
+test.describe('Revenus complémentaires', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  /** Renseigne les deux salaires */
+  async function salaires(page, vous, conjointe) {
+    await page.locator('#salaireVous').fill(vous);
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill(conjointe);
+    await page.locator('#salaireConjointe').blur();
+  }
+
+  /** Ajoute une charge de 1000 € avancée par vous */
+  async function chargeAvancee(page) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Loyer');
+    await page.locator('#variableChargeAmount').fill('1000');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText('Loyer')).toBeVisible({ timeout: 5000 });
+  }
+
+  test('le bloc est replié par défaut', async ({ page }) => {
+    await expect(page.locator('#extraIncomeFields')).toBeHidden();
+    await expect(page.locator('#extraIncomeToggle')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('le bloc s\'ouvre et se referme', async ({ page }) => {
+    await page.locator('#extraIncomeToggle').click();
+    await expect(page.locator('#extraIncomeFields')).toBeVisible();
+    await expect(page.locator('#extraIncomeToggle')).toHaveAttribute('aria-expanded', 'true');
+
+    await page.locator('#extraIncomeToggle').click();
+    await expect(page.locator('#extraIncomeFields')).toBeHidden();
+  });
+
+  test('ne rien saisir laisse le calcul inchangé', async ({ page }) => {
+    await salaires(page, '3000', '1000');
+    await chargeAvancee(page);
+
+    // Prorata 3000/1000 : elle doit 250
+    await expect(page.locator('#balanceBar')).toContainText('250,00', { timeout: 5000 });
+  });
+
+  test('des allocations relèvent la part de celle qui les perçoit', async ({ page }) => {
+    await salaires(page, '3000', '1000');
+    await chargeAvancee(page);
+    await expect(page.locator('#balanceBar')).toContainText('250,00', { timeout: 5000 });
+
+    await page.locator('#extraIncomeToggle').click();
+    await page.locator('#revenusConjointe').fill('1000');
+    await page.locator('#revenusConjointe').blur();
+
+    // Son assiette passe de 1000 à 2000 : sa part de 250 à 400
+    await expect(page.locator('#balanceBar')).toContainText('400,00', { timeout: 5000 });
+  });
+
+  test('la valeur saisie survit au changement de mois', async ({ page }) => {
+    await salaires(page, '2000', '2000');
+    await page.locator('#extraIncomeToggle').click();
+    await page.locator('#revenusVous').fill('450');
+    await page.locator('#revenusVous').blur();
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+
+    // Le bloc se déplie de lui-même puisque le mois porte une valeur
+    await expect(page.locator('#extraIncomeFields')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#revenusVous')).toHaveValue('450');
+  });
+
+  test('une valeur négative est refusée et le champ revient à l\'enregistré', async ({ page }) => {
+    await salaires(page, '2000', '2000');
+    await page.locator('#extraIncomeToggle').click();
+    await page.locator('#revenusVous').fill('-50');
+    await page.locator('#revenusVous').blur();
+
+    await expect(page.locator('.toast.error').last()).toContainText(/négatif/, { timeout: 5000 });
+    await expect(page.locator('#revenusVous')).toHaveValue('0');
+  });
+
+  test('une valeur non numérique est refusée', async ({ page }) => {
+    await salaires(page, '2000', '2000');
+    await page.locator('#extraIncomeToggle').click();
+    await page.locator('#revenusConjointe').fill('beaucoup');
+    await page.locator('#revenusConjointe').blur();
+
+    await expect(page.locator('.toast.error').last()).toContainText(/invalide/, { timeout: 5000 });
+  });
+});

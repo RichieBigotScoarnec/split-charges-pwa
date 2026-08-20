@@ -1,3 +1,4 @@
+import { resolveIncomeBase } from './salaries.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 
 // ===== FONCTIONS DE CALCUL PURES (testables) =====
@@ -7,8 +8,8 @@ import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
  * Calcule la part théorique d'une charge pour chaque personne
  * @param {Object} charge - { amount, splitOverride }
  * @param {string} shareMode - Mode global ('prorata', '50-50', 'custom')
- * @param {Object} salaries - { vous, conjointe }
- * @param {number} totalSalaries - Total des salaires
+ * @param {Object} salaries - Assiette du prorata { vous, conjointe }, revenus complémentaires compris
+ * @param {number} totalSalaries - Total de l'assiette
  * @param {Object} customPercents - { vous, conjointe } pourcentages globaux
  * @returns {{ yourShare: number, partnerShare: number }}
  */
@@ -45,8 +46,8 @@ export function calculateChargeShares(charge, shareMode, salaries, totalSalaries
  * Calcule le paiement réel d'une charge joint
  * @param {Object} charge - { amount, splitOverride }
  * @param {string} shareMode - Mode global
- * @param {Object} salaries - { vous, conjointe }
- * @param {number} totalSalaries - Total des salaires
+ * @param {Object} salaries - Assiette du prorata { vous, conjointe }, revenus complémentaires compris
+ * @param {number} totalSalaries - Total de l'assiette
  * @param {Object} customPercents - { vous, conjointe }
  * @returns {{ yourPayment: number, partnerPayment: number }}
  */
@@ -77,7 +78,12 @@ export function calculateJointPayment(charge, shareMode, salaries, totalSalaries
  * @returns {Object} Résumé du bilan
  */
 export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver = 0 }) {
-  const totalSalaries = salaries.vous + salaries.conjointe;
+  // Le prorata porte sur l'ensemble des revenus, pas sur le seul salaire :
+  // allocations, loyers perçus et activité annexe font partie de ce dont
+  // chacun dispose pour payer. Sans revenus complémentaires renseignés,
+  // l'assiette se confond avec les salaires et le calcul est inchangé.
+  const base = resolveIncomeBase(salaries);
+  const totalSalaries = base.total;
 
   if (totalSalaries === 0) {
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0, carryOver: 0 };
@@ -95,7 +101,7 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   let partnerTheoricalShare = 0;
 
   allCharges.forEach(charge => {
-    const shares = calculateChargeShares(charge, shareMode, salaries, totalSalaries, customPercents);
+    const shares = calculateChargeShares(charge, shareMode, base, totalSalaries, customPercents);
     yourTheoricalShare += shares.yourShare;
     partnerTheoricalShare += shares.partnerShare;
   });
@@ -110,7 +116,7 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
     } else if (charge.paidBy === 'conjointe') {
       partnerActualPayments += charge.amount;
     } else {
-      const joint = calculateJointPayment(charge, shareMode, salaries, totalSalaries, customPercents);
+      const joint = calculateJointPayment(charge, shareMode, base, totalSalaries, customPercents);
       yourActualPayments += joint.yourPayment;
       partnerActualPayments += joint.partnerPayment;
     }
@@ -163,6 +169,7 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
  * Calcule les montants à virer par destination (pur, sans DOM)
  * @param {Array} fixedCharges - Charges fixes actives
  * @param {Object} params - { shareMode, salaries, totalSalaries, customPercents }
+ *   `salaries` est l'assiette du prorata, revenus complémentaires compris.
  * @returns {Array} Liste triée
  */
 export function computeVirementsByDestination(fixedCharges, params) {
