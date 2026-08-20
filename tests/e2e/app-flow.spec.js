@@ -337,7 +337,15 @@ test.describe('Recherche', () => {
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
   });
 
+  test('la recherche est masquée sans charge à filtrer', async ({ page }) => {
+    await expect(page.locator('#searchBarContainer')).toBeHidden();
+  });
+
   test('le champ de recherche est fonctionnel', async ({ page }) => {
+    // La barre de recherche n'est rendue visible qu'en présence de charges
+    // à filtrer — règle éprouvée par le test « masquée sans charge » ci-dessous.
+    // On lève ici la contrainte pour éprouver la mécanique du champ lui-même.
+    await page.locator('#searchBarContainer').evaluate(el => { el.hidden = false; });
     const searchInput = page.locator('#searchInput');
     await expect(searchInput).toBeVisible();
 

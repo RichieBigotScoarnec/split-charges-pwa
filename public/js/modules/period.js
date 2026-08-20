@@ -289,6 +289,21 @@ export async function backfillPeriodSalaries() {
 }
 
 /**
+ * Amène l'utilisateur au champ des salaires
+ *
+ * L'état vide du bilan énonçait une condition sans offrir le moyen de la
+ * remplir, alors que le bloc Salaires se trouve plus bas dans la page.
+ */
+export function focusSalaries() {
+  const input = document.getElementById('salaireVous');
+  if (!input) return;
+
+  input.closest('section, .card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Le focus après le défilement, sinon le navigateur saute sèchement
+  setTimeout(() => input.focus({ preventScroll: true }), 350);
+}
+
+/**
  * Initialize period module
  * Sets up event listeners for period dropdown and navigation
  */
@@ -320,6 +335,7 @@ export function initPeriod() {
   window.changePeriod = changePeriod;
   window.navigatePeriod = navigatePeriod;
   window.saveSalaries = saveSalaries;
+  window.focusSalaries = focusSalaries;
 
   log('📅 Gestion périodes initialisée');
 }

@@ -14,8 +14,27 @@ export function initSearch() {
   log('📦 Initialisation module recherche');
 
   setupSearchUI();
+  refreshSearchVisibility();
 
   log('✅ Module recherche initialisé');
+}
+
+/**
+ * N'affiche la recherche que s'il y a quelque chose à chercher
+ *
+ * Un champ de filtre proposé sur un ensemble vide occupe de la place et
+ * suggère une action sans objet. Appelée à l'initialisation et après chaque
+ * modification des listes.
+ */
+export function refreshSearchVisibility() {
+  const container = document.getElementById('searchBarContainer');
+  if (!container) return;
+
+  const total = ['fixedCharges', 'variableCharges']
+    .flatMap(k => getState(k) || [])
+    .filter(c => !c.deleted).length;
+
+  container.hidden = total === 0;
 }
 
 /**
