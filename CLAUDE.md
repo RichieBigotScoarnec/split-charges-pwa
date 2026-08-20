@@ -88,8 +88,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 - `npx playwright test` — tests E2E
 - `npm run test:all` — tout (vitest + playwright)
 - `npm run emulators` — Firebase emulators
-- `npm run deploy:test` — deploy test
-- `npm run deploy:prod` — deploy prod
+- `npm run deploy:hosting` — deploy Firebase Hosting (optionnel ; la prod est GitHub Pages)
 - Live Server VS Code sur `FairSplit.html` — dev local
 
 ## Contraintes

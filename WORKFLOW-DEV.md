@@ -1,182 +1,164 @@
-# 🔄 Workflow Développement FairSplit
+# 🔄 Workflow de développement — FairSplit
 
-> **Guide complet** pour travailler avec les environnements TEST et PROD
+> **Dernière révision** : 2026-08-20
 
----
-
-## 🏗️ Architecture Dual-Environment
-
-### 🔧 Environnement TEST
-- **Branche Git** : `develop`
-- **Firebase** : `fairsplit-test`
-- **URL** : https://richiebigot-scoarnec.github.io/split-charges-pwa/develop/
-- **Fichier** : `FairSplit-Test.html`
-- **Badge** : Orange "🔧 ENVIRONNEMENT DE TEST"
-- **Usage** : Développement et validation des nouvelles fonctionnalités
-
-### ✅ Environnement PROD
-- **Branche Git** : `main`
-- **Firebase** : `fairsplit-prod`
-- **URL** : https://richiebigot-scoarnec.github.io/split-charges-pwa/
-- **Fichier** : `FairSplit-Prod.html`
-- **Badge** : Aucun (interface production standard)
-- **Usage** : Application en production pour usage quotidien
+Une branche, un projet Firebase, un espace de données. Ce document décrit le
+fonctionnement réel — s'il diverge du dépôt, c'est le dépôt qui fait foi.
 
 ---
 
-## 🚀 Workflow Standard
+## 🏗️ Le dispositif en une page
 
-### 1️⃣ Développement sur TEST
+| | |
+| --- | --- |
+| Branche déployée | `main` — seule branche longue |
+| Hébergement | GitHub Pages, via `.github/workflows/deploy.yml` |
+| Projet Firebase | `fairsplit-test` — unique |
+| Données réelles | nœud `household/` |
+| Essais | nœud `sandbox/`, via `?sandbox=1` |
+
+Pousser sur `main` déclenche lint + tests, puis le déploiement. Si le lint ou
+un test échoue, **rien n'est déployé**.
+
+> Une architecture à deux environnements (`fairsplit-test` / `fairsplit-prod`,
+> `develop` / `main`) a existé. Elle imposait une divergence permanente de
+> `js/config.js` entre branches — donc un conflit à chaque fusion — pour une
+> production jamais alimentée. Voir [SECURITY.md](SECURITY.md) et
+> [README.md](README.md).
+
+---
+
+## 🚀 Cycle standard
 
 ```bash
-# Se positionner sur la branche develop
-git checkout develop
+# 1. Branche courte depuis main
+git switch main && git pull
+git switch -c feat/ma-fonctionnalite
 
-# Modifier FairSplit-Test.html
-# Tester les changements localement
+# 2. Développer, puis vérifier ce que la CI vérifiera
+npm run check          # eslint --quiet && vitest run
 
-# Committer les changements
-git add FairSplit-Test.html
-git commit -m "feat: description de la fonctionnalité"
-git push origin develop
+# 3. Essayer dans le bac à sable
+npm run serve          # http://localhost:3333/FairSplit.html?sandbox=1
+
+# 4. Publier
+git push -u origin feat/ma-fonctionnalite
+# → Pull Request vers main
 ```
 
-**Résultat** : Déploiement automatique sur https://.../develop/ sous 2 minutes
-
-### 2️⃣ Validation sur TEST
-
-1. Ouvrir l'application TEST sur smartphone
-2. Vider le cache / recharger (pull-to-refresh)
-3. Tester toutes les nouvelles fonctionnalités
-4. Vérifier que Firebase TEST contient les bonnes données
-
-### 3️⃣ Promotion vers PROD
-
-Une fois validé sur TEST :
-
-```bash
-# Se positionner sur main
-git checkout main
-
-# Fusionner develop dans main
-git merge develop
-
-# Pousser vers GitHub
-git push origin main
-```
-
-**Résultat** : Déploiement automatique sur https://.../ (PROD) sous 2 minutes
-
-### 4️⃣ Synchronisation sur smartphones
-
-- **Attendre 2 minutes** pour propagation GitHub Pages
-- **Ouvrir l'app PROD** sur les smartphones
-- **Tirer vers le bas** pour rafraîchir
-- Les modifications sont appliquées immédiatement
+Après fusion, la CI déploie seule. Compter deux à trois minutes.
 
 ---
 
-## 🔥 Configurations Firebase
+## 🧪 Essayer sans toucher aux vraies données
 
-### TEST (`fairsplit-test`)
+Ajouter `?sandbox=1` à l'URL, en local comme en ligne :
 
-```javascript
-const firebaseConfigTest = {
-  apiKey: "VOTRE_API_KEY_TEST",
-  authDomain: "fairsplit-test.firebaseapp.com",
-  databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "fairsplit-test",
-  storageBucket: "fairsplit-test.firebasestorage.app",
-  messagingSenderId: "VOTRE_MESSAGING_SENDER_ID_TEST",
-  appId: "VOTRE_APP_ID_TEST"
-};
+```text
+https://richiebigotscoarnec.github.io/split-charges-pwa/FairSplit.html?sandbox=1
 ```
 
-### PROD (`fairsplit-prod`)
+L'application bascule sur `sandbox/`, isolé de `household/` mais dans le même
+projet et sous la même liste blanche — le bac à sable isole les *données*, pas
+les droits. Un bandeau ambre et un préfixe `[Bac à sable]` dans le titre le
+signalent en permanence.
 
-```javascript
-const firebaseConfigProd = {
-  apiKey: "VOTRE_API_KEY_PROD",
-  authDomain: "fairsplit-prod.firebaseapp.com",
-  databaseURL: "https://fairsplit-prod-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "fairsplit-prod",
-  storageBucket: "fairsplit-prod.firebasestorage.app",
-  messagingSenderId: "VOTRE_MESSAGING_SENDER_ID_PROD",
-  appId: "VOTRE_APP_ID_PROD"
-};
+**Option plus stricte** : l'émulateur Firebase n'écrit rien dans le cloud.
+
+```bash
+npm run emulators
+# puis FairSplit.html?emulator=1
 ```
+
+Il exige un **JDK 21+** et le port 9000 libre. Sur une machine où l'une des
+deux conditions manque, utiliser le bac à sable.
+
+---
+
+## 🔥 Firebase
+
+Un seul projet : `fairsplit-test` (`.firebaserc`).
+
+```bash
+npm run deploy:rules      # publie database.rules.json
+npm run deploy:hosting    # Firebase Hosting — optionnel, la prod est GitHub Pages
+```
+
+La configuration vit dans [`js/config.js`](js/config.js), en un seul exemplaire.
+La clé API y est publique : c'est normal pour Firebase côté web, la protection
+repose sur les règles serveur.
 
 ---
 
 ## 📝 Conventions Git
 
-### Types de commits
-
 | Préfixe | Usage | Exemple |
-|---------|-------|---------|
+| --- | --- | --- |
 | `feat:` | Nouvelle fonctionnalité | `feat: ajout système remboursements` |
 | `fix:` | Correction de bug | `fix: calcul prorata incorrect` |
-| `refactor:` | Refactoring code | `refactor: optimisation Firebase listeners` |
-| `style:` | Changement CSS/UI | `style: amélioration couleurs boutons` |
+| `refactor:` | Refactoring sans changement fonctionnel | `refactor: extraction des calculs purs` |
+| `style:` | Changement CSS/UI | `style: amélioration contraste bandeau` |
 | `docs:` | Documentation | `docs: mise à jour README` |
-| `chore:` | Maintenance | `chore: force redeploy` |
-
-### Commande rapide
-
-```bash
-# One-liner pour commit + push
-git add . && git commit -m "feat: description" && git push
-```
+| `test:` | Tests | `test: couverture de resolveSalaries` |
+| `chore:` | Maintenance, outillage, CI | `chore: épinglage des actions par SHA` |
 
 ---
 
-## ⚠️ Règles de Sécurité
+## ⚠️ Règles de sécurité
 
-La **source de vérité unique** est [`database.rules.json`](database.rules.json), versionné
-dans le dépôt et déployé via `npm run deploy:rules`.
+La **source de vérité unique** est [`database.rules.json`](database.rules.json),
+versionné et déployé via `npm run deploy:rules`.
 
-Ne jamais éditer les règles à la main dans la console Firebase : la console serait
-écrasée au prochain déploiement, et l'écart ne serait visible nulle part.
+Ne jamais éditer les règles à la main dans la console Firebase : le prochain
+déploiement écraserait la modification, sans trace nulle part.
 
-Les règles en vigueur scopent chaque nœud par UID, exigent `auth != null` et
-restreignent l'accès à une whitelist d'emails côté serveur.
+Les règles refusent tout par défaut à la racine, et n'ouvrent `household/` et
+`sandbox/` qu'aux adresses de la liste blanche, vérifiées côté serveur.
 
 > 🚫 **Jamais `".read": true` ni `".write": true`** sur des données utilisateur,
-> y compris « temporairement » ou en environnement de développement.
-> Pour du développement sans contrainte, utiliser l'émulateur : `npm run emulators`.
+> y compris « temporairement ». Pour essayer sans contrainte : `?sandbox=1`.
+
+Détail complet : [SECURITY.md](SECURITY.md).
 
 ---
 
 ## 🆘 Dépannage
 
-### Modifications non visibles après push
+### Une modification n'apparaît pas après un push
 
-1. Vérifier GitHub Actions : https://github.com/richiebigot-scoarnec/split-charges-pwa/actions
-2. Attendre 2-3 minutes (propagation)
-3. Vider cache smartphone : Settings > Apps > FairSplit > Storage > Clear Cache
-4. Recharger l'application
+1. Vérifier que la CI est verte :
+   <https://github.com/RichieBigotScoarnec/split-charges-pwa/actions>
+   — un lint ou un test rouge bloque le déploiement, c'est voulu.
+2. Attendre deux à trois minutes (propagation GitHub Pages).
+3. Forcer le rechargement : voir [CLEAR-CACHE.md](CLEAR-CACHE.md). Le service
+   worker sert volontiers une version périmée.
 
-### Conflit Git lors du merge
+### Le bandeau ambre apparaît alors que je veux les vraies données
+
+Un `?sandbox=1` traîne dans l'URL. Le retirer et recharger.
+
+### « Permission denied » dans la console
+
+Le compte connecté n'est pas dans la liste blanche de `database.rules.json`.
+Ajouter une adresse impose de modifier **à la fois** `ALLOWED_EMAILS` dans
+[`js/config.js`](js/config.js) et les règles, puis `npm run deploy:rules`.
+
+### Conflit Git lors d'une fusion
 
 ```bash
-# Annuler le merge en cours
-git merge --abort
-
-# Revenir à l'état précédent
-git reset --hard HEAD
-
-# Identifier les différences
-git diff main develop
+git merge --abort        # annuler la fusion en cours
+git diff main HEAD       # identifier les divergences
 ```
+
+### L'authentification Google échoue
+
+Voir [TROUBLESHOOTING-AUTH.md](TROUBLESHOOTING-AUTH.md).
 
 ---
 
 ## 📱 Installation PWA
 
-1. Ouvrir l'URL dans Chrome/Safari mobile
-2. Menu > "Ajouter à l'écran d'accueil"
-3. Icône créée avec badge orange (TEST) ou bleu (PROD)
-
----
-
-**Dernière mise à jour** : 2026-01-27
+1. Ouvrir l'URL dans Chrome ou Safari mobile
+2. Menu → « Ajouter à l'écran d'accueil »
+3. L'icône est générée par [`tools/generate-icons.ps1`](tools/generate-icons.ps1)
+   aux couleurs de la marque

@@ -1,7 +1,5 @@
 {
   "projects": {
-    "default": "fairsplit-test",
-    "test": "fairsplit-test",
-    "prod": "fairsplit-prod"
+    "default": "fairsplit-test"
   }
 }
