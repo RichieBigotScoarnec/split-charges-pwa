@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+  # Les PR passent lint, tests et E2E, mais ne déploient pas : sans cela une
+  # branche n'était validée qu'après fusion, donc trop tard.
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -79,6 +84,7 @@ jobs:
 
   deploy:
     needs: [test, e2e]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
