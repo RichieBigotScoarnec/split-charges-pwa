@@ -138,7 +138,10 @@ describe('computeSummary', () => {
       ...baseParams,
       salaries: { vous: 0, conjointe: 0 }
     });
-    expect(result).toEqual({ total: 0, yourShare: 0, partnerShare: 0, balance: 0 });
+    // carryOver figure dans la forme de retour même ici : aucun report n'est
+    // appliqué faute de salaires, et le dire explicitement évite un undefined
+    // chez les consommateurs qui déstructurent ce champ.
+    expect(result).toEqual({ total: 0, yourShare: 0, partnerShare: 0, balance: 0, carryOver: 0 });
   });
 
   it('sans charges : tout à zéro', () => {
