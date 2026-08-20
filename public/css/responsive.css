@@ -188,11 +188,8 @@
    qu'on consulte —, les listes de charges à droite — ce qu'on alimente.
    En-tête, navigation de période et solde restent pleine largeur.
 */
-/* Spécificité id+attribut : sans cela, le display: grid ci-dessous
-   rendrait #mainApp visible malgré l'attribut hidden. */
-#mainApp[hidden] {
-  display: none;
-}
+/* Le cas particulier de #mainApp est désormais couvert par la règle globale
+   `[hidden]` de base.css, qui traite la même faiblesse pour tout l'écran. */
 
 @media (min-width: 900px) {
   .container {

@@ -222,6 +222,11 @@
         <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
           <span aria-hidden="true">📄</span> Imprimer PDF
         </button>
+        <!-- Masqué tant que rien n'a été supprimé ce mois-ci : une corbeille
+             presque toujours vide ne doit pas occuper l'écran en permanence. -->
+        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés ce mois-ci" hidden>
+          <span aria-hidden="true">🗑️</span> Corbeille (<span id="trashCount">0</span>)
+        </button>
       </div>
     </div>
     </section>
@@ -609,6 +614,19 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="modalConfirmCancel">Annuler</button>
         <button type="button" class="btn btn-danger" id="modalConfirmOk">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Corbeille — les suppressions sont douces, rien n'est jamais effacé.
+       Cette modale expose ce que la base conservait déjà sans le montrer. -->
+  <div id="modalTrash" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTrashTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalTrashTitle">Corbeille du mois</h2>
+      <p class="modal-hint">Ces éléments ne sont plus comptés dans le bilan. Ils restent récupérables.</p>
+      <div id="trashList" class="trash-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalTrash">Fermer</button>
       </div>
     </div>
   </div>

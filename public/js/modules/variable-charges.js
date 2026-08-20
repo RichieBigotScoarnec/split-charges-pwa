@@ -2,6 +2,8 @@
 // Fonctionnalités : add, edit, delete, render, validation
 
 import { setState, getState } from '../state.js';
+import { collectDeleted } from '../utils/soft-delete.js';
+import { refreshTrashButton } from './trash.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
@@ -102,14 +104,20 @@ export async function loadVariableCharges() {
         })
         .map(([id, charge]) => ({ id, ...charge }));
 
+      // Le nœud complet est déjà lu : recueillir les entrées supprimées
+      // ici évite une seconde lecture pour la corbeille.
+      setState('deleted.variableCharges', collectDeleted(charges));
       setState('variableCharges', activeCharges);
       log(`📊 ${activeCharges.length} charges variables chargées`);
     } else {
+      setState('deleted.variableCharges', []);
       setState('variableCharges', []);
       log('📊 Aucune charge variable pour cette période');
     }
 
     renderVariableCharges();
+    // Le nombre d'éléments supprimés vient de changer.
+    refreshTrashButton();
   } catch (error) {
     logError('❌ Erreur chargement charges variables :', error);
     toast.error('Erreur de chargement des charges variables');
