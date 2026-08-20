@@ -78,7 +78,9 @@
     <!-- Header -->
     <header>
       <h1><span aria-hidden="true">💰</span> FairSplit</h1>
-      <p>Partage équitable des charges au prorata des salaires</p>
+      <!-- La signature du produit appartient à l'écran de connexion. Une fois
+           connecté, elle consomme ~60 px de haut à chaque ouverture pour une
+           information que les deux utilisateurs connaissent. -->
       <div class="user-info-bar" id="userInfoBar">
         <img class="user-avatar" id="userAvatar" src="" alt="Avatar" width="32" height="32" loading="lazy" />
         <span class="user-name" id="userName"></span>
@@ -218,17 +220,6 @@
     </div>
     </section>
 
-    <!-- Search Bar -->
-    <div class="search-bar-container">
-      <div class="search-bar">
-        <span class="search-bar-icon">🔍</span>
-        <label for="searchInput" class="sr-only">Rechercher une charge</label>
-        <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
-        <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
-      </div>
-      <div class="search-results-info" id="searchResultsInfo"></div>
-    </div>
-
     <!-- Salaries Section -->
     <section aria-labelledby="sectionSalaires">
     <div class="card">
@@ -279,6 +270,17 @@
       </div>
     </div>
     </section>
+
+    <!-- Search Bar -->
+    <div class="search-bar-container" id="searchBarContainer" hidden>
+      <div class="search-bar">
+        <span class="search-bar-icon">🔍</span>
+        <label for="searchInput" class="sr-only">Rechercher une charge</label>
+        <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
+        <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
+      </div>
+      <div class="search-results-info" id="searchResultsInfo"></div>
+    </div>
 
     <!-- Variable Charges Section -->
     <section aria-labelledby="sectionChargesVariables">
