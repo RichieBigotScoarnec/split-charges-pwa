@@ -13,12 +13,11 @@
     "emulators": "npx firebase emulators:start",
     "emulators:test": "npx firebase emulators:exec \"npx playwright test tests/e2e/firebase-integration.spec.js\"",
     "serve": "npx http-server . -p 3333 -c-1",
-    "deploy:test": "npx firebase deploy --only hosting --project fairsplit-test",
-    "deploy:prod": "npx firebase deploy --only hosting --project fairsplit-prod",
     "deploy:rules": "npx firebase deploy --only database --project fairsplit-test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "check": "eslint . --quiet && vitest run"
+    "check": "eslint . --quiet && vitest run",
+    "deploy:hosting": "npx firebase deploy --only hosting --project fairsplit-test"
   },
   "repository": {
     "type": "git",
