@@ -158,6 +158,9 @@ test.describe('Firebase Emulator Integration', () => {
 
     // Attendre que l'app principale soit visible (auth réussie)
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // L'overlay d'auth doit être masqué
     const authOverlay = page.locator('#authOverlay');
@@ -177,6 +180,9 @@ test.describe('Firebase Emulator Integration', () => {
 
     // Attendre l'app
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Saisir les salaires et déclencher change event
     await page.locator('#salaireVous').fill('3500');
@@ -190,6 +196,9 @@ test.describe('Firebase Emulator Integration', () => {
     // Recharger la page pour vérifier la persistance
     await page.reload();
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
     await page.waitForTimeout(1500);
 
     // Vérifier que les salaires sont restaurés depuis la database
@@ -212,6 +221,9 @@ test.describe('Firebase Emulator Integration', () => {
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Saisir des salaires
     await page.locator('#salaireVous').fill('4000');
@@ -223,6 +235,9 @@ test.describe('Firebase Emulator Integration', () => {
     // Recharger la page
     await page.reload();
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Les salaires devraient être rechargés depuis la database
     await page.waitForTimeout(1500);
@@ -246,6 +261,9 @@ test.describe('Firebase Emulator Integration', () => {
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Basculer en mode 50-50
     await page.locator('#mode5050').click();
@@ -276,6 +294,9 @@ test.describe('Firebase Emulator Integration', () => {
     await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Se déconnecter
     await page.evaluate(() => window.signOut());
@@ -288,6 +309,9 @@ test.describe('Firebase Emulator Integration', () => {
 
     // L'app doit réapparaître
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
+    // #mainApp apparaît dès l'authentification ; attendre l'initialisation
+    // effective des modules avant toute interaction.
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
     await expect(page.locator('#mainApp')).toBeVisible();
   });
 });
