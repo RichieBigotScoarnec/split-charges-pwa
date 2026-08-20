@@ -77,7 +77,7 @@ const ADMIN = { headers: { Authorization: 'Bearer owner' } };
  */
 async function clearEmulatorAuth(request) {
   const res = await request.delete(
-    `${EMULATOR_AUTH_URL}/emulator/v1/projects/fairsplit-test/accounts`,
+    `${EMULATOR_AUTH_URL}/emulator/v1/projects/fairsplit-foyer/accounts`,
     { failOnStatusCode: false }
   );
   if (!res.ok()) {
@@ -93,7 +93,7 @@ async function clearEmulatorAuth(request) {
  */
 async function clearEmulatorDatabase(request) {
   const res = await request.delete(
-    `${EMULATOR_DB_URL}/.json?ns=fairsplit-test-default-rtdb`,
+    `${EMULATOR_DB_URL}/.json?ns=fairsplit-foyer-default-rtdb`,
     { ...ADMIN, failOnStatusCode: false }
   );
   if (!res.ok()) {
@@ -129,7 +129,7 @@ test.describe('Firebase Emulator Integration', () => {
     const authResponse = await request.get(EMULATOR_AUTH_URL);
     expect(authResponse.ok()).toBeTruthy();
 
-    const dbResponse = await request.get(`${EMULATOR_DB_URL}/.json?ns=fairsplit-test-default-rtdb`, ADMIN);
+    const dbResponse = await request.get(`${EMULATOR_DB_URL}/.json?ns=fairsplit-foyer-default-rtdb`, ADMIN);
     expect(dbResponse.ok()).toBeTruthy();
   });
 
@@ -271,7 +271,7 @@ test.describe('Firebase Emulator Integration', () => {
 
     // Vérifier dans la DB
     const dbResponse = await request.get(
-      `${EMULATOR_DB_URL}/${DATA_ROOT}/shareMode.json?ns=fairsplit-test-default-rtdb`,
+      `${EMULATOR_DB_URL}/${DATA_ROOT}/shareMode.json?ns=fairsplit-foyer-default-rtdb`,
       ADMIN
     );
     const shareMode = await dbResponse.json();

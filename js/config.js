@@ -2,14 +2,15 @@
  * FairSplit - Configuration
  * @description Constantes et configuration Firebase
  *
- * Un seul environnement Firebase (fairsplit-test), une seule branche (main).
+ * Un seul environnement Firebase (fairsplit-foyer), une seule branche (main).
  *
  * Le double environnement TEST/PROD a été retiré : il imposait une divergence
  * permanente de ce fichier entre branches, donc un conflit à chaque merge, et
  * la PROD n'a jamais été alimentée (config en placeholders, base désactivée).
  *
- * Pour développer sans toucher aux données réelles, utiliser l'émulateur :
- *   npm run emulators   puis   FairSplit.html?emulator=1
+ * Pour essayer sans toucher aux données réelles : FairSplit.html?sandbox=1.
+ * Isolation plus stricte si la machine le permet : npm run emulators, puis
+ * FairSplit.html?emulator=1.
  */
 
 // ===== VERSION =====
@@ -17,14 +18,13 @@ export const VERSION = '4.0.0';
 
 // ===== FIREBASE CONFIGURATION =====
 export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAR3tFWBxdMHr27-NOK0jlOyQ8xZoXcVSU",
-  authDomain: "fairsplit-test.firebaseapp.com",
-  databaseURL: "https://fairsplit-test-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "fairsplit-test",
-  storageBucket: "fairsplit-test.firebasestorage.app",
-  messagingSenderId: "455299346967",
-  appId: "1:455299346967:web:7165ac7e84062657632252",
-  measurementId: "G-9HW1XN8EF1"
+  apiKey: "AIzaSyAq6JXMuVeua9xJ2hEw93GFOa_U8XJplgY",
+  authDomain: "fairsplit-foyer.firebaseapp.com",
+  databaseURL: "https://fairsplit-foyer-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "fairsplit-foyer",
+  storageBucket: "fairsplit-foyer.firebasestorage.app",
+  messagingSenderId: "41121556897",
+  appId: "1:41121556897:web:1ac9a7ab86649d489ec3e0"
 };
 
 // ===== ESPACE DE DONNÉES =====
