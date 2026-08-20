@@ -250,17 +250,20 @@ export function renderReimbursements() {
     listElement.appendChild(reimbDiv);
   });
 
-  // Afficher le total net
+  // Ce bloc récapitule des transferts déjà effectués, pas une dette : la dette
+  // est l'affaire du bilan. Les libellés disaient « Vous devez » là où le
+  // montant représentait ce que vous aviez versé — l'inverse, et en
+  // contradiction avec le solde affiché plus haut.
   const netAmount = totalYouToPartner - totalPartnerToYou;
   if (totalElement) {
     if (netAmount > 0) {
-      totalElement.innerHTML = `Vous devez : <strong>${formatCurrency(netAmount)}</strong>`;
+      totalElement.innerHTML = `Net versé à Conjointe : <strong>${formatCurrency(netAmount)}</strong>`;
       totalElement.className = 'reimbursements-total you-owe';
     } else if (netAmount < 0) {
-      totalElement.innerHTML = `Conjointe doit : <strong>${formatCurrency(Math.abs(netAmount))}</strong>`;
+      totalElement.innerHTML = `Net reçu de Conjointe : <strong>${formatCurrency(Math.abs(netAmount))}</strong>`;
       totalElement.className = 'reimbursements-total partner-owes';
     } else {
-      totalElement.innerHTML = `Équilibré : <strong>${formatCurrency(0)}</strong>`;
+      totalElement.innerHTML = 'Transferts équilibrés';
       totalElement.className = 'reimbursements-total balanced';
     }
   }

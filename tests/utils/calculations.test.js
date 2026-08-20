@@ -208,7 +208,11 @@ describe('computeSummary', () => {
     expect(result.total).toBe(100); // seule la charge non supprimée
   });
 
-  it('remboursement vous→conjointe réduit le solde', () => {
+  // Un solde positif signifie « la conjointe vous doit ». Un remboursement est
+  // un transfert déjà effectué : verser de l'argent augmente ce qu'on vous
+  // doit, en recevoir le diminue. Ces deux tests portaient l'énoncé inverse,
+  // et figeaient donc l'inversion de signe qu'ils étaient censés protéger.
+  it('un versement vous→conjointe augmente la dette de la conjointe', () => {
     const result = computeSummary({
       ...baseParams,
       variableCharges: [makeCharge({ amount: 500, paidBy: 'vous' })],
@@ -218,13 +222,12 @@ describe('computeSummary', () => {
         deleted: false
       }]
     });
-    // Sans remboursement : solde = +200
-    // Remboursement de 100 : solde = 200 - 100 = +100
-    expect(result.balance).toBeCloseTo(100);
-    expect(result.reimbursementAdjustment).toBe(-100);
+    // Sans remboursement : solde = +200. Vous lui avancez 100 de plus.
+    expect(result.balance).toBeCloseTo(300);
+    expect(result.reimbursementAdjustment).toBe(100);
   });
 
-  it('remboursement conjointe→vous augmente le solde', () => {
+  it('un versement conjointe→vous réduit la dette de la conjointe', () => {
     const result = computeSummary({
       ...baseParams,
       variableCharges: [makeCharge({ amount: 500, paidBy: 'conjointe' })],
@@ -234,10 +237,24 @@ describe('computeSummary', () => {
         deleted: false
       }]
     });
-    // Sans remboursement : solde = -300
-    // Remboursement de 50 : solde = -300 + 50 = -250
-    expect(result.balance).toBeCloseTo(-250);
-    expect(result.reimbursementAdjustment).toBe(50);
+    // Sans remboursement : solde = -300 (c'est vous qui devez).
+    // Elle vous verse 50 : vous lui devez donc 50 de plus.
+    expect(result.balance).toBeCloseTo(-350);
+    expect(result.reimbursementAdjustment).toBe(-50);
+  });
+
+  it('un remboursement du solde exact ramène à zéro', () => {
+    // Le cas qui compte en pratique, et celui qui échouait : loyer payé
+    // intégralement par vous, salaires égaux, puis elle solde sa part.
+    const result = computeSummary({
+      salaries: { vous: 2000, conjointe: 2000 },
+      fixedCharges: [{ amount: 1000, paidBy: 'vous', deleted: false }],
+      variableCharges: [],
+      reimbursements: [{ amount: 500, direction: 'conjointe-to-vous', deleted: false }],
+      shareMode: 'prorata',
+      customPercents: { vous: 50, conjointe: 50 }
+    });
+    expect(result.balance).toBeCloseTo(0);
   });
 
   it('mix charges fixes et variables avec splitOverrides différents', () => {
@@ -424,6 +441,6 @@ describe('Edge Cases', () => {
       customPercents
     });
     // Seul le remboursement de 50 non supprimé est comptabilisé
-    expect(result.reimbursementAdjustment).toBe(-50);
+    expect(result.reimbursementAdjustment).toBe(50);
   });
 });

@@ -241,18 +241,22 @@ describe('calculateSummary — remboursements', () => {
     ]);
   });
 
-  it('remboursement conjointe→vous augmente le solde', () => {
+  // Solde de base : +500, la conjointe vous doit 500.
+  // Un remboursement suit le sens du transfert : elle vous verse, sa dette
+  // baisse ; vous lui versez, sa dette monte. Ces tests portaient l'énoncé
+  // inverse et verrouillaient donc l'inversion de signe.
+  it('un versement conjointe→vous réduit sa dette', () => {
     setState('reimbursements', [
       { id: 'r1', amount: 200, direction: 'conjointe-to-vous' }
     ]);
-    expect(calculateSummary().balance).toBeCloseTo(700); // +500 + 200
+    expect(calculateSummary().balance).toBeCloseTo(300); // 500 - 200
   });
 
-  it('remboursement vous→conjointe diminue le solde', () => {
+  it('un versement vous→conjointe augmente sa dette', () => {
     setState('reimbursements', [
       { id: 'r1', amount: 200, direction: 'vous-to-conjointe' }
     ]);
-    expect(calculateSummary().balance).toBeCloseTo(300); // +500 - 200
+    expect(calculateSummary().balance).toBeCloseTo(700); // 500 + 200
   });
 
   it('plusieurs remboursements s\'accumulent', () => {
@@ -260,7 +264,7 @@ describe('calculateSummary — remboursements', () => {
       { id: 'r1', amount: 100, direction: 'conjointe-to-vous' },
       { id: 'r2', amount: 50, direction: 'vous-to-conjointe' }
     ]);
-    expect(calculateSummary().balance).toBeCloseTo(550); // +500 + 100 - 50
+    expect(calculateSummary().balance).toBeCloseTo(450); // 500 - 100 + 50
   });
 
   it('exclut les remboursements supprimés', () => {
@@ -270,9 +274,10 @@ describe('calculateSummary — remboursements', () => {
     expect(calculateSummary().balance).toBeCloseTo(500); // remboursement ignoré
   });
 
-  it('remboursement exact → solde zéro', () => {
+  it('quand elle solde sa dette, le compte revient à zéro', () => {
     setState('reimbursements', [
-      { id: 'r1', amount: 500, direction: 'vous-to-conjointe' }
+      // Elle doit 500, elle verse 500. Ce test employait le sens opposé.
+      { id: 'r1', amount: 500, direction: 'conjointe-to-vous' }
     ]);
     expect(calculateSummary().balance).toBeCloseTo(0, 5);
   });
