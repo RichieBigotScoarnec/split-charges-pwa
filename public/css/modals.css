@@ -18,6 +18,17 @@
   display: flex;
 }
 
+/*
+   Une confirmation est toujours demandée par quelque chose : parfois par une
+   autre fenêtre. À z-index égal, l'ordre du document décidait — et la modale
+   de sauvegarde, déclarée après, recouvrait la confirmation qu'elle venait
+   d'ouvrir. Le bouton « Confirmer » devenait inatteignable, rendant la
+   restauration impossible à mener à son terme.
+*/
+#modalConfirm.modal-overlay {
+  z-index: 10001;
+}
+
 .modal {
   background: var(--card-bg);
   border-radius: var(--radius-xl);
@@ -469,4 +480,29 @@
   flex: 0 0 auto;
   padding: 6px 14px;
   font-size: 13px;
+}
+
+/* ===== SAUVEGARDE ===== */
+/*
+   La fenêtre présente deux actions de poids très différent : télécharger une
+   copie, et remplacer toutes les données. Elles sont séparées visuellement et
+   la seconde est précédée de sa conséquence, pas d'un simple libellé.
+*/
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.modal-separator {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: var(--space-lg) 0 var(--space-md);
+}
+
+.modal-hint-warning {
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--danger-color);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--elevated-bg);
 }

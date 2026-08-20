@@ -133,6 +133,7 @@ test.describe('Application post-auth', () => {
     await page.goto('/FairSplit.html');
     // Attendre que l'auth mock se déclenche et que mainApp soit visible
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('affiche l\'application principale après auth', async ({ page }) => {
@@ -172,6 +173,7 @@ test.describe('Saisie des salaires', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('accepte les salaires numériques', async ({ page }) => {
@@ -191,6 +193,7 @@ test.describe('Modes de partage', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('le mode prorata est sélectionné par défaut', async ({ page }) => {
@@ -219,6 +222,7 @@ test.describe('Modal charge variable', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('ouvrir et fermer la modal', async ({ page }) => {
@@ -273,6 +277,7 @@ test.describe('Modal charge fixe', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('ouvrir la modal charge fixe', async ({ page }) => {
@@ -305,6 +310,7 @@ test.describe('Modal remboursement', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('ouvrir la modal remboursement', async ({ page }) => {
@@ -335,6 +341,7 @@ test.describe('Recherche', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('la recherche est masquée sans charge à filtrer', async ({ page }) => {
@@ -365,6 +372,7 @@ test.describe('Déconnexion', () => {
     await setupFirebaseMock(page);
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
   });
 
   test('la déconnexion masque l\'app et affiche l\'auth', async ({ page }) => {

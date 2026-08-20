@@ -152,8 +152,7 @@ async function loadApp(page) {
   await setupMock(page);
   await page.goto('/FairSplit.html');
   await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
-  // Laisser les listeners Firebase s'initialiser
-  await page.waitForTimeout(400);
+  await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
 }
 
 // ============================================================
