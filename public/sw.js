@@ -101,11 +101,26 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/**
+ * Le nom d'hôte est-il ce domaine, ou l'un de ses sous-domaines ?
+ * @param {string} hostname - Hôte de la requête
+ * @param {string} domain - Domaine attendu, sans point initial
+ * @returns {boolean}
+ */
+function isHost(hostname, domain) {
+  return hostname === domain || hostname.endsWith('.' + domain);
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Ne pas intercepter les requêtes Firebase (toujours réseau)
-  if (url.hostname.includes('firebaseio.com') || url.hostname.includes('googleapis.com')) {
+  //
+  // includes() sur un nom d'hôte accepte n'importe quel domaine contenant la
+  // chaîne — « firebaseio.com.exemple.net » passait le test. Vérifier le
+  // suffixe, et exiger un point avant lui pour ne pas accepter
+  // « notfirebaseio.com ».
+  if (isHost(url.hostname, 'firebaseio.com') || isHost(url.hostname, 'googleapis.com')) {
     return;
   }
 

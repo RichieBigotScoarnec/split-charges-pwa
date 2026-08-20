@@ -401,3 +401,27 @@ describe('getActiveItems', () => {
     expect(active[0].id).toBe('b');
   });
 });
+
+describe('setState — pollution de prototype', () => {
+  // CodeQL js/prototype-pollution-utility : setState construisait les niveaux
+  // intermédiaires sans filtrer les segments de clé. Un segment __proto__
+  // écrivait sur le prototype d'Object, et toute l'application en héritait.
+
+  it('refuse un segment __proto__ et ne pollue pas Object', () => {
+    setState('__proto__.pollue', 'oui');
+    expect({}.pollue).toBeUndefined();
+    expect(Object.prototype.pollue).toBeUndefined();
+  });
+
+  it('refuse constructor et prototype', () => {
+    setState('constructor.pollue2', 'oui');
+    setState('a.prototype.pollue3', 'oui');
+    expect({}.pollue2).toBeUndefined();
+    expect({}.pollue3).toBeUndefined();
+  });
+
+  it('laisse passer une clé imbriquée légitime', () => {
+    setState('quickAddState.gpsLocation', { lat: 1 });
+    expect(getState('quickAddState').gpsLocation).toEqual({ lat: 1 });
+  });
+});
