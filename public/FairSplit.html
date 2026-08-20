@@ -222,6 +222,9 @@
         <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
           <span aria-hidden="true">📄</span> Imprimer PDF
         </button>
+        <button type="button" class="btn btn-secondary" data-action="showBackup" title="Sauvegarder ou restaurer toutes les données">
+          <span aria-hidden="true">💾</span> Sauvegarde
+        </button>
         <!-- Masqué tant que rien n'a été supprimé ce mois-ci : une corbeille
              presque toujours vide ne doit pas occuper l'écran en permanence. -->
         <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés ce mois-ci" hidden>
@@ -627,6 +630,39 @@
       <div id="trashList" class="trash-list"></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalTrash">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sauvegarde — l'export CSV ne couvre qu'un mois et perd la structure.
+       Ce fichier contient tout et sait revenir. -->
+  <div id="modalBackup" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalBackupTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalBackupTitle">Sauvegarde</h2>
+
+      <p class="modal-hint">
+        Un fichier unique contenant tous vos mois, salaires, charges et réglages.
+        Conservez-le hors de l'application.
+      </p>
+      <button type="button" class="btn btn-primary btn-block" data-action="downloadBackup">
+        <span aria-hidden="true">💾</span> Télécharger une sauvegarde
+      </button>
+
+      <hr class="modal-separator" />
+
+      <p class="modal-hint modal-hint-warning">
+        Restaurer <strong>remplace l'intégralité</strong> de vos données par le contenu du
+        fichier. Une copie de l'état actuel sera téléchargée avant le remplacement.
+      </p>
+      <button type="button" class="btn btn-secondary btn-block" data-action="pickBackupFile">
+        <span aria-hidden="true">↩️</span> Restaurer depuis un fichier
+      </button>
+      <!-- Le champ natif n'est pas stylable de façon fiable : le bouton
+           ci-dessus le déclenche. -->
+      <input type="file" id="backupFileInput" accept="application/json,.json" hidden />
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalBackup">Fermer</button>
       </div>
     </div>
   </div>

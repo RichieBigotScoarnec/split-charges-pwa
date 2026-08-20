@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 import { ALLOWED_EMAILS } from '../../public/js/config.js';
@@ -187,6 +188,7 @@ async function setupFirebaseMock(page) {
 async function waitForApp(page) {
   await page.goto('/FairSplit.html');
   await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+  await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
 }
 
 // ============================================================
@@ -940,5 +942,142 @@ test.describe('Éléments masqués', () => {
 
     await expect(page.locator('#balanceBar')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#searchBarContainer')).toBeVisible({ timeout: 5000 });
+  });
+});
+
+// ============================================================
+// Sauvegarde et restauration
+// ============================================================
+/*
+   Toutes les données du foyer vivent dans un unique projet Firebase, sans
+   copie hors ligne. L'export CSV ne couvre qu'un mois et perd la structure.
+   Ces tests portent sur le fichier qui contient tout — et sur les garde-fous
+   d'une restauration, qui écrase l'intégralité des données.
+*/
+test.describe('Sauvegarde', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /** Lit le contenu texte d'un téléchargement Playwright */
+  async function lireTelechargement(download) {
+    const chemin = await download.path();
+    return readFileSync(chemin, 'utf8');
+  }
+
+  test('le fichier téléchargé contient les données du foyer', async ({ page }) => {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Charge sauvegardee');
+    await page.locator('#variableChargeAmount').fill('123');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText('Charge sauvegardee')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('[data-action="showBackup"]').click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('[data-action="downloadBackup"]').click()
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(/^fairsplit-sauvegarde-.*\.json$/);
+
+    const enveloppe = JSON.parse(await lireTelechargement(download));
+    expect(enveloppe.format).toBe('fairsplit-backup');
+    expect(enveloppe.version).toBe(1);
+    expect(enveloppe.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    // La charge saisie doit s'y retrouver, sinon la sauvegarde ne sauvegarde rien
+    expect(JSON.stringify(enveloppe.data)).toContain('Charge sauvegardee');
+  });
+
+  test('un fichier qui n\'est pas une sauvegarde est refusé', async ({ page }) => {
+    await page.locator('[data-action="showBackup"]').click();
+
+    await page.locator('#backupFileInput').setInputFiles({
+      name: 'liste-courses.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({ pommes: 3, poires: 2 }))
+    });
+
+    await expect(page.locator('.toast.error').last()).toContainText(/pas une sauvegarde/, { timeout: 5000 });
+    // Aucune écriture ne doit avoir eu lieu
+    await expect(page.locator('#modalBackup')).toHaveClass(/active/);
+  });
+
+  test('un fichier illisible est refusé sans casser la page', async ({ page }) => {
+    const erreurs = [];
+    page.on('pageerror', e => erreurs.push(e.message));
+
+    await page.locator('[data-action="showBackup"]').click();
+    await page.locator('#backupFileInput').setInputFiles({
+      name: 'corrompu.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from('{ ceci n est pas du json')
+    });
+
+    await expect(page.locator('.toast.error').last()).toContainText(/illisible|JSON/, { timeout: 5000 });
+    expect(erreurs).toEqual([]);
+  });
+
+  test('une sauvegarde plus récente que l\'application est refusée', async ({ page }) => {
+    await page.locator('[data-action="showBackup"]').click();
+    await page.locator('#backupFileInput').setInputFiles({
+      name: 'futur.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        format: 'fairsplit-backup', version: 99, exportedAt: '2027-01-01T00:00:00.000Z', data: {}
+      }))
+    });
+
+    await expect(page.locator('.toast.error').last()).toContainText(/plus récente/, { timeout: 5000 });
+  });
+
+  test('restaurer télécharge une copie de sécurité avant d\'écraser', async ({ page }) => {
+    // C'est la seule protection réelle : une fois le nœud remplacé, l'ancien
+    // contenu n'est plus nulle part.
+    await page.locator('[data-action="showBackup"]').click();
+    await page.locator('#backupFileInput').setInputFiles({
+      name: 'sauvegarde.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        format: 'fairsplit-backup',
+        version: 1,
+        exportedAt: '2026-01-15T08:00:00.000Z',
+        data: { periods: { '2026-01': { salaries: { vous: 1, conjointe: 1 } } } }
+      }))
+    });
+
+    // La confirmation annonce ce que contient le fichier
+    await expect(page.locator('#modalConfirmMessage')).toContainText('1 mois', { timeout: 5000 });
+
+    const [copie] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#modalConfirmOk').click()
+    ]);
+
+    expect(copie.suggestedFilename()).toMatch(/^avant-restauration-fairsplit-sauvegarde-/);
+  });
+
+  test('refuser la confirmation ne modifie rien', async ({ page }) => {
+    await page.locator('[data-action="showBackup"]').click();
+    await page.locator('#backupFileInput').setInputFiles({
+      name: 'sauvegarde.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        format: 'fairsplit-backup', version: 1, exportedAt: '2026-01-15T08:00:00.000Z', data: {}
+      }))
+    });
+
+    await page.locator('#modalConfirmCancel').click();
+
+    // Les salaires saisis dans ce test sont toujours là
+    await expect(page.locator('#salaireVous')).toHaveValue('2000');
   });
 });

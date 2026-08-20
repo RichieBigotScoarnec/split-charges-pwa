@@ -289,6 +289,13 @@ async function initializeAppData() {
     initTrash();
   }, failures);
 
+  // Ne lit rien non plus : la sauvegarde n'interroge la base qu'au moment où
+  // l'utilisateur la demande.
+  await runStep('sauvegarde', async () => {
+    const { initBackup } = await import('./backup.js');
+    initBackup();
+  }, failures);
+
   await runStep('salaires de la période', async () => {
     // Fige les salaires des périodes antérieures aux instantanés, avant tout
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.
