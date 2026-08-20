@@ -6,6 +6,7 @@ import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
+import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
 
 /**
@@ -155,6 +156,11 @@ function renderSummary(summary) {
   // par un intervalle.
   // Même texte que le bilan : une seule source, pas de calcul dupliqué
   updateBalanceBar(`<span>${balanceText}</span>${settleButton}`, balanceClass);
+
+  // Les budgets se lisent sur les mêmes charges que le bilan : ils se
+  // rafraîchissent au même moment, sans hameçon supplémentaire dans chaque
+  // chargeur.
+  renderCategoryBudgets();
 
   summaryElement.innerHTML = `
     <div class="summary-card">

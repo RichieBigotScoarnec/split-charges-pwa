@@ -1,37 +1,14 @@
 // ===== MODULE : ANALYSE PAR CATÉGORIE =====
-// Fonctionnalités : statistiques, comparaisons, visualisation par catégorie
+//
+// Ce module ne calculait que pour lui-même. Ses fonctions d'affichage
+// visaient #categoryAnalysisContainer, absent du HTML, et personne ne les
+// appelait ; son bouton d'analyse n'existait pas davantage. Le panneau
+// « Analyse par Catégorie » n'a donc jamais rien montré.
+//
+// Il ne reste ici que le calcul, désormais consommé par les budgets par
+// catégorie (modules/category-budgets.js).
 
 import { getState } from '../state.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
-import { log, warn } from '../utils/debug.js';
-
-/**
- * Initialise le module d'analyse par catégorie
- */
-export function initCategories() {
-  log('📦 Initialisation module analyse catégories');
-
-  setupCategoryAnalysisUI();
-
-  log('✅ Module analyse catégories initialisé');
-}
-
-/**
- * Configure les listeners UI pour l'analyse par catégorie
- */
-function setupCategoryAnalysisUI() {
-  const analyzeBtn = document.getElementById('analyzeCategoriesBtn');
-
-  if (analyzeBtn) {
-    analyzeBtn.addEventListener('click', () => {
-      analyzeCategoriesData();
-      renderCategoryAnalysis();
-    });
-  }
-
-  // Analyser automatiquement au chargement
-  analyzeCategoriesData();
-}
 
 /**
  * Analyse les données par catégorie
@@ -143,187 +120,6 @@ function calculateTotalAnalysis(fixedAnalysis, variableAnalysis) {
 }
 
 /**
- * Affiche l'analyse par catégorie dans le DOM
- */
-export function renderCategoryAnalysis() {
-  const analysis = analyzeCategoriesData();
-  const container = document.getElementById('categoryAnalysisContainer');
-
-  if (!container) {
-    warn('⚠️ Element #categoryAnalysisContainer introuvable');
-    return;
-  }
-
-  // Vider le conteneur
-  container.innerHTML = '';
-
-  // Trier les catégories par total décroissant
-  const sortedCategories = Object.values(analysis.total).sort((a, b) => b.total - a.total);
-
-  if (sortedCategories.length === 0) {
-    container.innerHTML = '<p class="empty-state">Aucune donnée à analyser pour cette période</p>';
-    return;
-  }
-
-  // Créer le tableau d'analyse
-  const table = document.createElement('table');
-  table.className = 'category-analysis-table';
-
-  // En-tête
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>Catégorie</th>
-        <th>Total</th>
-        <th>%</th>
-        <th>Nombre</th>
-        <th>Moyenne</th>
-        <th>Payé par Vous</th>
-        <th>Payé par Conjointe</th>
-        <th>Fixes</th>
-        <th>Variables</th>
-      </tr>
-    </thead>
-    <tbody>
-    </tbody>
-  `;
-
-  const tbody = table.querySelector('tbody');
-
-  // Lignes de données
-  sortedCategories.forEach((cat, index) => {
-    const row = document.createElement('tr');
-    row.className = index % 2 === 0 ? 'even' : 'odd';
-
-    row.innerHTML = `
-      <td class="category-name">
-        <span class="category-icon">${getCategoryIcon(cat.category)}</span>
-        ${escapeHtml(cat.category)}
-      </td>
-      <td class="amount-total"><strong>${formatCurrency(cat.total)}</strong></td>
-      <td class="percentage">
-        <div class="percentage-bar">
-          <div class="percentage-fill" style="width: ${cat.percentage}%"></div>
-          <span class="percentage-text">${cat.percentage.toFixed(1)}%</span>
-        </div>
-      </td>
-      <td class="count">${cat.count}</td>
-      <td class="amount">${formatCurrency(cat.average)}</td>
-      <td class="amount">${formatCurrency(cat.paidByYou)}</td>
-      <td class="amount">${formatCurrency(cat.paidByPartner)}</td>
-      <td class="amount">${formatCurrency(cat.fixedTotal)}</td>
-      <td class="amount">${formatCurrency(cat.variableTotal)}</td>
-    `;
-
-    tbody.appendChild(row);
-  });
-
-  // Ligne de total
-  const grandTotal = sortedCategories.reduce((sum, cat) => sum + cat.total, 0);
-  const totalCount = sortedCategories.reduce((sum, cat) => sum + cat.count, 0);
-  const totalYou = sortedCategories.reduce((sum, cat) => sum + cat.paidByYou, 0);
-  const totalPartner = sortedCategories.reduce((sum, cat) => sum + cat.paidByPartner, 0);
-  const totalFixed = sortedCategories.reduce((sum, cat) => sum + cat.fixedTotal, 0);
-  const totalVariable = sortedCategories.reduce((sum, cat) => sum + cat.variableTotal, 0);
-
-  const totalRow = document.createElement('tr');
-  totalRow.className = 'total-row';
-  totalRow.innerHTML = `
-    <td class="category-name"><strong>TOTAL</strong></td>
-    <td class="amount-total"><strong>${formatCurrency(grandTotal)}</strong></td>
-    <td class="percentage"><strong>100%</strong></td>
-    <td class="count"><strong>${totalCount}</strong></td>
-    <td class="amount"><strong>${formatCurrency(totalCount > 0 ? grandTotal / totalCount : 0)}</strong></td>
-    <td class="amount"><strong>${formatCurrency(totalYou)}</strong></td>
-    <td class="amount"><strong>${formatCurrency(totalPartner)}</strong></td>
-    <td class="amount"><strong>${formatCurrency(totalFixed)}</strong></td>
-    <td class="amount"><strong>${formatCurrency(totalVariable)}</strong></td>
-  `;
-
-  tbody.appendChild(totalRow);
-
-  container.appendChild(table);
-
-  // Ajouter insights
-  renderCategoryInsights(sortedCategories);
-}
-
-/**
- * Affiche des insights sur les catégories
- * @param {Array} categories - Catégories triées
- */
-function renderCategoryInsights(categories) {
-  const insightsContainer = document.getElementById('categoryInsights');
-
-  if (!insightsContainer || categories.length === 0) {
-    return;
-  }
-
-  const insights = [];
-
-  // Top 3 catégories
-  const top3 = categories.slice(0, 3);
-  const topCategoriesText = top3.map(cat =>
-    `${escapeHtml(cat.category)} (${formatCurrency(cat.total)})`
-  ).join(', ');
-
-  insights.push(`📊 <strong>Top 3 catégories :</strong> ${topCategoriesText}`);
-
-  // Catégorie la plus fréquente
-  const mostFrequent = categories.reduce((max, cat) => cat.count > max.count ? cat : max, categories[0]);
-  insights.push(`🔢 <strong>Plus fréquente :</strong> ${escapeHtml(mostFrequent.category)} (${mostFrequent.count} charges)`);
-
-  // Catégorie avec la moyenne la plus élevée
-  const highestAverage = categories.reduce((max, cat) => cat.average > max.average ? cat : max, categories[0]);
-  insights.push(`💰 <strong>Moyenne la plus élevée :</strong> ${escapeHtml(highestAverage.category)} (${formatCurrency(highestAverage.average)})`);
-
-  // Répartition Vous vs Conjointe
-  const totalYou = categories.reduce((sum, cat) => sum + cat.paidByYou, 0);
-  const totalPartner = categories.reduce((sum, cat) => sum + cat.paidByPartner, 0);
-  const total = totalYou + totalPartner;
-
-  if (total > 0) {
-    const youPercentage = (totalYou / total * 100).toFixed(1);
-    const partnerPercentage = (totalPartner / total * 100).toFixed(1);
-    insights.push(`👥 <strong>Répartition paiements :</strong> Vous ${youPercentage}% - Conjointe ${partnerPercentage}%`);
-  }
-
-  // Afficher
-  insightsContainer.innerHTML = `
-    <div class="insights-box">
-      <h3>💡 Insights</h3>
-      <ul>
-        ${insights.map(insight => `<li>${insight}</li>`).join('')}
-      </ul>
-    </div>
-  `;
-}
-
-/**
- * Retourne l'icône pour une catégorie
- * @param {string} category - Nom de la catégorie
- * @returns {string} HTML de l'icône
- */
-function getCategoryIcon(category) {
-  const icons = {
-    // Charges fixes
-    'Loyer': '🏠',
-    'Énergie': '⚡',
-    'Internet': '📡',
-    'Assurances': '🛡️',
-    'Abonnements': '📅',
-    // Charges variables
-    'Alimentation': '🍽️',
-    'Transport': '🚗',
-    'Loisirs': '🎮',
-    'Santé': '❤️',
-    'Autre': '📦'
-  };
-
-  return icons[category] || '📦';
-}
-
-/**
  * Obtient les statistiques pour une catégorie spécifique
  * @param {string} categoryName - Nom de la catégorie
  * @returns {Object|null} Statistiques de la catégorie
@@ -355,9 +151,3 @@ export function compareCategories(category1, category2) {
     percentageDifference: stats1.percentage - stats2.percentage
   };
 }
-
-// Exposer globalement pour compatibilité
-window.analyzeCategoriesData = analyzeCategoriesData;
-window.renderCategoryAnalysis = renderCategoryAnalysis;
-window.getCategoryStats = getCategoryStats;
-window.compareCategories = compareCategories;

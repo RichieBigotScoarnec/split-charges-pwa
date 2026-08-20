@@ -138,11 +138,13 @@
         <!-- Populated dynamically by summary.js -->
       </div>
 
-      <!-- Analyse par Catégorie -->
-      <div id="categoryAnalysis" class="category-analysis" style="display: none;">
-        <div class="category-analysis-header"><span aria-hidden="true">📊</span> Analyse par Catégorie</div>
+      <!-- Budgets par catégorie. Le panneau existait mais n'affichait rien :
+           sa cible de rendu n'existait pas et personne ne l'appelait.
+           Masqué tant qu'aucune dépense ni aucun budget n'existe. -->
+      <div id="categoryAnalysis" class="category-analysis" hidden>
+        <div class="category-analysis-header"><span aria-hidden="true">🎯</span> Budgets par catégorie</div>
         <div id="categoryAnalysisContent">
-          <!-- Populated dynamically -->
+          <!-- Rempli par modules/category-budgets.js -->
         </div>
       </div>
 
@@ -681,6 +683,22 @@
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalBackup">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Éditeur de budgets par catégorie -->
+  <div id="modalBudgets" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalBudgetsTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalBudgetsTitle">Budgets par catégorie</h2>
+      <p class="modal-hint">
+        Un budget vaut pour tous les mois tant que vous ne le changez pas.
+        Laissez vide pour ne pas en fixer.
+      </p>
+      <div id="budgetEditorList" class="budget-editor-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalBudgets">Annuler</button>
+        <button type="button" class="btn btn-primary" data-action="saveCategoryBudgets">Enregistrer</button>
       </div>
     </div>
   </div>
