@@ -48,9 +48,9 @@ L'application est réservée à deux comptes, définis en dur dans les règles
 Firebase. Toute autre adresse est authentifiée puis rejetée. Voir
 [SECURITY.md](SECURITY.md).
 
-Le partage entre les deux comptes se configure une fois via
-[`configure-partner.html`](configure-partner.html) : chacun y saisit l'UID de
-l'autre. Le partage ne devient actif qu'une fois les deux côtés déclarés.
+**Aucune configuration de partage.** Les données du foyer vivent dans un espace
+unique : un compte autorisé se connecte et les voit. Il n'y a ni propriétaire,
+ni invitation, ni UID à échanger.
 
 ---
 
@@ -100,7 +100,7 @@ js/
   app.js                Amorçage : Firebase, composants, authentification
   config.js             Configuration Firebase, constantes, liste blanche
   firebase-init.js      Initialisation SDK et émulateurs
-  db.js                 Accès base — chemins automatiquement scopés par UID
+  db.js                 Accès base — préfixage automatique par household/
   state.js              État global (observateur)
   components/           modal.js, toast.js
   modules/              16 modules fonctionnels
@@ -144,4 +144,5 @@ désormais par l'émulateur.
 | [CLAUDE.md](CLAUDE.md) | Conventions de code et contraintes |
 | [WORKFLOW-DEV.md](WORKFLOW-DEV.md) | Workflow Git et déploiement |
 | [DEPLOIEMENT-GITHUB-PAGES.md](DEPLOIEMENT-GITHUB-PAGES.md) | Détail du déploiement |
-| [CHANGELOG-MULTIUSER.md](CHANGELOG-MULTIUSER.md) | Historique de la migration multi-utilisateur |
+| [TROUBLESHOOTING-AUTH.md](TROUBLESHOOTING-AUTH.md) | Dépannage de l'authentification Google |
+| [CLEAR-CACHE.md](CLEAR-CACHE.md) | Forcer le rechargement (service worker) |
