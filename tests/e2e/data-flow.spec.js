@@ -611,3 +611,76 @@ test.describe('Persistance — données dans le mock', () => {
     expect(hasData).toBe(true);
   });
 });
+
+// ============================================================
+// Règlement du solde
+// ============================================================
+test.describe('Régler le solde', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  /**
+   * Crée un déséquilibre connu : salaires égaux, une charge de 100 € avancée
+   * par une seule personne. L'autre lui doit donc exactement 50 €.
+   */
+  async function creerDesequilibre(page, payeur) {
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Charge de reference');
+    await page.locator('#variableChargeAmount').fill('100');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption(payeur);
+    await page.locator('#saveVariableCharge').click();
+
+    await expect(page.locator('#variableChargesList').getByText('Charge de reference')).toBeVisible({ timeout: 5000 });
+  }
+
+  test('le bouton n\'apparaît que lorsqu\'il y a un solde à régler', async ({ page }) => {
+    // Comptes vierges : aucun déséquilibre, donc aucune action proposée
+    await expect(page.locator('.btn-settle')).toHaveCount(0);
+
+    await creerDesequilibre(page, 'vous');
+    await expect(page.locator('.btn-settle')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('régler ramène le solde à zéro et fait disparaître le bouton', async ({ page }) => {
+    await creerDesequilibre(page, 'vous');
+
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+
+    await page.locator('.btn-settle').click();
+    await page.locator('#modalConfirmOk').click();
+
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
+    await expect(page.locator('.btn-settle')).toHaveCount(0);
+  });
+
+  test('fonctionne aussi dans l\'autre sens', async ({ page }) => {
+    await creerDesequilibre(page, 'conjointe');
+
+    await expect(page.locator('#balanceBar')).toContainText('Vous devez', { timeout: 5000 });
+
+    await page.locator('.btn-settle').click();
+    await page.locator('#modalConfirmOk').click();
+
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
+  });
+
+  test('annuler la confirmation ne change rien', async ({ page }) => {
+    await creerDesequilibre(page, 'vous');
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+
+    await page.locator('.btn-settle').click();
+    await page.locator('#modalConfirmCancel').click();
+
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit');
+    await expect(page.locator('.btn-settle')).toBeVisible();
+  });
+});

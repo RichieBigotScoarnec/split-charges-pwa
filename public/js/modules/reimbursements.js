@@ -40,6 +40,7 @@ export function initReimbursements() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.showAddReimbursementModal = showAddReimbursementModal;
   window.deleteReimbursement = deleteReimbursement;
+  window.settleBalance = settleBalance;
 
   log('✅ Module remboursements initialisé');
 }
@@ -128,6 +129,67 @@ export async function saveReimbursement() {
     calculateSummary();
   } catch (error) {
     logError('❌ Erreur sauvegarde remboursement :', error);
+    toast.error('Erreur de sauvegarde');
+  }
+}
+
+/**
+ * Enregistre un remboursement soldant exactement le déséquilibre du mois.
+ *
+ * Sans cette action, régler ses comptes demandait de lire le solde, ouvrir le
+ * formulaire, recopier le montant à la virgule près et choisir le bon sens —
+ * quatre occasions de se tromper pour une opération dont l'application connaît
+ * déjà tous les termes.
+ *
+ * Le sens découle du signe du solde : un solde positif signifie que la
+ * conjointe doit de l'argent, c'est donc elle qui verse.
+ *
+ * @returns {Promise<void>}
+ */
+export async function settleBalance() {
+  const currentPeriod = getState('currentPeriod');
+  if (!currentPeriod) {
+    toast.error('Aucune période sélectionnée');
+    return;
+  }
+
+  // Le solde affiché fait foi : une seule source, pas de calcul dupliqué.
+  const { balance } = calculateSummary();
+  const amount = Math.round(Math.abs(balance) * 100) / 100;
+
+  // En deçà du centime, il n'y a rien à régler et l'écriture serait du bruit.
+  if (amount < 0.01) {
+    toast.info('Les comptes sont déjà équilibrés');
+    return;
+  }
+
+  const direction = balance > 0
+    ? REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
+    : REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER;
+
+  const directionText = balance > 0 ? 'Conjointe → Vous' : 'Vous → Conjointe';
+
+  const confirmed = await showConfirmModal(
+    `Enregistrer un règlement de ${formatCurrency(amount)} (${directionText}) ? Le solde du mois reviendra à zéro.`
+  );
+  if (!confirmed) return;
+
+  try {
+    const { dbPush } = await import('../db.js');
+
+    await dbPush(`periods/${currentPeriod}/reimbursements`, {
+      direction,
+      amount,
+      note: 'Règlement du solde',
+      timestamp: Date.now(),
+      deleted: false
+    });
+
+    await loadReimbursements();
+    calculateSummary();
+    toast.success('Solde réglé');
+  } catch (err) {
+    logError('❌ Erreur règlement du solde :', err);
     toast.error('Erreur de sauvegarde');
   }
 }
