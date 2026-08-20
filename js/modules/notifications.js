@@ -340,32 +340,6 @@ function sendNotification(title, body, data = {}) {
 }
 
 /**
- * Affiche un rappel dans l'interface (toast)
- * @param {string} message - Message du rappel
- * @param {string} type - Type de rappel (info, warning)
- */
-export function showReminder(message, type = 'info') {
-  if (type === 'warning') {
-    toast.warning(message);
-  } else {
-    toast.info(message);
-  }
-}
-
-/**
- * Obtient le statut des notifications
- * @returns {Object} Statut des notifications
- */
-export function getNotificationStatus() {
-  const supported = 'Notification' in window;
-  return {
-    supported,
-    permission: supported ? Notification.permission : 'denied',
-    enabled: supported && Notification.permission === 'granted'
-  };
-}
-
-/**
  * Nettoie les timers de notifications (appeler au logout)
  */
 export function cleanupNotifications() {

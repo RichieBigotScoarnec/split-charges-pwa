@@ -1,7 +1,7 @@
 // ===== MODULE : CARTE INTERACTIVE =====
 // Fonctionnalités : visualisation géographique des dépenses avec Leaflet
 
-import { getState, setState } from '../state.js';
+import { getState } from '../state.js';
 import { formatCurrency, formatPaidBy, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
@@ -470,54 +470,6 @@ function updateMapStats(totalAmount, markerCount) {
 
   if (countEl) {
     countEl.textContent = markerCount;
-  }
-}
-
-/**
- * Ajoute ou met à jour une géolocalisation pour une charge existante
- * @param {string} chargeId - ID de la charge
- * @param {string} chargeType - Type de charge ('variableCharges' ou 'fixedCharges')
- * @param {number} lat - Latitude
- * @param {number} lng - Longitude
- * @param {string} locationName - Nom du lieu
- */
-export async function addGeoCharge(chargeId, chargeType, lat, lng, locationName) {
-  if (!chargeId || !chargeType) {
-    logError('❌ addGeoCharge: chargeId et chargeType requis');
-    return;
-  }
-
-  const locationData = {
-    lat: lat,
-    lng: lng,
-    name: locationName || 'Localisation',
-    timestamp: Date.now()
-  };
-
-  try {
-    // ✅ Sauvegarder dans Firebase avec location
-    const { dbUpdate } = await import('../db.js');
-    const currentPeriod = getState('currentPeriod');
-
-    await dbUpdate(`periods/${currentPeriod}/${chargeType}/${chargeId}/location`, locationData);
-
-    log('📍 Géolocalisation sauvegardée :', locationData);
-    toast.success('📍 Localisation ajoutée');
-
-    // Mettre à jour le state local
-    const charges = getState(chargeType) || [];
-    const updatedCharges = charges.map(c =>
-      c.id === chargeId ? { ...c, location: locationData } : c
-    );
-    setState(chargeType, updatedCharges);
-
-    // Rafraîchir la carte si ouverte
-    if (map) {
-      loadChargesOnMap();
-    }
-  } catch (error) {
-    logError('❌ Erreur sauvegarde géolocalisation :', error);
-    toast.error('Erreur lors de l\'ajout de la localisation');
   }
 }
 

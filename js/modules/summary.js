@@ -4,9 +4,6 @@
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
-import { renderVariableCharges } from './variable-charges.js';
-import { renderFixedCharges } from './fixed-charges.js';
-import { renderReimbursements } from './reimbursements.js';
 import { log, warn } from '../utils/debug.js';
 
 /**
@@ -252,20 +249,6 @@ function renderBudgetGauge(totalCharges) {
       </div>
     </div>
   `;
-}
-
-/**
- * Rafraîchit tous les affichages (après modification de données)
- */
-export function renderAll() {
-  log('🔄 Rafraîchissement de tous les affichages...');
-
-  renderVariableCharges();
-  renderFixedCharges();
-  renderReimbursements();
-  calculateSummary();
-
-  log('✅ Tous les affichages rafraîchis');
 }
 
 // Note : La reconduction de période est gérée par le module reconduction.js

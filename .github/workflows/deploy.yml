@@ -91,6 +91,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Le service worker sert un cache nommé d'après cette valeur. La dériver
+      # du commit garantit qu'un déploiement invalide toujours l'ancien cache.
+      - name: Stamp service worker cache version
+        run: |
+          sed -i "s/__CACHE_VERSION__/${GITHUB_SHA::12}/" sw.js
+          grep -n "CACHE_VERSION =" sw.js
+
       # force_orphan : gh-pages est régénérée à chaque déploiement à partir de
       # l'arbre courant. Sans cela (keep_files + destination_dir), la branche
       # accumulait tous les états passés du projet — d'où la récursion test/test/

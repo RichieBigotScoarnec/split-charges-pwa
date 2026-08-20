@@ -28,7 +28,7 @@ export async function initCustomLists() {
  * Charge les listes personnalisées depuis Firebase
  * Fallback sur les defaults de config.js si aucune donnée
  */
-export async function loadCustomLists() {
+async function loadCustomLists() {
   try {
     const { dbGet } = await import('../db.js');
 
@@ -98,7 +98,7 @@ export function getCategories() {
 /**
  * @returns {Array} Liste des destinations actives
  */
-export function getDestinations() {
+function getDestinations() {
   return getState('destinations') || DESTINATIONS;
 }
 
@@ -111,17 +111,6 @@ export function getCategoryIcon(label) {
   const categories = getCategories();
   const cat = categories.find(c => c.label === label || c.id === label);
   return cat ? cat.icon : '📦';
-}
-
-/**
- * Retourne l'icône d'une destination par son label
- * @param {string} label - Label de la destination
- * @returns {string} Emoji icône
- */
-export function getDestinationIcon(label) {
-  const destinations = getDestinations();
-  const dest = destinations.find(d => d.label === label || d.id === label);
-  return dest ? dest.icon : '📋';
 }
 
 // ===== POPULATION DES SELECTS =====

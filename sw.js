@@ -1,8 +1,11 @@
 // Service Worker — FairSplit
 // Stratégie : cache-first pour assets statiques, network-first pour Firebase
 
-// Auto-version based on asset list hash — bump this date on each deploy
-const CACHE_VERSION = '2026-08-19';
+// Remplacé au déploiement par le SHA du commit (cf. .github/workflows/deploy.yml).
+// Un numéro de version à incrémenter à la main finit toujours par être oublié :
+// le cache sert alors une version périmée sans que rien ne le signale.
+// En développement le marqueur reste littéral, donc le nom de cache est stable.
+const CACHE_VERSION = '__CACHE_VERSION__';
 const CACHE_NAME = `fairsplit-${CACHE_VERSION}`;
 
 // Fichiers à mettre en cache pour le mode offline

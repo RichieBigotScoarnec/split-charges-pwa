@@ -36,7 +36,7 @@ function ensureContainer() {
  * @param {Function} options.onUndo - Undo callback (shows undo button)
  * @returns {HTMLElement} Toast element
  */
-export function showToast(message, type = 'success', options = {}) {
+function showToast(message, type = 'success', options = {}) {
   ensureContainer();
 
   const {

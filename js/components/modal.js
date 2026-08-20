@@ -102,7 +102,7 @@ export function closeModal(modalId, resetForm = true) {
 /**
  * Setup modal close on overlay click
  */
-export function setupModalOverlayClose() {
+function setupModalOverlayClose() {
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
@@ -115,7 +115,7 @@ export function setupModalOverlayClose() {
 /**
  * Setup modal close on Escape key
  */
-export function setupModalEscapeClose() {
+function setupModalEscapeClose() {
   if (_escapeHandler) {
     document.removeEventListener('keydown', _escapeHandler);
   }
