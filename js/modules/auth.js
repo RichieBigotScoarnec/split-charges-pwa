@@ -324,8 +324,8 @@ export function initAuth() {
     updateAuthUI(user);
 
     // Set current user ID for multi-user database structure
-    const { setCurrentUserId } = await import('../db.js');
-    await setCurrentUserId(user ? user.uid : null);
+    const { setAuthenticatedUser } = await import('../db.js');
+    setAuthenticatedUser(user ? user.uid : null);
 
     // Initialize app data if user just logged in
     if (user && !appInitialized) {

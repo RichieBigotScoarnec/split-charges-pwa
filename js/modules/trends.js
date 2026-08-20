@@ -5,7 +5,7 @@ import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { formatCurrency } from '../utils/format.js';
 import { toast } from '../components/toast.js';
-import { getUserPath } from '../db.js';
+import { getHouseholdPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 
 let database = null;
@@ -48,7 +48,7 @@ export async function fetchHistoricalData(months = 6) {
   }
 
   try {
-    const snapshot = await database.ref(getUserPath('periods')).once('value');
+    const snapshot = await database.ref(getHouseholdPath('periods')).once('value');
 
     if (!snapshot.exists()) {
       return { periods: [], data: {} };
