@@ -64,6 +64,39 @@ export function getDataPath(path) {
 // ===== GENERIC OPERATIONS =====
 
 /**
+ * Délai au-delà duquel une lecture est considérée comme perdue.
+ * Une connexion saine répond en ~130 ms ; 10 s laisse une marge très large
+ * même sur un réseau mobile dégradé.
+ */
+const READ_TIMEOUT_MS = 10000;
+
+/**
+ * Borne une promesse dans le temps.
+ *
+ * Indispensable pour les lectures Realtime Database : quand le client n'est pas
+ * connecté, `once('value')` ne rejette pas — il met la lecture en file d'attente
+ * et la promesse reste en attente indéfiniment. Un `await` sur une telle lecture
+ * gèle la séquence d'initialisation sans lever la moindre erreur, donc sans
+ * qu'aucun message n'atteigne l'utilisateur : l'application paraît simplement
+ * vide. Une lecture qui n'aboutit pas doit échouer bruyamment.
+ *
+ * @param {Promise<*>} promise - Promesse à borner
+ * @param {string} label - Chemin lu, pour un message exploitable
+ * @param {number} [ms] - Délai maximum en millisecondes
+ * @returns {Promise<*>} La valeur, ou un rejet après expiration du délai
+ */
+function withTimeout(promise, label, ms = READ_TIMEOUT_MS) {
+  let timer;
+  const expiry = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Lecture « ${label} » sans réponse après ${ms / 1000} s`)),
+      ms
+    );
+  });
+  return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Get data from path
  * @param {string} path - Chemin relatif à l'espace de données
  * @returns {Promise<*>} Data at path
@@ -71,7 +104,10 @@ export function getDataPath(path) {
 export async function dbGet(path) {
   if (!database) throw new Error('Database not initialized');
 
-  const snapshot = await database.ref(getDataPath(path)).once('value');
+  const snapshot = await withTimeout(
+    database.ref(getDataPath(path)).once('value'),
+    path || '(racine)'
+  );
   return snapshot.val();
 }
 
