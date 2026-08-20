@@ -1,0 +1,16 @@
+# Normalisation déterministe des fins de ligne
+#
+# Sans ce fichier, le comportement dépend de core.autocrlf sur chaque poste :
+# ici il vaut true, donc l'index restait en LF — mais une machine configurée
+# autrement committerait du CRLF, produisant des diffs entiers sans le moindre
+# changement réel. C'est aussi l'origine des avertissements « LF will be
+# replaced by CRLF » à chaque commit.
+#
+# text=auto : Git décide texte/binaire ; eol=lf : toujours LF dans le dépôt.
+* text=auto eol=lf
+
+# Binaires — ne jamais convertir
+*.png binary
+*.ico binary
+*.jpg binary
+*.woff2 binary
