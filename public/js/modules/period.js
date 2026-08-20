@@ -115,11 +115,12 @@ export async function loadPeriodData() {
     const { salaries } = resolveSalaries(periodSalaries, globalSalaries);
     setState('salaries', salaries);
 
-    // Update UI inputs
-    const vousInput = document.getElementById('salaireVous');
-    const conjointeInput = document.getElementById('salaireConjointe');
-    if (vousInput) vousInput.value = salaries.vous;
-    if (conjointeInput) conjointeInput.value = salaries.conjointe;
+    // Les quatre champs de revenus reprennent l'instantané du mois affiché.
+    restoreIncomeFields();
+
+    // Un mois sans revenus complémentaires ne doit pas afficher le bloc replié
+    // sur des zéros muets : on l'ouvre s'il porte une valeur.
+    revealExtraIncomeIfUsed(salaries);
 
     // 2. Load period-specific data using individual module loaders
     // This ensures proper object-to-array conversion from Firebase
@@ -159,57 +160,94 @@ export async function loadPeriodData() {
 /**
  * Save salaries (global, not period-specific)
  */
+/**
+ * Les quatre champs de revenus, saisis dans le même bloc et validés de la
+ * même façon. Les décrire une fois évite de répéter quatre fois la même
+ * séquence de contrôles — c'est cette répétition, déjà présente pour les deux
+ * salaires, qui aurait doublé avec les revenus complémentaires.
+ */
+const CHAMPS_REVENUS = [
+  { id: 'salaireVous', cle: 'vous', libelle: 'votre salaire' },
+  { id: 'salaireConjointe', cle: 'conjointe', libelle: 'le salaire conjoint' },
+  { id: 'revenusVous', cle: 'extraVous', libelle: 'vos revenus complémentaires' },
+  { id: 'revenusConjointe', cle: 'extraConjointe', libelle: 'les revenus complémentaires conjoints' }
+];
+
+/** Montant maximal accepté par champ */
+const PLAFOND_REVENU = 100000;
+
+/**
+ * Lit et valide les quatre champs de revenus
+ *
+ * Un champ vide vaut zéro : ne rien saisir dans « revenus complémentaires »
+ * doit laisser le calcul strictement inchangé.
+ *
+ * @returns {{revenus: Object|null, erreur: string|null}} Les revenus, ou le motif du refus
+ */
+function readIncomeFields() {
+  const revenus = {};
+
+  for (const champ of CHAMPS_REVENUS) {
+    const input = document.getElementById(champ.id);
+    const brut = (input?.value ?? '').trim();
+
+    if (brut === '') {
+      revenus[champ.cle] = 0;
+      continue;
+    }
+
+    const valeur = parseFloat(brut);
+
+    if (isNaN(valeur)) {
+      return { revenus: null, erreur: `Valeur invalide pour ${champ.libelle}` };
+    }
+    if (valeur < 0) {
+      return { revenus: null, erreur: `${champ.libelle} ne peut pas être négatif` };
+    }
+    if (valeur > PLAFOND_REVENU) {
+      return { revenus: null, erreur: `Limite maximale : ${PLAFOND_REVENU} € par champ` };
+    }
+
+    revenus[champ.cle] = valeur;
+  }
+
+  return { revenus, erreur: null };
+}
+
+/**
+ * Réaffiche dans les champs les valeurs connues de l'état
+ *
+ * Appelé après un refus : l'écran doit revenir à ce qui est réellement
+ * enregistré plutôt que de conserver une saisie rejetée.
+ */
+function restoreIncomeFields() {
+  const connus = getState('salaries') || {};
+  for (const champ of CHAMPS_REVENUS) {
+    const input = document.getElementById(champ.id);
+    if (input) input.value = connus[champ.cle] || 0;
+  }
+}
+
+/**
+ * Sauvegarde les revenus de la période affichée
+ *
+ * Salaires et revenus complémentaires vivent dans le même instantané : ils
+ * décrivent le même mois et se lisent d'une seule requête.
+ *
+ * @returns {Promise<void>}
+ */
 export async function saveSalaries() {
   const indicator = document.getElementById('salariesSaveIndicator');
 
+  const { revenus, erreur } = readIncomeFields();
+  if (erreur) {
+    toast.error(erreur);
+    restoreIncomeFields();
+    return;
+  }
+
   if (indicator) {
     indicator.className = 'save-indicator is-saving';
-  }
-
-  const vousInput = document.getElementById('salaireVous');
-  const conjointeInput = document.getElementById('salaireConjointe');
-
-  const rawVous = parseFloat(vousInput?.value || 0);
-  const rawConjointe = parseFloat(conjointeInput?.value || 0);
-
-  // Validation
-  if (isNaN(rawVous) && vousInput?.value.trim() !== '') {
-    toast.error('Valeur invalide pour votre salaire');
-    const currentSalaries = getState('salaries') || { vous: 0, conjointe: 0 };
-    if (vousInput) vousInput.value = currentSalaries.vous || 0;
-    return;
-  }
-
-  if (isNaN(rawConjointe) && conjointeInput?.value.trim() !== '') {
-    toast.error('Valeur invalide pour le salaire conjoint');
-    const currentSalaries = getState('salaries') || { vous: 0, conjointe: 0 };
-    if (conjointeInput) conjointeInput.value = currentSalaries.conjointe || 0;
-    return;
-  }
-
-  const salaries = {
-    vous: isNaN(rawVous) ? 0 : rawVous,
-    conjointe: isNaN(rawConjointe) ? 0 : rawConjointe
-  };
-
-  // Validate: no negatives
-  if (salaries.vous < 0 || salaries.conjointe < 0) {
-    toast.error('Les salaires ne peuvent pas être négatifs');
-    salaries.vous = Math.max(0, salaries.vous);
-    salaries.conjointe = Math.max(0, salaries.conjointe);
-    if (vousInput) vousInput.value = salaries.vous;
-    if (conjointeInput) conjointeInput.value = salaries.conjointe;
-    return;
-  }
-
-  // Validate: max 100,000€
-  if (salaries.vous > 100000 || salaries.conjointe > 100000) {
-    toast.error('Limite maximale : 100 000€ par salaire');
-    salaries.vous = Math.min(100000, salaries.vous);
-    salaries.conjointe = Math.min(100000, salaries.conjointe);
-    if (vousInput) vousInput.value = salaries.vous;
-    if (conjointeInput) conjointeInput.value = salaries.conjointe;
-    return;
   }
 
   try {
@@ -222,16 +260,16 @@ export async function saveSalaries() {
     const currentPeriod = getState('currentPeriod') || getCurrentPeriod();
 
     // L'instantané de la période consultée fait toujours foi pour son calcul.
-    await dbSet(`periods/${currentPeriod}/salaries`, salaries);
+    await dbSet(`periods/${currentPeriod}/salaries`, revenus);
 
-    // Les salaires globaux ne suivent que si l'on édite le mois en cours :
+    // Les revenus globaux ne suivent que si l'on édite le mois en cours :
     // corriger un mois archivé ne doit pas redéfinir la valeur par défaut des
     // mois suivants.
     if (currentPeriod === getCurrentPeriod()) {
-      await dbSet('salaries', salaries);
+      await dbSet('salaries', revenus);
     }
 
-    setState('salaries', salaries);
+    setState('salaries', revenus);
 
     if (indicator) {
       indicator.className = 'save-indicator is-saved';
@@ -240,7 +278,6 @@ export async function saveSalaries() {
       }, 2000);
     }
 
-    // Recalculate summary
     calculateSummary();
 
   } catch (error) {
@@ -294,6 +331,41 @@ export async function backfillPeriodSalaries() {
 }
 
 /**
+ * Ouvre ou referme le bloc des revenus complémentaires
+ *
+ * Replié par défaut : la plupart des foyers n'ont que des salaires, et deux
+ * champs de plus en permanence alourdiraient l'écran pour rien.
+ */
+export function toggleExtraIncome() {
+  const bloc = document.getElementById('extraIncomeFields');
+  const bascule = document.getElementById('extraIncomeToggle');
+  if (!bloc || !bascule) return;
+
+  const ouvert = !bloc.hidden;
+  bloc.hidden = ouvert;
+  bascule.setAttribute('aria-expanded', String(!ouvert));
+}
+
+/**
+ * Déplie le bloc si le mois porte des revenus complémentaires
+ *
+ * Les laisser cachés reviendrait à faire peser sur le calcul une valeur que
+ * rien à l'écran ne montre.
+ *
+ * @param {Object} salaries - Instantané de revenus du mois
+ */
+function revealExtraIncomeIfUsed(salaries) {
+  const bloc = document.getElementById('extraIncomeFields');
+  const bascule = document.getElementById('extraIncomeToggle');
+  if (!bloc || !bascule) return;
+
+  if ((salaries.extraVous || 0) > 0 || (salaries.extraConjointe || 0) > 0) {
+    bloc.hidden = false;
+    bascule.setAttribute('aria-expanded', 'true');
+  }
+}
+
+/**
  * Amène l'utilisateur au champ des salaires
  *
  * L'état vide du bilan énonçait une condition sans offrir le moyen de la
@@ -326,21 +398,21 @@ export function initPeriod() {
     periodSelect.addEventListener('change', changePeriod);
   }
 
-  // Setup event listeners for salary inputs
-  const vousInput = document.getElementById('salaireVous');
-  const conjointeInput = document.getElementById('salaireConjointe');
-  if (vousInput) {
-    vousInput.addEventListener('change', saveSalaries);
+  // Les quatre champs de revenus déclenchent la même sauvegarde.
+  for (const champ of CHAMPS_REVENUS) {
+    const input = document.getElementById(champ.id);
+    if (input) input.addEventListener('change', saveSalaries);
   }
-  if (conjointeInput) {
-    conjointeInput.addEventListener('change', saveSalaries);
-  }
+
+  const bascule = document.getElementById('extraIncomeToggle');
+  if (bascule) bascule.addEventListener('click', toggleExtraIncome);
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.changePeriod = changePeriod;
   window.navigatePeriod = navigatePeriod;
   window.saveSalaries = saveSalaries;
   window.focusSalaries = focusSalaries;
+  window.toggleExtraIncome = toggleExtraIncome;
 
   log('📅 Gestion périodes initialisée');
 }

@@ -27,8 +27,11 @@ changer le mode des autres.
 | --- | --- |
 | **Répartition** | Prorata des salaires, 50/50, ou pourcentages libres — globalement ou charge par charge |
 | **Charges** | Fixes (récurrentes ou ponctuelles) et variables, avec catégorie, payeur et destination de virement |
-| **Salaires** | Instantané par période : modifier son salaire ne réécrit pas l'historique des mois passés |
+| **Revenus** | Salaires et revenus complémentaires (allocations, loyers perçus, activité annexe), pris ensemble dans l'assiette du prorata |
+| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés |
 | **Remboursements** | Suivi des transferts entre les deux personnes, intégrés au solde |
+| **Règlement** | Solder le mois en une action : le montant exact, dans le bon sens, depuis la barre de solde |
+| **Report** | Option : un mois non réglé reste dû le mois suivant au lieu de repartir de zéro |
 | **Périodes** | Navigation mensuelle, reconduction des charges fixes récurrentes d'un mois sur l'autre |
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
 | **Analyse** | Répartition par catégorie, tendances sur 6 mois |
@@ -37,6 +40,8 @@ changer le mode des autres.
 | **Personnalisation** | Catégories et destinations de virement définies par l'utilisateur |
 | **Recherche** | Filtrage des charges de la période |
 | **Export** | CSV et impression |
+| **Sauvegarde** | Fichier JSON complet, et restauration avec copie de sécurité préalable |
+| **Corbeille** | Les suppressions sont douces : les éléments effacés du mois restent consultables et récupérables |
 | **Rappels** | Notifications de fin de mois, dépassement de budget, remboursements en attente |
 | **PWA** | Installable, fonctionne hors ligne via service worker |
 

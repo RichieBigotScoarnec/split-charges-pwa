@@ -669,8 +669,16 @@ test.describe('Mise en page', () => {
     test.use({ viewport: { width: 1280, height: 900 } });
 
     test('les deux champs de salaire tiennent dans leur carte', async ({ page }) => {
-      await resteDansLesBornes(page, '#salaireVous', '.salaries-grid');
-      await resteDansLesBornes(page, '#salaireConjointe', '.salaries-grid');
+      await resteDansLesBornes(page, '#salaireVous', '#salariesGrid');
+      await resteDansLesBornes(page, '#salaireConjointe', '#salariesGrid');
+    });
+
+    test('les champs de revenus complémentaires tiennent dans leur bloc', async ({ page }) => {
+      await page.locator('#extraIncomeToggle').click();
+      await expect(page.locator('#extraIncomeFields')).toBeVisible();
+
+      await resteDansLesBornes(page, '#revenusVous', '#extraIncomeFields');
+      await resteDansLesBornes(page, '#revenusConjointe', '#extraIncomeFields');
     });
 
     test('les champs de pourcentage tiennent dans leur bloc', async ({ page }) => {
@@ -693,8 +701,8 @@ test.describe('Mise en page', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
     test('les deux champs de salaire tiennent dans leur carte', async ({ page }) => {
-      await resteDansLesBornes(page, '#salaireVous', '.salaries-grid');
-      await resteDansLesBornes(page, '#salaireConjointe', '.salaries-grid');
+      await resteDansLesBornes(page, '#salaireVous', '#salariesGrid');
+      await resteDansLesBornes(page, '#salaireConjointe', '#salariesGrid');
     });
 
     test('la page ne défile pas horizontalement', async ({ page }) => {

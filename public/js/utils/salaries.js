@@ -15,8 +15,14 @@
 
 /**
  * Normalise un couple de salaires en nombres finis positifs
+ *
+ * Les revenus complémentaires — allocations, loyers perçus, activité annexe —
+ * sont portés par le même instantané que les salaires : ils appartiennent au
+ * même mois et se lisent d'un seul coup. Absents des données antérieures, ils
+ * valent zéro, ce qui laisse le calcul inchangé.
+ *
  * @param {*} raw - Valeur brute (peut venir de Firebase, donc non fiable)
- * @returns {{vous: number, conjointe: number}|null} null si inexploitable
+ * @returns {{vous: number, conjointe: number, extraVous: number, extraConjointe: number}|null} null si inexploitable
  */
 export function normalizeSalaries(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -28,8 +34,32 @@ export function normalizeSalaries(raw) {
 
   return {
     vous: toNumber(raw.vous),
-    conjointe: toNumber(raw.conjointe)
+    conjointe: toNumber(raw.conjointe),
+    extraVous: toNumber(raw.extraVous),
+    extraConjointe: toNumber(raw.extraConjointe)
   };
+}
+
+/**
+ * Assiette du prorata : ce dont chacun dispose réellement pour payer
+ *
+ * Le partage au prorata répond à une question de capacité contributive. Un
+ * conjoint au salaire modeste mais percevant des allocations conséquentes se
+ * voyait attribuer une part trop faible, parce que seul le salaire comptait.
+ *
+ * @param {*} salaries - Instantané de revenus, éventuellement partiel
+ * @returns {{vous: number, conjointe: number, total: number}} Assiette par personne
+ */
+export function resolveIncomeBase(salaries) {
+  const toNumber = (value) => {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+
+  const vous = toNumber(salaries?.vous) + toNumber(salaries?.extraVous);
+  const conjointe = toNumber(salaries?.conjointe) + toNumber(salaries?.extraConjointe);
+
+  return { vous, conjointe, total: vous + conjointe };
 }
 
 /**
@@ -51,7 +81,9 @@ export function resolveSalaries(periodSalaries, globalSalaries) {
   }
 
   return {
-    salaries: normalizeSalaries(globalSalaries) || { vous: 0, conjointe: 0 },
+    // Forme complète même en dernier recours : un consommateur qui déstructure
+    // extraVous ne doit pas recevoir undefined selon le chemin emprunté.
+    salaries: normalizeSalaries(globalSalaries) || { vous: 0, conjointe: 0, extraVous: 0, extraConjointe: 0 },
     fromSnapshot: false
   };
 }

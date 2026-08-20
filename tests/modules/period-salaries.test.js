@@ -100,7 +100,13 @@ describe('saveSalaries — valeurs valides', () => {
   it('valides → dbSet appelé', async () => {
     setupDOM('2000', '3000');
     await saveSalaries();
-    expect(dbSet).toHaveBeenCalledWith('salaries', { vous: 2000, conjointe: 3000 });
+
+    // L'instantané porte désormais les quatre champs de revenus. Les champs
+    // complémentaires, absents du DOM de ce test, valent zéro — ce qui vérifie
+    // qu'un écran sans ces champs continue d'enregistrer correctement.
+    const attendu = { vous: 2000, conjointe: 3000, extraVous: 0, extraConjointe: 0 };
+    expect(dbSet).toHaveBeenCalledWith('salaries', attendu);
+    expect(dbSet).toHaveBeenCalledWith('periods/2026-03/salaries', attendu);
   });
 
   it('valides → pas de toast.error', async () => {
