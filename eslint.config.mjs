@@ -18,7 +18,7 @@ export default [
 
   // ===== Application (modules ES, navigateur) =====
   {
-    files: ['js/**/*.js'],
+    files: ['public/js/**/*.js'],
     plugins: { 'no-unsanitized': noUnsanitized },
     languageOptions: {
       ecmaVersion: 2022,
@@ -51,7 +51,7 @@ export default [
 
   // ===== Service worker =====
   {
-    files: ['sw.js'],
+    files: ['public/sw.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

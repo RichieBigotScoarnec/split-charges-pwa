@@ -4,7 +4,7 @@ import {
   calculateJointPayment,
   computeSummary,
   computeVirementsByDestination
-} from '../js/utils/calculations.js';
+} from '../public/js/utils/calculations.js';
 
 // ===== Helpers =====
 const salaries = { vous: 3000, conjointe: 2000 };

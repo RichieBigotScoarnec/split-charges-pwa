@@ -12,7 +12,7 @@
     "test:all": "vitest run && npx playwright test",
     "emulators": "npx firebase emulators:start",
     "emulators:test": "npx firebase emulators:exec \"npx playwright test tests/e2e/firebase-integration.spec.js\"",
-    "serve": "npx http-server . -p 3333 -c-1",
+    "serve": "npx http-server public -p 3333 -c-1",
     "deploy:rules": "npx firebase deploy --only database --project fairsplit-foyer",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

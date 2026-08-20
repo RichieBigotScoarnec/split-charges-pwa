@@ -1,22 +1,22 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../js/components/toast.js', () => ({
+vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }));
-vi.mock('../../js/db.js', () => ({
+vi.mock('../../public/js/db.js', () => ({
   dbSet: vi.fn(() => Promise.resolve()),
   dbGet: vi.fn(() => Promise.resolve(null)),
   dbPush: vi.fn(() => Promise.resolve('mock-key')),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`)
 }));
-vi.mock('../../js/modules/summary.js', () => ({
+vi.mock('../../public/js/modules/summary.js', () => ({
   calculateSummary: vi.fn()
 }));
 
-import { getState, setState, resetState } from '../../js/state.js';
-import { selectShareMode, validateCustomPercents } from '../../js/modules/share-mode.js';
+import { getState, setState, resetState } from '../../public/js/state.js';
+import { selectShareMode, validateCustomPercents } from '../../public/js/modules/share-mode.js';
 
 function setupDOM() {
   document.body.innerHTML = `

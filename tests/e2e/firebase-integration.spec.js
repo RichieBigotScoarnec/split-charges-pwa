@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { ALLOWED_EMAILS, DATA_ROOT } from '../../js/config.js';
+import { ALLOWED_EMAILS, DATA_ROOT } from '../../public/js/config.js';
 
 // L'application refuse tout compte hors liste blanche (js/modules/auth.js).
 // Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests

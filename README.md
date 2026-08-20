@@ -76,7 +76,7 @@ npm run check           # lint + tests unitaires (ce que la CI exécute)
 Ajouter `?sandbox=1` à l'URL — en local comme en ligne :
 
 ```text
-FairSplit.html?sandbox=1
+public/FairSplit.html?sandbox=1
 ```
 
 L'application bascule sur le nœud `sandbox/`, isolé de `household/` mais dans
@@ -100,22 +100,30 @@ pwsh -NoProfile -File tools/generate-icons.ps1
 ## Architecture
 
 ```text
-FairSplit.html          Point d'entrée — aucun JavaScript inline
-index.html              Redirection
-css/                    8 feuilles, variables.css porte les tokens du design system
-js/
-  app.js                Amorçage : Firebase, composants, authentification
-  config.js             Configuration Firebase, constantes, liste blanche
-  firebase-init.js      Initialisation SDK et émulateurs
-  db.js                 Accès base — préfixage automatique par household/
-  state.js              État global (observateur)
-  components/           modal.js, toast.js
-  modules/              16 modules fonctionnels
-  utils/                Fonctions pures : calculs, dates, formats, validation, salaires
+public/                 Tout ce qui est publié — et rien d'autre
+  FairSplit.html        Point d'entrée — aucun JavaScript inline
+  index.html            Redirection
+  sw.js  manifest.json  icon-*.png
+  css/                  8 feuilles, variables.css porte les tokens du design system
+  js/
+    app.js              Amorçage : Firebase, composants, authentification
+    config.js           Configuration Firebase, constantes, liste blanche
+    firebase-init.js    Initialisation SDK et émulateurs
+    db.js               Accès base — préfixage automatique par DATA_ROOT
+    state.js            État global (observateur)
+    components/         modal.js, toast.js
+    modules/            16 modules fonctionnels
+    utils/              Fonctions pures : calculs, dates, formats, validation, salaires
 tests/                  Vitest (unitaires) + Playwright (E2E)
 tools/                  Génération des icônes
+docs/                   Dépannage, déploiement, aide-mémoire Git
 database.rules.json     Règles de sécurité — source de vérité unique
 ```
+
+Le déploiement publie `public/` et rien d'autre. Auparavant la racine entière
+était publiée, filtrée par une liste d'exclusion à maintenir à la main — qui a
+laissé fuiter `package.json`, `vitest.config.js`, `tools/` et
+`eslint.config.mjs`. Publier est désormais un acte délibéré.
 
 **Une seule branche** : `main`, déployée automatiquement sur GitHub Pages après
 succès du lint et des tests. Les évolutions passent par des branches courtes
