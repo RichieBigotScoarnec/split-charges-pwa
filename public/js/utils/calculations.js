@@ -76,11 +76,11 @@ export function calculateJointPayment(charge, shareMode, salaries, totalSalaries
  * @param {Object} params
  * @returns {Object} Résumé du bilan
  */
-export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents }) {
+export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver = 0 }) {
   const totalSalaries = salaries.vous + salaries.conjointe;
 
   if (totalSalaries === 0) {
-    return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
+    return { total: 0, yourShare: 0, partnerShare: 0, balance: 0, carryOver: 0 };
   }
 
   const activeFixed = fixedCharges.filter(c => !c.deleted);
@@ -136,7 +136,14 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
     }
   });
 
-  const finalBalance = balanceBeforeReimbs + reimbursementAdjustment;
+  // Le solde propre au mois : ce que ses seules charges et ses seuls
+  // remboursements produisent, indépendamment du passé.
+  const ownBalance = balanceBeforeReimbs + reimbursementAdjustment;
+
+  // Le report suit la même convention de signe que le solde : positif, la
+  // conjointe reste débitrice du mois précédent. Nul par défaut, l'ajout est
+  // donc sans effet tant que le report n'est pas activé.
+  const finalBalance = ownBalance + carryOver;
 
   return {
     total: totalCharges,
@@ -146,6 +153,8 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
     partnerActualPayments,
     balanceBeforeReimbs,
     reimbursementAdjustment,
+    carryOver,
+    ownBalance,
     balance: finalBalance
   };
 }
@@ -192,4 +201,89 @@ export function computeVirementsByDestination(fixedCharges, params) {
   });
 
   return Object.values(grouped).sort((a, b) => b.total - a.total);
+}
+
+/**
+ * Convertit un nœud Firebase en tableau exploitable
+ *
+ * Realtime Database stocke les collections comme des objets indexés par clé
+ * poussée, jamais comme des tableaux. Une valeur absente vaut `null`.
+ *
+ * @param {*} node - Nœud brut lu en base
+ * @returns {Array<Object>} Les entrées, avec leur clé reportée en `id`
+ */
+function toEntries(node) {
+  if (!node || typeof node !== 'object') return [];
+  return Object.entries(node).map(([id, value]) => ({ id, ...value }));
+}
+
+/** Format d'une clé de période : AAAA-MM */
+const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Calcule le solde cumulé de chaque période, mois par mois.
+ *
+ * Sans report, un mois non soldé disparaît : août se termine avec 500 € dus,
+ * septembre repart de zéro et la dette n'est plus nulle part. Le report la
+ * fait traverser les mois jusqu'à ce qu'elle soit réglée.
+ *
+ * Le cumul est un simple report en avant : le total d'un mois devient le
+ * report du suivant, ce qui revient à la somme des soldes propres depuis le
+ * premier mois. Régler un mois ramène son total à zéro, donc le report du
+ * mois suivant aussi — la chaîne se referme d'elle-même.
+ *
+ * Les clés hors format AAAA-MM sont ignorées : le nœud `periods` a hébergé
+ * des écritures accidentelles (`periods/undefined`) qui ne doivent pas
+ * fausser le cumul.
+ *
+ * @param {Object} periods - Nœud `periods` complet, tel que lu en base
+ * @param {Object} context - Contexte de calcul
+ * @param {string} context.shareMode - Mode de partage courant
+ * @param {Object} context.customPercents - Pourcentages personnalisés
+ * @param {Object} context.globalSalaries - Salaires courants, défaut des mois sans instantané
+ * @returns {Map<string, {own: number, carry: number, total: number}>} Par période, dans l'ordre chronologique
+ */
+export function computeBalanceChain(periods, { shareMode, customPercents, globalSalaries }) {
+  const chain = new Map();
+  if (!periods || typeof periods !== 'object') return chain;
+
+  const keys = Object.keys(periods).filter(key => PERIOD_KEY.test(key)).sort();
+
+  let carry = 0;
+  for (const key of keys) {
+    const period = periods[key] || {};
+
+    // L'instantané de la période fait foi ; à défaut, les salaires courants.
+    const salaries = normalizePair(period.salaries) || normalizePair(globalSalaries) || { vous: 0, conjointe: 0 };
+
+    const { balance: own } = computeSummary({
+      salaries,
+      fixedCharges: toEntries(period.fixedCharges),
+      variableCharges: toEntries(period.variableCharges),
+      reimbursements: toEntries(period.reimbursements),
+      // Un mois peut avoir figé son propre mode de partage (reconduction).
+      shareMode: period.shareMode || shareMode,
+      customPercents
+    });
+
+    const total = own + carry;
+    chain.set(key, { own, carry, total });
+    carry = total;
+  }
+
+  return chain;
+}
+
+/**
+ * Normalise un couple de salaires venant de la base
+ * @param {*} raw - Valeur brute
+ * @returns {{vous: number, conjointe: number}|null} null si inexploitable
+ */
+function normalizePair(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const toNumber = (value) => {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  return { vous: toNumber(raw.vous), conjointe: toNumber(raw.conjointe) };
 }

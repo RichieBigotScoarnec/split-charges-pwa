@@ -17,8 +17,34 @@ const REACTIVE_FIREBASE_MOCK = `
   window.__listeners = {};
   window.__mockAuthCallback = null;
 
+  // Realtime Database rend le sous-arbre complet quand on lit un nœud parent :
+  // lire 'periods' renvoie tous les mois. Ce double stockait des chemins plats,
+  // si bien qu'une lecture de parent rendait null — ce qui masquait toute
+  // fonctionnalité parcourant l'historique.
+  function _read(path) {
+    if (window.__db[path] !== undefined) return window.__db[path];
+
+    var prefix = path + '/';
+    var tree = null;
+    Object.keys(window.__db).forEach(function(key) {
+      if (key.indexOf(prefix) !== 0) return;
+      var segments = key.slice(prefix.length).split('/');
+      if (segments.some(function(s) { return s === '__proto__' || s === 'constructor' || s === 'prototype'; })) return;
+      tree = tree || {};
+      var node = tree;
+      for (var i = 0; i < segments.length - 1; i++) {
+        if (typeof node[segments[i]] !== 'object' || node[segments[i]] === null) {
+          node[segments[i]] = {};
+        }
+        node = node[segments[i]];
+      }
+      node[segments[segments.length - 1]] = window.__db[key];
+    });
+    return tree;
+  }
+
   function _notify(path) {
-    var data = window.__db[path] !== undefined ? window.__db[path] : null;
+    var data = _read(path);
     var handlers = window.__listeners[path] || [];
     handlers.forEach(function(fn) {
       fn({ val: function() { return data; }, exists: function() { return data !== null; } });
@@ -39,16 +65,16 @@ const REACTIVE_FIREBASE_MOCK = `
               if (!window.__listeners[path]) window.__listeners[path] = [];
               window.__listeners[path].push(cb);
               cb({
-                val: function() { return window.__db[path] !== undefined ? window.__db[path] : null; },
-                exists: function() { return window.__db[path] !== undefined; }
+                val: function() { return _read(path); },
+                exists: function() { return _read(path) !== null; }
               });
               return function() {};
             },
             off: function() {},
             once: function(event) {
               return Promise.resolve({
-                val: function() { return window.__db[path] !== undefined ? window.__db[path] : null; },
-                exists: function() { return window.__db[path] !== undefined; }
+                val: function() { return _read(path); },
+                exists: function() { return _read(path) !== null; }
               });
             },
             set: function(data) {
@@ -682,5 +708,97 @@ test.describe('Régler le solde', () => {
 
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit');
     await expect(page.locator('.btn-settle')).toBeVisible();
+  });
+});
+
+// ============================================================
+// Report du solde entre mois
+// ============================================================
+test.describe('Report du solde', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /**
+   * Bascule le report en cliquant le curseur, comme le ferait l'utilisateur.
+   * La case elle-même est masquée (opacity: 0) : seul le curseur est cliquable.
+   * @param {import('@playwright/test').Page} page - Page de test
+   * @param {boolean} actif - État attendu après la bascule
+   */
+  async function basculerReport(page, actif) {
+    await page.locator('.setting-toggle-row .reminder-toggle-slider').click();
+    await expect(page.locator('#carryOverToggle')).toBeChecked({ checked: actif });
+  }
+
+  /** Ajoute une charge avancée par une seule personne dans le mois affiché */
+  async function ajouterCharge(page, description, montant, payeur) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill(description);
+    await page.locator('#variableChargeAmount').fill(String(montant));
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption(payeur);
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText(description)).toBeVisible({ timeout: 5000 });
+  }
+
+  test('le report est désactivé par défaut', async ({ page }) => {
+    await expect(page.locator('#carryOverToggle')).not.toBeChecked();
+  });
+
+  test('sans report, un mois repart de zéro', async ({ page }) => {
+    // Dette dans le mois précédent
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterCharge(page, 'Dette du mois passe', 100, 'vous');
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+
+    // Retour au mois courant : la dette ne suit pas
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
+  });
+
+  test('avec report, la dette du mois précédent suit', async ({ page }) => {
+    await basculerReport(page, true);
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterCharge(page, 'Dette reportable', 100, 'vous');
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+
+    // 100 € avancés, salaires égaux : 50 € restent dus et traversent le mois
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+    await expect(page.locator('#summarySection')).toContainText('au titre des mois précédents', { timeout: 5000 });
+  });
+
+  test('désactiver le report ramène le mois à son solde propre', async ({ page }) => {
+    await basculerReport(page, true);
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterCharge(page, 'Dette a annuler', 100, 'vous');
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+    await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
+
+    await basculerReport(page, false);
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
+  });
+
+  test('régler un solde reporté le solde entièrement', async ({ page }) => {
+    await basculerReport(page, true);
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterCharge(page, 'Ardoise', 100, 'vous');
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+    await expect(page.locator('.btn-settle')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('.btn-settle').click();
+    await page.locator('#modalConfirmOk').click();
+
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
   });
 });

@@ -269,16 +269,24 @@ async function initializeAppData() {
     populateAllSelects();
   }, failures);
 
+  // Le mode de partage et le report sont des entrées de tout calcul de solde :
+  // ils précèdent le chargement des données du mois. Chargé après, le mode de
+  // partage laissait le premier bilan se calculer au prorata par défaut.
+  await runStep('mode de partage', async () => {
+    initShareMode();
+    await loadShareMode();
+  }, failures);
+
+  await runStep('report du solde', async () => {
+    const { initCarryOver } = await import('./carry-over.js');
+    await initCarryOver();
+  }, failures);
+
   await runStep('salaires de la période', async () => {
     // Fige les salaires des périodes antérieures aux instantanés, avant tout
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.
     await backfillPeriodSalaries();
     await loadPeriodData();
-  }, failures);
-
-  await runStep('mode de partage', async () => {
-    initShareMode();
-    await loadShareMode();
   }, failures);
 
   await runStep('charges variables', async () => {
