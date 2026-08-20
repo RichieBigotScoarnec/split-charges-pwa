@@ -74,7 +74,7 @@
     </div>
   </div>
 
-  <main class="container" id="mainApp" style="display: none;">
+  <main class="container" id="mainApp" hidden>
     <!-- Header -->
     <header>
       <h1><span aria-hidden="true">💰</span> FairSplit</h1>
@@ -120,7 +120,13 @@
     </div>
     </nav>
 
+    <!-- Solde net, maintenu visible pendant le défilement. Rempli par
+         summary.js ; masqué tant qu'aucun bilan n'est calculable. -->
+    <div id="balanceBar" class="balance-bar" role="status" hidden></div>
+
     <!-- Summary Section -->
+    <!-- Colonne consultation : ce qu'on lit -->
+    <div class="col-bilan">
     <section aria-labelledby="sectionResume">
     <div class="card">
       <div class="card-header">
@@ -270,7 +276,10 @@
       </div>
     </div>
     </section>
+    </div>
 
+    <!-- Colonne saisie : ce qu'on alimente -->
+    <div class="col-listes">
     <!-- Search Bar -->
     <div class="search-bar-container" id="searchBarContainer" hidden>
       <div class="search-bar">
@@ -320,6 +329,7 @@
       </div>
     </div>
     </section>
+    </div>
 
   </main>
 

@@ -166,7 +166,9 @@ function updateAuthUI(user) {
   if (user) {
     // User authenticated
     if (authOverlay) authOverlay.style.display = 'none';
-    if (mainApp) mainApp.style.display = 'block';
+    // hidden plutôt qu'un style en ligne : celui-ci écraserait le
+    // display: grid de la mise en page deux colonnes (>= 900 px).
+    if (mainApp) mainApp.hidden = false;
     if (userInfoBar) userInfoBar.style.display = 'flex';
 
     // Update user info bar
@@ -208,7 +210,7 @@ function updateAuthUI(user) {
   } else {
     // No user - show auth overlay
     if (authOverlay) authOverlay.style.display = 'flex';
-    if (mainApp) mainApp.style.display = 'none';
+    if (mainApp) mainApp.hidden = true;
     if (userInfoBar) userInfoBar.style.display = 'none';
 
     // Clear global state

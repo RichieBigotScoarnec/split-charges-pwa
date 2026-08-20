@@ -177,3 +177,73 @@
     scroll-behavior: auto;
   }
 }
+
+/* ===== DEUX COLONNES SUR GRAND ÉCRAN ===== */
+/*
+   Jusqu'ici le conteneur était plafonné à 720 px quelle que soit la largeur :
+   sur un écran de 1280, la mise en page mobile était simplement centrée, et
+   tout s'empilait. Il n'existait qu'un seul point de rupture, à 600 px.
+
+   Au-delà de 900 px, deux colonnes : le bilan et les salaires à gauche — ce
+   qu'on consulte —, les listes de charges à droite — ce qu'on alimente.
+   En-tête, navigation de période et solde restent pleine largeur.
+*/
+/* Spécificité id+attribut : sans cela, le display: grid ci-dessous
+   rendrait #mainApp visible malgré l'attribut hidden. */
+#mainApp[hidden] {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .container {
+    max-width: 1120px;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    column-gap: var(--space-lg);
+    align-items: start;
+  }
+
+  .container > header,
+  .container > nav,
+  .container > #reconductionBanner,
+  .container > #balanceBar {
+    grid-column: 1 / -1;
+  }
+
+  .col-bilan {
+    grid-column: 1;
+  }
+
+  .col-listes {
+    grid-column: 2;
+  }
+}
+
+/* ===== BARRE DE SOLDE ===== */
+/*
+   L'application répond à une question : qui doit combien à qui. Elle exigeait
+   de faire défiler jusqu'au bilan. Cette barre garde la réponse à l'écran.
+*/
+.balance-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin-bottom: var(--space-md);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.balance-bar strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-bar.balance-positive strong { color: var(--success-color); }
+.balance-bar.balance-negative strong { color: var(--danger-color); }
+.balance-bar.balance-zero { color: var(--text-secondary); }

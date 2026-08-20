@@ -36,6 +36,7 @@ export function calculateSummary() {
   if (totalSalaries === 0) {
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
+      updateBalanceBar(null, '');
       summaryElement.innerHTML =
         '<div class="empty-state">' +
         '<p>Renseignez vos deux salaires pour obtenir le bilan du mois.</p>' +
@@ -126,6 +127,9 @@ function renderSummary(summary) {
     balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }
 
+  // Même texte que le bilan : une seule source, pas de calcul dupliqué
+  updateBalanceBar(balanceText, balanceClass);
+
   summaryElement.innerHTML = `
     <div class="summary-card">
       <div class="summary-balance ${balanceClass}">
@@ -207,6 +211,31 @@ function renderSummary(summary) {
     </div>
     ` : ''}
   `;
+}
+
+/**
+ * Reflète le solde net dans la barre collante
+ *
+ * L'application répond à une question — qui doit combien à qui — et il fallait
+ * faire défiler jusqu'au bilan pour la lire. La barre reprend le texte déjà
+ * produit pour le bilan : aucune logique de calcul n'est dupliquée.
+ *
+ * @param {string|null} html - Texte du solde, déjà échappé ; null pour masquer
+ * @param {string} cssClass - balance-positive | balance-negative | balance-zero
+ */
+function updateBalanceBar(html, cssClass) {
+  const bar = document.getElementById('balanceBar');
+  if (!bar) return;
+
+  if (!html) {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    return;
+  }
+
+  bar.className = `balance-bar ${cssClass}`;
+  bar.innerHTML = html;
+  bar.hidden = false;
 }
 
 /**
