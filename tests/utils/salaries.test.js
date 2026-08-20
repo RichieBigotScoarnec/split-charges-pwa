@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSalaries, resolveSalaries } from '../public/js/utils/salaries.js';
+import { normalizeSalaries, resolveSalaries } from '../../public/js/utils/salaries.js';
 
 describe('normalizeSalaries', () => {
   it('normalise un couple de nombres valides', () => {
