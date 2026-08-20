@@ -863,7 +863,10 @@
 /* ===== EMPTY STATE ===== */
 .empty-state {
   text-align: center;
-  color: var(--text-muted);
+  /* --text-muted (#94A3B8) donne 2,56:1 sur blanc, sous le seuil AA de 4,5.
+     Ce texte n'est pas décoratif : c'est le seul contenu de la carte quand
+     elle est vide. --text-secondary atteint 4,76:1. */
+  color: var(--text-secondary);
   padding: var(--space-xl) var(--space-lg);
 }
 

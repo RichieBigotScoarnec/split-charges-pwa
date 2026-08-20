@@ -402,7 +402,13 @@ test.describe('Remboursements — formulaire', () => {
 // ============================================================
 test.describe('Barre de recherche', () => {
 
-  test.beforeEach(async ({ page }) => { await loadApp(page); });
+  test.beforeEach(async ({ page }) => {
+    await loadApp(page);
+    // La barre de recherche n'est rendue visible qu'en présence de charges
+    // à filtrer — règle éprouvée par le test « masquée sans charge » ci-dessous.
+    // On lève ici la contrainte pour éprouver la mécanique du champ lui-même.
+    await page.locator('#searchBarContainer').evaluate(el => { el.hidden = false; });
+  });
 
   test('le champ de recherche accepte du texte', async ({ page }) => {
     await page.locator('#searchInput').fill('Loyer');

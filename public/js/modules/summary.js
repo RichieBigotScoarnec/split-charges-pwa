@@ -2,6 +2,7 @@
 // Fonctionnalités : calculateSummary, renderSummary
 
 import { getState } from '../state.js';
+import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
 import { log, warn } from '../utils/debug.js';
@@ -19,6 +20,9 @@ export function initSummary() {
  * @returns {Object} Résumé du bilan
  */
 export function calculateSummary() {
+  // La recherche n'a de sens que s'il existe des charges à filtrer
+  refreshSearchVisibility();
+
   const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
   const fixedCharges = getState('fixedCharges') || [];
   const variableCharges = getState('variableCharges') || [];
@@ -32,7 +36,12 @@ export function calculateSummary() {
   if (totalSalaries === 0) {
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
-      summaryElement.innerHTML = '<p class="empty-state">Veuillez renseigner les salaires pour calculer le bilan</p>';
+      summaryElement.innerHTML =
+        '<div class="empty-state">' +
+        '<p>Renseignez vos deux salaires pour obtenir le bilan du mois.</p>' +
+        '<button type="button" class="btn btn-primary" data-action="focusSalaries">' +
+        'Renseigner les salaires</button>' +
+        '</div>';
     }
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
   }
