@@ -1,4 +1,4 @@
-import { log } from './utils/debug.js';
+import { log, warn } from './utils/debug.js';
 /**
  * FairSplit - State Management
  * @description Gestion d'état centralisée avec pattern Observer
@@ -79,15 +79,29 @@ export function getState(key) {
  * @param {string} key - State key
  * @param {*} value - New value
  */
+/** Segments de clé qui atteindraient le prototype au lieu de l'état */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export function setState(key, value) {
   const keys = key.split('.');
+
+  // Un segment nomme __proto__, constructor ou prototype permettrait d'écrire
+  // sur le prototype d'Object plutôt que dans l'état — toute l'application
+  // héritant alors de la propriété. Les clés viennent aujourd'hui du code,
+  // mais setState est un utilitaire générique : la garde appartient ici.
+  if (keys.some(k => UNSAFE_KEYS.has(k))) {
+    warn(`[STATE] Clé refusée (segment interdit) : ${key}`);
+    return;
+  }
 
   if (keys.length === 1) {
     state[key] = value;
   } else {
     let current = state;
     for (let i = 0; i < keys.length - 1; i++) {
-      if (!(keys[i] in current)) current[keys[i]] = {};
+      if (!Object.prototype.hasOwnProperty.call(current, keys[i])) {
+        current[keys[i]] = {};
+      }
       current = current[keys[i]];
     }
     current[keys[keys.length - 1]] = value;
