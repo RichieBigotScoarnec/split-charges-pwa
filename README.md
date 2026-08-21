@@ -44,7 +44,7 @@ changer le mode des autres.
 | **Recherche** | Filtrage des charges de la période |
 | **Export** | CSV et impression |
 | **Sauvegarde** | Fichier JSON complet, et restauration avec copie de sécurité préalable |
-| **Corbeille** | Les suppressions sont douces : les éléments effacés du mois restent consultables et récupérables |
+| **Corbeille** | Les suppressions sont douces : tout ce qui a été effacé reste consultable et récupérable, quel que soit le mois |
 | **Rappels** | Notifications de fin de mois, dépassement de budget, remboursements en attente |
 | **PWA** | Installable, fonctionne hors ligne via service worker |
 | **Inscription** | Fermée. Le parcours de création de compte est conservé dans le code et se rétablit par `SIGNUP_ENABLED` (`js/config.js`) |

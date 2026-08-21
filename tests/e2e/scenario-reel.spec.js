@@ -247,12 +247,10 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
     await test.step('une suppression reste récupérable', async () => {
       await page.locator('#variableChargesList .btn-delete').first().click();
       await page.locator('#modalConfirmOk').click();
-      // Le bouton est toujours visible : c'est son compteur qui indique que la
-      // suppression a bien atteint la base.
-      await expect(page.locator('#trashCount')).toHaveText('1', { timeout: 20000 });
-
+      // La corbeille couvre tous les mois et lit la base à l'ouverture : son
+      // contenu est le seul signal que la suppression a bien été enregistrée.
       await page.locator('#trashButton').click();
-      await expect(page.locator('#trashList')).toContainText('Depense partagee');
+      await expect(page.locator('#trashList')).toContainText('Depense partagee', { timeout: 20000 });
 
       await page.locator('#trashList .btn-restore').first().click();
       await expect(page.locator('#variableChargesList').getByText('Depense partagee'))

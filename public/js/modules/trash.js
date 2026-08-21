@@ -10,10 +10,12 @@
 // définitivement : son seul verbe est « rétablir ».
 
 import { getState } from '../state.js';
+import { collectDeleted } from '../utils/soft-delete.js';
 import { directionLabel } from '../utils/members.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal } from '../components/modal.js';
+import { showModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
+import { formatPeriod } from '../utils/date.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { log, error as logError } from '../utils/debug.js';
 
@@ -53,46 +55,71 @@ export function initTrash() {
   log('🗑️ Corbeille initialisée');
 }
 
+/** Format d'une clé de période : AAAA-MM */
+const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 /**
- * Rassemble les éléments supprimés de la période, toutes collections confondues
- * @returns {Array<Object>} Éléments enrichis de leur collection d'origine
+ * Rassemble les éléments supprimés de tous les mois
+ *
+ * La corbeille ne montrait que le mois affiché. Supprimer en juillet puis
+ * consulter août la donnait pour vide : il fallait se souvenir du mois pour
+ * retrouver ce qu'on cherchait — exactement ce qu'on ne sait plus quand on
+ * cherche. Elle couvre désormais tout l'historique.
+ *
+ * La lecture n'a lieu qu'à l'ouverture de la fenêtre, pas à chaque chargement
+ * de mois.
+ *
+ * @returns {Promise<Array<Object>>} Éléments, mois le plus récent d'abord
  */
-function collectAll() {
-  return COLLECTIONS.flatMap(({ cle, libelle }) =>
-    (getState(`deleted.${cle}`) || []).map(item => ({ ...item, collection: cle, libelle }))
-  );
+async function collectAll() {
+  const { dbGet } = await import('../db.js');
+  const periods = await dbGet('periods');
+  if (!periods || typeof periods !== 'object') return [];
+
+  const mois = Object.keys(periods).filter(k => PERIOD_KEY.test(k)).sort().reverse();
+  const trouves = [];
+
+  for (const periode of mois) {
+    for (const { cle, libelle } of COLLECTIONS) {
+      for (const item of collectDeleted(periods[periode][cle])) {
+        trouves.push({ ...item, collection: cle, libelle, periode });
+      }
+    }
+  }
+
+  return trouves;
 }
 
 /**
- * Affiche ou masque le bouton d'accès, avec le nombre d'éléments
+ * Le bouton d'accès reste toujours présent
  *
- * Un bouton toujours visible pour une corbeille presque toujours vide serait
- * du bruit permanent dans une interface qui tient sur un écran.
+ * Masqué tant que rien n'avait été supprimé, on le cherchait sans savoir s'il
+ * avait disparu ou n'avait jamais existé. Il ne porte plus de compteur : la
+ * corbeille couvrant tout l'historique, un nombre qui ne ferait que croître
+ * n'apprendrait rien, et le calculer imposerait une lecture à chaque mois
+ * affiché.
  */
 export function refreshTrashButton() {
   const bouton = document.getElementById('trashButton');
-  if (!bouton) return;
-
-  // Le bouton restait masqué tant que rien n'avait été supprimé. L'intention
-  // était d'éviter du bruit ; l'effet était qu'on le cherchait sans le
-  // trouver, sans savoir s'il avait disparu ou n'avait jamais existé. Il est
-  // désormais toujours là : son compteur dit s'il y a quelque chose dedans, et
-  // la fenêtre annonce clairement une corbeille vide.
-  bouton.hidden = false;
-
-  const total = collectAll().length;
-  bouton.classList.toggle('is-empty', total === 0);
-
-  const compteur = document.getElementById('trashCount');
-  if (compteur) compteur.textContent = String(total);
+  if (bouton) bouton.hidden = false;
 }
 
 /**
- * Ouvre la corbeille de la période courante
+ * Ouvre la corbeille
+ *
+ * La fenêtre s'ouvre avant la lecture : attendre la base sans rien afficher
+ * donnerait l'impression que le bouton ne répond pas.
+ *
+ * @returns {Promise<void>}
  */
-export function showTrash() {
-  renderTrash();
+export async function showTrash() {
+  const liste = document.getElementById('trashList');
+  if (liste) {
+    liste.replaceChildren();
+    liste.appendChild(el('div', 'empty-state', "Lecture de l'historique…"));
+  }
   showModal('modalTrash');
+  await renderTrash();
 }
 
 /**
@@ -130,21 +157,36 @@ function el(tag, className, text) {
  * la saisie utilisateur, et `textContent` supprime la question de
  * l'échappement au lieu de la déléguer à un appel qu'on peut oublier.
  */
-function renderTrash() {
+async function renderTrash() {
   const liste = document.getElementById('trashList');
   if (!liste) return;
 
-  liste.replaceChildren();
-  const items = collectAll();
-
-  if (items.length === 0) {
-    const vide = el('div', 'empty-state');
-    vide.appendChild(el('p', '', 'La corbeille est vide pour ce mois.'));
-    liste.appendChild(vide);
+  let items;
+  try {
+    items = await collectAll();
+  } catch (error) {
+    logError('❌ Lecture de la corbeille impossible :', error);
+    liste.replaceChildren(el('div', 'empty-state', 'Historique illisible pour le moment.'));
     return;
   }
 
+  liste.replaceChildren();
+
+  if (items.length === 0) {
+    liste.appendChild(el('div', 'empty-state', 'La corbeille est vide.'));
+    return;
+  }
+
+  // Groupées par mois : sans cette indication, deux dépenses homonymes de
+  // deux mois différents seraient indiscernables.
+  let moisAffiche = null;
+
   items.forEach(item => {
+    if (item.periode !== moisAffiche) {
+      moisAffiche = item.periode;
+      liste.appendChild(el('div', 'trash-month', formatPeriod(item.periode)));
+    }
+
     const description = describe(item);
 
     const info = el('div', 'trash-item-info');
@@ -155,7 +197,7 @@ function renderTrash() {
     const bouton = el('button', 'btn btn-secondary btn-restore', 'Rétablir');
     bouton.type = 'button';
     bouton.dataset.action = 'restoreFromTrash';
-    bouton.dataset.arg = `${item.collection}:${item.id}`;
+    bouton.dataset.arg = `${item.periode}:${item.collection}:${item.id}`;
     bouton.setAttribute('aria-label', `Rétablir ${description}`);
 
     const ligne = el('div', 'trash-item');
@@ -167,45 +209,40 @@ function renderTrash() {
 /**
  * Rétablit un élément supprimé
  *
- * @param {string} reference - `collection:identifiant`, tel que porté par data-arg
+ * @param {string} reference - `période:collection:identifiant`, tel que porté par data-arg
  * @returns {Promise<void>}
  */
 export async function restoreFromTrash(reference) {
-  const separateur = String(reference || '').indexOf(':');
-  if (separateur === -1) return;
+  const parts = String(reference || '').split(':');
+  if (parts.length < 3) return;
 
-  const collection = reference.slice(0, separateur);
-  const id = reference.slice(separateur + 1);
+  const [periode, collection] = parts;
+  // L'identifiant Firebase peut contenir des deux-points : on ne coupe que
+  // sur les deux premiers séparateurs.
+  const id = parts.slice(2).join(':');
 
   const cible = COLLECTIONS.find(c => c.cle === collection);
-  if (!cible || !id) {
+  if (!cible || !id || !periode) {
     toast.error('Élément introuvable');
-    return;
-  }
-
-  const currentPeriod = getState('currentPeriod');
-  if (!currentPeriod) {
-    toast.error('Aucune période sélectionnée');
     return;
   }
 
   try {
     const { dbUpdate } = await import('../db.js');
-    await dbUpdate(`periods/${currentPeriod}/${collection}/${id}`, { deleted: false });
+    await dbUpdate(`periods/${periode}/${collection}/${id}`, { deleted: false });
 
-    // Rejouer le seul chargeur concerné : il remet à jour aussi bien la liste
-    // active que la collection des supprimés.
-    await cible.recharger();
+    // L'élément peut appartenir à un autre mois que celui affiché : ne rejouer
+    // les chargeurs que si le mois courant est concerné.
+    if (periode === getState('currentPeriod')) {
+      await cible.recharger();
+      const { calculateSummary } = await import('./summary.js');
+      calculateSummary();
+      toast.success('Élément rétabli');
+    } else {
+      toast.success(`Élément rétabli dans ${formatPeriod(periode)}`);
+    }
 
-    const { calculateSummary } = await import('./summary.js');
-    calculateSummary();
-
-    refreshTrashButton();
-    renderTrash();
-
-    if (collectAll().length === 0) closeModal('modalTrash', false);
-
-    toast.success('Élément rétabli');
+    await renderTrash();
   } catch (error) {
     logError('❌ Erreur rétablissement :', error);
     toast.error('Rétablissement impossible');

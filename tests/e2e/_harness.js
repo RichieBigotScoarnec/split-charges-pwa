@@ -38,7 +38,20 @@ export const REACTIVE_FIREBASE_MOCK = `
         }
         node = node[segments[i]];
       }
-      node[segments[segments.length - 1]] = window.__db[key];
+      // Fusionner plutot qu'ecraser. Ce double conserve a la fois l'objet
+      // parent complet et des entrees plates par enfant : une mise a jour
+      // partielle -- { deleted: true } -- ecrasait sinon la charge entiere
+      // selon l'ordre d'iteration, et l'element ressortait sans description
+      // ni montant. Realtime Database, lui, n'a qu'un seul arbre.
+      var derniere = segments[segments.length - 1];
+      var valeur = window.__db[key];
+      var existant = node[derniere];
+      if (existant && typeof existant === 'object' && !Array.isArray(existant)
+          && valeur && typeof valeur === 'object' && !Array.isArray(valeur)) {
+        node[derniere] = Object.assign({}, existant, valeur);
+      } else {
+        node[derniere] = valeur;
+      }
     });
     return tree;
   }
