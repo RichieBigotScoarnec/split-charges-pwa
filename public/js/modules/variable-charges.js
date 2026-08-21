@@ -4,6 +4,8 @@
 import { setState, getState } from '../state.js';
 import { collectDeleted } from '../utils/soft-delete.js';
 import { refreshTrashButton } from './trash.js';
+import { refreshMapButton } from './map.js';
+import { invalidateTrends } from './trends.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
@@ -118,6 +120,11 @@ export async function loadVariableCharges() {
     renderVariableCharges();
     // Le nombre d'éléments supprimés vient de changer.
     refreshTrashButton();
+    // Les charges localisées aussi, et le graphique de tendances devient
+    // périmé. Ces vues se raccordent ici plutôt qu'au bilan : celui-ci sort
+    // par anticipation quand aucun salaire n'est saisi.
+    refreshMapButton();
+    invalidateTrends();
   } catch (error) {
     logError('❌ Erreur chargement charges variables :', error);
     toast.error('Erreur de chargement des charges variables');
