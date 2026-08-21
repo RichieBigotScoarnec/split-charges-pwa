@@ -59,13 +59,68 @@ async function loadCustomLists() {
 }
 
 /**
+ * Écrit une liste en préservant ce que l'autre personne a pu y ajouter
+ *
+ * Ces listes étaient réécrites en entier. Deux ajouts simultanés — chacun sur
+ * son téléphone — et le second effaçait le premier, sans le moindre signe.
+ *
+ * La transaction lit la valeur au moment de l'écriture, côté serveur, et
+ * fusionne : une entrée ajoutée entre-temps survit. Une suppression est en
+ * revanche respectée, sans quoi rien ne pourrait jamais être retiré.
+ *
+ * La comparaison porte sur `id`, jamais sur l'objet : les entrées relues en
+ * base sont des instances neuves, et `includes` les aurait toutes prises pour
+ * des ajouts distants — recopiant la liste entière à chaque enregistrement.
+ *
+ * `base` est la liste que la session avait sous les yeux au moment de la
+ * modification, pas une relecture. Relire juste avant d'écrire ne protégeait
+ * rien : l'ajout de l'autre y figurait déjà et passait pour une entrée que
+ * cette session venait de retirer volontairement.
+ *
+ * @param {string} chemin - Nœud à écrire
+ * @param {Array<Object>} voulue - Liste telle que cette session la veut
+ * @param {Array<Object>} base - Liste d'origine, avant la modification locale
+ * @returns {Promise<Array<Object>>} La liste effectivement enregistrée
+ */
+async function fusionnerListe(chemin, voulue, base) {
+  const { getFirebaseDatabase } = await import('../firebase-init.js');
+  const { getDataPath } = await import('../db.js');
+
+  const reference = getFirebaseDatabase().ref(getDataPath(chemin));
+  const connus = new Set((Array.isArray(base) ? base : []).map(identite));
+  const gardees = new Set(voulue.map(identite));
+
+  const resultat = await reference.transaction(actuelle => {
+    const distante = Array.isArray(actuelle) ? actuelle : [];
+    // Ce que l'autre a ajouté depuis notre dernière lecture, et que nous
+    // n'avons donc pas pu supprimer intentionnellement.
+    const ajoutsDistants = distante.filter(
+      entree => !connus.has(identite(entree)) && !gardees.has(identite(entree))
+    );
+    return [...voulue, ...ajoutsDistants];
+  });
+
+  return resultat.committed ? resultat.snapshot.val() : voulue;
+}
+
+/**
+ * Identité stable d'une entrée de liste
+ *
+ * @param {Object|string} entree - Entrée de catégorie ou de destination
+ * @returns {string} Clé de comparaison
+ */
+function identite(entree) {
+  if (entree && typeof entree === 'object') return String(entree.id ?? entree.label ?? '');
+  return String(entree ?? '');
+}
+
+/**
  * Sauvegarde les catégories dans Firebase
  */
-async function saveCategories(categories) {
+async function saveCategories(categories, base) {
   try {
-    const { dbSet } = await import('../db.js');
-    await dbSet('customCategories', categories);
-    setState('categories', categories);
+    const fusionnees = await fusionnerListe('customCategories', categories, base);
+    setState('categories', fusionnees);
   } catch (error) {
     logError('❌ Erreur sauvegarde catégories :', error);
     toast.error('Erreur de sauvegarde');
@@ -75,11 +130,10 @@ async function saveCategories(categories) {
 /**
  * Sauvegarde les destinations dans Firebase
  */
-async function saveDestinations(destinations) {
+async function saveDestinations(destinations, base) {
   try {
-    const { dbSet } = await import('../db.js');
-    await dbSet('customDestinations', destinations);
-    setState('destinations', destinations);
+    const fusionnees = await fusionnerListe('customDestinations', destinations, base);
+    setState('destinations', fusionnees);
   } catch (error) {
     logError('❌ Erreur sauvegarde destinations :', error);
     toast.error('Erreur de sauvegarde');
@@ -360,10 +414,12 @@ function showManageModal(listType) {
 
     const updatedItems = [...currentItems, newItem];
 
+    // `currentItems` est la liste d'avant l'ajout : elle sert de référence
+    // pour distinguer ce que l'autre personne a ajouté entre-temps.
     if (isCategories) {
-      await saveCategories(updatedItems);
+      await saveCategories(updatedItems, currentItems);
     } else {
-      await saveDestinations(updatedItems);
+      await saveDestinations(updatedItems, currentItems);
     }
 
     toast.success(`"${label}" ajouté`);
@@ -383,13 +439,14 @@ function showManageModal(listType) {
   modal.querySelectorAll('.manage-item-delete').forEach(btn => {
     btn.addEventListener('click', async () => {
       const index = parseInt(btn.dataset.index);
-      const currentItems = isCategories ? [...getCategories()] : [...getDestinations()];
+      const avant = isCategories ? [...getCategories()] : [...getDestinations()];
+      const currentItems = [...avant];
       const removed = currentItems.splice(index, 1)[0];
 
       if (isCategories) {
-        await saveCategories(currentItems);
+        await saveCategories(currentItems, avant);
       } else {
-        await saveDestinations(currentItems);
+        await saveDestinations(currentItems, avant);
       }
 
       toast.success(`"${removed.label}" supprimé`);
