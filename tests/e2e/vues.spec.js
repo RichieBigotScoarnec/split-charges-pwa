@@ -254,3 +254,106 @@ test.describe('État des notifications', () => {
     await expect(page.locator('#notificationsStatus')).not.toBeEmpty();
   });
 });
+
+/**
+ * Les données du foyer forment un enregistrement unique à emplacements fixes,
+ * `vous` et `conjointe`, que les deux comptes lisent. L'écran affichait
+ * pourtant « Votre salaire » : juste pour l'un, faux pour l'autre.
+ */
+test.describe('Prénoms des membres', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  /** Renseigne les deux prénoms */
+  async function nommer(page, vous, conjointe) {
+    await page.locator('#prenomVous').fill(vous);
+    await page.locator('#prenomVous').blur();
+    await page.locator('#prenomConjointe').fill(conjointe);
+    await page.locator('#prenomConjointe').blur();
+    await expect(page.locator('#labelSalaireVous')).toContainText(vous, { timeout: 5000 });
+  }
+
+  test('sans prénoms, les libellés d\'origine sont conservés', async ({ page }) => {
+    // Rétrocompatibilité : les données antérieures n'en ont pas.
+    await expect(page.locator('#labelSalaireVous')).toContainText('Votre salaire');
+    await expect(page.locator('#labelSalaireConjointe')).toContainText('conjointe');
+  });
+
+  test('les prénoms remplacent les libellés des champs', async ({ page }) => {
+    await nommer(page, 'Richard', 'Cindy');
+
+    await expect(page.locator('#labelSalaireVous')).toHaveText('Salaire Richard (€)');
+    await expect(page.locator('#labelSalaireConjointe')).toHaveText('Salaire Cindy (€)');
+  });
+
+  test('les listes de payeur portent les prénoms', async ({ page }) => {
+    await nommer(page, 'Richard', 'Cindy');
+
+    const options = page.locator('#variableChargePaidBy option');
+    await expect(options.filter({ hasText: 'Richard' })).toHaveCount(1);
+    await expect(options.filter({ hasText: 'Cindy' })).toHaveCount(1);
+  });
+
+  test('le sens des remboursements porte les prénoms', async ({ page }) => {
+    await nommer(page, 'Richard', 'Cindy');
+
+    const options = page.locator('#reimbursementDirection option');
+    await expect(options.filter({ hasText: 'Richard → Cindy' })).toHaveCount(1);
+    await expect(options.filter({ hasText: 'Cindy → Richard' })).toHaveCount(1);
+  });
+
+  test('la phrase du solde nomme les deux personnes', async ({ page }) => {
+    // « Conjointe vous doit » désignait un « vous » relatif au compte
+    // connecté : la phrase disait le contraire à l'une des deux personnes.
+    await nommer(page, 'Richard', 'Cindy');
+
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Loyer partage');
+    await page.locator('#variableChargeAmount').fill('1000');
+    await page.locator('#variableChargeCategory').selectOption({ index: 1 });
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+
+    await expect(page.locator('#balanceBar')).toContainText('Cindy doit', { timeout: 5000 });
+    await expect(page.locator('#balanceBar')).toContainText('à Richard');
+  });
+
+  test('les prénoms sont écrits en base', async ({ page }) => {
+    // Le simulateur repart de zéro à chaque chargement : il ne peut pas
+    // démontrer la persistance. La suite contre le vrai Firebase le fait ;
+    // ici, on vérifie que l'écriture part bien.
+    await nommer(page, 'Richard', 'Cindy');
+
+    const enregistres = await page.evaluate(() => window.__db['sandbox/members'] || window.__db['household/members']);
+    expect(enregistres).toEqual({ vous: 'Richard', conjointe: 'Cindy' });
+  });
+
+  test('vider un prénom rétablit le libellé d\'origine', async ({ page }) => {
+    await nommer(page, 'Richard', 'Cindy');
+
+    await page.locator('#prenomVous').fill('');
+    await page.locator('#prenomVous').blur();
+
+    // Le libellé d'origine revient, pas « Salaire Vous » : sans prénom choisi,
+    // la formulation d'avant reste la plus naturelle.
+    await expect(page.locator('#labelSalaireVous')).toHaveText('Votre salaire (€)', { timeout: 5000 });
+    await expect(page.locator('#prenomVous')).toHaveValue('');
+  });
+
+  test('un prénom hostile est affiché en texte, jamais interprété', async ({ page }) => {
+    const hostile = '<img src=x onerror=alert(1)>';
+    await page.locator('#prenomVous').fill(hostile);
+    await page.locator('#prenomVous').blur();
+
+    await expect(page.locator('#labelSalaireVous')).toContainText(hostile, { timeout: 5000 });
+    await expect(page.locator('#labelSalaireVous img')).toHaveCount(0);
+  });
+});

@@ -3,6 +3,9 @@
  * @description Fonctions de formatage (devise, nombres)
  */
 
+import { getState } from '../state.js';
+import { memberLabel } from './members.js';
+
 /**
  * Format amount as currency (EUR)
  * @param {number} amount - Amount to format
@@ -90,11 +93,7 @@ export function escapeHtml(unsafe) {
  * @returns {string} Nom lisible
  */
 export function formatPaidBy(paidBy) {
-  switch (paidBy) {
-    case 'vous': return 'Vous';
-    case 'conjointe': return 'Conjointe';
-    case 'partage':
-    case 'joint': return 'Partagé';
-    default: return paidBy || 'Inconnu';
-  }
+  // Sept appelants passent par ici : c'est le seul endroit ou une cle de
+  // stockage devient un libelle. Les prenoms y sont donc resolus une fois.
+  return memberLabel(paidBy, getState('members'));
 }

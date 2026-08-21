@@ -296,6 +296,13 @@ async function initializeAppData() {
     initTrash();
   }, failures);
 
+  // Les prénoms nomment les emplacements partout à l'écran : ils précèdent
+  // tout rendu, sinon l'interface afficherait d'abord les libellés d'origine.
+  await runStep('prénoms des membres', async () => {
+    const { initMembers } = await import('./members.js');
+    await initMembers();
+  }, failures);
+
   // Ne lit rien non plus : la sauvegarde n'interroge la base qu'au moment où
   // l'utilisateur la demande.
   await runStep('sauvegarde', async () => {

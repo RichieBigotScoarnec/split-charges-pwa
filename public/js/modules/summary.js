@@ -6,6 +6,7 @@ import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
+import { describeBalance, memberLabel } from '../utils/members.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
 
@@ -90,6 +91,23 @@ export function calculateSummary() {
 }
 
 /**
+ * Assemble la phrase du solde autour du montant
+ *
+ * Le montant est mis en évidence ; le reste vient de describeBalance, qui
+ * accorde la conjugaison au sujet.
+ *
+ * @param {Object} solde - Sortie de describeBalance
+ * @param {number} montant - Solde du mois
+ * @returns {string} Fragment HTML
+ */
+function phraseSolde(solde, montant) {
+  const somme = `<strong>${formatCurrency(Math.abs(montant))}</strong>`;
+  return solde.suffixe
+    ? `${escapeHtml(solde.prefixe)} ${somme} ${escapeHtml(solde.suffixe)}`
+    : `${escapeHtml(solde.prefixe)} ${somme}`;
+}
+
+/**
  * Affiche le bilan dans le DOM
  * @param {Object} summary - Résumé calculé
  */
@@ -117,14 +135,19 @@ function renderSummary(summary) {
   const partnerPercent = totalCharges > 0 ? 100 - yourPercent : 50;
 
   // Déterminer qui doit à qui
+  const membres = getState('members');
+  const nomVous = memberLabel('vous', membres);
+  const nomConjointe = memberLabel('conjointe', membres);
+  const soldeDit = describeBalance(finalBalance, membres);
+
   let balanceText;
   let balanceClass;
 
   if (finalBalance > 0) {
-    balanceText = `Conjointe vous doit <strong>${formatCurrency(Math.abs(finalBalance))}</strong>`;
+    balanceText = phraseSolde(soldeDit, finalBalance);
     balanceClass = 'balance-positive';
   } else if (finalBalance < 0) {
-    balanceText = `Vous devez <strong>${formatCurrency(Math.abs(finalBalance))}</strong> à Conjointe`;
+    balanceText = phraseSolde(soldeDit, finalBalance);
     balanceClass = 'balance-negative';
   } else {
     balanceText = `<strong>Comptes équilibrés</strong> — rien à se rembourser`;
@@ -140,7 +163,7 @@ function renderSummary(summary) {
     const debiteur = carryOver > 0 ? 'la conjointe devait' : 'vous deviez';
     balanceExplanation = `<small>dont ${formatCurrency(Math.abs(carryOver))} que ${debiteur} déjà au titre des mois précédents</small>`;
   } else if (finalBalance !== 0) {
-    const overpayer = finalBalance > 0 ? 'Vous' : 'Conjointe';
+    const overpayer = soldeDit.crediteur;
     balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }
 
@@ -181,11 +204,11 @@ function renderSummary(summary) {
 
         <div class="summary-section-label">Répartition à payer</div>
         <div class="summary-row">
-          <span>Vous <span class="summary-percent">${yourPercent}%</span></span>
+          <span>${escapeHtml(nomVous)} <span class="summary-percent">${yourPercent}%</span></span>
           <strong>${formatCurrency(yourTheoricalShare)}</strong>
         </div>
         <div class="summary-row">
-          <span>Conjointe <span class="summary-percent">${partnerPercent}%</span></span>
+          <span>${escapeHtml(nomConjointe)} <span class="summary-percent">${partnerPercent}%</span></span>
           <strong>${formatCurrency(partnerTheoricalShare)}</strong>
         </div>
 
@@ -193,11 +216,11 @@ function renderSummary(summary) {
 
         <div class="summary-section-label">Paiements réels</div>
         <div class="summary-row">
-          <span>Vous avez payé</span>
+          <span>${escapeHtml(nomVous)} a payé</span>
           <strong>${formatCurrency(yourActualPayments)}</strong>
         </div>
         <div class="summary-row">
-          <span>Conjointe a payé</span>
+          <span>${escapeHtml(memberLabel('conjointe', getState('members')))} a payé</span>
           <strong>${formatCurrency(partnerActualPayments)}</strong>
         </div>
 
@@ -215,7 +238,7 @@ function renderSummary(summary) {
 
     ${virementsByDestination && virementsByDestination.length > 0 ? `
     <div class="summary-card virements-recap">
-      <h3>🏦 Récap Virements Conjointe</h3>
+      <h3>🏦 Récap virements — ${escapeHtml(nomConjointe)}</h3>
       <p class="virements-subtitle">Montants à virer par destination</p>
 
       ${virementsByDestination.map(group => `

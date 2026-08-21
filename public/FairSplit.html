@@ -235,11 +235,11 @@
       </div>
       <div class="salaries-grid" id="salariesGrid">
         <div class="salary-input-group">
-          <label for="salaireVous">Votre salaire (€)</label>
+          <label for="salaireVous" id="labelSalaireVous">Votre salaire (€)</label>
           <input type="text" id="salaireVous" placeholder="Ex: 2500" inputmode="decimal" required />
         </div>
         <div class="salary-input-group">
-          <label for="salaireConjointe">Salaire conjointe (€)</label>
+          <label for="salaireConjointe" id="labelSalaireConjointe">Salaire conjointe (€)</label>
           <input type="text" id="salaireConjointe" placeholder="Ex: 1800" inputmode="decimal" required />
         </div>
       </div>
@@ -253,12 +253,27 @@
       </button>
       <div class="salaries-grid" id="extraIncomeFields" hidden>
         <div class="salary-input-group">
-          <label for="revenusVous">Vos autres revenus (€)</label>
+          <label for="revenusVous" id="labelRevenusVous">Vos autres revenus (€)</label>
           <input type="text" id="revenusVous" placeholder="0" inputmode="decimal" />
         </div>
         <div class="salary-input-group">
-          <label for="revenusConjointe">Autres revenus conjointe (€)</label>
+          <label for="revenusConjointe" id="labelRevenusConjointe">Autres revenus conjointe (€)</label>
           <input type="text" id="revenusConjointe" placeholder="0" inputmode="decimal" />
+        </div>
+      </div>
+
+      <!-- Prénoms — les données du foyer sont un enregistrement unique à
+           emplacements fixes que les deux comptes lisent. « Votre salaire »
+           était juste pour l'un et faux pour l'autre. Un prénom vide rétablit
+           le libellé d'origine. -->
+      <div class="salaries-grid" id="membersGrid">
+        <div class="salary-input-group">
+          <label for="prenomVous">Prénom (emplacement 1)</label>
+          <input type="text" id="prenomVous" placeholder="Vous" maxlength="30" data-on-change="saveMembers" />
+        </div>
+        <div class="salary-input-group">
+          <label for="prenomConjointe">Prénom (emplacement 2)</label>
+          <input type="text" id="prenomConjointe" placeholder="Conjointe" maxlength="30" data-on-change="saveMembers" />
         </div>
       </div>
 
@@ -278,11 +293,11 @@
         </div>
         <div class="custom-percentages" id="customPercentages">
           <div class="custom-percentage-group">
-            <label for="customPercentYou">Votre part (%)</label>
+            <label for="customPercentYou" id="labelPartVous">Votre part (%)</label>
             <input type="text" id="customPercentYou" inputmode="numeric" value="50" />
           </div>
           <div class="custom-percentage-group">
-            <label for="customPercentPartner">Part conjointe (%)</label>
+            <label for="customPercentPartner" id="labelPartConjointe">Part conjointe (%)</label>
             <input type="text" id="customPercentPartner" inputmode="numeric" value="50" />
           </div>
         </div>
@@ -406,8 +421,8 @@
           <label for="variableChargePaidBy">Payé par</label>
           <select id="variableChargePaidBy" required>
             <option value="">-- Sélectionner --</option>
-            <option value="vous">Vous</option>
-            <option value="conjointe">Conjointe</option>
+            <option value="vous" data-member="vous">Vous</option>
+            <option value="conjointe" data-member="conjointe">Conjointe</option>
             <option value="partage">Partagé</option>
           </select>
         </div>
@@ -475,8 +490,8 @@
           <label for="fixedChargePaidBy">Payé par</label>
           <select id="fixedChargePaidBy" required>
             <option value="">-- Sélectionner --</option>
-            <option value="vous">Vous</option>
-            <option value="conjointe">Conjointe</option>
+            <option value="vous" data-member="vous">Vous</option>
+            <option value="conjointe" data-member="conjointe">Conjointe</option>
             <option value="partage">Partagé</option>
           </select>
         </div>
@@ -540,8 +555,8 @@
           <label for="reimbursementDirection">Direction</label>
           <select id="reimbursementDirection" required>
             <option value="">-- Sélectionner --</option>
-            <option value="vous-to-conjointe">Vous → Conjointe</option>
-            <option value="conjointe-to-vous">Conjointe → Vous</option>
+            <option value="vous-to-conjointe" data-direction="vers-conjointe">Vous → Conjointe</option>
+            <option value="conjointe-to-vous" data-direction="vers-vous">Conjointe → Vous</option>
           </select>
         </div>
         <div class="form-group">
