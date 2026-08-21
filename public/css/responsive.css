@@ -202,18 +202,46 @@
 
   .container > header,
   .container > nav,
-  .container > #reconductionBanner,
   .container > #balanceBar {
     grid-column: 1 / -1;
   }
 
-  .col-bilan {
+  .col-bilan,
+  .col-reglages {
     grid-column: 1;
   }
 
   .col-listes {
+    /* Le bilan et les réglages s'empilent dans la colonne de gauche : les
+       listes doivent couvrir les deux rangées correspondantes. La rangée de
+       départ est laissée au placement automatique — la fixer entrerait en
+       collision avec l'en-tête, qui occupe toute la largeur. */
     grid-column: 2;
+    grid-row: span 2;
   }
+}
+
+/* ===== TROIS COLONNES AU-DELÀ DE 1600 PX ===== */
+/*
+   Mesuré sur un écran de 3440 px : le contenu restait plafonné à 1120 px, soit
+   1160 px de marge vide de chaque côté — et la page mesurait 1920 px de haut
+   pour une fenêtre de 1440. L'application imposait donc de faire défiler tout
+   en laissant les deux tiers de la largeur inutilisés.
+
+   Les réglages — salaires, revenus, prénoms, mode de partage, report — se
+   consultent rarement et se modifient encore moins. Ils prennent leur propre
+   colonne plutôt que d'allonger celle du bilan.
+*/
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1560px;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr);
+  }
+
+  /* Chacune sa colonne : plus besoin de couvrir deux rangées. */
+  .col-bilan { grid-column: 1; }
+  .col-listes { grid-column: 2; grid-row: auto; }
+  .col-reglages { grid-column: 3; }
 }
 
 /* ===== BARRE DE SOLDE ===== */
