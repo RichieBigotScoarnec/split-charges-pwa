@@ -90,3 +90,24 @@ déplacé dans `firebase.json`, `js/config.js` et le fichier de tests.
 npm run emulators           # démarre auth (9099) et database (9010)
 npm run emulators:test      # démarre, exécute les tests d'intégration, arrête
 ```
+
+## Alertes Dependabot sur `firebase-tools`
+
+Cinq vulnérabilités modérées sont signalées, toutes issues de `firebase-tools`
+par transitivité — `@opentelemetry/core`, `uuid`, `@google-cloud/pubsub`,
+`gaxios`.
+
+**Aucune n'atteint l'utilisateur.** Le `package.json` ne déclare *aucune*
+dépendance de production : l'application est en modules ES natifs et charge
+Firebase depuis un CDN. Ces paquets ne sont jamais servis au navigateur ; ils
+ne vivent que sur une machine de développement, le temps d'un émulateur ou
+d'un déploiement.
+
+`npm audit fix` ne les résout pas. La seule résolution proposée est
+`npm audit fix --force`, qui **rétrograderait `firebase-tools` en 14.x** —
+une version majeure antérieure, pour une vulnérabilité sans exposition. Le
+remède serait pire.
+
+La position retenue : ne rien rétrograder, et réexaminer quand `firebase-tools`
+publiera une version corrigeant ses dépendances transitives. Le point mérite
+d'être revu à chaque montée de version, pas ignoré.
