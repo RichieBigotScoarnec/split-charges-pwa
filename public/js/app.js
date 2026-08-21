@@ -4,6 +4,7 @@
  */
 
 import { VERSION, IS_SANDBOX, DATA_ROOT } from './config.js';
+import { showSandboxBanner } from './utils/sandbox-banner.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
 import { initDatabase } from './db.js';
 import { setState } from './state.js';
@@ -28,12 +29,10 @@ import { log, error as logError } from './utils/debug.js';
 async function initApp() {
   log(`🚀 FairSplit ${VERSION} — espace « ${DATA_ROOT} »`);
 
-  // Repère permanent : sans lui, rien ne distingue un essai des vraies données
-  if (IS_SANDBOX) {
-    const banner = document.getElementById('sandboxBanner');
-    if (banner) banner.hidden = false;
-    document.title = `[Bac à sable] ${document.title}`;
-  }
+  // Repère permanent : sans lui, rien ne distingue un essai des vraies données.
+  // Un compte cantonné au bac à sable le fera poser après connexion, son
+  // adresse n'étant pas connue ici.
+  if (IS_SANDBOX) showSandboxBanner();
 
   try {
     // 1. Initialize Firebase

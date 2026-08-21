@@ -19,7 +19,7 @@
  * les données du foyer.
  */
 
-import { DB_PATHS, DATA_ROOT } from './config.js';
+import { DB_PATHS, resolveDataRoot } from './config.js';
 import { log } from './utils/debug.js';
 
 // Firebase database reference (set after initialization)
@@ -28,6 +28,12 @@ let database = null;
 // Un utilisateur est-il authentifié ? Sert uniquement de garde-fou : le
 // contrôle d'accès réel est assuré par database.rules.json.
 let isAuthenticated = false;
+
+// Racine des données du compte connecté. Un compte de test est cantonné au bac
+// à sable quelle que soit l'URL : son mot de passe circule, et faire dépendre
+// la séparation des données d'un paramètre d'adresse reviendrait à la confier
+// à la mémoire de celui qui ouvre l'application.
+let dataRoot = resolveDataRoot(null);
 
 /**
  * Initialize database reference
@@ -41,15 +47,27 @@ export function initDatabase(db) {
  * Enregistre l'état d'authentification (appelé au changement d'état auth)
  * @param {string|null} uid - UID de l'utilisateur, ou null à la déconnexion
  */
-export function setAuthenticatedUser(uid) {
+export function setAuthenticatedUser(uid, email = null) {
   isAuthenticated = Boolean(uid);
-  log(isAuthenticated ? '[DB] Utilisateur authentifié' : '[DB] Utilisateur déconnecté');
+  dataRoot = resolveDataRoot(isAuthenticated ? email : null);
+  log(isAuthenticated
+    ? `[DB] Utilisateur authentifié — espace « ${dataRoot} »`
+    : '[DB] Utilisateur déconnecté');
+}
+
+/**
+ * Espace de données du compte connecté
+ * @returns {string} 'household' ou 'sandbox'
+ */
+export function getDataRoot() {
+  return dataRoot;
 }
 
 /**
  * Construit un chemin dans l'espace de données courant
  *
- * La racine vaut `household` en usage normal, `sandbox` avec ?sandbox=1.
+ * La racine vaut `household` en usage normal, `sandbox` avec ?sandbox=1 ou
+ * pour un compte cantonné au bac à sable.
  *
  * @param {string} path - Chemin relatif (ex. 'salaries', 'periods/2026-01')
  * @returns {string} Chemin absolu (ex. 'household/periods/2026-01')
@@ -58,7 +76,7 @@ export function getDataPath(path) {
   if (!isAuthenticated) {
     throw new Error('User not authenticated. Cannot access database.');
   }
-  return path ? `${DATA_ROOT}/${path}` : DATA_ROOT;
+  return path ? `${dataRoot}/${path}` : dataRoot;
 }
 
 // ===== GENERIC OPERATIONS =====
