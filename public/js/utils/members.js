@@ -76,25 +76,52 @@ export function memberLabel(cle, members) {
 }
 
 /**
- * Phrase décrivant le solde du mois
+ * Phrase décrivant le solde du mois, encadrant le montant
  *
- * Sans prénoms, « Conjointe vous doit » désigne un « vous » qui dépend du
- * compte connecté. Avec, la phrase dit la même chose aux deux personnes.
+ * « Conjointe vous doit » désigne un « vous » qui dépend du compte connecté :
+ * la phrase disait le contraire à l'une des deux personnes. Avec des prénoms,
+ * elle dit la même chose aux deux.
+ *
+ * La conjugaison suit le sujet. « Vous doit » serait agrammatical, et
+ * « Conjointe doit à Vous » plus lourd que « Conjointe vous doit » : sans
+ * prénom choisi, les formulations d'origine sont conservées telles quelles.
  *
  * @param {number} balance - Solde du mois ; positif, la conjointe est débitrice
- * @param {Object} members - Prénoms normalisés
- * @returns {{texte: string, debiteur: string|null, crediteur: string|null}}
+ * @param {Object} members - Prénoms bruts ou normalisés
+ * @returns {{prefixe: string, suffixe: string, texte: string, debiteur: string|null, crediteur: string|null}}
  */
 export function describeBalance(balance, members) {
   const noms = normalizeMembers(members);
+  const nomme = hasCustomName('vous', members) || hasCustomName('conjointe', members);
 
-  if (balance > 0) {
-    return { texte: `${noms.conjointe} doit à ${noms.vous}`, debiteur: noms.conjointe, crediteur: noms.vous };
+  if (balance === 0) {
+    return { prefixe: 'Comptes équilibrés', suffixe: '', texte: 'Comptes équilibrés', debiteur: null, crediteur: null };
   }
-  if (balance < 0) {
-    return { texte: `${noms.vous} doit à ${noms.conjointe}`, debiteur: noms.vous, crediteur: noms.conjointe };
+
+  const conjointeDoit = balance > 0;
+  const debiteur = conjointeDoit ? noms.conjointe : noms.vous;
+  const crediteur = conjointeDoit ? noms.vous : noms.conjointe;
+
+  let prefixe, suffixe;
+
+  if (nomme) {
+    prefixe = `${debiteur} doit`;
+    suffixe = `à ${crediteur}`;
+  } else if (conjointeDoit) {
+    prefixe = 'Conjointe vous doit';
+    suffixe = '';
+  } else {
+    prefixe = 'Vous devez';
+    suffixe = 'à Conjointe';
   }
-  return { texte: 'Comptes équilibrés', debiteur: null, crediteur: null };
+
+  return {
+    prefixe,
+    suffixe,
+    texte: suffixe ? `${prefixe} ${suffixe}` : prefixe,
+    debiteur,
+    crediteur
+  };
 }
 
 /**

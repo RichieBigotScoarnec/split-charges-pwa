@@ -91,6 +91,23 @@ export function calculateSummary() {
 }
 
 /**
+ * Assemble la phrase du solde autour du montant
+ *
+ * Le montant est mis en évidence ; le reste vient de describeBalance, qui
+ * accorde la conjugaison au sujet.
+ *
+ * @param {Object} solde - Sortie de describeBalance
+ * @param {number} montant - Solde du mois
+ * @returns {string} Fragment HTML
+ */
+function phraseSolde(solde, montant) {
+  const somme = `<strong>${formatCurrency(Math.abs(montant))}</strong>`;
+  return solde.suffixe
+    ? `${escapeHtml(solde.prefixe)} ${somme} ${escapeHtml(solde.suffixe)}`
+    : `${escapeHtml(solde.prefixe)} ${somme}`;
+}
+
+/**
  * Affiche le bilan dans le DOM
  * @param {Object} summary - Résumé calculé
  */
@@ -127,12 +144,10 @@ function renderSummary(summary) {
   let balanceClass;
 
   if (finalBalance > 0) {
-    // « Conjointe vous doit » désignait un « vous » relatif au compte
-    // connecté : la phrase disait le contraire à l'une des deux personnes.
-    balanceText = `${escapeHtml(soldeDit.debiteur)} doit <strong>${formatCurrency(Math.abs(finalBalance))}</strong> à ${escapeHtml(soldeDit.crediteur)}`;
+    balanceText = phraseSolde(soldeDit, finalBalance);
     balanceClass = 'balance-positive';
   } else if (finalBalance < 0) {
-    balanceText = `${escapeHtml(soldeDit.debiteur)} doit <strong>${formatCurrency(Math.abs(finalBalance))}</strong> à ${escapeHtml(soldeDit.crediteur)}`;
+    balanceText = phraseSolde(soldeDit, finalBalance);
     balanceClass = 'balance-negative';
   } else {
     balanceText = `<strong>Comptes équilibrés</strong> — rien à se rembourser`;

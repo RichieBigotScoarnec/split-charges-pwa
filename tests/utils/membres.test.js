@@ -97,8 +97,28 @@ describe('Phrase du solde', () => {
     expect(nul.crediteur).toBeNull();
   });
 
-  it('sans prénoms, la phrase reste compréhensible', () => {
-    expect(describeBalance(500, null).texte).toBe('Conjointe doit à Vous');
+  it("sans prénoms, les formulations d'origine sont conservées", () => {
+    // « Vous doit » serait agrammatical, et « Conjointe doit à Vous » plus
+    // lourd que la tournure d'origine. La conjugaison suit le sujet.
+    expect(describeBalance(500, null).texte).toBe('Conjointe vous doit');
+    expect(describeBalance(-500, null).texte).toBe('Vous devez à Conjointe');
+  });
+
+  it("le montant s'insère entre préfixe et suffixe", () => {
+    const nomme = describeBalance(500, MEMBRES);
+    expect(nomme.prefixe).toBe('Cindy doit');
+    expect(nomme.suffixe).toBe('à Richard');
+
+    const defaut = describeBalance(500, null);
+    expect(defaut.prefixe).toBe('Conjointe vous doit');
+    expect(defaut.suffixe).toBe('');
+  });
+
+  it('un seul prénom renseigné suffit à basculer sur la forme nommée', () => {
+    // Mélanger « Richard doit » et « à Conjointe » reste correct ; garder
+    // « Conjointe vous doit » alors que l'autre est nommé ne le serait pas.
+    const partiel = describeBalance(-500, { vous: 'Richard' });
+    expect(partiel.texte).toBe('Richard doit à Conjointe');
   });
 });
 
