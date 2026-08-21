@@ -274,3 +274,47 @@
 .balance-bar.balance-positive strong { color: var(--success-color); }
 .balance-bar.balance-negative strong { color: var(--danger-color); }
 .balance-bar.balance-zero { color: var(--text-secondary); }
+
+/* ===== CIBLES TACTILES ===== */
+/*
+   Sur un écran tactile, une commande de moins de 44 px se rate au doigt —
+   seuil des WCAG 2.5.5. La vérification sur mobile émulé en a relevé treize,
+   toutes limitées en hauteur : 19 px pour l'en-tête des rappels, 24 pour la
+   déconnexion, 38 pour les boutons d'ajout.
+
+   `pointer: coarse` vise le doigt et laisse la souris intacte : agrandir
+   partout alourdirait l'écran de bureau sans bénéfice.
+*/
+@media (pointer: coarse) {
+  .btn,
+  .btn-logout,
+  .btn-icon,
+  .btn-settle,
+  .btn-restore,
+  .btn-link,
+  .period-arrow,
+  .share-mode-option,
+  .trends-header,
+  .reminders-header,
+  .extra-income-toggle,
+  .close-btn,
+  .reminder-toggle-slider,
+  .toggle-slider {
+    min-height: 44px;
+  }
+
+  /* Les flèches de période sont carrées : leur largeur suit. */
+  .period-arrow,
+  .btn-icon,
+  .close-btn {
+    min-width: 44px;
+  }
+
+  /* Les en-têtes dépliables restent alignés une fois agrandis. */
+  .trends-header,
+  .reminders-header,
+  .extra-income-toggle {
+    display: flex;
+    align-items: center;
+  }
+}
