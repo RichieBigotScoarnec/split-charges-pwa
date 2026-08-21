@@ -3,6 +3,7 @@
 // Toute la logique est centralisée ici (plus de JS inline dans FairSplit.html)
 
 import { getState, setState } from '../state.js';
+import { validateChargeAmount } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { loadVariableCharges } from './variable-charges.js';
@@ -293,12 +294,11 @@ async function handleQuickAddSubmit() {
 
   const amountEl = document.getElementById('quickAddAmount');
   const amount = parseFloat(amountEl?.value);
-  if (!amount || amount <= 0) {
-    toast.error('Montant invalide');
-    return;
-  }
-  if (amount > 50000) {
-    toast.error('Limite maximale : 50 000€ par charge');
+  // Ce formulaire plafonnait à 50 000 € quand les trois autres acceptaient
+  // 100 000 : la même charge passait ou non selon la porte empruntée.
+  const montantValide = validateChargeAmount(amount);
+  if (!montantValide.valid) {
+    toast.error(montantValide.error);
     return;
   }
 

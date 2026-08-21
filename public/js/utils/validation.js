@@ -1,6 +1,12 @@
 /**
- * FairSplit - Validation Utilities
- * @description Fonctions de validation des entrées
+ * FairSplit — Validation des saisies
+ *
+ * Ce module existait, testé, et n'était importé par personne : chaque
+ * formulaire réécrivait ses contrôles à la main. Les règles avaient donc
+ * divergé — une charge de 80 000 € passait par un formulaire et était refusée
+ * par un autre.
+ *
+ * Une règle énoncée une fois ne peut plus diverger d'elle-même.
  */
 
 import { LIMITS } from '../config.js';
@@ -44,12 +50,24 @@ export function validateSalary(value) {
 }
 
 /**
- * Validate charge amount
- * @param {number} value
- * @returns {{valid: boolean, error?: string}}
+ * Valide le montant d'une charge ou d'un remboursement
+ *
+ * Zero est refuse ici alors que validateAmount l'accepte : un salaire nul est
+ * une situation reelle, une charge de zero euro n'apprend rien. Tous les
+ * formulaires appliquaient deja cette regle a la main.
+ *
+ * @param {number|string} value - Montant saisi
+ * @returns {{valid: boolean, error?: string}} Validite et motif du refus
  */
 export function validateChargeAmount(value) {
-  return validateAmount(value, 'Montant', LIMITS.MAX_CHARGE);
+  const base = validateAmount(value, 'Montant', LIMITS.MAX_CHARGE);
+  if (!base.valid) return base;
+
+  if (parseFloat(value) === 0) {
+    return { valid: false, error: 'Montant doit être supérieur à zéro' };
+  }
+
+  return { valid: true };
 }
 
 /**

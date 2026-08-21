@@ -96,8 +96,17 @@ describe('validateChargeAmount', () => {
     expect(validateChargeAmount(LIMITS.MAX_CHARGE + 1).valid).toBe(false);
   });
 
-  it('charge de 0 valide', () => {
-    expect(validateChargeAmount(0).valid).toBe(true);
+  it('charge de 0 refusée', () => {
+    // Ce test affirmait l'inverse. Il décrivait une règle qu'aucun formulaire
+    // n'appliquait : tous refusaient déjà zéro à la main. Un salaire nul est
+    // une situation réelle, une charge de zéro euro n'apprend rien.
+    const r = validateChargeAmount(0);
+    expect(r.valid).toBe(false);
+    expect(r.error).toMatch(/supérieur à zéro/);
+  });
+
+  it('un montant strictement positif reste accepté', () => {
+    expect(validateChargeAmount(0.01).valid).toBe(true);
   });
 });
 

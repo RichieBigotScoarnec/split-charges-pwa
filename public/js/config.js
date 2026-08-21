@@ -108,7 +108,12 @@ export const ALLOWED_EMAILS = [
 // ===== VALIDATION LIMITS =====
 export const LIMITS = {
   MAX_SALARY: 100000,
-  MAX_CHARGE: 50000,
+  // Les formulaires de charge, de charge fixe et de remboursement plafonnaient
+  // a 100 000 EUR, la saisie rapide a 50 000, et cette constante -- que
+  // personne ne consultait -- a 50 000. Une meme charge etait donc acceptee
+  // par un formulaire et refusee par l'autre. On retient la valeur des trois
+  // chemins principaux : aucune saisie valide aujourd'hui ne devient invalide.
+  MAX_CHARGE: 100000,
   MAX_NAME_LENGTH: 100,
   MAX_NOTE_LENGTH: 500
 };
