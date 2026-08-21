@@ -89,29 +89,56 @@ export function getDataPath(path) {
 const READ_TIMEOUT_MS = 10000;
 
 /**
+ * Délai de garde des écritures, en millisecondes
+ *
+ * Plus généreux que celui des lectures : une écriture perdue coûte une saisie
+ * qu'il faudra refaire, alors qu'une lecture lente ne coûte qu'un affichage
+ * tardif. Assez court malgré tout pour qu'un échec se voie tout de suite —
+ * au-delà, on repart en pensant que c'est enregistré.
+ */
+const WRITE_TIMEOUT_MS = 15000;
+
+/**
  * Borne une promesse dans le temps.
  *
- * Indispensable pour les lectures Realtime Database : quand le client n'est pas
- * connecté, `once('value')` ne rejette pas — il met la lecture en file d'attente
- * et la promesse reste en attente indéfiniment. Un `await` sur une telle lecture
- * gèle la séquence d'initialisation sans lever la moindre erreur, donc sans
- * qu'aucun message n'atteigne l'utilisateur : l'application paraît simplement
- * vide. Une lecture qui n'aboutit pas doit échouer bruyamment.
+ * Realtime Database ne rejette pas quand le client ne joint pas le serveur : il
+ * met l'opération en file d'attente et la promesse reste en attente
+ * indéfiniment.
+ *
+ * En lecture, un `await` gelait la séquence d'initialisation sans lever la
+ * moindre erreur : l'application paraissait simplement vide.
+ *
+ * En écriture, c'était pire encore. Le gestionnaire du bouton restait suspendu
+ * sur son `await` : pas de message, pas de fermeture de fenêtre, aucun retour.
+ * « J'appuie sur Ajouter et il ne se passe rien » — la panne signalée sous un
+ * navigateur qui bloque l'accès à la base. Une écriture qui n'aboutit pas doit
+ * échouer bruyamment, comme une lecture.
  *
  * @param {Promise<*>} promise - Promesse à borner
- * @param {string} label - Chemin lu, pour un message exploitable
+ * @param {string} label - Chemin visé, pour un message exploitable
  * @param {number} [ms] - Délai maximum en millisecondes
+ * @param {string} [verbe] - « Lecture » ou « Écriture », pour le message
  * @returns {Promise<*>} La valeur, ou un rejet après expiration du délai
  */
-function withTimeout(promise, label, ms = READ_TIMEOUT_MS) {
+function withTimeout(promise, label, ms = READ_TIMEOUT_MS, verbe = 'Lecture') {
   let timer;
   const expiry = new Promise((_, reject) => {
     timer = setTimeout(
-      () => reject(new Error(`Lecture « ${label} » sans réponse après ${ms / 1000} s`)),
+      () => reject(new Error(`${verbe} « ${label} » sans réponse après ${ms / 1000} s`)),
       ms
     );
   });
   return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Borne une écriture dans le temps
+ * @param {Promise<*>} promise - Promesse d'écriture
+ * @param {string} path - Chemin visé
+ * @returns {Promise<*>} La valeur, ou un rejet après expiration du délai
+ */
+function borner(promise, path) {
+  return withTimeout(promise, path || '(racine)', WRITE_TIMEOUT_MS, 'Écriture');
 }
 
 /**
@@ -138,7 +165,7 @@ export async function dbGet(path) {
 export async function dbSet(path, data) {
   if (!database) throw new Error('Database not initialized');
 
-  await database.ref(getDataPath(path)).set(data);
+  await borner(database.ref(getDataPath(path)).set(data), path);
 }
 
 /**
@@ -150,7 +177,7 @@ export async function dbSet(path, data) {
 export async function dbUpdate(path, updates) {
   if (!database) throw new Error('Database not initialized');
 
-  await database.ref(getDataPath(path)).update(updates);
+  await borner(database.ref(getDataPath(path)).update(updates), path);
 }
 
 /**
@@ -163,7 +190,7 @@ export async function dbPush(path, data) {
   if (!database) throw new Error('Database not initialized');
 
   const newRef = database.ref(getDataPath(path)).push();
-  await newRef.set(data);
+  await borner(newRef.set(data), path);
   return newRef.key;
 }
 

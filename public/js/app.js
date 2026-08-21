@@ -5,6 +5,7 @@
 
 import { VERSION, IS_SANDBOX, DATA_ROOT } from './config.js';
 import { showSandboxBanner } from './utils/sandbox-banner.js';
+import { refreshConnectionBanner } from './utils/connection-banner.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
 import { initDatabase } from './db.js';
 import { setState } from './state.js';
@@ -52,6 +53,10 @@ async function initApp() {
     onConnectionChange((isConnected) => {
       setState('isOnline', isConnected);
       log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
+      // L'état n'était jusqu'ici que consigné : rien à l'écran ne distinguait
+      // « ce mois est vide » de « je ne peux pas lire ce mois ». Une base
+      // injoignable renvoyait un écran vide crédible et avalait les saisies.
+      refreshConnectionBanner(isConnected);
     });
 
     // 3. Initialize UI components
