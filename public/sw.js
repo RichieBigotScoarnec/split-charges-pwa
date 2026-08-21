@@ -36,6 +36,7 @@ const STATIC_ASSETS = [
   './js/utils/date.js',
   './js/utils/validation.js',
   './js/utils/diagnostics.js',
+  './js/utils/connection-banner.js',
   // JS Modules (Étape 3a)
   './js/app.js',
   './js/firebase-init.js',
