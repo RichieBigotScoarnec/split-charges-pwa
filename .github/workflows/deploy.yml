@@ -10,8 +10,11 @@ on:
     branches:
       - main
 
+# Lecture seule par défaut : seul le job de déploiement écrit, et il demande
+# ce droit pour lui seul. Accordé ici, il s'appliquait aussi aux jobs qui
+# exécutent le code des dépendances (npm ci, navigateurs, émulateurs).
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -86,6 +89,10 @@ jobs:
     needs: [test, e2e]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+
+    # Le seul job qui pousse : la branche gh-pages.
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout

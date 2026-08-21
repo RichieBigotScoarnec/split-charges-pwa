@@ -130,6 +130,37 @@ test.describe('Ce que l\'application écrit reste accepté', () => {
     expect(await ecrire(request, 'household/customDestinations', ['Compte Commun'], jeton)).toBe(200);
   });
 
+  test('une restauration de sauvegarde réécrit tout l\'espace', async ({ request }) => {
+    // Le cas le plus exposé : dbSet(undefined, data) remplace la racine de
+    // l'espace en une écriture. Chaque nœud est alors validé d'un coup — une
+    // seule contrainte trop stricte rendrait toute restauration impossible.
+    const jeton = await jetonPour(request, EMAIL_FOYER);
+
+    const code = await ecrire(request, 'household', {
+      salaries: { vous: 3200, conjointe: 2400 },
+      members: { vous: 'Richard', conjointe: 'Cindy' },
+      shareMode: { mode: 'prorata' },
+      carryOverEnabled: false,
+      categoryBudgets: { Courses: 400 },
+      customCategories: [{ id: 'courses', label: 'Courses', icon: '🛒' }],
+      customDestinations: [{ id: 'commun', label: 'Compte Commun', icon: '🤝' }],
+      reminders: { finMois: false, budget: false, budgetAmount: 0, reimbursement: false },
+      periods: {
+        '2026-07': {
+          salaries: { vous: 3100, conjointe: 2400 },
+          variableCharges: { c1: CHARGE_VALIDE },
+          fixedCharges: { f1: { ...CHARGE_VALIDE, destination: 'Compte Commun', recurring: true } },
+          reimbursements: {
+            r1: { direction: 'vous-to-conjointe', amount: 120, note: '', timestamp: 1755000000000, deleted: false }
+          }
+        },
+        '2026-08': { variableCharges: { c2: CHARGE_VALIDE } }
+      }
+    }, jeton);
+
+    expect(code).toBe(200);
+  });
+
   test('la suppression logique reste possible', async ({ request }) => {
     const jeton = await jetonPour(request, EMAIL_FOYER);
     await ecrire(request, 'household/periods/2026-08/variableCharges/c1', CHARGE_VALIDE, jeton);

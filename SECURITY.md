@@ -125,7 +125,14 @@ ce qui permet de se passer de `'unsafe-inline'` sur `script-src`.
 son script de redirection ayant été retiré au profit du seul `meta refresh`.
 
 Limite : `frame-ancestors` et `report-uri` sont ignorés en balise `<meta>`.
-Ni l'un ni l'autre n'est utilisé ici.
+Ni l'un ni l'autre n'est utilisé ici. Conséquence assumée : aucune protection
+contre l'affichage du site dans un cadre tiers n'est possible tant que
+l'hébergement est GitHub Pages, qui ne permet pas non plus `X-Frame-Options`.
+
+La politique de référent est fixée explicitement à
+`strict-origin-when-cross-origin` : le géocodage inversé interroge Nominatim,
+et l'adresse complète de la page n'a pas à l'accompagner. L'origine reste
+envoyée, donc une restriction de clé API par référent continue de fonctionner.
 
 ### 6. Intégrité des ressources externes
 
@@ -188,6 +195,12 @@ il rétrograderait `firebase-tools` d'une version majeure.
   les éditer à la main dans la console Firebase : le prochain déploiement
   écraserait la modification sans trace.
 - Toute action GitHub Actions doit être épinglée par SHA de commit.
+- Le workflow est en `contents: read` ; seul le job de déploiement demande
+  l'écriture. Ne pas remonter ce droit au niveau du workflow : il s'appliquerait
+  aussi aux jobs qui exécutent le code des dépendances.
+- Un nœud ajouté sous `household/` doit être déclaré dans `database.rules.json`
+  **et** dans `NOEUDS_CONNUS` (`js/modules/backup.js`), sans quoi il ne pourra
+  ni être écrit ni être restauré.
 
 ---
 
