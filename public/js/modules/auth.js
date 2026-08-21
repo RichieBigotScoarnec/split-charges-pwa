@@ -438,15 +438,3 @@ export function initAuth() {
   log('🔐 Authentification initialisée');
 }
 
-/**
- * ✅ FIX CRITIQUE 2: Cleanup authentication listener
- * Call this when you need to explicitly remove the auth listener
- * (e.g., during app shutdown or hot module reload)
- */
-export function cleanupAuth() {
-  if (authUnsubscribe) {
-    authUnsubscribe();
-    authUnsubscribe = null;
-    log('[Auth] 🧹 Listener d\'authentification nettoyé');
-  }
-}

@@ -13,26 +13,11 @@ import { log, error as logError } from '../utils/debug.js';
 export function initExport() {
   log('📦 Initialisation module export');
 
-  setupExportUI();
-
+  // Les deux boutons passent par data-action ; les fonctions sont exposées
+  // en fin de module.
   log('✅ Module export initialisé');
 }
 
-/**
- * Configure les listeners UI d'export
- */
-function setupExportUI() {
-  const exportCsvBtn = document.getElementById('exportCsvBtn');
-  const exportPdfBtn = document.getElementById('exportPdfBtn');
-
-  if (exportCsvBtn) {
-    exportCsvBtn.addEventListener('click', exportToCSV);
-  }
-
-  if (exportPdfBtn) {
-    exportPdfBtn.addEventListener('click', exportToPDF);
-  }
-}
 
 /**
  * Exporte les données au format CSV
