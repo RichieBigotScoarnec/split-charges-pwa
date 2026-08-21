@@ -5,6 +5,9 @@ import { setState, getState } from '../state.js';
 import { collectDeleted } from '../utils/soft-delete.js';
 import { refreshTrashButton } from './trash.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
+// Les règles de saisie vivent dans utils/validation.js : réécrites dans
+// chaque formulaire, elles avaient divergé.
+import { validateChargeAmount } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
@@ -108,8 +111,9 @@ export async function saveReimbursement() {
     return;
   }
 
-  if (isNaN(amount) || amount <= 0 || amount > 100000) {
-    toast.error('Montant invalide (0-100000€)');
+  const montantValide = validateChargeAmount(amount);
+  if (!montantValide.valid) {
+    toast.error(montantValide.error);
     return;
   }
 

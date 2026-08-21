@@ -995,7 +995,11 @@ test.describe('Revenus complémentaires', () => {
     await page.locator('#revenusConjointe').fill('beaucoup');
     await page.locator('#revenusConjointe').blur();
 
-    await expect(page.locator('.toast.error').last()).toContainText(/invalide/, { timeout: 5000 });
+    // Le message nomme désormais le champ refusé : « Montant invalide » ne
+    // disait pas lequel, alors que quatre champs de revenus coexistent.
+    const erreur = page.locator('.toast.error').last();
+    await expect(erreur).toContainText(/doit être un nombre/, { timeout: 5000 });
+    await expect(erreur).toContainText(/revenus complémentaires conjoints/);
   });
 });
 

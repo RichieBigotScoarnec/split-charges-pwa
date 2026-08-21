@@ -6,6 +6,8 @@
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { resolveSalaries, normalizeSalaries } from '../utils/salaries.js';
 import { setState, getState } from '../state.js';
+import { validateAmount } from '../utils/validation.js';
+import { LIMITS } from '../config.js';
 import { toast } from '../components/toast.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { loadFixedCharges } from './fixed-charges.js';
@@ -174,9 +176,6 @@ const CHAMPS_REVENUS = [
   { id: 'revenusConjointe', cle: 'extraConjointe', libelle: 'les revenus complémentaires conjoints' }
 ];
 
-/** Montant maximal accepté par champ */
-const PLAFOND_REVENU = 100000;
-
 /**
  * Lit et valide les quatre champs de revenus
  *
@@ -197,19 +196,14 @@ function readIncomeFields() {
       continue;
     }
 
-    const valeur = parseFloat(brut);
-
-    if (isNaN(valeur)) {
-      return { revenus: null, erreur: `Valeur invalide pour ${champ.libelle}` };
-    }
-    if (valeur < 0) {
-      return { revenus: null, erreur: `${champ.libelle} ne peut pas être négatif` };
-    }
-    if (valeur > PLAFOND_REVENU) {
-      return { revenus: null, erreur: `Limite maximale : ${PLAFOND_REVENU} € par champ` };
+    // Un revenu peut légitimement valoir zéro, contrairement à une charge :
+    // validateAmount, et non validateChargeAmount.
+    const verdict = validateAmount(brut, champ.libelle, LIMITS.MAX_SALARY);
+    if (!verdict.valid) {
+      return { revenus: null, erreur: verdict.error };
     }
 
-    revenus[champ.cle] = valeur;
+    revenus[champ.cle] = parseFloat(brut);
   }
 
   return { revenus, erreur: null };
