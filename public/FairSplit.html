@@ -218,15 +218,87 @@
         <button type="button" class="btn btn-secondary" data-action="showBackup" title="Sauvegarder ou restaurer toutes les données">
           <span aria-hidden="true">💾</span> Sauvegarde
         </button>
-        <!-- Masqué tant que rien n'a été supprimé ce mois-ci : une corbeille
-             presque toujours vide ne doit pas occuper l'écran en permanence. -->
-        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés ce mois-ci" hidden>
+        <!-- Toujours visible : masqué, on le cherchait sans savoir s'il avait
+             disparu ou n'avait jamais existé. Le compteur dit ce qu'il contient. -->
+        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés ce mois-ci">
           <span aria-hidden="true">🗑️</span> Corbeille (<span id="trashCount">0</span>)
         </button>
       </div>
     </div>
     </section>
 
+    </div>
+    </section>
+    </div>
+
+    <!-- Colonne saisie : ce qu'on alimente -->
+    <div class="col-listes">
+    <!-- Search Bar -->
+    <div class="search-bar-container" id="searchBarContainer" hidden>
+      <div class="search-bar">
+        <span class="search-bar-icon">🔍</span>
+        <label for="searchInput" class="sr-only">Rechercher une charge</label>
+        <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
+        <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
+      </div>
+      <div class="search-results-info" id="searchResultsInfo"></div>
+    </div>
+
+    <!-- Variable Charges Section -->
+    <section aria-labelledby="sectionChargesVariables">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionChargesVariables"><span aria-hidden="true">⚡</span> Charges Variables</h2>
+        <button type="button" class="btn btn-primary" id="addVariableChargeBtn">+ Ajouter</button>
+      </div>
+      <div id="variableChargesList">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Total des charges variables</span>
+        <strong id="variableChargesTotal">—</strong>
+      </div>
+    </div>
+    </section>
+
+    <!-- Fixed Charges Section -->
+    <section aria-labelledby="sectionChargesFixes">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionChargesFixes"><span aria-hidden="true">🔒</span> Charges Fixes</h2>
+        <button type="button" class="btn btn-primary" id="addFixedChargeBtn">+ Ajouter</button>
+      </div>
+      <div id="fixedChargesList">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Total des charges fixes</span>
+        <strong id="fixedChargesTotal">—</strong>
+      </div>
+    </div>
+    </section>
+
+    <!-- Reimbursements Section -->
+    <section aria-labelledby="sectionRemboursements">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionRemboursements"><span aria-hidden="true">💸</span> Remboursements</h2>
+        <button type="button" class="btn btn-primary" id="addReimbursementBtn">+ Ajouter</button>
+      </div>
+      <div id="reimbursementsList">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Solde des remboursements</span>
+        <strong id="reimbursementsTotal">—</strong>
+      </div>
+    </div>
+    </section>
+    </div>
+
+    <!-- Colonne réglages : ce qu'on ajuste rarement. Au-delà de 1600 px
+         elle prend sa propre colonne ; en deçà elle suit le bilan. -->
+    <div class="col-reglages">
     <!-- Salaries Section -->
     <section aria-labelledby="sectionSalaires">
     <div class="card">
@@ -322,73 +394,6 @@
         <span class="saving">⏳ Sauvegarde...</span>
         <span class="saved">✓ Sauvegardé</span>
       </div>
-    </div>
-    </section>
-    </div>
-
-    <!-- Colonne saisie : ce qu'on alimente -->
-    <div class="col-listes">
-    <!-- Search Bar -->
-    <div class="search-bar-container" id="searchBarContainer" hidden>
-      <div class="search-bar">
-        <span class="search-bar-icon">🔍</span>
-        <label for="searchInput" class="sr-only">Rechercher une charge</label>
-        <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
-        <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
-      </div>
-      <div class="search-results-info" id="searchResultsInfo"></div>
-    </div>
-
-    <!-- Variable Charges Section -->
-    <section aria-labelledby="sectionChargesVariables">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title" id="sectionChargesVariables"><span aria-hidden="true">⚡</span> Charges Variables</h2>
-        <button type="button" class="btn btn-primary" id="addVariableChargeBtn">+ Ajouter</button>
-      </div>
-      <div id="variableChargesList">
-        <!-- Populated dynamically -->
-      </div>
-      <div class="list-total">
-        <span>Total des charges variables</span>
-        <strong id="variableChargesTotal">—</strong>
-      </div>
-    </div>
-    </section>
-
-    <!-- Fixed Charges Section -->
-    <section aria-labelledby="sectionChargesFixes">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title" id="sectionChargesFixes"><span aria-hidden="true">🔒</span> Charges Fixes</h2>
-        <button type="button" class="btn btn-primary" id="addFixedChargeBtn">+ Ajouter</button>
-      </div>
-      <div id="fixedChargesList">
-        <!-- Populated dynamically -->
-      </div>
-      <div class="list-total">
-        <span>Total des charges fixes</span>
-        <strong id="fixedChargesTotal">—</strong>
-      </div>
-    </div>
-    </section>
-
-    <!-- Reimbursements Section -->
-    <section aria-labelledby="sectionRemboursements">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title" id="sectionRemboursements"><span aria-hidden="true">💸</span> Remboursements</h2>
-        <button type="button" class="btn btn-primary" id="addReimbursementBtn">+ Ajouter</button>
-      </div>
-      <div id="reimbursementsList">
-        <!-- Populated dynamically -->
-      </div>
-      <div class="list-total">
-        <span>Solde des remboursements</span>
-        <strong id="reimbursementsTotal">—</strong>
-      </div>
-    </div>
-    </section>
     </div>
 
   </main>

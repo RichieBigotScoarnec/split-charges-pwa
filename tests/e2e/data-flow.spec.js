@@ -655,9 +655,21 @@ test.describe('Corbeille', () => {
     await page.locator('#modalConfirmOk').click();
   }
 
-  test('le bouton reste masqué tant que rien n\'a été supprimé', async ({ page }) => {
+  test('le bouton reste accessible même sans suppression', async ({ page }) => {
+    // Masqué, on le cherchait sans savoir s'il avait disparu ou n'avait jamais
+    // existé. Le compteur dit désormais ce qu'il contient.
     await ajouter(page, 'Charge conservee', 100);
-    await expect(page.locator('#trashButton')).toBeHidden();
+
+    await expect(page.locator('#trashButton')).toBeVisible();
+    await expect(page.locator('#trashCount')).toHaveText('0');
+    await expect(page.locator('#trashButton')).toHaveClass(/is-empty/);
+  });
+
+  test('une corbeille vide le dit clairement', async ({ page }) => {
+    await ajouter(page, 'Charge conservee', 100);
+    await page.locator('#trashButton').click();
+
+    await expect(page.locator('#trashList')).toContainText('vide pour ce mois');
   });
 
   test('supprimer révèle la corbeille et son compte', async ({ page }) => {
@@ -691,7 +703,7 @@ test.describe('Corbeille', () => {
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
   });
 
-  test('la corbeille vidée par rétablissement se referme et disparaît', async ({ page }) => {
+  test('la corbeille vidée par rétablissement se referme', async ({ page }) => {
     await ajouter(page, 'Dernier element', 100);
     await supprimer(page);
 
@@ -699,7 +711,8 @@ test.describe('Corbeille', () => {
     await page.locator('#trashList .btn-restore').first().click();
 
     await expect(page.locator('#modalTrash')).not.toHaveClass(/active/, { timeout: 5000 });
-    await expect(page.locator('#trashButton')).toBeHidden();
+    // Le bouton demeure, son compteur revient à zéro.
+    await expect(page.locator('#trashCount')).toHaveText('0');
   });
 
   test('une description hostile est affichée en texte, jamais interprétée', async ({ page }) => {

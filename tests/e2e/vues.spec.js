@@ -357,3 +357,61 @@ test.describe('Prénoms des membres', () => {
     await expect(page.locator('#labelSalaireVous img')).toHaveCount(0);
   });
 });
+
+/**
+ * Mise en page sur grand écran.
+ *
+ * Mesuré avant : sur 3440 px, le contenu restait plafonné à 1120 px — 1160 px
+ * de marge vide de chaque côté — et la page mesurait 1920 px de haut pour une
+ * fenêtre de 1440. L'application imposait de faire défiler tout en laissant
+ * les deux tiers de la largeur inutilisés.
+ */
+test.describe('Mise en page sur grand écran', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  test.describe('au-delà de 1600 px', () => {
+    test.use({ viewport: { width: 2560, height: 1440 } });
+
+    test('les trois colonnes sont côte à côte', async ({ page }) => {
+      const y = await page.evaluate(() => {
+        const t = (s) => Math.round(document.querySelector(s).getBoundingClientRect().y);
+        return { bilan: t('.col-bilan'), listes: t('.col-listes'), reglages: t('.col-reglages') };
+      });
+
+      // Une colonne qui décroche se retrouve à la rangée suivante : c'est ce
+      // qui se produisait quand l'ordre du document ne suivait pas l'ordre
+      // visuel, et la page s'allongeait de 600 px.
+      expect(Math.abs(y.listes - y.bilan)).toBeLessThan(5);
+      expect(Math.abs(y.reglages - y.bilan)).toBeLessThan(5);
+    });
+
+    test('la largeur utile augmente avec l\'écran', async ({ page }) => {
+      const largeur = await page.evaluate(
+        () => Math.round(document.querySelector('.container').getBoundingClientRect().width)
+      );
+      expect(largeur).toBeGreaterThan(1120);
+    });
+  });
+
+  test.describe('entre 900 et 1600 px', () => {
+    test.use({ viewport: { width: 1280, height: 1440 } });
+
+    test('deux colonnes, réglages sous le bilan', async ({ page }) => {
+      const p = await page.evaluate(() => {
+        const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y) }; };
+        return { bilan: r('.col-bilan'), listes: r('.col-listes'), reglages: r('.col-reglages') };
+      });
+
+      // Les réglages restent alignés sur le bilan, en dessous.
+      expect(p.reglages.x).toBe(p.bilan.x);
+      expect(p.reglages.y).toBeGreaterThan(p.bilan.y);
+      // Les listes occupent la seconde colonne, à la hauteur du bilan.
+      expect(p.listes.x).toBeGreaterThan(p.bilan.x);
+      expect(Math.abs(p.listes.y - p.bilan.y)).toBeLessThan(5);
+    });
+  });
+});

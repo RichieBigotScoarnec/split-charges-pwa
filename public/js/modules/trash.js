@@ -73,8 +73,16 @@ export function refreshTrashButton() {
   const bouton = document.getElementById('trashButton');
   if (!bouton) return;
 
+  // Le bouton restait masqué tant que rien n'avait été supprimé. L'intention
+  // était d'éviter du bruit ; l'effet était qu'on le cherchait sans le
+  // trouver, sans savoir s'il avait disparu ou n'avait jamais existé. Il est
+  // désormais toujours là : son compteur dit s'il y a quelque chose dedans, et
+  // la fenêtre annonce clairement une corbeille vide.
+  bouton.hidden = false;
+
   const total = collectAll().length;
-  bouton.hidden = total === 0;
+  bouton.classList.toggle('is-empty', total === 0);
+
   const compteur = document.getElementById('trashCount');
   if (compteur) compteur.textContent = String(total);
 }

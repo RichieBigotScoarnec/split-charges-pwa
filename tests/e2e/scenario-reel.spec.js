@@ -247,7 +247,9 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
     await test.step('une suppression reste récupérable', async () => {
       await page.locator('#variableChargesList .btn-delete').first().click();
       await page.locator('#modalConfirmOk').click();
-      await expect(page.locator('#trashButton')).toBeVisible({ timeout: 20000 });
+      // Le bouton est toujours visible : c'est son compteur qui indique que la
+      // suppression a bien atteint la base.
+      await expect(page.locator('#trashCount')).toHaveText('1', { timeout: 20000 });
 
       await page.locator('#trashButton').click();
       await expect(page.locator('#trashList')).toContainText('Depense partagee');
@@ -456,5 +458,106 @@ test.describe('Six mois avec augmentation', () => {
     });
 
     expect(erreurs, `erreurs JS : ${erreurs.join(' | ')}`).toEqual([]);
+  });
+});
+
+// ============================================================
+// Verifications ponctuelles, reprises de reel.spec.js
+// ============================================================
+/*
+   Les deux suites ecrivaient dans le meme bac a sable et Playwright les
+   executait en parallele : chacune effacait l'etat de l'autre. Reunies dans un
+   fichier, elles s'executent en serie dans le meme processus.
+*/
+test.describe('Contre le vrai Firebase', () => {
+  test.skip(!MOT_DE_PASSE, 'FAIRSPLIT_TEST_PASSWORD absent — voir docs/compte-de-test.md');
+
+  // Une connexion réelle et l'initialisation complète prennent plus de temps
+  // qu'un simulateur en mémoire.
+  test.setTimeout(60000);
+
+  /**
+   * Ouvre l'application et s'authentifie réellement.
+   * @param {import('@playwright/test').Page} page - Page de test
+   */
+  async function seConnecter(page) {
+    await page.goto('/FairSplit.html');
+    await page.locator('#authEmail').fill(EMAIL);
+    await page.locator('#authPassword').fill(MOT_DE_PASSE);
+    await page.locator('[data-action="signInWithEmail"]').click();
+
+    await page.waitForSelector('#mainApp', { state: 'visible', timeout: 30000 });
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 30000 });
+  }
+
+  test('le compte se connecte et l\'application s\'initialise entièrement', async ({ page }) => {
+    const erreurs = [];
+    page.on('pageerror', e => erreurs.push(e.message));
+
+    await seConnecter(page);
+
+    // Le sélecteur de mois est le premier signe que l'initialisation a abouti.
+    await expect(page.locator('#periodSelect option')).toHaveCount(12);
+    expect(erreurs).toEqual([]);
+  });
+
+  test('l\'écran signale le bac à sable', async ({ page }) => {
+    // Sans ce repère, rien ne distinguerait un essai des vraies données.
+    await seConnecter(page);
+
+    await expect(page.locator('#sandboxBanner')).toBeVisible();
+    await expect(page).toHaveTitle(/Bac à sable/);
+  });
+
+  test('toutes les étapes d\'initialisation aboutissent', async ({ page }) => {
+    // Un échec partiel produit une notification nommant l'étape fautive : elle
+    // ne doit pas apparaître.
+    await seConnecter(page);
+
+    await expect(page.locator('.toast.error')).toHaveCount(0);
+  });
+
+  test('les règles de sécurité refusent household à ce compte', async ({ page }) => {
+    // La garantie qui compte. Le cantonnement applicatif évite d'y toucher ;
+    // ce test vérifie que même une tentative directe est refusée par le
+    // serveur.
+    await seConnecter(page);
+
+    const verdict = await page.evaluate(() => new Promise(resolve => {
+      const minuteur = setTimeout(() => resolve('SANS RÉPONSE'), 15000);
+      firebase.database().ref('household').once('value')
+        .then(() => { clearTimeout(minuteur); resolve('LECTURE AUTORISÉE'); })
+        .catch(e => { clearTimeout(minuteur); resolve(e.code || e.message); });
+    }));
+
+    expect(verdict).toMatch(/PERMISSION_DENIED/i);
+  });
+
+  test('une écriture dans le bac à sable persiste après rechargement', async ({ page }) => {
+    await seConnecter(page);
+
+    const repere = `essai-${await page.evaluate(() => performance.now().toFixed(0))}`;
+
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill(repere);
+    await page.locator('#variableChargeAmount').fill('12.34');
+    await page.locator('#variableChargeCategory').selectOption({ index: 1 });
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText(repere)).toBeVisible({ timeout: 15000 });
+
+    await page.reload();
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 30000 });
+
+    // La persistance réelle : ce que le simulateur, remis à zéro à chaque
+    // chargement, ne peut pas démontrer.
+    await expect(page.locator('#variableChargesList').getByText(repere)).toBeVisible({ timeout: 15000 });
+
+    // Nettoyage : la charge d'essai ne doit pas s'accumuler dans le bac à sable.
+    await page.locator('#variableChargesList').getByText(repere)
+      .locator('xpath=ancestor::*[contains(@class,"charge-item")][1]')
+      .locator('.btn-delete').click();
+    await page.locator('#modalConfirmOk').click();
+    await expect(page.locator('#variableChargesList').getByText(repere)).toHaveCount(0, { timeout: 15000 });
   });
 });
