@@ -344,6 +344,83 @@ test.describe('Reconduction concurrente', () => {
     await premiere.contexte.close();
     await seconde.contexte.close();
   });
+
+  /**
+   * Deux appareils qui règlent le même solde.
+   *
+   * Le règlement écrit un remboursement du montant du solde. Deux écritures et
+   * le solde bascule du même montant dans l'autre sens : de zéro attendu, on
+   * passe au double de la dette, en sens inverse.
+   *
+   * Le délai qui compte n'est pas de l'ordre de la milliseconde : c'est celui
+   * de la fenêtre de confirmation, restée ouverte pendant que l'autre personne
+   * règle de son côté. C'est cette fenêtre-là que le test reproduit.
+   */
+  test("régler pendant que l'autre règle n'inverse pas le solde", async ({ browser }) => {
+    const ouvrirSession = async () => {
+      const contexte = await browser.newContext();
+      const page = await contexte.newPage();
+      await page.goto('/FairSplit.html');
+      await page.locator('#authEmail').fill(EMAIL);
+      await page.locator('#authPassword').fill(MOT_DE_PASSE);
+      await page.locator('[data-action="signInWithEmail"]').click();
+      await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+      return { contexte, page };
+    };
+
+    const premiere = await ouvrirSession();
+    await premiere.page.evaluate(() => firebase.database().ref('sandbox').remove());
+
+    // Un mois avec une dette nette de 400 € : loyer de 800 avancé en entier,
+    // salaires égaux.
+    const mois = await premiere.page.evaluate(async () => {
+      const n = new Date();
+      const m = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+      const db = firebase.database();
+      await db.ref(`sandbox/periods/${m}/salaries`).set({ vous: 2000, conjointe: 2000 });
+      await db.ref(`sandbox/periods/${m}/fixedCharges`).push().set({
+        description: 'Loyer', amount: 800, paidBy: 'vous', category: 'Logement',
+        destination: 'Compte Commun', deleted: false, timestamp: Date.now()
+      });
+      return m;
+    });
+
+    const seconde = await ouvrirSession();
+    await Promise.all([
+      premiere.page.reload().then(() => premiere.page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 })),
+      seconde.page.reload().then(() => seconde.page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 }))
+    ]);
+
+    await expect(premiere.page.locator('#balanceBar')).toContainText('400,00', { timeout: 20000 });
+    await expect(seconde.page.locator('#balanceBar')).toContainText('400,00', { timeout: 20000 });
+
+    // La première ouvre la confirmation et la laisse à l'écran.
+    await premiere.page.locator('.btn-settle').click();
+    await expect(premiere.page.locator('#modalConfirmOk')).toBeVisible({ timeout: 10000 });
+
+    // La seconde règle entièrement pendant ce temps.
+    await seconde.page.locator('.btn-settle').click();
+    await seconde.page.locator('#modalConfirmOk').click();
+    await expect(seconde.page.locator('#balanceBar')).toContainText('quilibr', { timeout: 20000 });
+
+    // La première confirme un solde qui n'existe plus.
+    await premiere.page.locator('#modalConfirmOk').click();
+    await premiere.page.waitForTimeout(4000);
+
+    const reglements = await premiere.page.evaluate(async (m) => {
+      const snap = await firebase.database().ref(`sandbox/periods/${m}/reimbursements`).once('value');
+      return Object.values(snap.val() || {}).filter(r => !r.deleted).map(r => r.amount);
+    }, mois);
+
+    expect(reglements, `montants enregistrés : ${reglements.join(', ')}`).toEqual([400]);
+
+    await premiere.page.reload();
+    await premiere.page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+    await expect(premiere.page.locator('#balanceBar')).toContainText('quilibr', { timeout: 20000 });
+
+    await premiere.contexte.close();
+    await seconde.contexte.close();
+  });
 });
 
 /**

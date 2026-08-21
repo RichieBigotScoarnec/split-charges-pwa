@@ -160,6 +160,32 @@ export async function saveReimbursement() {
  * @returns {Promise<void>}
  */
 export async function settleBalance() {
+  // Un règlement enregistre un remboursement du montant exact du solde. Deux
+  // déclenchements -- un double clic, ou deux téléphones affichant le même
+  // solde -- en enregistrent deux : le solde bascule alors du même montant
+  // dans l'autre sens. Le verrou écarte le double clic ; la relecture du
+  // solde juste avant l'écriture réduit la fenêtre entre deux appareils.
+  if (reglementEnCours) {
+    log('💸 Règlement déjà en cours, second déclenchement ignoré');
+    return;
+  }
+  reglementEnCours = true;
+
+  try {
+    await reglerLeSolde();
+  } finally {
+    reglementEnCours = false;
+  }
+}
+
+/** Un règlement est-il déjà en cours dans cette session ? */
+let reglementEnCours = false;
+
+/**
+ * Corps du règlement, protégé par le verrou ci-dessus
+ * @returns {Promise<void>}
+ */
+async function reglerLeSolde() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');
@@ -188,6 +214,16 @@ export async function settleBalance() {
   if (!confirmed) return;
 
   try {
+    // Relire les remboursements avant d'écrire : l'autre personne a pu régler
+    // pendant que la confirmation était à l'écran. Le solde recalculé le dira.
+    await loadReimbursements();
+    const { balance: soldeFrais } = calculateSummary();
+
+    if (Math.abs(soldeFrais) < 0.01) {
+      toast.info("Le solde vient d'être réglé — rien à faire");
+      return;
+    }
+
     const { dbPush } = await import('../db.js');
 
     await dbPush(`periods/${currentPeriod}/reimbursements`, {

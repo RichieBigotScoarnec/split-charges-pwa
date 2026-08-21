@@ -95,9 +95,15 @@ export function applyMemberNames() {
  *
  * Un champ vide rétablit le libellé d'origine plutôt que d'imposer une saisie.
  *
+ * @param {string} _valeur - Valeur transmise par la délégation, inutilisée
+ * @param {HTMLElement} [element] - Champ à l'origine du changement
  * @returns {Promise<void>}
  */
-export async function saveMembers() {
+export async function saveMembers(_valeur, element = null) {
+  // La délégation `data-on-change` transmet la valeur et l'élément, jamais la
+  // clé : on la déduit de l'identifiant du champ.
+  const cleModifiee = CHAMPS.find(c => c.id === element?.id)?.cle ?? null;
+
   const saisis = {};
 
   for (const { id, cle } of CHAMPS) {
@@ -114,8 +120,11 @@ export async function saveMembers() {
   const noms = normalizeMembers(saisis);
 
   try {
-    const { dbSet } = await import('../db.js');
-    await dbSet(MEMBERS_PATH, saisis);
+    // N'écrire que le prénom modifié : réécrire les deux d'un bloc effaçait
+    // la saisie simultanée de l'autre personne, comme le faisaient les
+    // salaires.
+    const { dbUpdate } = await import('../db.js');
+    await dbUpdate(MEMBERS_PATH, cleModifiee ? { [cleModifiee]: saisis[cleModifiee] } : saisis);
     setState('members', noms);
 
     applyMemberNames();

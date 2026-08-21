@@ -1302,3 +1302,116 @@ test.describe('Corbeille sur tous les mois', () => {
       .toBeVisible({ timeout: 10000 });
   });
 });
+
+/**
+ * Écritures concurrentes.
+ *
+ * Plusieurs chemins réécrivaient un nœud entier : la seconde écriture
+ * emportait la première, sans le moindre signe. Le cas n'est pas théorique
+ * pour un couple qui renseigne l'application à deux, chacun sur son téléphone.
+ */
+test.describe('Écritures simultanées', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  test('régler le solde deux fois de suite n\'enregistre qu\'un règlement', async ({ page }) => {
+    // Un règlement enregistre un remboursement du montant du solde. Deux
+    // déclenchements le feraient basculer du même montant dans l'autre sens.
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Charge a regler');
+    await page.locator('#variableChargeAmount').fill('300');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#balanceBar')).toContainText('150,00', { timeout: 5000 });
+
+    await page.locator('.btn-settle').click();
+    await page.locator('#modalConfirmOk').click();
+    await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
+
+    // Un seul remboursement doit exister : deux le feraient passer à -150.
+    const nombre = await page.evaluate(() => {
+      const periode = document.getElementById('periodSelect').value;
+      const noeud = window.__db[`household/periods/${periode}/reimbursements`]
+        || window.__db[`sandbox/periods/${periode}/reimbursements`] || {};
+      return Object.values(noeud).filter(r => !r.deleted).length;
+    });
+    expect(nombre).toBe(1);
+  });
+
+  test('modifier un prénom n\'efface pas celui saisi ailleurs', async ({ page }) => {
+    // Les deux prénoms étaient réécrits d'un bloc. Le champ de l'autre personne
+    // n'existe que dans sa session à elle : celle-ci écrivait donc du vide
+    // par-dessus son prénom, sans jamais l'avoir vu.
+    await page.locator('#prenomVous').fill('Richard');
+    await page.locator('#prenomVous').blur();
+    await expect(page.locator('#labelSalaireVous')).toContainText('Richard', { timeout: 5000 });
+
+    // L'autre personne renseigne le sien, depuis son propre appareil.
+    await page.evaluate(() => {
+      const cle = Object.keys(window.__db).find(k => k.endsWith('/members'));
+      window.__db[cle] = { ...(window.__db[cle] || {}), conjointe: 'Cindy' };
+    });
+
+    // Cette session modifie à nouveau son prénom, sans avoir rechargé.
+    await page.locator('#prenomVous').fill('Richie');
+    await page.locator('#prenomVous').blur();
+    await expect(page.locator('#labelSalaireVous')).toContainText('Richie', { timeout: 5000 });
+    await page.waitForTimeout(1000);
+
+    const ecrits = await page.evaluate(() => {
+      const cle = Object.keys(window.__db).find(k => k.endsWith('/members'));
+      return window.__db[cle] || {};
+    });
+
+    expect(ecrits.vous).toBe('Richie');
+    expect(ecrits.conjointe, `membres en base : ${JSON.stringify(ecrits)}`).toBe('Cindy');
+  });
+
+  test("une catégorie ajoutée ailleurs survit à un ajout local", async ({ page }) => {
+    // Les listes étaient réécrites en entier : deux ajouts simultanés, et le
+    // second effaçait le premier. Ce test passe par l'interface réelle, et
+    // simule l'ajout de l'autre personne en écrivant directement en base
+    // pendant que cette session garde son ancienne vue.
+    await page.evaluate(() => window.showManageCategoriesModal());
+    await expect(page.locator('#manageNewLabel')).toBeVisible({ timeout: 5000 });
+
+    // L'autre personne ajoute une catégorie, que cette session n'a pas vue.
+    await page.evaluate(() => {
+      const racine = window.__db['sandbox/customCategories'] !== undefined ? 'sandbox' : 'household';
+      const actuelles = window.__db[`${racine}/customCategories`] || [];
+      window.__db[`${racine}/customCategories`] = [
+        ...actuelles,
+        { id: 'ajoutee-ailleurs', icon: '🛰️', label: 'Ajoutee ailleurs', color: '#888888' }
+      ];
+    });
+
+    await page.locator('#manageNewLabel').fill('Ajoutee ici');
+    await page.locator('#manageAddBtn').click();
+    await page.waitForTimeout(1500);
+
+    const finale = await page.evaluate(() => {
+      const racine = window.__db['sandbox/customCategories'] !== undefined ? 'sandbox' : 'household';
+      return window.__db[`${racine}/customCategories`] || [];
+    });
+
+    const libelles = finale.map(c => (c && typeof c === 'object' ? c.label : c));
+    const rendu = libelles.join(', ');
+
+    expect(libelles, `liste finale : ${rendu}`).toContain('Ajoutee ici');
+    expect(libelles, `liste finale : ${rendu}`).toContain('Ajoutee ailleurs');
+
+    // La fusion comparait des objets par référence : chaque entrée relue
+    // passait pour un ajout distant et la liste doublait à chaque
+    // enregistrement.
+    expect(new Set(libelles).size, `doublons dans : ${rendu}`).toBe(libelles.length);
+  });
+});
