@@ -56,6 +56,24 @@ isole les *données*, pas les droits. La racine est explicitement en
 `".read": false, ".write": false` : tout nœud non déclaré est inaccessible,
 y compris à un compte autorisé.
 
+Chaque espace décrit en outre ce qu'il accepte : types, longueurs et bornes
+sur chaque champ, format de période, et refus de tout nœud non déclaré. Sans
+ces `.validate`, un compte autorisé — ou un jeton dérobé, ou un onglet
+compromis — écrivait n'importe quelle structure, de n'importe quelle taille,
+à n'importe quel chemin. Les deux espaces portent le **même** schéma : le bac
+à sable éprouve donc réellement ce que le foyer subira
+(`tests/compte-bac-a-sable.test.js` verrouille cette égalité, et
+`tests/e2e/regles-donnees.spec.js` éprouve les règles contre le moteur réel
+de l'émulateur, dans les deux sens — ce que l'application écrit passe, le
+reste est refusé).
+
+Ces bornes sont larges à dessein : elles sont une limite d'abus, pas une règle
+de saisie. Une sauvegarde issue d'une version antérieure doit pouvoir être
+restaurée, et un champ inconnu reste accepté dans une charge tant qu'il s'agit
+d'une valeur simple et bornée. Un nœud hérité qui existerait encore en base
+doit en revanche être déclaré dans les règles avant qu'une restauration puisse
+le réécrire.
+
 Il n'y a **pas** de cloisonnement entre les deux comptes, et c'est délibéré :
 ils partagent un budget de foyer, donc le même jeu de données. Aucune
 configuration n'est requise — un compte autorisé se connecte et voit tout.
@@ -117,9 +135,11 @@ Firebase SDK et Leaflet sont chargés depuis un CDN avec attribut `integrity`
 ### 7. Validation des saisies
 
 [`js/utils/validation.js`](js/utils/validation.js) : bornes sur les montants
-(50 000 € par charge, 100 000 € par salaire), longueurs maximales, format de
-période. Ces contrôles préviennent les erreurs de saisie ; ils ne sont **pas**
-une frontière de sécurité, étant contournables côté client.
+(100 000 € par charge comme par salaire, cf. `LIMITS` dans
+[`js/config.js`](js/config.js)), longueurs maximales, format de période. Ces
+contrôles préviennent les erreurs de saisie ; ils ne sont **pas** une frontière
+de sécurité, étant contournables côté client. La frontière est celle des
+`.validate` décrites au point 3, dont les bornes sont plus larges.
 
 ---
 

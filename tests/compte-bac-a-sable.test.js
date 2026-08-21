@@ -102,6 +102,36 @@ describe('Les règles déployées couvrent le compte de test', () => {
     expect(regles['.write']).toBe(false);
   });
 
+  it('les deux espaces portent exactement le même schéma', () => {
+    // Le schéma de validation est écrit deux fois : les règles Realtime
+    // Database n'ont aucun mécanisme de réutilisation, et scinder l'accès des
+    // deux espaces derrière un joker rendrait la liste blanche — la partie qui
+    // compte — nettement moins lisible. La duplication est donc assumée, mais
+    // elle dérive dès qu'on l'oublie : un bac à sable plus permissif que le
+    // foyer n'éprouverait plus rien de ce que le foyer subira.
+    const schema = (espace) => {
+      const copie = { ...regles[espace] };
+      delete copie['.read'];
+      delete copie['.write'];
+      return copie;
+    };
+
+    expect(schema('sandbox')).toEqual(schema('household'));
+  });
+
+  it('chaque espace borne ce qu\'il accepte', () => {
+    // Sans .validate, un jeton dérobé écrivait n'importe quelle structure de
+    // n'importe quelle taille sous l'espace du foyer.
+    for (const espace of ['household', 'sandbox']) {
+      expect(regles[espace].periods.$periode.variableCharges.$id.description['.validate'])
+        .toMatch(/length <= \d+/);
+      expect(regles[espace].periods.$periode.variableCharges.$id.amount['.validate'])
+        .toMatch(/isNumber\(\)/);
+      // Tout nœud non déclaré est refusé : rien ne se plante à côté du schéma.
+      expect(regles[espace].$autre['.validate']).toBe(false);
+    }
+  });
+
   it('tout compte autorisé figure dans au moins une règle', () => {
     // Un compte dans ALLOWED_EMAILS mais absent des règles se connecterait
     // pour ne rien pouvoir lire — panne silencieuse difficile à diagnostiquer.
