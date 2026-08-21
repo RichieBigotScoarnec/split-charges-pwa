@@ -149,7 +149,12 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   // Le report suit la même convention de signe que le solde : positif, la
   // conjointe reste débitrice du mois précédent. Nul par défaut, l'ajout est
   // donc sans effet tant que le report n'est pas activé.
-  const finalBalance = ownBalance + carryOver;
+  // Arrondi au centime : l'argent n'a pas de sens en deçà, et le residu de
+  // virgule flottante en avait. Après un règlement de 728,89 sur un solde réel
+  // de 728,888…, il restait -0,0011 — assez pour que l'application annonce
+  // « Vous devez 0,00 € » et propose de régler une dette inexistante, en
+  // boucle.
+  const finalBalance = Math.round((ownBalance + carryOver) * 100) / 100;
 
   return {
     total: totalCharges,
