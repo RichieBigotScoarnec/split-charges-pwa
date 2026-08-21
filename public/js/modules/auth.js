@@ -380,8 +380,15 @@ export function initAuth() {
     updateAuthUI(user);
 
     // Set current user ID for multi-user database structure
-    const { setAuthenticatedUser } = await import('../db.js');
-    setAuthenticatedUser(user ? user.uid : null);
+    const { setAuthenticatedUser, getDataRoot } = await import('../db.js');
+    setAuthenticatedUser(user ? user.uid : null, user ? user.email : null);
+
+    // Un compte cantonné au bac à sable doit le voir à l'écran : l'URL ne le
+    // dit pas, et rien d'autre ne distingue un essai des vraies données.
+    if (user && getDataRoot() === 'sandbox') {
+      const { showSandboxBanner } = await import('../utils/sandbox-banner.js');
+      showSandboxBanner();
+    }
 
     // Initialize app data if user just logged in
     if (user && !appInitialized) {
@@ -438,15 +445,3 @@ export function initAuth() {
   log('🔐 Authentification initialisée');
 }
 
-/**
- * ✅ FIX CRITIQUE 2: Cleanup authentication listener
- * Call this when you need to explicitly remove the auth listener
- * (e.g., during app shutdown or hot module reload)
- */
-export function cleanupAuth() {
-  if (authUnsubscribe) {
-    authUnsubscribe();
-    authUnsubscribe = null;
-    log('[Auth] 🧹 Listener d\'authentification nettoyé');
-  }
-}

@@ -6,6 +6,9 @@ import { collectDeleted } from '../utils/soft-delete.js';
 import { refreshTrashButton } from './trash.js';
 import { refreshMapButton } from './map.js';
 import { invalidateTrends } from './trends.js';
+// Les règles de saisie vivent dans utils/validation.js : réécrites dans
+// chaque formulaire, elles avaient divergé.
+import { validateChargeAmount, validateChargeName } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
@@ -166,13 +169,15 @@ export async function saveVariableCharge() {
   }
 
   // Validation
-  if (!description || description.length > 100) {
-    toast.error('Description requise (max 100 caractères)');
+  const descriptionValide = validateChargeName(description);
+  if (!descriptionValide.valid) {
+    toast.error(descriptionValide.error);
     return;
   }
 
-  if (isNaN(amount) || amount <= 0 || amount > 100000) {
-    toast.error('Montant invalide (0-100000€)');
+  const montantValide = validateChargeAmount(amount);
+  if (!montantValide.valid) {
+    toast.error(montantValide.error);
     return;
   }
 

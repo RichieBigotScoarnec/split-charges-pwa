@@ -909,3 +909,40 @@
 #extraIncomeFields {
   margin-bottom: var(--space-sm);
 }
+
+/* ===== TOTAL D'UNE LISTE ===== */
+/*
+   Les trois listes calculaient déjà leur total et cherchaient où l'écrire :
+   #variableChargesTotal, #fixedChargesTotal et #reimbursementsTotal n'ont
+   jamais existé dans le HTML. Le chiffre était produit puis jeté.
+*/
+.list-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.list-total strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ===== ACTION EN LIGNE ===== */
+.btn-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary-color);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
