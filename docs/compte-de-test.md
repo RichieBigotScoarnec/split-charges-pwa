@@ -111,3 +111,33 @@ remède serait pire.
 La position retenue : ne rien rétrograder, et réexaminer quand `firebase-tools`
 publiera une version corrigeant ses dépendances transitives. Le point mérite
 d'être revu à chaque montée de version, pas ignoré.
+
+## Pourquoi `@playwright/test` est épinglé sans `^`
+
+Toutes les autres dépendances de développement acceptent une plage. Playwright
+non, et c'est délibéré.
+
+Ses navigateurs sont téléchargés **hors de npm**, dans un cache global, et
+chaque version de Playwright attend une révision précise. Une résolution de
+plage — un `npm install`, un `npm audit fix`, une mise à jour Dependabot —
+suffit à désynchroniser les deux, sans rien changer à `package.json`. Le
+symptôme est déroutant :
+
+```
+browserType.launch: Executable doesn't exist at …chromium_headless_shell-1234…
+```
+
+C'est arrivé : `npm audit fix`, lancé pour de tout autres paquets, a résolu
+`^1.62.1` vers une version plus récente et fait échouer six tests
+d'intégration sur un binaire absent. Rien à voir avec le code testé.
+
+Deux garde-fous :
+
+1. **La version est épinglée** : elle ne change que par une modification
+   explicite de `package.json`, visible dans un diff.
+2. **`pretest:e2e`** installe le navigateur correspondant avant chaque
+   `npm run test:e2e`. L'appel est idempotent — environ 2 s quand le
+   navigateur est déjà là, contre un échec incompréhensible sinon.
+
+La CI n'était pas concernée : elle installe depuis le verrou (`npm ci`) puis
+le navigateur. C'est le poste de développement qui manquait de garde.
