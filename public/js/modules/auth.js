@@ -6,7 +6,7 @@
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { ALLOWED_EMAILS, SIGNUP_ENABLED } from '../config.js';
+import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot } from '../config.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -407,6 +407,22 @@ export function initAuth() {
       warn('[Auth] ⛔ Accès refusé pour :', user.email);
       const authErrorEl = document.getElementById('authError');
       if (authErrorEl) authErrorEl.textContent = 'Accès non autorisé. Ce compte n\'est pas autorisé à utiliser cette application.';
+      await auth.signOut();
+      return;
+    }
+
+    // Adresse non vérifiée : les règles refusent l'espace du foyer, autant le
+    // dire ici. Sans ce contrôle, le compte s'authentifiait, l'interface
+    // s'ouvrait, et chaque lecture échouait ensuite une à une — « Chargement
+    // partiel » suivi de la liste des modules, pour une cause introuvable
+    // depuis l'écran. Le bac à sable n'est pas concerné : le compte de test
+    // s'authentifie par mot de passe et n'a pas d'adresse à prouver.
+    if (user && resolveDataRoot(user.email) === 'household' && user.emailVerified === false) {
+      warn('[Auth] ⛔ Adresse non vérifiée :', user.email);
+      const authErrorEl = document.getElementById('authError');
+      if (authErrorEl) {
+        authErrorEl.textContent = 'Adresse non vérifiée. Vérifiez votre adresse e-mail, ou connectez-vous avec Google.';
+      }
       await auth.signOut();
       return;
     }

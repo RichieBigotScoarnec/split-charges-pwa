@@ -102,6 +102,18 @@ describe('Les règles déployées couvrent le compte de test', () => {
     expect(regles['.write']).toBe(false);
   });
 
+  it('le foyer exige une adresse vérifiée, le bac à sable non', () => {
+    // L'adresse seule décidait de l'accès, alors que `accounts:signUp` reste
+    // joignable avec la clé publique du projet : un compte créé par cette API
+    // et revendiquant une adresse de la liste blanche entrait dans le foyer.
+    // Le bac à sable, lui, accueille le compte de test, qui s'authentifie par
+    // mot de passe sans adresse à prouver — l'y exiger le fermerait.
+    for (const droit of ['.read', '.write']) {
+      expect(regles.household[droit]).toContain('auth.token.email_verified === true');
+      expect(regles.sandbox[droit]).not.toContain('email_verified');
+    }
+  });
+
   it('les deux espaces portent exactement le même schéma', () => {
     // Le schéma de validation est écrit deux fois : les règles Realtime
     // Database n'ont aucun mécanisme de réutilisation, et scinder l'accès des

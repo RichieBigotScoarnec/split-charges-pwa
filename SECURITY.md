@@ -45,6 +45,24 @@ La vérification est doublée côté client dans [`js/config.js`](js/config.js)
 un compte non autorisé. **Cette seconde vérification est un confort d'interface,
 pas une protection** : seules les règles serveur font autorité.
 
+L'espace du foyer exige en outre `auth.token.email_verified`. Sans cette
+condition, l'adresse seule décidait de l'accès — or le fournisseur e-mail/mot
+de passe est actif et `accounts:signUp` reste joignable avec la clé publique du
+projet : `SIGNUP_ENABLED` masque un bouton, il ne ferme pas l'endpoint. Un
+compte créé par cette API porte `email_verified: false` et n'entre donc pas,
+même s'il revendique une adresse de la liste blanche. Les deux comptes du foyer
+passent par Google, dont les jetons portent toujours la revendication.
+
+Le bac à sable n'exige pas la vérification : le compte de test s'y authentifie
+par mot de passe, et n'a aucune adresse à prouver pour manipuler des données
+d'essai. C'est la seule différence entre les deux espaces — le schéma, lui, est
+identique.
+
+`auth.js` refuse également une adresse non vérifiée côté interface. Confort là
+encore, mais un confort qui compte : sans lui, le compte s'authentifiait,
+l'écran s'ouvrait, et chaque lecture échouait ensuite une à une sans que la
+cause apparaisse nulle part.
+
 > Ajouter un utilisateur impose donc de modifier `ALLOWED_EMAILS` **et**
 > `database.rules.json`, puis de redéployer les règles (`npm run deploy:rules`).
 
