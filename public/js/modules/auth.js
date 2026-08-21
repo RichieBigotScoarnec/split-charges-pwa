@@ -23,6 +23,7 @@ import { initMap, cleanupMap } from './map.js';
 import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { noter } from '../utils/diagnostics.js';
 
 let appInitialized = false;
 
@@ -248,11 +249,23 @@ function updateAuthUI(user) {
  * @param {string[]} failures - Accumulateur des étapes en échec
  */
 async function runStep(name, fn, failures) {
+  const debut = Date.now();
   try {
     await fn();
+    noter('init', `étape réussie : ${name}`, { ms: Date.now() - debut });
   } catch (error) {
     failures.push(name);
     logError(`❌ Étape « ${name} » échouée :`, error?.code || '', error?.message || error);
+    // Le bandeau rouge nomme bien les étapes en échec, mais il disparaît et
+    // personne ne le recopie. Le journal en garde la trace avec le motif — la
+    // seule chose qui permette de comprendre après coup, depuis un téléphone
+    // où la console est hors d'atteinte.
+    noter('init', `étape ÉCHOUÉE : ${name}`, {
+      ms: Date.now() - debut,
+      code: error?.code || undefined,
+      motif: error?.message || String(error),
+      origine: typeof error?.stack === 'string' ? error.stack.split('\n')[1]?.trim() : undefined
+    });
   }
 }
 

@@ -15,6 +15,7 @@ import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { exigerElement } from '../utils/diagnostics.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -42,20 +43,25 @@ export function showAddVariableChargeModal() {
 export function initVariableCharges() {
   log('📦 Initialisation module charges variables');
 
-  // Peupler le select catégorie dynamiquement
-  populateCategorySelect('variableChargeCategory');
-
-  // Listener sur le bouton d'ajout
-  const addBtn = document.getElementById('addVariableChargeBtn');
+  // Les écouteurs d'abord, le remplissage ensuite.
+  //
+  // L'ordre inverse coûtait le bouton : `populateCategorySelect` lève si la
+  // liste des catégories n'est pas exploitable, l'étape entière est rattrapée
+  // par `runStep`, et « + Ajouter » restait sans écouteur — un bouton bien
+  // visible sur lequel il ne se passait rien. Attacher d'abord garantit que
+  // l'action reste possible même si le reste de l'initialisation échoue.
+  const addBtn = exigerElement('addVariableChargeBtn', 'ouvrir l\'ajout de charge variable');
   if (addBtn) {
     addBtn.addEventListener('click', showAddVariableChargeModal);
   }
 
-  // Listener sur le formulaire de sauvegarde
-  const saveBtn = document.getElementById('saveVariableCharge');
+  const saveBtn = exigerElement('saveVariableCharge', 'enregistrer une charge variable');
   if (saveBtn) {
     saveBtn.addEventListener('click', saveVariableCharge);
   }
+
+  // Peupler le select catégorie dynamiquement
+  populateCategorySelect('variableChargeCategory');
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.showAddVariableChargeModal = showAddVariableChargeModal;
