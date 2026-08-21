@@ -116,6 +116,35 @@ header p {
 /* ===== BANDEAU BAC À SABLE ===== */
 /* Affiché uniquement avec ?sandbox=1 — repère permanent pour ne jamais
    confondre les données d'essai avec celles du foyer. */
+/*
+   Base injoignable — un bouclier de navigateur, un pare-feu, une coupure.
+   Rouge et non orange : ce n'est pas une information d'ambiance, c'est une
+   condition qui invalide la saisie en cours. Le bandeau se place sous celui du
+   bac à sable et reste visible au défilement, la panne ne cessant pas quand on
+   descend dans la page.
+*/
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 99998;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md);
+  background: var(--danger-color);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* Le message est long par nécessité : il doit nommer une cause à laquelle
+   personne ne penserait. Il reste lisible sans étirer la page. */
+.offline-banner > span:last-child {
+  max-width: 70ch;
+}
+
 .sandbox-banner {
   position: sticky;
   top: 0;

@@ -45,6 +45,22 @@
     <span aria-hidden="true">🧪</span> Bac à sable — données d'essai, isolées de celles du foyer
   </div>
 
+  <!--
+    Affiché quand la base reste injoignable, par js/utils/connection-banner.js.
+    Sans lui, un bouclier de navigateur produisait un écran vide parfaitement
+    crédible et des saisies perdues sans un mot. `role="alert"` : c'est une
+    condition qui invalide ce qu'on est en train de faire, pas une information
+    d'ambiance.
+  -->
+  <div id="offlineBanner" class="offline-banner" role="alert" hidden>
+    <span aria-hidden="true">⚠️</span>
+    <span>
+      <strong>Base de données injoignable</strong> — vos saisies ne sont pas enregistrées.
+      Un bloqueur de contenu (boucliers Brave, uBlock), une extension de confidentialité
+      ou un pare-feu peut en être la cause : essayez de désactiver la protection pour ce site.
+    </span>
+  </div>
+
   <!-- Authentication Overlay -->
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card">
