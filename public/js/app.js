@@ -12,6 +12,7 @@ import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
 import { initAuth } from './modules/auth.js';
 import { log, error as logError } from './utils/debug.js';
+import { initDiagnostics, noter } from './utils/diagnostics.js';
 
 // Modules migrated (initialized by auth.js after login):
 // - period.js (Étape 3c) ✅
@@ -27,6 +28,11 @@ import { log, error as logError } from './utils/debug.js';
  * Initialize the application
  */
 async function initApp() {
+  // Ouvert en tout premier : ce qu'on cherche à comprendre s'est produit
+  // pendant l'initialisation, et une panne d'appareil ne se raconte pas.
+  initDiagnostics();
+  noter('demarrage', `FairSplit ${VERSION}`);
+
   log(`🚀 FairSplit ${VERSION} — espace « ${DATA_ROOT} »`);
 
   // Repère permanent : sans lui, rien ne distingue un essai des vraies données.

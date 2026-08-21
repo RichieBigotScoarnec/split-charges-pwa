@@ -242,8 +242,8 @@ export async function setupFirebaseMock(page) {
   await page.addInitScript(REACTIVE_FIREBASE_MOCK);
 }
 
-export async function waitForApp(page) {
-  await page.goto('/FairSplit.html');
+export async function waitForApp(page, { query = '' } = {}) {
+  await page.goto(`/FairSplit.html${query}`);
   await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
   await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
 }

@@ -15,6 +15,7 @@ import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { exigerElement } from '../utils/diagnostics.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -44,21 +45,22 @@ export function showAddFixedChargeModal() {
 export function initFixedCharges() {
   log('📦 Initialisation module charges fixes');
 
-  // Peupler les selects catégorie et destination dynamiquement
-  populateCategorySelect('fixedChargeCategory');
-  populateDestinationSelect('fixedChargeDestination');
-
-  // Listener sur le bouton d'ajout
-  const addBtn = document.getElementById('addFixedChargeBtn');
+  // Les écouteurs avant tout remplissage : si `populateCategorySelect` lève,
+  // l'étape entière est rattrapée par `runStep` et le bouton « + Ajouter »
+  // resterait sans écouteur, visible mais inerte.
+  const addBtn = exigerElement('addFixedChargeBtn', 'ouvrir l\'ajout de charge fixe');
   if (addBtn) {
     addBtn.addEventListener('click', showAddFixedChargeModal);
   }
 
-  // Listener sur le formulaire de sauvegarde
-  const saveBtn = document.getElementById('saveFixedCharge');
+  const saveBtn = exigerElement('saveFixedCharge', 'enregistrer une charge fixe');
   if (saveBtn) {
     saveBtn.addEventListener('click', saveFixedCharge);
   }
+
+  // Peupler les selects catégorie et destination dynamiquement
+  populateCategorySelect('fixedChargeCategory');
+  populateDestinationSelect('fixedChargeDestination');
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.showAddFixedChargeModal = showAddFixedChargeModal;

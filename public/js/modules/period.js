@@ -14,6 +14,7 @@ import { loadFixedCharges } from './fixed-charges.js';
 import { loadReimbursements } from './reimbursements.js';
 import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { exigerElement } from '../utils/diagnostics.js';
 
 /**
  * Populate period dropdown with last 12 months
@@ -394,25 +395,32 @@ export function initPeriod() {
   const currentPeriod = getCurrentPeriod();
   setState('currentPeriod', currentPeriod);
 
-  // Populate dropdown
-  populatePeriodDropdown();
-
-  // Setup event listeners
-  const periodSelect = document.getElementById('periodSelect');
+  // Les écouteurs d'abord, le remplissage du sélecteur ensuite.
+  //
+  // L'ordre inverse liait deux pannes qui semblaient distinctes : si
+  // `populatePeriodDropdown` lève, l'étape entière est rattrapée par
+  // `runStep`, et les champs de revenus n'ont jamais reçu leur écouteur. On
+  // observait alors une liste de mois vide *et* des salaires qui ne
+  // s'enregistrent pas — deux symptômes, une seule cause. Attacher d'abord
+  // rend chaque panne indépendante et bien plus lisible.
+  const periodSelect = exigerElement('periodSelect', 'changer de mois');
   if (periodSelect) {
     periodSelect.addEventListener('change', changePeriod);
   }
 
   // Les quatre champs de revenus déclenchent la même sauvegarde.
   for (const champ of CHAMPS_REVENUS) {
-    const input = document.getElementById(champ.id);
+    const input = exigerElement(champ.id, `enregistrer ${champ.libelle}`);
     // Le champ modifié est transmis : n'écrire que lui évite d'écraser la
     // saisie simultanée de l'autre personne.
     if (input) input.addEventListener('change', () => saveSalaries(champ.cle));
   }
 
-  const bascule = document.getElementById('extraIncomeToggle');
+  const bascule = exigerElement('extraIncomeToggle', 'afficher les revenus complémentaires');
   if (bascule) bascule.addEventListener('click', toggleExtraIncome);
+
+  // Populate dropdown
+  populatePeriodDropdown();
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.changePeriod = changePeriod;

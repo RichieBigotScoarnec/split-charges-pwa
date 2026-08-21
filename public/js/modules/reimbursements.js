@@ -14,6 +14,7 @@ import { showModal, closeModal, showConfirmModal } from '../components/modal.js'
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { exigerElement } from '../utils/diagnostics.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -32,13 +33,13 @@ export function initReimbursements() {
   log('📦 Initialisation module remboursements');
 
   // Listener sur le bouton d'ajout
-  const addBtn = document.getElementById('addReimbursementBtn');
+  const addBtn = exigerElement('addReimbursementBtn', 'ouvrir l\'ajout de remboursement');
   if (addBtn) {
     addBtn.addEventListener('click', showAddReimbursementModal);
   }
 
   // Listener sur le formulaire de sauvegarde
-  const saveBtn = document.getElementById('saveReimbursement');
+  const saveBtn = exigerElement('saveReimbursement', 'enregistrer un remboursement');
   if (saveBtn) {
     saveBtn.addEventListener('click', saveReimbursement);
   }
