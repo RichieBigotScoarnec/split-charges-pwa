@@ -93,6 +93,26 @@ const REACTIVE_FIREBASE_MOCK = `
               return Promise.resolve();
             },
             update: function(data) {
+              // Écriture multi-chemins depuis la racine : Realtime Database
+              // interprète alors chaque clé comme un chemin absolu, et applique
+              // l'ensemble de façon atomique. Ce double l'ignorait, si bien que
+              // toute fonctionnalité écrivant plusieurs nœuds d'un coup —
+              // la reconduction, notamment — restait invisible aux tests.
+              if (!path) {
+                Object.keys(data).forEach(function(chemin) {
+                  window.__db[chemin] = data[chemin];
+                  var s = chemin.split('/');
+                  var parent = s.slice(0, -1).join('/');
+                  var cle = s[s.length - 1];
+                  if (window.__db[parent] && typeof window.__db[parent] === 'object') {
+                    window.__db[parent][cle] = data[chemin];
+                  }
+                  _notify(chemin);
+                  _notify(parent);
+                });
+                return Promise.resolve();
+              }
+
               if (typeof window.__db[path] !== 'object' || window.__db[path] === null) {
                 window.__db[path] = {};
               }
@@ -1282,5 +1302,119 @@ test.describe('Budgets par catégorie', () => {
 
     await fixerBudget(page, 'Courses', '');
     await expect(page.locator('#categoryAnalysisContent')).toContainText('Aucun budget défini', { timeout: 5000 });
+  });
+});
+
+// ============================================================
+// Reconduction automatique des charges récurrentes
+// ============================================================
+/*
+   Les charges fixes portaient déjà un indicateur « récurrente », activé par
+   défaut, et le code savait les recopier — mais rien ne déclenchait jamais la
+   copie. Chaque mois, il fallait ressaisir le loyer.
+*/
+test.describe('Charges récurrentes', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /** Ajoute une charge fixe dans le mois affiché */
+  async function chargeFixe(page, description, montant, { recurrente = true } = {}) {
+    await page.locator('#addFixedChargeBtn').click();
+    await page.locator('#fixedChargeDescription').fill(description);
+    await page.locator('#fixedChargeAmount').fill(String(montant));
+    await page.locator('#fixedChargeCategory').selectOption({ index: 1 });
+    await page.locator('#fixedChargePaidBy').selectOption('vous');
+    if (!recurrente) {
+      // La case est masquée derrière un curseur : c'est lui que l'utilisateur
+      // actionne, et le seul élément cliquable.
+      await page.locator('#fixedChargeRecurring + .toggle-slider').click();
+      await expect(page.locator('#fixedChargeRecurring')).not.toBeChecked();
+    }
+    await page.locator('#saveFixedCharge').click();
+    await expect(page.locator('#fixedChargesList').getByText(description)).toBeVisible({ timeout: 5000 });
+  }
+
+  const versMoisPrecedent = (page) => page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+  const versMoisSuivant = (page) => page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+
+  test('une charge récurrente du mois passé arrive dans le mois courant', async ({ page }) => {
+    await versMoisPrecedent(page);
+    await chargeFixe(page, 'Loyer', 800);
+
+    await versMoisSuivant(page);
+
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.toast').last()).toContainText(/reconduite/, { timeout: 5000 });
+  });
+
+  test('une charge ponctuelle ne suit pas', async ({ page }) => {
+    await versMoisPrecedent(page);
+    await chargeFixe(page, 'Loyer', 800);
+    await chargeFixe(page, 'Reparation chaudiere', 350, { recurrente: false });
+
+    await versMoisSuivant(page);
+
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#fixedChargesList').getByText('Reparation chaudiere')).toHaveCount(0);
+  });
+
+  test('une charge reconduite puis supprimée ne revient pas', async ({ page }) => {
+    // Sans empreinte de reconduction, elle réapparaîtrait à chaque ouverture
+    // du mois : le mois serait impossible à corriger.
+    await versMoisPrecedent(page);
+    await chargeFixe(page, 'Loyer', 800);
+    await versMoisSuivant(page);
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('#fixedChargesList .btn-delete').first().click();
+    await page.locator('#modalConfirmOk').click();
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0, { timeout: 5000 });
+
+    // Aller-retour : le mois est rouvert
+    await versMoisPrecedent(page);
+    await versMoisSuivant(page);
+
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
+  });
+
+  test('la reconduction ne se rejoue pas et ne duplique rien', async ({ page }) => {
+    await versMoisPrecedent(page);
+    await chargeFixe(page, 'Loyer', 800);
+    await versMoisSuivant(page);
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(1, { timeout: 5000 });
+
+    await versMoisPrecedent(page);
+    await versMoisSuivant(page);
+
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(1);
+  });
+
+  test('un mois déjà garni à la main n\'est pas complété', async ({ page }) => {
+    await chargeFixe(page, 'Saisie manuelle', 100);
+
+    await versMoisPrecedent(page);
+    await chargeFixe(page, 'Loyer', 800);
+    await versMoisSuivant(page);
+
+    await expect(page.locator('#fixedChargesList').getByText('Saisie manuelle')).toBeVisible();
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
+  });
+
+  test('ouvrir un mois ancien et vide n\'y déverse rien', async ({ page }) => {
+    // Une consultation n'est pas une reprise d'activité : reconduire vers le
+    // passé réécrirait l'histoire.
+    await versMoisPrecedent(page);
+    await chargeFixe(page, 'Loyer', 800);
+
+    await versMoisPrecedent(page);
+
+    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
   });
 });

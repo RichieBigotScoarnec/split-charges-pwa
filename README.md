@@ -32,7 +32,8 @@ changer le mode des autres.
 | **Remboursements** | Suivi des transferts entre les deux personnes, intégrés au solde |
 | **Règlement** | Solder le mois en une action : le montant exact, dans le bon sens, depuis la barre de solde |
 | **Report** | Option : un mois non réglé reste dû le mois suivant au lieu de repartir de zéro |
-| **Périodes** | Navigation mensuelle, reconduction des charges fixes récurrentes d'un mois sur l'autre |
+| **Périodes** | Navigation mensuelle |
+| **Reconduction** | Les charges fixes marquées récurrentes sont reprises d'elles-mêmes à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé |
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
 | **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
 | **Analyse** | Répartition par catégorie, tendances sur 6 mois |
