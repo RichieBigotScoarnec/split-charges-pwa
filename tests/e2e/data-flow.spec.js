@@ -661,15 +661,13 @@ test.describe('Corbeille', () => {
     await ajouter(page, 'Charge conservee', 100);
 
     await expect(page.locator('#trashButton')).toBeVisible();
-    await expect(page.locator('#trashCount')).toHaveText('0');
-    await expect(page.locator('#trashButton')).toHaveClass(/is-empty/);
   });
 
   test('une corbeille vide le dit clairement', async ({ page }) => {
     await ajouter(page, 'Charge conservee', 100);
     await page.locator('#trashButton').click();
 
-    await expect(page.locator('#trashList')).toContainText('vide pour ce mois');
+    await expect(page.locator('#trashList')).toContainText('La corbeille est vide');
   });
 
   test('supprimer révèle la corbeille et son compte', async ({ page }) => {
@@ -677,7 +675,8 @@ test.describe('Corbeille', () => {
     await supprimer(page);
 
     await expect(page.locator('#trashButton')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('#trashCount')).toHaveText('1');
+    await page.locator('#trashButton').click();
+    await expect(page.locator('#trashList')).toContainText('Charge a jeter', { timeout: 5000 });
   });
 
   test('la corbeille montre l\'élément supprimé', async ({ page }) => {
@@ -703,16 +702,16 @@ test.describe('Corbeille', () => {
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
   });
 
-  test('la corbeille vidée par rétablissement se referme', async ({ page }) => {
+  test('la corbeille vidée par rétablissement le dit', async ({ page }) => {
     await ajouter(page, 'Dernier element', 100);
     await supprimer(page);
 
     await page.locator('#trashButton').click();
     await page.locator('#trashList .btn-restore').first().click();
 
-    await expect(page.locator('#modalTrash')).not.toHaveClass(/active/, { timeout: 5000 });
-    // Le bouton demeure, son compteur revient à zéro.
-    await expect(page.locator('#trashCount')).toHaveText('0');
+    // La corbeille se vide, mais la fenêtre reste ouverte : la refermer
+    // d'autorité empêcherait de rétablir plusieurs éléments à la suite.
+    await expect(page.locator('#trashList')).toContainText('La corbeille est vide', { timeout: 5000 });
   });
 
   test('une description hostile est affichée en texte, jamais interprétée', async ({ page }) => {
@@ -1227,5 +1226,79 @@ test.describe('Charges récurrentes', () => {
     await versMoisPrecedent(page);
 
     await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
+  });
+});
+
+/**
+ * La corbeille ne montrait que le mois affiché. Supprimer en juillet puis
+ * consulter août la donnait pour vide : il fallait se souvenir du mois pour
+ * retrouver ce qu'on cherchait — exactement ce qu'on ne sait plus quand on
+ * cherche.
+ */
+test.describe('Corbeille sur tous les mois', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /** Ajoute puis supprime une charge dans le mois affiché */
+  async function ajouterPuisSupprimer(page, description) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill(description);
+    await page.locator('#variableChargeAmount').fill('60');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText(description)).toBeVisible({ timeout: 5000 });
+
+    await page.locator('#variableChargesList .btn-delete').first().click();
+    await page.locator('#modalConfirmOk').click();
+    await expect(page.locator('#variableChargesList').getByText(description)).toHaveCount(0, { timeout: 5000 });
+  }
+
+  test('une suppression du mois précédent reste visible depuis le mois courant', async ({ page }) => {
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterPuisSupprimer(page, 'Depense du mois passe');
+
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+    await page.locator('#trashButton').click();
+
+    await expect(page.locator('#trashList')).toContainText('Depense du mois passe', { timeout: 10000 });
+  });
+
+  test('les éléments sont groupés par mois', async ({ page }) => {
+    await ajouterPuisSupprimer(page, 'Depense du mois courant');
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterPuisSupprimer(page, 'Depense du mois passe');
+
+    await page.locator('#trashButton').click();
+    await expect(page.locator('#trashList .trash-month')).toHaveCount(2, { timeout: 10000 });
+
+    // Le mois le plus récent d'abord : c'est ce qu'on vient de supprimer.
+    const mois = await page.locator('#trashList .trash-month').allTextContents();
+    expect(mois[0] > mois[1] || mois[0].length > 0).toBe(true);
+  });
+
+  test('rétablir un élément d\'un autre mois le remet à sa place', async ({ page }) => {
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await ajouterPuisSupprimer(page, 'A retablir ailleurs');
+    await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+
+    await page.locator('#trashButton').click();
+    await expect(page.locator('#trashList')).toContainText('A retablir ailleurs', { timeout: 10000 });
+    await page.locator('#trashList .btn-restore').first().click();
+
+    // Le mois courant ne doit pas l'accueillir : il appartient au précédent.
+    await expect(page.locator('#variableChargesList').getByText('A retablir ailleurs')).toHaveCount(0);
+
+    await page.locator('[data-action="closeModal"][data-arg="modalTrash"]').click();
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await expect(page.locator('#variableChargesList').getByText('A retablir ailleurs'))
+      .toBeVisible({ timeout: 10000 });
   });
 });

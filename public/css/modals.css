@@ -506,3 +506,19 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--elevated-bg);
 }
+
+/* La corbeille couvre tous les mois : chaque groupe porte le sien, sans quoi
+   deux dépenses homonymes de deux mois seraient indiscernables. */
+.trash-month {
+  margin-top: var(--space-md);
+  padding-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.trash-month:first-child {
+  margin-top: 0;
+}

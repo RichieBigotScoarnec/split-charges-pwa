@@ -219,9 +219,11 @@
           <span aria-hidden="true">💾</span> Sauvegarde
         </button>
         <!-- Toujours visible : masqué, on le cherchait sans savoir s'il avait
-             disparu ou n'avait jamais existé. Le compteur dit ce qu'il contient. -->
-        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés ce mois-ci">
-          <span aria-hidden="true">🗑️</span> Corbeille (<span id="trashCount">0</span>)
+             disparu ou n'avait jamais existé. Sans compteur : la corbeille
+             couvre tout l'historique, un nombre qui ne ferait que croître
+             n'apprendrait rien. -->
+        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés, tous mois confondus">
+          <span aria-hidden="true">🗑️</span> Corbeille
         </button>
       </div>
     </div>
@@ -638,7 +640,7 @@
   <div id="modalTrash" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTrashTitle">
     <div class="modal">
       <h2 class="modal-header" id="modalTrashTitle">Corbeille du mois</h2>
-      <p class="modal-hint">Ces éléments ne sont plus comptés dans le bilan. Ils restent récupérables.</p>
+      <p class="modal-hint">Tout ce qui a été supprimé, quel que soit le mois. Ces éléments ne sont plus comptés dans les bilans et restent récupérables.</p>
       <div id="trashList" class="trash-list"></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalTrash">Fermer</button>
