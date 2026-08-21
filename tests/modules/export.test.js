@@ -16,7 +16,7 @@ global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = vi.fn();
 
 import { getState, setState, resetState } from '../../public/js/state.js';
-import { exportToCSV } from '../../public/js/modules/export.js';
+import { exportToCSV, exportToPDF, champCsv } from '../../public/js/modules/export.js';
 import { toast } from '../../public/js/components/toast.js';
 
 beforeEach(() => {
@@ -198,6 +198,116 @@ describe('exportToCSV — remboursements', () => {
     ]);
     exportToCSV();
     expect(capturedCSV).not.toContain('REMBOURSEMENTS');
+  });
+});
+
+// ===== Sûreté des cellules =====
+describe('champCsv — cellules sûres à l\'ouverture', () => {
+  it('double les guillemets du contenu', () => {
+    // Sans cela le champ se refermait au premier guillemet et décalait toutes
+    // les colonnes suivantes.
+    expect(champCsv('Restaurant "Le Bistrot"')).toBe('"Restaurant ""Le Bistrot"""');
+  });
+
+  it('neutralise une formule de tableur', () => {
+    for (const amorce of ['=', '+', '-', '@']) {
+      expect(champCsv(`${amorce}HYPERLINK("http://exemple")`)).toMatch(/^"'/);
+    }
+  });
+
+  it('laisse un texte ordinaire intact', () => {
+    expect(champCsv('Courses Leclerc')).toBe('"Courses Leclerc"');
+  });
+
+  it('absence de valeur → cellule vide', () => {
+    expect(champCsv(null)).toBe('""');
+    expect(champCsv(undefined)).toBe('""');
+  });
+});
+
+describe('exportToCSV — descriptions hostiles', () => {
+  beforeEach(() => {
+    setState('currentPeriod', '2026-03');
+    setState('salaries', { vous: 3000, conjointe: 2000 });
+  });
+
+  it('une description-formule ressort en texte', () => {
+    setState('variableCharges', [
+      { id: 'c1', description: '=cmd|calc', amount: 10, category: 'Autre', paidBy: 'vous' }
+    ]);
+
+    exportToCSV();
+
+    expect(capturedCSV).toContain('"\'=cmd|calc"');
+    expect(capturedCSV).not.toContain('"=cmd|calc"');
+  });
+
+  it('un montant non numérique ne passe pas en cellule brute', () => {
+    setState('variableCharges', [
+      { id: 'c1', description: 'Courses', amount: '=1+1', category: 'Autre', paidBy: 'vous' }
+    ]);
+
+    exportToCSV();
+
+    expect(capturedCSV).not.toContain('=1+1');
+  });
+});
+
+// ===== Relevé imprimable =====
+describe('exportToPDF — fenêtre d\'impression', () => {
+  let htmlEcrit;
+  let fenetre;
+
+  beforeEach(() => {
+    htmlEcrit = '';
+    fenetre = {
+      document: {
+        write: (contenu) => { htmlEcrit = contenu; },
+        close: vi.fn(),
+        getElementById: vi.fn(() => ({ addEventListener: vi.fn() }))
+      },
+      print: vi.fn()
+    };
+    window.open = vi.fn(() => fenetre);
+
+    setState('currentPeriod', '2026-03');
+    setState('salaries', { vous: 3000, conjointe: 2000 });
+    setState('members', { vous: '<img src=x onerror=alert(1)>', conjointe: 'Cindy' });
+  });
+
+  it('fenêtre bloquée → message explicite, rien d\'écrit', () => {
+    window.open = vi.fn(() => null);
+
+    exportToPDF();
+
+    expect(toast.error).toHaveBeenCalled();
+    expect(htmlEcrit).toBe('');
+  });
+
+  it('le relevé porte sa propre politique de sécurité', () => {
+    // La page principale pose la sienne en balise meta ; un document écrit
+    // dans une fenêtre vierge n'en hérite pas de façon garantie.
+    exportToPDF();
+
+    expect(htmlEcrit).toContain('Content-Security-Policy');
+    expect(htmlEcrit).toContain("default-src 'none'");
+  });
+
+  it('aucun gestionnaire d\'événement inline', () => {
+    exportToPDF();
+
+    expect(htmlEcrit).not.toContain('onclick=');
+  });
+
+  it('un prénom porteur de balisage est échappé', () => {
+    setState('variableCharges', [
+      { id: 'c1', description: 'Courses', amount: 10, category: 'Autre', paidBy: 'vous' }
+    ]);
+
+    exportToPDF();
+
+    expect(htmlEcrit).not.toContain('<img src=x');
+    expect(htmlEcrit).toContain('&lt;img src=x');
   });
 });
 
