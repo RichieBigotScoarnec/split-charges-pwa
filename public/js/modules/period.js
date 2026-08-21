@@ -231,7 +231,7 @@ function restoreIncomeFields() {
  *
  * @returns {Promise<void>}
  */
-export async function saveSalaries() {
+export async function saveSalaries(cleModifiee = null) {
   const indicator = document.getElementById('salariesSaveIndicator');
 
   const { revenus, erreur } = readIncomeFields();
@@ -246,22 +246,32 @@ export async function saveSalaries() {
   }
 
   try {
-    const { dbSet } = await import('../db.js');
-
     // Repli sur le mois calendaire : l'écran principal s'affiche dès la
     // réussite de l'authentification, avant qu'initPeriod() ait renseigné
     // l'état. Une saisie de salaire dans cet intervalle écrivait sous
     // `periods/undefined/salaries` et était perdue au rechargement.
     const currentPeriod = getState('currentPeriod') || getCurrentPeriod();
 
+    // N'écrire que le champ modifié.
+    //
+    // L'instantané était réécrit en entier à chaque saisie : si l'un renseigne
+    // son salaire pendant que l'autre renseigne le sien, la seconde écriture
+    // emportait la première — sans le moindre signe. Une mise à jour partielle
+    // ne touche que la clé concernée.
+    const aEcrire = cleModifiee
+      ? { [cleModifiee]: revenus[cleModifiee] }
+      : revenus;
+
+    const { dbUpdate } = await import('../db.js');
+
     // L'instantané de la période consultée fait toujours foi pour son calcul.
-    await dbSet(`periods/${currentPeriod}/salaries`, revenus);
+    await dbUpdate(`periods/${currentPeriod}/salaries`, aEcrire);
 
     // Les revenus globaux ne suivent que si l'on édite le mois en cours :
     // corriger un mois archivé ne doit pas redéfinir la valeur par défaut des
     // mois suivants.
     if (currentPeriod === getCurrentPeriod()) {
-      await dbSet('salaries', revenus);
+      await dbUpdate('salaries', aEcrire);
     }
 
     setState('salaries', revenus);
@@ -396,7 +406,9 @@ export function initPeriod() {
   // Les quatre champs de revenus déclenchent la même sauvegarde.
   for (const champ of CHAMPS_REVENUS) {
     const input = document.getElementById(champ.id);
-    if (input) input.addEventListener('change', saveSalaries);
+    // Le champ modifié est transmis : n'écrire que lui évite d'écraser la
+    // saisie simultanée de l'autre personne.
+    if (input) input.addEventListener('change', () => saveSalaries(champ.cle));
   }
 
   const bascule = document.getElementById('extraIncomeToggle');

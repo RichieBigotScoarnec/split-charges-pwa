@@ -38,7 +38,7 @@ vi.mock('../../public/js/utils/date.js', () => ({
 import { getState, setState, resetState } from '../../public/js/state.js';
 import { saveSalaries } from '../../public/js/modules/period.js';
 import { toast } from '../../public/js/components/toast.js';
-import { dbSet } from '../../public/js/db.js';
+import { dbUpdate } from '../../public/js/db.js';
 
 function setupDOM(vousValue = '3000', conjointeValue = '2000') {
   document.body.innerHTML = `
@@ -97,16 +97,40 @@ describe('saveSalaries — valeurs valides', () => {
     expect(sal.conjointe).toBe(100000);
   });
 
-  it('valides → dbSet appelé', async () => {
+  it('sans champ précisé, les quatre valeurs sont écrites', async () => {
     setupDOM('2000', '3000');
     await saveSalaries();
 
-    // L'instantané porte désormais les quatre champs de revenus. Les champs
+    // L'instantané porte les quatre champs de revenus. Les champs
     // complémentaires, absents du DOM de ce test, valent zéro — ce qui vérifie
     // qu'un écran sans ces champs continue d'enregistrer correctement.
     const attendu = { vous: 2000, conjointe: 3000, extraVous: 0, extraConjointe: 0 };
-    expect(dbSet).toHaveBeenCalledWith('salaries', attendu);
-    expect(dbSet).toHaveBeenCalledWith('periods/2026-03/salaries', attendu);
+    expect(dbUpdate).toHaveBeenCalledWith('salaries', attendu);
+    expect(dbUpdate).toHaveBeenCalledWith('periods/2026-03/salaries', attendu);
+  });
+
+  it("un seul champ modifié n'écrit que celui-là", async () => {
+    // L'instantané était réécrit en entier : si l'un renseigne son salaire
+    // pendant que l'autre renseigne le sien, la seconde écriture emportait la
+    // première, sans le moindre signe.
+    setupDOM('2000', '3000');
+    await saveSalaries('vous');
+
+    expect(dbUpdate).toHaveBeenCalledWith('periods/2026-03/salaries', { vous: 2000 });
+    expect(dbUpdate).not.toHaveBeenCalledWith(
+      'periods/2026-03/salaries',
+      expect.objectContaining({ conjointe: expect.anything() })
+    );
+  });
+
+  it("modifier le salaire de l'un ne touche pas celui de l'autre", async () => {
+    setupDOM('2000', '3000');
+    await saveSalaries('conjointe');
+
+    const ecritures = dbUpdate.mock.calls.map(([, valeur]) => valeur);
+    for (const e of ecritures) {
+      expect(Object.keys(e)).toEqual(['conjointe']);
+    }
   });
 
   it('valides → pas de toast.error', async () => {
@@ -140,7 +164,7 @@ describe('saveSalaries — valeur texte invalide', () => {
   it('texte invalide → dbSet non appelé', async () => {
     setupDOM('abc', '2000');
     await saveSalaries();
-    expect(dbSet).not.toHaveBeenCalled();
+    expect(dbUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -161,7 +185,7 @@ describe('saveSalaries — valeurs négatives', () => {
   it('valeur négative → dbSet non appelé', async () => {
     setupDOM('-100', '2000');
     await saveSalaries();
-    expect(dbSet).not.toHaveBeenCalled();
+    expect(dbUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -182,6 +206,6 @@ describe('saveSalaries — dépassement max (100 000€)', () => {
   it('dépassement → dbSet non appelé', async () => {
     setupDOM('999999', '2000');
     await saveSalaries();
-    expect(dbSet).not.toHaveBeenCalled();
+    expect(dbUpdate).not.toHaveBeenCalled();
   });
 });

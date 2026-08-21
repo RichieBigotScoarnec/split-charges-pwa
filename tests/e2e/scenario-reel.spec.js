@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 /**
@@ -557,5 +558,100 @@ test.describe('Contre le vrai Firebase', () => {
       .locator('.btn-delete').click();
     await page.locator('#modalConfirmOk').click();
     await expect(page.locator('#variableChargesList').getByText(repere)).toHaveCount(0, { timeout: 15000 });
+  });
+});
+
+/**
+ * Aller-retour complet d'une sauvegarde, contre le vrai Firebase.
+ *
+ * Les tests existants vérifient qu'un mauvais fichier est refusé et que la
+ * copie de sécurité part avant l'écrasement. Aucun ne vérifiait que les
+ * données reviennent — c'est pourtant la seule chose que la fonctionnalité
+ * promet, et son échec ne se découvrirait qu'au pire moment.
+ */
+test.describe('Sauvegarde et restauration, aller-retour réel', () => {
+  test.skip(!MOT_DE_PASSE, 'FAIRSPLIT_TEST_PASSWORD absent — voir docs/compte-de-test.md');
+  test.setTimeout(240000);
+
+  test('une sauvegarde restaurée rend exactement les données', async ({ page }) => {
+    const erreurs = [];
+    page.on('pageerror', e => erreurs.push(e.message));
+
+    await page.goto('/FairSplit.html');
+    await page.locator('#authEmail').fill(EMAIL);
+    await page.locator('#authPassword').fill(MOT_DE_PASSE);
+    await page.locator('[data-action="signInWithEmail"]').click();
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+
+    await page.evaluate(() => firebase.database().ref('sandbox').remove());
+    await page.reload();
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+
+    let sauvegarde;
+
+    await test.step('constituer un état, puis le sauvegarder', async () => {
+      await page.locator('#salaireVous').fill('2600');
+      await page.locator('#salaireVous').blur();
+      await page.locator('#salaireConjointe').fill('1900');
+      await page.locator('#salaireConjointe').blur();
+      await page.waitForTimeout(1500);
+
+      await page.locator('#addVariableChargeBtn').click();
+      await page.locator('#variableChargeDescription').fill('Depense a retrouver');
+      await page.locator('#variableChargeAmount').fill('137.50');
+      await page.locator('#variableChargeCategory').selectOption({ index: 1 });
+      await page.locator('#variableChargePaidBy').selectOption('vous');
+      await page.locator('#saveVariableCharge').click();
+      await expect(page.locator('#variableChargesList').getByText('Depense a retrouver'))
+        .toBeVisible({ timeout: 15000 });
+
+      await page.locator('[data-action="showBackup"]').click();
+      const [fichier] = await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('[data-action="downloadBackup"]').click()
+      ]);
+      sauvegarde = readFileSync(await fichier.path(), 'utf8');
+
+      // Le fichier doit réellement porter la donnée, pas seulement exister.
+      expect(sauvegarde).toContain('Depense a retrouver');
+      await page.locator('[data-action="closeModal"][data-arg="modalBackup"]').click();
+    });
+
+    await test.step('tout effacer', async () => {
+      await page.evaluate(() => firebase.database().ref('sandbox').remove());
+      await page.reload();
+      await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+
+      await expect(page.locator('#variableChargesList').getByText('Depense a retrouver'))
+        .toHaveCount(0);
+      await expect(page.locator('#salaireVous')).toHaveValue('0');
+    });
+
+    await test.step('restaurer rend les données', async () => {
+      await page.locator('[data-action="showBackup"]').click();
+      await page.locator('#backupFileInput').setInputFiles({
+        name: 'sauvegarde.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(sauvegarde)
+      });
+
+      // La copie de sécurité part avant l'écrasement.
+      const [copie] = await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('#modalConfirmOk').click()
+      ]);
+      expect(copie.suggestedFilename()).toMatch(/^avant-restauration-/);
+
+      // L'application se recharge d'elle-même après restauration.
+      await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+
+      await expect(page.locator('#variableChargesList').getByText('Depense a retrouver'))
+        .toBeVisible({ timeout: 20000 });
+      await expect(page.locator('#salaireVous')).toHaveValue('2600');
+      await expect(page.locator('#salaireConjointe')).toHaveValue('1900');
+      await expect(page.locator('#variableChargesTotal')).toContainText('137,50');
+    });
+
+    expect(erreurs, `erreurs JS : ${erreurs.join(' | ')}`).toEqual([]);
   });
 });
