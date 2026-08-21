@@ -161,6 +161,31 @@ export const REACTIVE_FIREBASE_MOCK = `
               _notify(path);
               return Promise.resolve();
             },
+            transaction: function(miseAJour) {
+              // Realtime Database applique la fonction a la valeur courante et
+              // n'ecrit que si elle rend autre chose qu'undefined. Ce double
+              // l'ignorait : la reconduction, qui reserve son empreinte par
+              // transaction pour resister a deux ouvertures simultanees,
+              // echouait donc silencieusement ici.
+              var actuel = _read(path);
+              var propose = miseAJour(actuel);
+
+              if (propose === undefined) {
+                return Promise.resolve({ committed: false, snapshot: { val: function() { return actuel; } } });
+              }
+
+              window.__db[path] = propose;
+              var segs = path.split('/');
+              if (segs.length > 1) {
+                var parent = segs.slice(0, -1).join('/');
+                var cle = segs[segs.length - 1];
+                if (window.__db[parent] && typeof window.__db[parent] === 'object') {
+                  window.__db[parent][cle] = propose;
+                }
+              }
+              _notify(path);
+              return Promise.resolve({ committed: true, snapshot: { val: function() { return propose; } } });
+            },
             orderByChild: function() { return this; },
             equalTo: function() { return this; }
           };

@@ -43,6 +43,26 @@ function environ(reel, attendu) {
   return Math.abs(reel - attendu) < 0.02;
 }
 
+/** Sélectionne un mois dans la liste, par décalage depuis le mois courant */
+async function allerAuMois(page, decalage) {
+  const cible = await page.evaluate((d) => {
+    const now = new Date();
+    const date = new Date(now.getFullYear(), now.getMonth() + d, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  }, decalage);
+
+  await page.locator('#periodSelect').selectOption(cible);
+  await page.waitForTimeout(1500);
+  return cible;
+}
+/** Lit le solde affiché, en euros */
+async function soldeAffiche(page) {
+  const texte = await page.locator('#balanceBar').innerText();
+  const m = texte.match(/([\d\s]+,\d{2})\s*€/);
+  if (!m) return 0;
+  return parseFloat(m[1].replace(/\s/g, '').replace(',', '.'));
+}
+
 test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
   test.skip(!MOT_DE_PASSE, 'FAIRSPLIT_TEST_PASSWORD absent — voir docs/compte-de-test.md');
 
@@ -73,19 +93,6 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
         .catch(e => resolve(e.code || e.message));
     }));
     expect(verdict, 'le bac à sable doit pouvoir être vidé').toBe('vide');
-  }
-
-  /** Sélectionne un mois dans la liste, par décalage depuis le mois courant */
-  async function allerAuMois(page, decalage) {
-    const cible = await page.evaluate((d) => {
-      const now = new Date();
-      const date = new Date(now.getFullYear(), now.getMonth() + d, 1);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    }, decalage);
-
-    await page.locator('#periodSelect').selectOption(cible);
-    await page.waitForTimeout(1500);
-    return cible;
   }
 
   /** Renseigne les deux salaires du mois affiché */
@@ -120,14 +127,6 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
     await page.locator('#saveFixedCharge').click();
     await expect(page.locator('#fixedChargesList').getByText(description))
       .toBeVisible({ timeout: 15000 });
-  }
-
-  /** Lit le solde affiché, en euros */
-  async function soldeAffiche(page) {
-    const texte = await page.locator('#balanceBar').innerText();
-    const m = texte.match(/([\d\s]+,\d{2})\s*€/);
-    if (!m) return 0;
-    return parseFloat(m[1].replace(/\s/g, '').replace(',', '.'));
   }
 
   test('deux mois : charges, reconduction, report, règlement', async ({ page }) => {
@@ -343,5 +342,119 @@ test.describe('Reconduction concurrente', () => {
 
     await premiere.contexte.close();
     await seconde.contexte.close();
+  });
+});
+
+/**
+ * Six mois d'historique, avec une augmentation en cours de route.
+ *
+ * C'est le croisement le moins éprouvé : instantanés de salaires par période,
+ * report cumulé, et reconduction. Une augmentation ne doit pas réécrire les
+ * mois passés — chacun garde le salaire qui était le sien.
+ *
+ * L'historique est écrit directement en base plutôt que saisi à l'écran : six
+ * mois de saisie prendraient des minutes, et ce qu'on vérifie ici est la
+ * lecture, pas la saisie — couverte par le parcours précédent.
+ */
+test.describe('Six mois avec augmentation', () => {
+  test.skip(!MOT_DE_PASSE, 'FAIRSPLIT_TEST_PASSWORD absent — voir docs/compte-de-test.md');
+  test.setTimeout(240000);
+
+  /** Historique du foyer : l'augmentation intervient au quatrième mois */
+  const HISTORIQUE = [
+    { decalage: -5, vous: 2600, conjointe: 1900, fixe: 1000, variable: 200, payeurVariable: 'conjointe' },
+    { decalage: -4, vous: 2600, conjointe: 1900, fixe: 1000, variable: 150, payeurVariable: 'vous' },
+    { decalage: -3, vous: 2600, conjointe: 1900, fixe: 1000, variable: 0, payeurVariable: null },
+    { decalage: -2, vous: 3200, conjointe: 1900, fixe: 1000, variable: 300, payeurVariable: 'conjointe' },
+    { decalage: -1, vous: 3200, conjointe: 1900, fixe: 1000, variable: 0, payeurVariable: null }
+  ];
+
+  /** Solde propre d'un mois, calculé ici et non lu depuis l'application */
+  function soldeDuMois({ vous, conjointe, fixe, variable, payeurVariable }) {
+    const total = fixe + variable;
+    const payeParVous = fixe + (payeurVariable === 'vous' ? variable : 0);
+    return payeParVous - total * vous / (vous + conjointe);
+  }
+
+  test('une augmentation ne réécrit pas les mois passés', async ({ page }) => {
+    const erreurs = [];
+    page.on('pageerror', e => erreurs.push(e.message));
+
+    await page.goto('/FairSplit.html');
+    await page.locator('#authEmail').fill(EMAIL);
+    await page.locator('#authPassword').fill(MOT_DE_PASSE);
+    await page.locator('[data-action="signInWithEmail"]').click();
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+
+    await page.evaluate(() => firebase.database().ref('sandbox').remove());
+
+    // Écriture de l'historique, chaque mois avec son propre instantané
+    await page.evaluate(async (historique) => {
+      const db = firebase.database();
+      for (const m of historique) {
+        const n = new Date();
+        const d = new Date(n.getFullYear(), n.getMonth() + m.decalage, 1);
+        const cle = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+        await db.ref(`sandbox/periods/${cle}/salaries`).set({ vous: m.vous, conjointe: m.conjointe });
+        await db.ref(`sandbox/periods/${cle}/fixedCharges`).push().set({
+          description: 'Loyer appartement', amount: m.fixe, paidBy: 'vous',
+          category: 'Logement', deleted: false, recurring: true, timestamp: Date.now()
+        });
+        if (m.variable > 0) {
+          await db.ref(`sandbox/periods/${cle}/variableCharges`).push().set({
+            description: 'Depenses du mois', amount: m.variable, paidBy: m.payeurVariable,
+            category: 'Courses', deleted: false, timestamp: Date.now()
+          });
+        }
+        // Empreinte posée : la reconduction ne doit pas garnir un mois déjà écrit
+        await db.ref(`sandbox/periods/${cle}/reconductedFrom`).set('historique');
+      }
+    }, HISTORIQUE);
+
+    await page.reload();
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 60000 });
+
+    // ---------- Chaque mois affiche le solde de son propre salaire ----------
+    for (const mois of HISTORIQUE) {
+      const attendu = soldeDuMois(mois);
+
+      await test.step(`mois ${mois.decalage} : salaires ${mois.vous}/${mois.conjointe}`, async () => {
+        await allerAuMois(page, mois.decalage);
+        const solde = await soldeAffiche(page);
+        expect(environ(solde, attendu),
+          `mois ${mois.decalage} : attendu ${attendu.toFixed(2)}, lu ${solde}`).toBe(true);
+      });
+    }
+
+    // ---------- Le report cumule les six mois, chacun à son salaire ----------
+    await test.step('le report cumule des mois calculés à des salaires différents', async () => {
+      await allerAuMois(page, -1);
+      await page.locator('.setting-toggle-row .reminder-toggle-slider').click();
+      await expect(page.locator('#carryOverToggle')).toBeChecked();
+      await page.waitForTimeout(2500);
+
+      const cumul = HISTORIQUE.reduce((somme, m) => somme + soldeDuMois(m), 0);
+      const solde = await soldeAffiche(page);
+      expect(environ(solde, cumul), `cumul attendu ${cumul.toFixed(2)}, lu ${solde}`).toBe(true);
+    });
+
+    // ---------- Une nouvelle augmentation ne touche pas l'histoire ----------
+    await test.step('modifier le salaire courant laisse les mois passés intacts', async () => {
+      await allerAuMois(page, 0);
+      await page.locator('#salaireVous').fill('4000');
+      await page.locator('#salaireVous').blur();
+      await page.waitForTimeout(2000);
+
+      // Le mois le plus ancien doit rester calculé à 2600/1900
+      const ancien = HISTORIQUE[0];
+      await allerAuMois(page, ancien.decalage);
+      const solde = await soldeAffiche(page);
+      expect(environ(solde, soldeDuMois(ancien)),
+        `un salaire modifié aujourd'hui a réécrit le passé : attendu ${soldeDuMois(ancien).toFixed(2)}, lu ${solde}`)
+        .toBe(true);
+    });
+
+    expect(erreurs, `erreurs JS : ${erreurs.join(' | ')}`).toEqual([]);
   });
 });
