@@ -10,6 +10,7 @@
 // définitivement : son seul verbe est « rétablir ».
 
 import { getState } from '../state.js';
+import { directionLabel } from '../utils/members.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
@@ -93,9 +94,8 @@ export function showTrash() {
  */
 function describe(item) {
   if (item.collection === 'reimbursements') {
-    const sens = item.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
-      ? 'Vous → Conjointe'
-      : 'Conjointe → Vous';
+    const sens = directionLabel(
+      item.direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
     return item.note ? `${sens} — ${item.note}` : sens;
   }
   return item.description || 'Sans description';

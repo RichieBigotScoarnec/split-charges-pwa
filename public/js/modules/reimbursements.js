@@ -8,6 +8,7 @@ import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 // Les règles de saisie vivent dans utils/validation.js : réécrites dans
 // chaque formulaire, elles avaient divergé.
 import { validateChargeAmount } from '../utils/validation.js';
+import { directionLabel } from '../utils/members.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
@@ -179,7 +180,7 @@ export async function settleBalance() {
     ? REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
     : REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER;
 
-  const directionText = balance > 0 ? 'Conjointe → Vous' : 'Vous → Conjointe';
+  const directionText = directionLabel(direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
 
   const confirmed = await showConfirmModal(
     `Enregistrer un règlement de ${formatCurrency(amount)} (${directionText}) ? Le solde du mois reviendra à zéro.`
@@ -225,9 +226,8 @@ export async function deleteReimbursement(reimbursementId) {
     return;
   }
 
-  const directionText = reimbursement.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
-    ? 'Vous → Conjointe'
-    : 'Conjointe → Vous';
+  const directionText = directionLabel(
+      reimbursement.direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
 
   const confirmed = await showConfirmModal(`Supprimer le remboursement ${directionText} de ${formatCurrency(reimbursement.amount)} ?`);
   if (!confirmed) return;
@@ -300,9 +300,8 @@ export function renderReimbursements() {
     const directionIcon = reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
       ? '→'
       : '←';
-    const directionText = reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
-      ? 'Vous → Conjointe'
-      : 'Conjointe → Vous';
+    const directionText = directionLabel(
+        reimb.direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
     const directionClass = reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
       ? 'direction-you-to-partner'
       : 'direction-partner-to-you';
