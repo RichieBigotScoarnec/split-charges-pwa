@@ -102,8 +102,33 @@ export const DESTINATIONS = [
 // ===== ACCÈS AUTORISÉS =====
 export const ALLOWED_EMAILS = [
   'bigot.richard@gmail.com',
-  'cindypepe.cp95@gmail.com'
+  'cindypepe.cp95@gmail.com',
+  'testfairsplit@gmail.com'
 ];
+
+/**
+ * Comptes cantonnés au bac à sable, quelle que soit l'URL.
+ *
+ * Le compte de test existe pour exercer l'application contre le vrai Firebase,
+ * et son mot de passe circule. Faire dépendre son isolement du paramètre
+ * `?sandbox=1` reviendrait à confier la séparation des données à la mémoire de
+ * celui qui ouvre l'application. Les règles de sécurité lui refusent déjà
+ * `household` ; cette liste évite en plus qu'il ne s'y adresse pour rien.
+ */
+export const SANDBOX_ONLY_EMAILS = [
+  'testfairsplit@gmail.com'
+];
+
+/**
+ * Racine des données applicable à un compte
+ *
+ * @param {string|null} email - Adresse du compte authentifié
+ * @returns {string} 'sandbox' ou 'household'
+ */
+export function resolveDataRoot(email) {
+  if (email && SANDBOX_ONLY_EMAILS.includes(email)) return 'sandbox';
+  return DATA_ROOT;
+}
 
 // ===== VALIDATION LIMITS =====
 export const LIMITS = {

@@ -380,8 +380,15 @@ export function initAuth() {
     updateAuthUI(user);
 
     // Set current user ID for multi-user database structure
-    const { setAuthenticatedUser } = await import('../db.js');
-    setAuthenticatedUser(user ? user.uid : null);
+    const { setAuthenticatedUser, getDataRoot } = await import('../db.js');
+    setAuthenticatedUser(user ? user.uid : null, user ? user.email : null);
+
+    // Un compte cantonné au bac à sable doit le voir à l'écran : l'URL ne le
+    // dit pas, et rien d'autre ne distingue un essai des vraies données.
+    if (user && getDataRoot() === 'sandbox') {
+      const { showSandboxBanner } = await import('../utils/sandbox-banner.js');
+      showSandboxBanner();
+    }
 
     // Initialize app data if user just logged in
     if (user && !appInitialized) {
