@@ -946,3 +946,8 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Une corbeille vide reste accessible, mais ne réclame pas l'attention. */
+.btn.is-empty {
+  opacity: 0.6;
+}
