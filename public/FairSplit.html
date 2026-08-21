@@ -191,9 +191,10 @@
               <span class="reminder-toggle-slider"></span>
             </label>
           </div>
-          <div id="notificationsStatus" class="notifications-status">
-            📱 Activez les notifications pour recevoir les rappels
-          </div>
+          <!-- Ce bloc annonçait « Activez les notifications » quel que soit
+               l'état réel, sans offrir le moyen de le faire. Il est désormais
+               rempli par le module, qui connaît la permission accordée. -->
+          <div id="notificationsStatus" class="notifications-status"></div>
         </div>
       </div>
 
@@ -330,6 +331,10 @@
       <div id="variableChargesList">
         <!-- Populated dynamically -->
       </div>
+      <div class="list-total">
+        <span>Total des charges variables</span>
+        <strong id="variableChargesTotal">—</strong>
+      </div>
     </div>
     </section>
 
@@ -343,6 +348,10 @@
       <div id="fixedChargesList">
         <!-- Populated dynamically -->
       </div>
+      <div class="list-total">
+        <span>Total des charges fixes</span>
+        <strong id="fixedChargesTotal">—</strong>
+      </div>
     </div>
     </section>
 
@@ -355,6 +364,10 @@
       </div>
       <div id="reimbursementsList">
         <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Solde des remboursements</span>
+        <strong id="reimbursementsTotal">—</strong>
       </div>
     </div>
     </section>

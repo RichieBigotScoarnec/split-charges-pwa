@@ -58,25 +58,62 @@ async function restoreReminderSettings() {
  * Configure les permissions de notifications du navigateur
  */
 async function setupNotificationPermissions() {
+  window.requestNotificationPermission = async () => {
+    await requestNotificationPermission();
+    renderNotificationStatus();
+  };
+
+  renderNotificationStatus();
+
   if (!('Notification' in window)) {
     warn('⚠️ Les notifications ne sont pas supportées par ce navigateur');
     return;
   }
 
-  // Vérifier si déjà accordées
+  log(`ℹ️ Permission de notification : ${Notification.permission}`);
+}
+
+/**
+ * Affiche l'état réel des notifications, et le moyen de les activer
+ *
+ * Le bloc annonçait « Activez les notifications pour recevoir les rappels »
+ * quel que soit l'état réel — y compris une fois accordées — et n'offrait
+ * aucun moyen de les activer. Rien ne le remplissait : le texte était figé
+ * dans le HTML.
+ */
+export function renderNotificationStatus() {
+  const bloc = document.getElementById('notificationsStatus');
+  if (!bloc) return;
+
+  bloc.replaceChildren();
+
+  if (!('Notification' in window)) {
+    bloc.textContent = 'Notifications non prises en charge par ce navigateur.';
+    return;
+  }
+
   if (Notification.permission === 'granted') {
-    log('✅ Permissions de notification accordées');
+    bloc.textContent = '🔔 Notifications activées.';
     return;
   }
 
-  // Si refusées, ne pas redemander
   if (Notification.permission === 'denied') {
-    log('❌ Permissions de notification refusées');
+    // Le navigateur ne permet plus de redemander : seul un réglage manuel
+    // peut revenir dessus, et le dire évite un bouton sans effet.
+    bloc.textContent = '🔕 Notifications refusées — à réactiver dans les réglages du navigateur.';
     return;
   }
 
-  // Si "default", on peut demander (mais on attend une action utilisateur)
-  log('ℹ️ Permissions de notification non encore demandées');
+  const texte = document.createElement('span');
+  texte.textContent = '📱 Les rappels demandent votre autorisation. ';
+
+  const bouton = document.createElement('button');
+  bouton.type = 'button';
+  bouton.className = 'btn-link';
+  bouton.dataset.action = 'requestNotificationPermission';
+  bouton.textContent = 'Autoriser';
+
+  bloc.append(texte, bouton);
 }
 
 /**

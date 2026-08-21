@@ -144,3 +144,113 @@ test.describe('Carte des dépenses', () => {
     expect(conteneurs).toBeLessThanOrEqual(1);
   });
 });
+
+/**
+ * Trois listes calculaient leur total et cherchaient où l'écrire : les
+ * éléments cibles n'existaient pas. Le chiffre était produit puis jeté.
+ */
+test.describe('Totaux de liste', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+  });
+
+  /** Ajoute une charge variable */
+  async function charge(page, description, montant) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill(description);
+    await page.locator('#variableChargeAmount').fill(String(montant));
+    await page.locator('#variableChargeCategory').selectOption({ index: 1 });
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+    await expect(page.locator('#variableChargesList').getByText(description)).toBeVisible({ timeout: 5000 });
+  }
+
+  test('les trois éléments de total existent', async ({ page }) => {
+    for (const id of ['variableChargesTotal', 'fixedChargesTotal', 'reimbursementsTotal']) {
+      await expect(page.locator(`#${id}`)).toBeAttached();
+    }
+  });
+
+  test('le total des charges variables suit les ajouts', async ({ page }) => {
+    await charge(page, 'Panier hebdo', 80);
+    await expect(page.locator('#variableChargesTotal')).toContainText('80,00');
+
+    await charge(page, 'Repas dehors', 45.5);
+    await expect(page.locator('#variableChargesTotal')).toContainText('125,50');
+  });
+
+  test('une liste vide affiche zéro, pas un tiret figé', async ({ page }) => {
+    await expect(page.locator('#fixedChargesTotal')).toContainText('0,00', { timeout: 5000 });
+  });
+});
+
+/**
+ * Le bloc d'état des notifications annonçait « Activez les notifications »
+ * quel que soit l'état réel, et n'offrait aucun moyen de le faire. Rien ne le
+ * remplissait : le texte était figé dans le HTML.
+ */
+test.describe('État des notifications', () => {
+
+  /**
+   * Impose une permission donnée avant le chargement.
+   *
+   * context.grantPermissions n'agit pas sur Notification.permission en mode
+   * sans interface : le navigateur y rapporte « denied » malgré l'octroi. On
+   * remplace donc l'objet, ce qui teste exactement la logique d'affichage.
+   *
+   * @param {import('@playwright/test').Page} page - Page de test
+   * @param {string} permission - 'granted' | 'denied' | 'default'
+   */
+  async function imposerPermission(page, permission) {
+    await page.addInitScript((valeur) => {
+      window.Notification = function () {};
+      Object.defineProperty(window.Notification, 'permission', { get: () => valeur });
+      window.Notification.requestPermission = () => Promise.resolve(valeur);
+    }, permission);
+  }
+
+  test('permission à demander : le bloc propose une action', async ({ page }) => {
+    await imposerPermission(page, 'default');
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    // Le bloc vit dans le panneau « Rappels », replié par défaut : on l'ouvre
+    // comme le ferait l'utilisateur avant de juger de la visibilité.
+    await page.locator('[data-action="toggleRemindersPanel"]').click();
+
+    await expect(page.locator('#notificationsStatus')).toContainText('autorisation');
+    await expect(page.locator('#notificationsStatus button')).toBeVisible();
+  });
+
+  test('permission accordée : le bloc le dit, sans bouton', async ({ page }) => {
+    await imposerPermission(page, 'granted');
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await expect(page.locator('#notificationsStatus')).toContainText('activées');
+    await expect(page.locator('#notificationsStatus button')).toHaveCount(0);
+  });
+
+  test('permission refusée : le bloc renvoie aux réglages, sans bouton sans effet', async ({ page }) => {
+    // Le navigateur ne permet plus de redemander : un bouton serait inopérant.
+    await imposerPermission(page, 'denied');
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await expect(page.locator('#notificationsStatus')).toContainText('réglages du navigateur');
+    await expect(page.locator('#notificationsStatus button')).toHaveCount(0);
+  });
+
+  test('le bloc porte toujours un texte', async ({ page }) => {
+    // Il portait un texte figé dans le HTML, que rien ne remplaçait.
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await expect(page.locator('#notificationsStatus')).not.toBeEmpty();
+  });
+});
