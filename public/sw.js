@@ -113,16 +113,51 @@ function isHost(hostname, domain) {
   return hostname === domain || hostname.endsWith('.' + domain);
 }
 
+/**
+ * Domaines à ne jamais intercepter.
+ *
+ * Une liste de domaines autorisés a la mauvaise valeur par défaut : ce qui
+ * n'y figure pas est intercepté. La base de données s'était retrouvée dans ce
+ * cas.
+ *
+ * Son hôte réel est « <projet>.<région>.firebasedatabase.app » — les zones
+ * européennes n'utilisent pas « firebaseio.com », qui était seul listé ici.
+ * Toutes ses requêtes passaient donc par le cache. Le WebSocket échappe au
+ * service worker et masquait le problème ; le long-polling, transport de repli
+ * quand le WebSocket ne passe pas — réseau mobile, proxy d'entreprise — était
+ * bien intercepté, chaque réponse étant recopiée en cache. La liaison ne
+ * s'établissait plus, sans que la marque du navigateur y soit pour rien.
+ *
+ * Cette liste couvre données, authentification et services Google. Ce qui
+ * reste mis en cache : les fichiers du site, et les bibliothèques servies par
+ * CDN dont la mise en cache est le but recherché.
+ */
+const HOSTS_JAMAIS_INTERCEPTES = [
+  'firebasedatabase.app',   // Realtime Database — toutes régions
+  'firebaseio.com',         // Realtime Database — région historique
+  'firebaseapp.com',        // domaine d'authentification
+  'googleapis.com',         // identitytoolkit, securetoken
+  'accounts.google.com',    // connexion Google
+  'apis.google.com',        // client d'authentification
+  'openstreetmap.org'       // géocodage : une réponse mise en cache serait fausse
+];
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ne pas intercepter les requêtes Firebase (toujours réseau)
+  // Ne jamais intercepter les échanges avec un service distant.
   //
-  // includes() sur un nom d'hôte accepte n'importe quel domaine contenant la
-  // chaîne — « firebaseio.com.exemple.net » passait le test. Vérifier le
-  // suffixe, et exiger un point avant lui pour ne pas accepter
-  // « notfirebaseio.com ».
-  if (isHost(url.hostname, 'firebaseio.com') || isHost(url.hostname, 'googleapis.com')) {
+  // isHost vérifie le suffixe et exige un point avant lui : includes() sur un
+  // nom d'hôte acceptait « firebaseio.com.exemple.net », et un simple endsWith
+  // accepterait « notfirebaseio.com ».
+  if (HOSTS_JAMAIS_INTERCEPTES.some((domaine) => isHost(url.hostname, domaine))) {
+    return;
+  }
+
+  // Une requête qui n'est pas une simple lecture ne se met pas en cache, et le
+  // cache ne saurait pas y répondre. Les laisser passer évite de servir une
+  // réponse périmée à une écriture.
+  if (event.request.method !== 'GET') {
     return;
   }
 
