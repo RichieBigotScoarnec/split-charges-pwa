@@ -25,10 +25,13 @@ import { log, error as logError } from '../utils/debug.js';
 
 let database = null;
 
+
 /**
  * Initialise le module de reconduction
  */
 export function initReconduction() {
+  // applyRecurringCharges obtient la base elle-même : cette fonction ne sert
+  // plus qu'à la trace de démarrage, et l'ordre des étapes ne la contraint pas.
   database = getFirebaseDatabase();
   log('🔁 Reconduction des charges récurrentes initialisée');
 }
@@ -44,6 +47,13 @@ export function initReconduction() {
  * @returns {Promise<number>} Nombre de charges reconduites
  */
 export async function applyRecurringCharges() {
+  // La référence est obtenue ici plutôt que d'être héritée d'initReconduction.
+  // Celle-ci s'exécutait après le chargement du mois : `database` était encore
+  // nulle au moment de l'appel, la fonction sortait sans rien dire, et la
+  // reconduction ne se déclenchait jamais au démarrage -- seulement si l'on
+  // changeait de mois à la main. Ne pas dépendre d'un ordre d'initialisation
+  // vaut mieux que de le documenter.
+  database = database || getFirebaseDatabase();
   if (!database) return 0;
 
   const target = getState('currentPeriod');
@@ -60,6 +70,24 @@ export async function applyRecurringCharges() {
     });
     if (!plan) return 0;
 
+    // Réserver l'empreinte avant de copier quoi que ce soit.
+    //
+    // Lire « pas encore reconduit » puis écrire n'est pas atomique : deux
+    // appels concurrents passent tous deux la vérification et copient chacun
+    // les charges. Le cas n'est pas théorique — deux téléphones ouvrant
+    // l'application le même matin suffisent, et le mois se retrouve avec
+    // chaque charge fixe en double.
+    //
+    // `transaction` tranche côté serveur : un seul appel obtient la marque.
+    const reservation = await database
+      .ref(getDataPath(`periods/${target}/reconductedFrom`))
+      .transaction(actuel => (actuel === null ? plan.source : undefined));
+
+    if (!reservation.committed) {
+      log(`🔁 Reconduction vers ${target} déjà réservée par un autre appel`);
+      return 0;
+    }
+
     const updates = {};
 
     for (const charge of plan.charges) {
@@ -69,10 +97,6 @@ export async function applyRecurringCharges() {
         timestamp: Date.now()
       };
     }
-
-    // L'empreinte dans la même écriture que les charges : une reconduction
-    // partiellement appliquée se rejouerait sinon indéfiniment.
-    updates[getDataPath(`periods/${target}/reconductedFrom`)] = plan.source;
 
     await database.ref().update(updates);
 
