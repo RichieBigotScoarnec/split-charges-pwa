@@ -11,7 +11,7 @@ const TEST_EMAIL = ALLOWED_EMAILS[0];
 /**
  * Tests d'intégration Firebase avec Emulators
  *
- * Prérequis : Firebase emulators démarrés (auth:9099, database:9000)
+ * Prérequis : Firebase emulators démarrés (auth:9099, database:9010)
  * Lancer : npx firebase emulators:exec "npx playwright test tests/e2e/firebase-integration.spec.js"
  *
  * Ces tests utilisent les vrais SDK Firebase contre les emulators locaux
@@ -19,7 +19,7 @@ const TEST_EMAIL = ALLOWED_EMAILS[0];
  */
 
 const EMULATOR_AUTH_URL = 'http://127.0.0.1:9099';
-const EMULATOR_DB_URL = 'http://127.0.0.1:9000';
+const EMULATOR_DB_URL = 'http://127.0.0.1:9010';
 
 /**
  * Configure la page pour utiliser les emulators Firebase
@@ -133,38 +133,40 @@ test.describe('Firebase Emulator Integration', () => {
     expect(dbResponse.ok()).toBeTruthy();
   });
 
-  test('création de compte et connexion email/password', async ({ page, request }) => {
-    await page.goto(APP_URL);
+  test("connexion email/password contre l'émulateur Auth", async ({ page, request }) => {
+    // Ce test créait le compte en cliquant « Créer un compte ». L'inscription
+    // libre est désormais fermée (SIGNUP_ENABLED) : le compte se crée par
+    // l'API de l'émulateur, comme dans les autres tests du fichier, et
+    // l'interface n'exerce plus que la connexion — ce qu'elle offre.
+    await createTestUser(request);
 
-    // Attendre que l'overlay d'auth soit visible
+    await page.goto(APP_URL);
     await page.waitForSelector('#authOverlay', { state: 'visible', timeout: 10000 });
 
-    // Remplir le formulaire email/password
-    const emailInput = page.locator('#authEmail');
-    const passwordInput = page.locator('#authPassword');
+    await page.locator('#authEmail').fill(TEST_EMAIL);
+    await page.locator('#authPassword').fill('TestPassword123!');
+    await page.locator('.btn-email-signin:not(.btn-create-account)').click();
 
-    // Vérifier que les champs email/password existent
-    await expect(emailInput).toBeAttached();
-    await expect(passwordInput).toBeAttached();
-
-    // Remplir les champs
-    await emailInput.fill(TEST_EMAIL);
-    await passwordInput.fill('TestPassword123!');
-
-    // Cliquer sur le bouton de création de compte
-    const signupBtn = page.locator('.btn-create-account');
-    await expect(signupBtn).toBeAttached();
-    await signupBtn.click();
-
-    // Attendre que l'app principale soit visible (auth réussie)
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 15000 });
     // #mainApp apparaît dès l'authentification ; attendre l'initialisation
     // effective des modules avant toute interaction.
     await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
-    // L'overlay d'auth doit être masqué
-    const authOverlay = page.locator('#authOverlay');
-    await expect(authOverlay).toBeHidden();
+    await expect(page.locator('#authOverlay')).toBeHidden();
+  });
+
+  test("l'inscription reste fermée face à un vrai service Auth", async ({ page }) => {
+    // La garde de createAccount doit tenir devant un service qui accepterait
+    // réellement la création — l'émulateur, ici.
+    await page.goto(APP_URL);
+    await page.waitForSelector('#authOverlay', { state: 'visible', timeout: 10000 });
+
+    await page.locator('#authEmail').fill('intrus@example.com');
+    await page.locator('#authPassword').fill('MotDePasse123!');
+    await page.evaluate(() => window.createAccount && window.createAccount());
+
+    await expect(page.locator('#authError')).toContainText(/pas ouverte/);
+    await expect(page.locator('#mainApp')).toBeHidden();
   });
 
   test('persistance des salaires dans la database', async ({ page, request }) => {

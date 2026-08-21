@@ -52,7 +52,8 @@
       "port": 9099
     },
     "database": {
-      "port": 9000
+      "_commentaire": "9000 est occupe par Zscaler (ZSATunnel) sur certains postes ; le numero de port ne porte aucun sens ici.",
+      "port": 9010
     },
     "hosting": {
       "port": 5000

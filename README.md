@@ -46,6 +46,7 @@ changer le mode des autres.
 | **Corbeille** | Les suppressions sont douces : les éléments effacés du mois restent consultables et récupérables |
 | **Rappels** | Notifications de fin de mois, dépassement de budget, remboursements en attente |
 | **PWA** | Installable, fonctionne hors ligne via service worker |
+| **Inscription** | Fermée. Le parcours de création de compte est conservé dans le code et se rétablit par `SIGNUP_ENABLED` (`js/config.js`) |
 
 ---
 

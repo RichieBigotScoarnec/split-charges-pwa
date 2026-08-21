@@ -30,11 +30,29 @@ test.describe('Page de connexion (pré-auth)', () => {
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
-  test('contient les boutons connexion email et création compte', async ({ page }) => {
-    const buttons = page.locator('.btn-email-signin');
-    await expect(buttons).toHaveCount(2);
-    await expect(buttons.first()).toContainText('Connexion Email');
-    await expect(buttons.last()).toContainText('Créer un compte');
+  test('contient le bouton de connexion email', async ({ page }) => {
+    const connexion = page.locator('.btn-email-signin:not(.btn-create-account)');
+    await expect(connexion).toBeVisible();
+    await expect(connexion).toContainText('Connexion Email');
+  });
+
+  test('la création de compte est conservée mais masquée', async ({ page }) => {
+    // Le fournisseur e-mail étant actif, un bouton exposé publiquement
+    // permettrait à quiconque atteint l'URL de créer un compte dans le projet.
+    // Le parcours reste dans le code — lever SIGNUP_ENABLED le rétablit.
+    const creation = page.locator('#createAccountBtn');
+    await expect(creation).toBeAttached();
+    await expect(creation).toBeHidden();
+  });
+
+  test('appeler createAccount directement ne crée rien', async ({ page }) => {
+    // Masquer le bouton ne suffit pas : la fonction reste jointe depuis la
+    // console du navigateur. La garde appartient au code, pas au balisage.
+    await page.locator('#authEmail').fill('intrus@example.com');
+    await page.locator('#authPassword').fill('motdepasse123');
+    await page.evaluate(() => window.createAccount && window.createAccount());
+
+    await expect(page.locator('#authError')).toContainText(/pas ouverte/);
   });
 
   test('masque l\'application principale', async ({ page }) => {

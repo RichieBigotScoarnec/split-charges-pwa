@@ -6,7 +6,7 @@
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { ALLOWED_EMAILS } from '../config.js';
+import { ALLOWED_EMAILS, SIGNUP_ENABLED } from '../config.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -103,6 +103,14 @@ export async function signInWithEmail() {
  * Create new account with email and password
  */
 export async function createAccount() {
+  // Le bouton est masqué, mais la fonction reste jointe depuis la console :
+  // la garde appartient ici, pas seulement au balisage.
+  if (!SIGNUP_ENABLED) {
+    const el = document.getElementById('authError');
+    if (el) el.textContent = "La création de compte n'est pas ouverte sur cette instance.";
+    return;
+  }
+
   const emailEl = document.getElementById('authEmail');
   const passwordEl = document.getElementById('authPassword');
   const authErrorEl = document.getElementById('authError');
@@ -356,6 +364,13 @@ async function initializeAppData() {
  */
 export function initAuth() {
   const auth = getFirebaseAuth();
+
+  // Le bouton d'inscription part masqué du HTML : lever SIGNUP_ENABLED suffit
+  // à le rétablir, sans avoir à retoucher le balisage.
+  if (SIGNUP_ENABLED) {
+    const creerCompte = document.getElementById('createAccountBtn');
+    if (creerCompte) creerCompte.hidden = false;
+  }
 
   // ✅ FIX CRITIQUE 2: Nettoyer l'ancien listener s'il existe
   if (authUnsubscribe) {

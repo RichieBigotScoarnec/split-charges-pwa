@@ -61,3 +61,32 @@ npx playwright test tests/e2e/reel.spec.js
 Sans `FAIRSPLIT_TEST_PASSWORD`, la suite est **ignorée** plutôt qu'en échec :
 la validation contre le vrai Firebase est facultative, et ne doit jamais
 bloquer la CI, qui n'a pas — et ne doit pas avoir — le secret.
+
+## Lancer les émulateurs Firebase en local
+
+Les sept tests de `tests/e2e/firebase-integration.spec.js` exigent les
+émulateurs. Sans eux ils sont ignorés — et ne tournent donc qu'en CI, ce qui
+crée un angle mort : un test d'inscription y est resté cassé après la fermeture
+de la création de compte, sans que la vérification locale puisse le voir.
+
+Deux prérequis, tous deux rencontrés sur ce poste :
+
+**Un JDK 21 ou plus récent.** L'émulateur Realtime Database est écrit en Java.
+Si `java -version` répond 1.8 ou « command not found » :
+
+```bash
+export JAVA_HOME="/c/Program Files/Java/jdk-26.0.2.1"
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Le rendre permanent — variables d'environnement système — évite de le répéter
+à chaque session.
+
+**Un port 9010 libre.** La base émulée écoutait sur 9000, occupé par Zscaler
+(`ZSATunnel`) sur certains postes. Le numéro ne porte aucun sens : il a été
+déplacé dans `firebase.json`, `js/config.js` et le fichier de tests.
+
+```bash
+npm run emulators           # démarre auth (9099) et database (9010)
+npm run emulators:test      # démarre, exécute les tests d'intégration, arrête
+```
