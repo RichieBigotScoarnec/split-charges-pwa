@@ -100,6 +100,21 @@ export const DESTINATIONS = [
 ];
 
 // ===== ACCÈS AUTORISÉS =====
+/**
+ * L'inscription libre est-elle ouverte ?
+ *
+ * Le fournisseur e-mail/mot de passe étant actif, un bouton « Créer un compte »
+ * exposé publiquement permettrait à quiconque atteint l'URL de créer un compte
+ * dans le projet Firebase. La liste blanche le déconnecterait aussitôt et les
+ * règles lui refuseraient toute lecture — l'effet se limite à l'accumulation de
+ * comptes parasites, mais elle est inutile : les comptes du foyer existent.
+ *
+ * Le parcours d'inscription est conservé, pas supprimé : une mise à disposition
+ * plus large de l'application le rendrait nécessaire. Passer cette valeur à
+ * `true` le rétablit, bouton et fonction comprises.
+ */
+export const SIGNUP_ENABLED = false;
+
 export const ALLOWED_EMAILS = [
   'bigot.richard@gmail.com',
   'cindypepe.cp95@gmail.com',

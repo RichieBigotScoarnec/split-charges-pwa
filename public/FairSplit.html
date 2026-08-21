@@ -65,7 +65,10 @@
         <label for="authPassword" class="sr-only">Mot de passe</label>
         <input type="password" id="authPassword" class="auth-input" placeholder="Mot de passe" autocomplete="current-password" required />
         <button type="submit" class="btn-email-signin" data-action="signInWithEmail">Connexion Email</button>
-        <button type="button" class="btn-email-signin btn-create-account" data-action="createAccount">Créer un compte</button>
+        <!-- Masqué par SIGNUP_ENABLED (js/config.js). Le parcours est conservé
+             pour une éventuelle ouverture plus large ; il n'a pas lieu d'être
+             exposé tant que les comptes du foyer sont les seuls autorisés. -->
+        <button type="button" class="btn-email-signin btn-create-account" id="createAccountBtn" data-action="createAccount" hidden>Créer un compte</button>
       </form>
 
       <div id="authError" class="auth-error" role="alert" aria-live="assertive"></div>
