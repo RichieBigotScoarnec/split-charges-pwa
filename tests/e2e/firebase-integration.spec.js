@@ -11,7 +11,7 @@ const TEST_EMAIL = ALLOWED_EMAILS[0];
 /**
  * Tests d'intégration Firebase avec Emulators
  *
- * Prérequis : Firebase emulators démarrés (auth:9099, database:9000)
+ * Prérequis : Firebase emulators démarrés (auth:9099, database:9010)
  * Lancer : npx firebase emulators:exec "npx playwright test tests/e2e/firebase-integration.spec.js"
  *
  * Ces tests utilisent les vrais SDK Firebase contre les emulators locaux
@@ -19,7 +19,7 @@ const TEST_EMAIL = ALLOWED_EMAILS[0];
  */
 
 const EMULATOR_AUTH_URL = 'http://127.0.0.1:9099';
-const EMULATOR_DB_URL = 'http://127.0.0.1:9000';
+const EMULATOR_DB_URL = 'http://127.0.0.1:9010';
 
 /**
  * Configure la page pour utiliser les emulators Firebase

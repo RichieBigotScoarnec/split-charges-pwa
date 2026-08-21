@@ -49,7 +49,7 @@ export const USE_EMULATOR =
   typeof location !== 'undefined' &&
   new URLSearchParams(location.search).get('emulator') === '1';
 
-export const EMULATOR_PORTS = { database: 9000, auth: 9099 };
+export const EMULATOR_PORTS = { database: 9010, auth: 9099 };
 
 // ===== CATEGORIES =====
 export const CATEGORIES = [
