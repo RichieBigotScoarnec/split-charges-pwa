@@ -26,13 +26,25 @@ export function initMap() {
  * Configure l'interface utilisateur pour la carte
  */
 function setupMapUI() {
-  // Bouton afficher carte
-  const showMapBtn = document.getElementById('showMapBtn');
-  if (showMapBtn) {
-    showMapBtn.addEventListener('click', () => {
-      showMapModal();
-    });
-  }
+  // L'accès à la carte passe par data-action="showMapModal".
+  refreshMapButton();
+}
+
+/**
+ * Affiche le bouton d'accès si au moins une dépense porte des coordonnées
+ *
+ * Le seul accès à la carte se trouvait dans un panneau maintenu en
+ * display:none : la fonctionnalité était inatteignable, alors même que
+ * Leaflet était téléchargé à chaque ouverture de l'application.
+ */
+export function refreshMapButton() {
+  const bouton = document.getElementById('mapButton');
+  if (!bouton) return;
+
+  const localisees = [...(getState('variableCharges') || []), ...(getState('fixedCharges') || [])]
+    .filter(c => c && !c.deleted && c.location && c.location.lat && c.location.lng);
+
+  bouton.hidden = localisees.length === 0;
 
   // Bouton fermer carte
   const closeMapBtn = document.getElementById('closeMapBtn');
@@ -54,25 +66,31 @@ function setupMapUI() {
 /**
  * Affiche le modal de la carte
  */
-function showMapModal() {
-  const mapModal = document.getElementById('mapModal');
-  if (!mapModal) {
+async function showMapModal() {
+  if (!document.getElementById('mapModal')) {
     createMapModal();
   }
 
   const modal = document.getElementById('mapModal');
   modal.style.display = 'block';
 
-  // Initialiser la carte si pas déjà fait
-  if (!map) {
-    setTimeout(() => {
-      initializeLeafletMap();
-      loadChargesOnMap();
-    }, 300);
-  } else {
-    // Rafraîchir les données
+  if (map) {
     loadChargesOnMap();
+    return;
   }
+
+  // Leaflet n'est plus chargé d'avance : il arrive ici, au premier usage.
+  const pret = await ensureLeaflet();
+  if (!pret) {
+    toast.error('Carte indisponible : bibliothèque non chargée');
+    return;
+  }
+
+  // Le conteneur doit avoir ses dimensions avant que Leaflet le mesure.
+  requestAnimationFrame(() => {
+    initializeLeafletMap();
+    loadChargesOnMap();
+  });
 }
 
 /**
@@ -156,6 +174,55 @@ function createMapModal() {
       updateMapMarkers();
     });
   });
+}
+
+/** URL et empreintes de Leaflet, reprises telles quelles du HTML */
+const LEAFLET = {
+  css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  cssIntegrity: 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=',
+  js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  jsIntegrity: 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='
+};
+
+let leafletPromise = null;
+
+/**
+ * Charge Leaflet au premier usage
+ *
+ * La bibliothèque pèse 158 Ko et n'était utilisée que par la carte — laquelle
+ * était de surcroît inatteignable. La charger sur chaque ouverture de
+ * l'application faisait payer à tout le monde une fonctionnalité que personne
+ * n'ouvrait.
+ *
+ * @returns {Promise<boolean>} true si Leaflet est prêt
+ */
+function ensureLeaflet() {
+  if (typeof L !== 'undefined') return Promise.resolve(true);
+  if (leafletPromise) return leafletPromise;
+
+  leafletPromise = new Promise(resolve => {
+    const style = document.createElement('link');
+    style.rel = 'stylesheet';
+    style.href = LEAFLET.css;
+    style.integrity = LEAFLET.cssIntegrity;
+    style.crossOrigin = '';
+    document.head.appendChild(style);
+
+    const script = document.createElement('script');
+    script.src = LEAFLET.js;
+    script.integrity = LEAFLET.jsIntegrity;
+    script.crossOrigin = '';
+    script.onload = () => resolve(true);
+    script.onerror = () => {
+      // Une seconde tentative reste possible : la promesse est oubliée.
+      leafletPromise = null;
+      logError('❌ Chargement de Leaflet impossible');
+      resolve(false);
+    };
+    document.head.appendChild(script);
+  });
+
+  return leafletPromise;
 }
 
 /**

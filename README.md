@@ -36,9 +36,9 @@ changer le mode des autres.
 | **Reconduction** | Les charges fixes marquées récurrentes sont reprises d'elles-mêmes à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé |
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
 | **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
-| **Analyse** | Répartition par catégorie, tendances sur 6 mois |
+| **Tendances** | Graphique de l'évolution des charges sur six mois, avec moyenne, extrêmes et variation — replié par défaut, calculé au premier dépliage |
 | **Saisie rapide** | Ajout en un geste avec géolocalisation et pré-cache GPS |
-| **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap) |
+| **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap), accessible dès qu'une dépense porte des coordonnées ; la bibliothèque n'est chargée qu'à l'ouverture de la carte |
 | **Personnalisation** | Catégories et destinations de virement définies par l'utilisateur |
 | **Recherche** | Filtrage des charges de la période |
 | **Export** | CSV et impression |

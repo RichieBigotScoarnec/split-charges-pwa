@@ -375,13 +375,44 @@
   border-radius: var(--radius-lg);
 }
 
+/* L'en-tête est devenu le bouton d'ouverture de la section : le graphique
+   demande une lecture de tout l'historique, on ne le produit qu'au premier
+   dépliage. */
 .trends-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) 0;
+  border: none;
+  background: none;
+  font-family: var(--font);
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: var(--space-md);
   text-align: center;
   letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.trends-toggle-icon {
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: transform var(--duration) var(--ease);
+}
+
+.trends-header[aria-expanded="true"] .trends-toggle-icon {
+  transform: rotate(180deg);
+}
+
+#trendsCanvas {
+  /* Le canevas porte des dimensions intrinsèques : sans cela il déborderait
+     de sa carte sur les écrans étroits. */
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: var(--space-md);
 }
 
 .trends-chart-container {
@@ -1020,3 +1051,53 @@
   font-size: 14px;
   text-align: right;
 }
+
+/* ===== STATISTIQUES DE TENDANCE ===== */
+/*
+   Le module produisait ce balisage depuis toujours, mais aucune règle ne lui
+   correspondait — la section n'étant jamais affichée, personne ne l'a vu.
+   Quatre cartes de lecture rapide plutôt qu'une liste verticale.
+*/
+.trends-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-sm);
+}
+
+.stat-card {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  text-align: center;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.stat-period,
+.stat-percent {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dépenser plus que le mois de départ n'est pas une réussite : la hausse est
+   signalée en rouge, la baisse en vert. */
+.stat-card.trend-up .stat-value { color: var(--danger-color); }
+.stat-card.trend-down .stat-value { color: var(--success-color); }

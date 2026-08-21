@@ -35,8 +35,6 @@
   <link rel="stylesheet" href="css/map.css">
   <link rel="stylesheet" href="css/responsive.css">
 
-  <!-- Leaflet.js CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
 </head>
 <body>
@@ -133,22 +131,20 @@
         </div>
       </div>
 
-      <!-- Stats GPS & Lieux -->
-      <div id="gpsStatsSection" class="gps-stats-section" style="display: none;">
-        <div class="gps-stats-header"><span aria-hidden="true">🗺️</span> Lieux de Dépenses</div>
-        <div class="gps-stats-content" id="gpsStatsContent">
-          <!-- Populated dynamically -->
-        </div>
-        <button type="button" class="btn btn-primary gps-view-map-btn" data-action="showMapModal">
-          📍 Voir la carte
+      <!-- Tendances Historiques — repliées par défaut : le graphique demande
+           une lecture de tout l'historique, inutile tant qu'on ne le regarde
+           pas. Les éléments que trends.js attendait — le canevas et le bloc de
+           statistiques — n'existaient pas : la section n'a jamais rien montré. -->
+      <div id="trendsSection" class="trends-section">
+        <button type="button" class="trends-header" id="trendsToggle"
+                data-action="toggleTrends" aria-expanded="false" aria-controls="trendsContent">
+          <span aria-hidden="true">📈</span> Tendances sur 6 mois
+          <span class="trends-toggle-icon" aria-hidden="true">▼</span>
         </button>
-      </div>
-
-      <!-- Tendances Historiques -->
-      <div id="trendsSection" class="trends-section" style="display: none;">
-        <div class="trends-header"><span aria-hidden="true">📈</span> Tendances sur 6 mois</div>
-        <div id="trendsContent">
-          <div class="trends-loading">⏳ Chargement des données historiques...</div>
+        <div id="trendsContent" hidden>
+          <canvas id="trendsCanvas" width="600" height="240"
+                  role="img" aria-label="Évolution des charges sur six mois"></canvas>
+          <div id="trendsStats"></div>
         </div>
       </div>
 
@@ -208,6 +204,12 @@
         </button>
         <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
           <span aria-hidden="true">📄</span> Imprimer PDF
+        </button>
+        <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
+             la carte se trouvait dans un panneau en display:none, ce qui la
+             rendait inatteignable. -->
+        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
+          <span aria-hidden="true">📍</span> Carte
         </button>
         <button type="button" class="btn btn-secondary" data-action="showBackup" title="Sauvegarder ou restaurer toutes les données">
           <span aria-hidden="true">💾</span> Sauvegarde
@@ -583,37 +585,6 @@
     </div>
   </div>
 
-  <!-- Modal: Reconduction Charges Fixes -->
-  <div id="modalReconduction" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReconductionTitle">
-    <div class="modal">
-      <h2 class="modal-header" id="modalReconductionTitle"><span aria-hidden="true">📋</span> Reconduire les charges fixes</h2>
-      <p class="modal-confirm-message">
-        Sélectionnez les charges fixes du mois précédent à reconduire automatiquement :
-      </p>
-      <div id="reconductionPreviewList" class="reconduction-preview">
-        <!-- Populated dynamically -->
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalReconduction">Annuler</button>
-        <button type="button" class="btn btn-primary" id="btnDuplicateCharges" data-action="duplicateSelectedCharges" disabled>
-          ✓ Reconduire (<span id="reconductionCount">0</span>)
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Map View -->
-  <div id="modalMapView" class="modal-overlay map-modal" role="dialog" aria-modal="true" aria-labelledby="modalMapViewTitle">
-    <div class="modal modal-map-view">
-      <h2 class="modal-header" id="modalMapViewTitle"><span aria-hidden="true">📍</span> Carte des Dépenses</h2>
-      <div id="mapContainer" class="map-view-container"></div>
-      <div id="mapLegend" class="map-legend"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalMapView">Fermer</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Modal: Confirmation générique -->
   <div id="modalConfirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalConfirmTitle">
     <div class="modal modal-confirm">
@@ -693,8 +664,6 @@
     <span aria-hidden="true">➕</span>
   </button>
 
-  <!-- Leaflet.js -->
-  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Firebase SDK -->
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>

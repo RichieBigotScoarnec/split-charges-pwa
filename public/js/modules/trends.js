@@ -23,16 +23,51 @@ export function initTrends() {
 }
 
 /**
- * Configure les listeners UI pour les tendances
+ * Configure l'accès aux tendances
+ *
+ * Le déclencheur visait #generateTrendsBtn, absent du HTML : rien n'a jamais
+ * appelé generateTrendsChart, et le canevas qu'elle cherchait n'existait pas
+ * non plus. La section n'a donc jamais rien affiché, alors que le README
+ * annonçait des tendances sur six mois.
  */
 function setupTrendsUI() {
-  const generateTrendsBtn = document.getElementById('generateTrendsBtn');
+  window.toggleTrends = toggleTrends;
+}
 
-  if (generateTrendsBtn) {
-    generateTrendsBtn.addEventListener('click', async () => {
-      await generateTrendsChart();
-    });
+/** Le graphique n'est produit qu'une fois par ouverture de l'application */
+let trendsRendered = false;
+
+/**
+ * Ouvre ou referme le panneau des tendances
+ *
+ * Le graphique demande une lecture de tout l'historique : il n'est produit
+ * qu'au premier dépliage, et pas au chargement de l'application.
+ *
+ * @returns {Promise<void>}
+ */
+export async function toggleTrends() {
+  const contenu = document.getElementById('trendsContent');
+  const bascule = document.getElementById('trendsToggle');
+  if (!contenu || !bascule) return;
+
+  const ouvert = !contenu.hidden;
+  contenu.hidden = ouvert;
+  bascule.setAttribute('aria-expanded', String(!ouvert));
+
+  if (!ouvert && !trendsRendered) {
+    trendsRendered = true;
+    await generateTrendsChart();
   }
+}
+
+/**
+ * Oublie le graphique déjà produit
+ *
+ * Après un changement de données, le graphique affiché décrit un état
+ * périmé : le prochain dépliage doit le refaire.
+ */
+export function invalidateTrends() {
+  trendsRendered = false;
 }
 
 /**
