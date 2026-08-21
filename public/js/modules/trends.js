@@ -3,7 +3,7 @@
 
 import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { toast } from '../components/toast.js';
 import { getDataPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -366,12 +366,12 @@ function renderTrendsStats(data) {
       <div class="stat-card">
         <div class="stat-label">Minimum</div>
         <div class="stat-value">${formatCurrency(min)}</div>
-        <div class="stat-period">${periods[totals.indexOf(min)]}</div>
+        <div class="stat-period">${escapeHtml(periods[totals.indexOf(min)])}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Maximum</div>
         <div class="stat-value">${formatCurrency(max)}</div>
-        <div class="stat-period">${periods[totals.indexOf(max)]}</div>
+        <div class="stat-period">${escapeHtml(periods[totals.indexOf(max)])}</div>
       </div>
       <div class="stat-card ${trend >= 0 ? 'trend-up' : 'trend-down'}">
         <div class="stat-label">Tendance</div>

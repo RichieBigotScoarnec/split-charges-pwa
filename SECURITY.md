@@ -74,7 +74,17 @@ configuration n'est requise — un compte autorisé se connecte et voit tout.
 Toute donnée saisie et réinjectée en HTML passe par `escapeHtml()`
 ([`js/utils/format.js`](js/utils/format.js)). Les champs concernés sont libres :
 description de charge, note, libellé de catégorie ou de destination
-personnalisée.
+personnalisée, prénoms des membres.
+
+`escapeHtml()` traite les cinq caractères — `& < > " '` — et non les seuls
+`& < >`. L'implémentation d'origine passait par `textContent` puis `innerHTML`,
+dont la sérialisation laisse les guillemets intacts : sans conséquence en
+contenu d'élément, mais la moitié des appels injectent en contexte d'attribut
+(`aria-label="Modifier …"`), où un guillemet refermait l'attribut.
+
+Les prénoms des membres viennent de la base et sont rendus par six chemins
+distincts. Ils étaient interpolés sans échappement : `tests/modules/prenoms-echappement.test.js`
+verrouille désormais chacun de ces points.
 
 `eslint-plugin-no-unsanitized` signale tout nouvel `innerHTML` dynamique pour
 relecture (avertissement — voir [`eslint.config.mjs`](eslint.config.mjs) pour

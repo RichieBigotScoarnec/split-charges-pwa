@@ -164,7 +164,7 @@ function renderSummary(summary) {
     balanceExplanation = `<small>dont ${formatCurrency(Math.abs(carryOver))} que ${debiteur} déjà au titre des mois précédents</small>`;
   } else if (finalBalance !== 0) {
     const overpayer = soldeDit.crediteur;
-    balanceExplanation = `<small>${overpayer} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
+    balanceExplanation = `<small>${escapeHtml(overpayer)} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }
 
   // L'action n'a de sens que s'il reste quelque chose à régler. Elle vit dans

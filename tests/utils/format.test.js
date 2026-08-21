@@ -188,10 +188,34 @@ describe('escapeHtml', () => {
     expect(result).toContain('&lt;script&gt;');
   });
 
-  it('laisse les guillemets doubles intacts (text node)', () => {
-    // div.textContent → innerHTML n'échappe pas " en &quot; (inutile en text node)
-    const result = escapeHtml('"hello"');
-    expect(result).toBe('"hello"');
+  it('échappe les guillemets doubles', () => {
+    // La moitié des appelants injectent en contexte d'attribut
+    // (aria-label="Modifier ${escapeHtml(description)}") : un guillemet non
+    // échappé y refermait l'attribut et en ouvrait d'autres sur la balise.
+    expect(escapeHtml('"hello"')).toBe('&quot;hello&quot;');
+  });
+
+  it('échappe les apostrophes', () => {
+    expect(escapeHtml("it's")).toBe('it&#39;s');
+  });
+
+  it('neutralise une sortie de contexte d\'attribut', () => {
+    const charge = 'x" onfocus=alert(1) autofocus="';
+    const html = `<button aria-label="Modifier ${escapeHtml(charge)}"></button>`;
+    const hote = document.createElement('div');
+    hote.innerHTML = html;
+
+    const bouton = hote.querySelector('button');
+    expect(bouton.hasAttribute('onfocus')).toBe(false);
+    expect(bouton.hasAttribute('autofocus')).toBe(false);
+    expect(bouton.getAttribute('aria-label')).toBe(`Modifier ${charge}`);
+  });
+
+  it('zéro et false ne deviennent pas une chaîne vide', () => {
+    // La garde portait sur la fausseté, pas sur l'absence : un montant à 0
+    // disparaissait de l'affichage.
+    expect(escapeHtml(0)).toBe('0');
+    expect(escapeHtml(false)).toBe('false');
   });
 
   it('échappe le &', () => {
