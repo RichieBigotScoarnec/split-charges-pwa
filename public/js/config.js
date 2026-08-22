@@ -27,6 +27,35 @@ export const FIREBASE_CONFIG = {
   appId: "1:41121556897:web:1ac9a7ab86649d489ec3e0"
 };
 
+// ===== APP CHECK =====
+/**
+ * Clé de site reCAPTCHA, pour App Check
+ *
+ * App Check atteste que la requête vient bien de cette application, et non
+ * d'un script quelconque muni de la clé API — laquelle est publique par
+ * construction. C'est ce qui manque aux règles de sécurité : elles vérifient
+ * *qui* parle, pas *d'où*. Sans lui, rien ne limite les tentatives de mot de
+ * passe contre les comptes du foyer.
+ *
+ * Cette clé est publique elle aussi : elle est livrée dans le JavaScript, et
+ * ne vaut que pour le domaine déclaré dans la console reCAPTCHA. La renseigner
+ * ici active l'attestation ; la laisser vide la désactive proprement.
+ *
+ * ⚠️ Ne pas activer l'application forcée d'App Check dans la console Firebase
+ * tant que cette valeur est vide : toute requête serait refusée, et
+ * l'application n'afficherait plus rien.
+ */
+export const APP_CHECK_SITE_KEY = '';
+
+/**
+ * Fournisseur d'attestation : 'recaptcha-v3' ou 'recaptcha-enterprise'
+ *
+ * Les deux se configurent dans la console Firebase, sous App Check. La v3
+ * suffit à un usage familial ; Enterprise ne change ici que la classe
+ * instanciée.
+ */
+export const APP_CHECK_PROVIDER = 'recaptcha-v3';
+
 // ===== ESPACE DE DONNÉES =====
 // `?sandbox=1` bascule l'application sur un espace isolé, dans le même projet
 // Firebase et sous la même liste blanche. Il remplace l'ancienne base de test

@@ -5,8 +5,10 @@
   <!-- Content Security Policy en balise meta : GitHub Pages ne permet pas de
        définir d'en-têtes HTTP, la politique de firebase.json n'y a donc jamais
        été appliquée. Les origines localhost couvrent le mode ?emulator=1.
-       frame-ancestors et report-uri sont ignorés en meta : non utilisés ici. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://unpkg.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com" />
+       frame-ancestors et report-uri sont ignorés en meta : non utilisés ici.
+       www.google.com couvre reCAPTCHA, dont App Check dépend : son script vient
+       de là, et son épreuve s'affiche dans un cadre de la même origine. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://www.google.com" />
   <!-- Le géocodage inversé interroge Nominatim : sans politique explicite, les
        navigateurs anciens joignaient l'adresse complète de la page à la
        requête. L'origine seule suffit à ce que le service attend, et reste
@@ -729,6 +731,10 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" integrity="sha384-g5H2aNdtgRBYOBLsuOAuHvUXWnw4bswmU+tYjmGc1G3JfKxl79uWwV4sQarJsLwu" crossorigin="anonymous"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
+  <!-- App Check : atteste que la requête vient de cette application, ce que les
+       règles de sécurité ne savent pas vérifier. Inerte tant que
+       APP_CHECK_SITE_KEY est vide dans js/config.js. -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js" integrity="sha384-Tsd7RAB2e2isM7pHHNFd4hZbrHBtszy6x4HCQqkLDM7PTHvRAjrMZKBOP2ntQDqc" crossorigin="anonymous"></script>
 
   <!-- FairSplit JS Modules -->
   <script type="module" src="js/app.js"></script>
