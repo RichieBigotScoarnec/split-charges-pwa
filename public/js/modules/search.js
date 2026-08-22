@@ -282,7 +282,5 @@ function showAllCharges() {
   });
 }
 
-// ✅ FIX CRITIQUE 3: Function escapeHtml removed - now imported from utils.js
-
 // Exposer globalement pour compatibilité
 window.clearSearch = clearSearch;

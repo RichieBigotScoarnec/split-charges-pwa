@@ -82,19 +82,6 @@
   display: block;
 }
 
-/* Charge notes display */
-.charge-note {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-top: 2px;
-}
-
-.note-textarea {
-  resize: vertical;
-  min-height: 50px;
-}
-
 /* ===== PERIOD NAVIGATION ===== */
 .period-navigation {
   background: var(--card-bg);
@@ -351,7 +338,6 @@
   font-weight: 500;
 }
 
-.btn-edit,
 .btn-icon {
   background: transparent;
   color: var(--text-secondary);
@@ -370,7 +356,6 @@
   justify-content: center;
 }
 
-.btn-edit:hover,
 .btn-icon:not(.btn-delete):hover {
   background: var(--primary-glow);
   border-color: var(--primary-color);
@@ -577,30 +562,6 @@
   margin-top: var(--space-md);
 }
 
-.summary-item {
-  background: var(--elevated-bg);
-  padding: var(--space-md);
-  border-radius: var(--radius);
-  text-align: center;
-}
-
-.summary-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: var(--space-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-}
-
-.summary-value {
-  font-size: 22px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--primary-light);
-  letter-spacing: -0.02em;
-}
-
 /* ===== REIMBURSEMENT ===== */
 .reimbursement-item {
   background: var(--elevated-bg);
@@ -628,11 +589,6 @@
   font-weight: 600;
   font-family: var(--font-mono);
   color: var(--success-color);
-}
-
-.reimbursement-date {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 /* ===== MODES DE PARTAGE ===== */
@@ -795,16 +751,7 @@
   border-left-color: var(--danger-color);
 }
 
-/* ===== LOADING SPINNER ===== */
-.spinner {
-  border: 2px solid var(--border-color);
-  border-top: 2px solid var(--primary-color);
-  border-radius: var(--radius-full);
-  width: 32px;
-  height: 32px;
-  animation: spin 0.8s linear infinite;
-  margin: var(--space-lg) auto;
-}
+/* ===== LOADING SPINNER ===== *
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -821,20 +768,9 @@
   padding: var(--space-xl) var(--space-lg);
 }
 
-.empty-state-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
-  opacity: 0.6;
-  animation: emptyBounce 2s ease-in-out infinite;
-}
-
 @keyframes emptyBounce {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
-}
-
-.empty-state-text {
-  font-size: 14px;
 }
 
 /* ===== FLOATING ACTION BUTTON (FAB) ===== */
@@ -949,11 +885,6 @@
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
-}
-
-/* Une corbeille vide reste accessible, mais ne réclame pas l'attention. */
-.btn.is-empty {
-  opacity: 0.6;
 }
 
 /* ===== PANNEAU DE DIAGNOSTIC ===== */

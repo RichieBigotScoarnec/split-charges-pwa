@@ -13,7 +13,10 @@
   margin: var(--space-md) 0;
 }
 
-/* ===== LEAFLET CUSTOMIZATION ===== */
+/* ===== LEAFLET CUSTOMIZATION =====
+   .leaflet-popup-content est produite par Leaflet, pas par ce dépôt : elle
+   n'apparaît donc dans aucun de nos fichiers. Un balayage des classes
+   inutilisées la signalera comme orpheline — elle ne l'est pas. */
 .leaflet-popup-content {
   font-family: var(--font);
   min-width: 200px;

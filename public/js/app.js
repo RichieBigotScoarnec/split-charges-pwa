@@ -15,16 +15,6 @@ import { initAuth } from './modules/auth.js';
 import { log, error as logError } from './utils/debug.js';
 import { initDiagnostics, noter } from './utils/diagnostics.js';
 
-// Modules migrated (initialized by auth.js after login):
-// - period.js (Étape 3c) ✅
-//
-// Will be imported as modules are migrated (Étape 3d-3h)
-// import { initSalaires } from './modules/salaires.js';
-// import { initCharges } from './modules/charges.js';
-// etc.
-
-// ✅ FIX CRITIQUE 5: Stocker l'unsubscribe function pour le listener de connexion
-
 /**
  * Initialize the application
  */
@@ -46,8 +36,7 @@ async function initApp() {
     const { database } = initFirebase();
     initDatabase(database);
 
-    // 2. Setup connection monitoring
-    // ✅ FIX CRITIQUE 5: Stocker l'unsubscribe function
+    // 2. Surveillance de la liaison
     // Écoute maintenue pour la durée de vie de la page : l'application est
     // mono-page, il n'existe pas de point de démontage.
     onConnectionChange((isConnected) => {

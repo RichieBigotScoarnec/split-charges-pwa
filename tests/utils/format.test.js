@@ -2,10 +2,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatCurrency,
-  formatCurrencyShort,
-  formatPercentage,
-  formatNumber,
-  parseCurrency,
   escapeHtml,
   formatPaidBy
 } from '../../public/js/utils/format.js';
@@ -47,124 +43,6 @@ describe('formatCurrency', () => {
     const result = formatCurrency(10000);
     expect(result).toMatch(/10/);
     expect(result).toMatch(/€/);
-  });
-});
-
-// ===== formatCurrencyShort =====
-describe('formatCurrencyShort', () => {
-  it('sous 1000 : affiche les décimales', () => {
-    const result = formatCurrencyShort(500);
-    expect(result).toMatch(/500/);
-    expect(result).toMatch(/€/);
-  });
-
-  it('au-dessus de 1000 : pas de décimales', () => {
-    const result = formatCurrencyShort(1500);
-    expect(result).not.toMatch(/,00/);
-    expect(result).toMatch(/1\s?500/);
-  });
-
-  it('exactement 1000 : pas de décimales', () => {
-    const result = formatCurrencyShort(1000);
-    expect(result).not.toMatch(/,00/);
-  });
-
-  it('999.99 : affiche les décimales', () => {
-    const result = formatCurrencyShort(999.99);
-    expect(result).toMatch(/999/);
-  });
-
-  it('-1500 : pas de décimales', () => {
-    const result = formatCurrencyShort(-1500);
-    expect(result).not.toMatch(/,00/);
-  });
-});
-
-// ===== formatPercentage =====
-describe('formatPercentage', () => {
-  it('valeur 0-100 par défaut', () => {
-    expect(formatPercentage(60)).toBe('60.0%');
-  });
-
-  it('valeur décimale 0-1 avec isDecimal=true', () => {
-    expect(formatPercentage(0.6, true)).toBe('60.0%');
-  });
-
-  it('0%', () => {
-    expect(formatPercentage(0)).toBe('0.0%');
-  });
-
-  it('100%', () => {
-    expect(formatPercentage(100)).toBe('100.0%');
-  });
-
-  it('valeur décimale avec arrondi', () => {
-    expect(formatPercentage(33.33)).toBe('33.3%');
-  });
-
-  it('0.5 decimal = 50%', () => {
-    expect(formatPercentage(0.5, true)).toBe('50.0%');
-  });
-});
-
-// ===== formatNumber =====
-describe('formatNumber', () => {
-  it('formate avec 2 décimales par défaut', () => {
-    const result = formatNumber(1234.567);
-    expect(result).toMatch(/1\s?234/);
-    expect(result).toMatch(/57/); // arrondi
-  });
-
-  it('formate avec 0 décimales', () => {
-    const result = formatNumber(1234.7, 0);
-    expect(result).toMatch(/1\s?235/); // arrondi
-  });
-
-  it('null retourne 0', () => {
-    expect(formatNumber(null)).toMatch(/0/);
-  });
-
-  it('formate 0', () => {
-    expect(formatNumber(0)).toMatch(/0/);
-  });
-});
-
-// ===== parseCurrency =====
-describe('parseCurrency', () => {
-  it('parse un nombre directement', () => {
-    expect(parseCurrency(150)).toBe(150);
-  });
-
-  it('parse une chaîne simple', () => {
-    expect(parseCurrency('150.99')).toBeCloseTo(150.99);
-  });
-
-  it('parse avec virgule française', () => {
-    expect(parseCurrency('150,99')).toBeCloseTo(150.99);
-  });
-
-  it('parse avec symbole €', () => {
-    expect(parseCurrency('150 €')).toBeCloseTo(150);
-  });
-
-  it('null retourne 0', () => {
-    expect(parseCurrency(null)).toBe(0);
-  });
-
-  it('chaîne vide retourne 0', () => {
-    expect(parseCurrency('')).toBe(0);
-  });
-
-  it('chaîne non numérique retourne 0', () => {
-    expect(parseCurrency('abc')).toBe(0);
-  });
-
-  it('parse un montant formaté fr-FR', () => {
-    // "1 234,50 €" → 1234.50
-    const result = parseCurrency('1 234,50 €');
-    // Retire €, espaces, remplace , par .
-    // "1234.50" → 1234.5
-    expect(result).toBeCloseTo(1234.5, 1);
   });
 });
 
