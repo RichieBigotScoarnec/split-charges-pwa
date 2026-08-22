@@ -8,7 +8,7 @@ import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 // Les règles de saisie vivent dans utils/validation.js : réécrites dans
 // chaque formulaire, elles avaient divergé.
 import { validateChargeAmount } from '../utils/validation.js';
-import { directionLabel } from '../utils/members.js';
+import { directionLabel, memberLabel } from '../utils/members.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
@@ -366,11 +366,16 @@ export function renderReimbursements() {
   // contradiction avec le solde affiché plus haut.
   const netAmount = totalYouToPartner - totalPartnerToYou;
   if (totalElement) {
+    // Le libellé nommait « Conjointe » alors que l'écran entier porte les
+    // prénoms depuis leur mise en place : ce bloc était le dernier à parler
+    // d'une personne que l'application n'appelle plus ainsi.
+    const nomConjointe = escapeHtml(memberLabel('conjointe', getState('members')));
+
     if (netAmount > 0) {
-      totalElement.innerHTML = `Net versé à Conjointe : <strong>${formatCurrency(netAmount)}</strong>`;
+      totalElement.innerHTML = `Net versé à ${nomConjointe} : <strong>${formatCurrency(netAmount)}</strong>`;
       totalElement.className = 'reimbursements-total you-owe';
     } else if (netAmount < 0) {
-      totalElement.innerHTML = `Net reçu de Conjointe : <strong>${formatCurrency(Math.abs(netAmount))}</strong>`;
+      totalElement.innerHTML = `Net reçu de ${nomConjointe} : <strong>${formatCurrency(Math.abs(netAmount))}</strong>`;
       totalElement.className = 'reimbursements-total partner-owes';
     } else {
       totalElement.innerHTML = 'Transferts équilibrés';

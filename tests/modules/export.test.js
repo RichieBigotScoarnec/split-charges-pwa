@@ -253,6 +253,55 @@ describe('exportToCSV — descriptions hostiles', () => {
   });
 });
 
+// ===== Prénoms du foyer =====
+describe('Les prénoms du foyer traversent les exports', () => {
+  beforeEach(() => {
+    setState('currentPeriod', '2026-03');
+    setState('salaries', { vous: 3200, conjointe: 2400 });
+    setState('members', { vous: 'Richard', conjointe: 'Cindy' });
+  });
+
+  it('le CSV nomme les personnes plutôt que « Vous » et « Conjointe »', () => {
+    // Un relevé exporté est le document qu'on transmet : « Vous » n'y désigne
+    // personne pour qui le lit.
+    exportToCSV();
+
+    expect(capturedCSV).toContain('Richard');
+    expect(capturedCSV).toContain('Cindy');
+    expect(capturedCSV).not.toMatch(/^"Conjointe";/m);
+  });
+
+  it('le sens des remboursements porte les prénoms', () => {
+    setState('reimbursements', [
+      { id: 'r1', amount: 150, direction: 'vous-to-conjointe', timestamp: 1700000000000 }
+    ]);
+
+    exportToCSV();
+
+    expect(capturedCSV).toContain('"Richard";"Cindy"');
+  });
+
+  it('sans prénom renseigné, les libellés d\'origine sont conservés', () => {
+    // Les données antérieures restent lisibles telles quelles.
+    setState('members', null);
+
+    exportToCSV();
+
+    // Les cellules passent par champCsv, d'où les guillemets : un prénom
+    // contenant un point-virgule décalerait sinon la colonne du montant.
+    expect(capturedCSV).toMatch(/^"Vous";3200$/m);
+    expect(capturedCSV).toMatch(/^"Conjointe";2400$/m);
+  });
+
+  it('un prénom porteur d\'une amorce de formule est neutralisé', () => {
+    setState('members', { vous: '=cmd|calc', conjointe: 'Cindy' });
+
+    exportToCSV();
+
+    expect(capturedCSV).toContain('"\'=cmd|calc"');
+  });
+});
+
 // ===== Relevé imprimable =====
 describe('exportToPDF — fenêtre d\'impression', () => {
   let htmlEcrit;
