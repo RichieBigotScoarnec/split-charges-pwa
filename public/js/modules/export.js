@@ -20,6 +20,30 @@ export function initExport() {
 
 
 /**
+ * Met une valeur en forme pour une cellule CSV
+ *
+ * Deux défauts se corrigent au même endroit.
+ *
+ * Le guillemet, d'abord : les champs étaient encadrés de `"` sans que les
+ * guillemets du contenu soient doublés. Une description en contenant décalait
+ * toutes les colonnes suivantes — le fichier restait lisible, mais faux.
+ *
+ * La formule ensuite : un tableur interprète toute cellule commençant par
+ * `=`, `+`, `-` ou `@` comme une formule, et l'exécute à l'ouverture du
+ * fichier. Une description valant `=HYPERLINK("http://…")` devient un appel
+ * sortant chez qui ouvre l'export. L'apostrophe de tête est la parade
+ * habituelle : elle force le type texte et reste invisible à l'affichage.
+ *
+ * @param {*} valeur - Contenu de la cellule
+ * @returns {string} Cellule encadrée, sûre à l'ouverture
+ */
+export function champCsv(valeur) {
+  const texte = valeur === null || valeur === undefined ? '' : String(valeur);
+  const protege = /^[=+\-@\t\r]/.test(texte) ? `'${texte}` : texte;
+  return `"${protege.replace(/"/g, '""')}"`;
+}
+
+/**
  * Exporte les données au format CSV
  */
 export function exportToCSV() {
@@ -47,15 +71,15 @@ export function exportToCSV() {
     // Salaires
     csv += '=== SALAIRES ===\n';
     csv += 'Personne;Salaire\n';
-    csv += `Vous;${salaries.vous}\n`;
-    csv += `Conjointe;${salaries.conjointe}\n`;
+    csv += `Vous;${Number(salaries.vous) || 0}\n`;
+    csv += `Conjointe;${Number(salaries.conjointe) || 0}\n`;
     csv += '\n';
 
     // Charges fixes
     csv += '=== CHARGES FIXES ===\n';
     csv += 'Description;Catégorie;Montant;Payé par;Date\n';
     fixedCharges.forEach(charge => {
-      csv += `"${charge.description}";"${charge.category}";${charge.amount};"${formatPaidBy(charge.paidBy)}";"${formatDate(charge.timestamp)}"\n`;
+      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(charge.timestamp))}\n`;
     });
     csv += `\nTotal charges fixes: ${formatCurrency(fixedCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -64,7 +88,7 @@ export function exportToCSV() {
     csv += '=== CHARGES VARIABLES ===\n';
     csv += 'Description;Catégorie;Montant;Payé par;Date\n';
     variableCharges.forEach(charge => {
-      csv += `"${charge.description}";"${charge.category}";${charge.amount};"${formatPaidBy(charge.paidBy)}";"${formatDate(charge.timestamp)}"\n`;
+      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(charge.timestamp))}\n`;
     });
     csv += `\nTotal charges variables: ${formatCurrency(variableCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -75,7 +99,7 @@ export function exportToCSV() {
       csv += 'De;Vers;Montant;Date\n';
       reimbursements.forEach(reimb => {
         const dir = parseReimbDirection(reimb.direction);
-        csv += `"${dir.from}";"${dir.to}";${reimb.amount};"${formatDate(reimb.timestamp)}"\n`;
+        csv += `${champCsv(dir.from)};${champCsv(dir.to)};${Number(reimb.amount) || 0};${champCsv(formatDate(reimb.timestamp))}\n`;
       });
       csv += '\n';
     }
@@ -120,12 +144,31 @@ export function exportToPDF() {
 
     const printWindow = window.open('', '', 'width=800,height=600');
 
+    // Un bloqueur de fenêtres renvoie null. Sans ce contrôle, l'accès à
+    // `printWindow.document` levait une exception rattrapée plus bas, et
+    // l'utilisateur lisait « Erreur lors de l'export PDF » là où il fallait
+    // lui dire d'autoriser les fenêtres.
+    if (!printWindow) {
+      toast.error('Fenêtre bloquée par le navigateur — autorisez les fenêtres pour ce site');
+      return;
+    }
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>FairSplit - Export ${currentPeriod}</title>
+        <!--
+          La page principale porte sa politique de sécurité en balise meta. Un
+          document écrit dans une fenêtre vierge en hérite selon les
+          navigateurs, pas selon une garantie : ce relevé est donc le seul
+          endroit de l'application où du balisage injecté pourrait s'exécuter.
+          Il porte sa propre politique, et n'a besoin d'aucun script pour
+          fonctionner — le bouton est câblé depuis la fenêtre appelante.
+        -->
+        <meta http-equiv="Content-Security-Policy"
+              content="default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; form-action 'none'; base-uri 'none'">
+        <title>FairSplit - Export ${escapeHtml(currentPeriod)}</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -166,7 +209,7 @@ export function exportToPDF() {
       </head>
       <body>
         <h1>FairSplit - Relevé de Charges</h1>
-        <p><strong>Période :</strong> ${currentPeriod}</p>
+        <p><strong>Période :</strong> ${escapeHtml(currentPeriod)}</p>
         <p><strong>Date d'export :</strong> ${new Date().toLocaleString('fr-FR')}</p>
 
         <div class="section">
@@ -202,8 +245,8 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.description)}</td>
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
-                <td>${formatPaidBy(charge.paidBy)}</td>
-                <td>${formatDate(charge.timestamp)}</td>
+                <td>${escapeHtml(formatPaidBy(charge.paidBy))}</td>
+                <td>${escapeHtml(formatDate(charge.timestamp))}</td>
               </tr>
             `).join('')}
             <tr class="total">
@@ -228,8 +271,8 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.description)}</td>
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
-                <td>${formatPaidBy(charge.paidBy)}</td>
-                <td>${formatDate(charge.timestamp)}</td>
+                <td>${escapeHtml(formatPaidBy(charge.paidBy))}</td>
+                <td>${escapeHtml(formatDate(charge.timestamp))}</td>
               </tr>
             `).join('')}
             <tr class="total">
@@ -261,13 +304,19 @@ export function exportToPDF() {
         </div>
         ` : ''}
 
-        <button onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+        <button type="button" id="imprimer">Imprimer / Enregistrer en PDF</button>
       </body>
       </html>
     `;
 
     printWindow.document.write(html);
     printWindow.document.close();
+
+    // Le bouton portait un `onclick` inline : bloqué par toute politique de
+    // sécurité digne de ce nom, donc silencieusement inerte. Le câbler depuis
+    // ici fonctionne — même origine — et n'exige aucun script dans le document.
+    const bouton = printWindow.document.getElementById('imprimer');
+    if (bouton) bouton.addEventListener('click', () => printWindow.print());
 
     toast.info('Fenêtre d\'impression ouverte');
 

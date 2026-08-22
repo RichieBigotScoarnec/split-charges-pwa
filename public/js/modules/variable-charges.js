@@ -365,7 +365,7 @@ export function renderVariableCharges() {
     categoryDiv.className = 'charge-category';
     categoryDiv.innerHTML = `
       <h4 class="category-header">
-        ${getCategoryIcon(category)} ${escapeHtml(category)}
+        ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
         <span class="category-total">${formatCurrency(categoryTotal)}</span>
       </h4>
     `;
@@ -384,7 +384,7 @@ export function renderVariableCharges() {
       chargeDiv.className = 'charge-item';
       chargeDiv.dataset.id = charge.id;
       const splitTag = charge.splitOverride
-        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${charge.splitOverride.vous}/${charge.splitOverride.conjointe}`}</span>`
+        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
         : '';
       const locationName = charge.location ? (charge.location.name || charge.location.place) : null;
       const locationTag = locationName
@@ -393,7 +393,7 @@ export function renderVariableCharges() {
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}</span>
-          <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)}</span>
+          <span class="charge-payer">Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
           ${locationTag}
         </div>
         <div class="charge-actions">

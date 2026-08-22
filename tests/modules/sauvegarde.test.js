@@ -61,6 +61,34 @@ describe('Validation d\'un fichier de sauvegarde', () => {
     expect(validateBackup(valide({ data: 'rien' }))).toMatch(/aucune donnée/);
   });
 
+  it('accepte tous les nœuds que l\'application écrit', () => {
+    // Cette liste double celle des règles de sécurité : si l'une accepte un
+    // nœud que l'autre refuse, une restauration légitime échoue.
+    expect(validateBackup(valide({
+      data: {
+        salaries: { vous: 3000, conjointe: 2000 },
+        members: { vous: 'Richard', conjointe: 'Cindy' },
+        shareMode: { mode: 'prorata' },
+        carryOverEnabled: true,
+        categoryBudgets: { Courses: 400 },
+        customCategories: [],
+        customDestinations: [],
+        reminders: { finMois: false },
+        periods: {}
+      }
+    }))).toBeNull();
+  });
+
+  it('refuse un nœud que l\'application ne sait pas écrire, et le nomme', () => {
+    // Les règles le refuseraient de toute façon, mais après le téléchargement
+    // de la copie de secours et sans dire lequel.
+    const probleme = validateBackup(valide({
+      data: { periods: {}, charge_utile: { quoi: 'que ce soit' } }
+    }));
+
+    expect(probleme).toMatch(/charge_utile/);
+  });
+
   it('accepte une sauvegarde vide mais structurée', () => {
     // Un foyer qui n'a encore rien saisi produit une sauvegarde vide ; elle
     // reste valide.

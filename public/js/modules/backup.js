@@ -113,6 +113,27 @@ export function pickBackupFile() {
 }
 
 /**
+ * Nœuds que l'application sait écrire, et qu'une restauration peut donc poser
+ *
+ * Cette liste double celle des règles de sécurité, qui font autorité et
+ * refuseraient l'écriture d'un nœud inconnu. Elle existe pour que le refus
+ * arrive avant l'écriture, et nomme le nœud en cause : sans elle, un fichier
+ * fabriqué déclenchait le téléchargement de la copie de secours, puis un
+ * « Restauration impossible » sans le moindre indice.
+ */
+const NOEUDS_CONNUS = [
+  'salaries',
+  'members',
+  'shareMode',
+  'carryOverEnabled',
+  'categoryBudgets',
+  'customCategories',
+  'customDestinations',
+  'reminders',
+  'periods'
+];
+
+/**
  * Valide l'enveloppe d'un fichier de sauvegarde
  *
  * Restaurer écrase l'intégralité des données : le fichier doit prouver qu'il
@@ -134,6 +155,12 @@ export function validateBackup(enveloppe) {
   if (!enveloppe.data || typeof enveloppe.data !== 'object' || Array.isArray(enveloppe.data)) {
     return 'Cette sauvegarde ne contient aucune donnée exploitable.';
   }
+
+  const inconnus = Object.keys(enveloppe.data).filter(cle => !NOEUDS_CONNUS.includes(cle));
+  if (inconnus.length) {
+    return `Cette sauvegarde contient des données que l'application ne connaît pas : ${inconnus.join(', ')}.`;
+  }
+
   return null;
 }
 

@@ -102,6 +102,48 @@ describe('Les règles déployées couvrent le compte de test', () => {
     expect(regles['.write']).toBe(false);
   });
 
+  it('le foyer exige une adresse vérifiée, le bac à sable non', () => {
+    // L'adresse seule décidait de l'accès, alors que `accounts:signUp` reste
+    // joignable avec la clé publique du projet : un compte créé par cette API
+    // et revendiquant une adresse de la liste blanche entrait dans le foyer.
+    // Le bac à sable, lui, accueille le compte de test, qui s'authentifie par
+    // mot de passe sans adresse à prouver — l'y exiger le fermerait.
+    for (const droit of ['.read', '.write']) {
+      expect(regles.household[droit]).toContain('auth.token.email_verified === true');
+      expect(regles.sandbox[droit]).not.toContain('email_verified');
+    }
+  });
+
+  it('les deux espaces portent exactement le même schéma', () => {
+    // Le schéma de validation est écrit deux fois : les règles Realtime
+    // Database n'ont aucun mécanisme de réutilisation, et scinder l'accès des
+    // deux espaces derrière un joker rendrait la liste blanche — la partie qui
+    // compte — nettement moins lisible. La duplication est donc assumée, mais
+    // elle dérive dès qu'on l'oublie : un bac à sable plus permissif que le
+    // foyer n'éprouverait plus rien de ce que le foyer subira.
+    const schema = (espace) => {
+      const copie = { ...regles[espace] };
+      delete copie['.read'];
+      delete copie['.write'];
+      return copie;
+    };
+
+    expect(schema('sandbox')).toEqual(schema('household'));
+  });
+
+  it('chaque espace borne ce qu\'il accepte', () => {
+    // Sans .validate, un jeton dérobé écrivait n'importe quelle structure de
+    // n'importe quelle taille sous l'espace du foyer.
+    for (const espace of ['household', 'sandbox']) {
+      expect(regles[espace].periods.$periode.variableCharges.$id.description['.validate'])
+        .toMatch(/length <= \d+/);
+      expect(regles[espace].periods.$periode.variableCharges.$id.amount['.validate'])
+        .toMatch(/isNumber\(\)/);
+      // Tout nœud non déclaré est refusé : rien ne se plante à côté du schéma.
+      expect(regles[espace].$autre['.validate']).toBe(false);
+    }
+  });
+
   it('tout compte autorisé figure dans au moins une règle', () => {
     // Un compte dans ALLOWED_EMAILS mais absent des règles se connecterait
     // pour ne rien pouvoir lire — panne silencieuse difficile à diagnostiquer.

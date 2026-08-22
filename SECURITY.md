@@ -45,6 +45,24 @@ La vérification est doublée côté client dans [`js/config.js`](js/config.js)
 un compte non autorisé. **Cette seconde vérification est un confort d'interface,
 pas une protection** : seules les règles serveur font autorité.
 
+L'espace du foyer exige en outre `auth.token.email_verified`. Sans cette
+condition, l'adresse seule décidait de l'accès — or le fournisseur e-mail/mot
+de passe est actif et `accounts:signUp` reste joignable avec la clé publique du
+projet : `SIGNUP_ENABLED` masque un bouton, il ne ferme pas l'endpoint. Un
+compte créé par cette API porte `email_verified: false` et n'entre donc pas,
+même s'il revendique une adresse de la liste blanche. Les deux comptes du foyer
+passent par Google, dont les jetons portent toujours la revendication.
+
+Le bac à sable n'exige pas la vérification : le compte de test s'y authentifie
+par mot de passe, et n'a aucune adresse à prouver pour manipuler des données
+d'essai. C'est la seule différence entre les deux espaces — le schéma, lui, est
+identique.
+
+`auth.js` refuse également une adresse non vérifiée côté interface. Confort là
+encore, mais un confort qui compte : sans lui, le compte s'authentifiait,
+l'écran s'ouvrait, et chaque lecture échouait ensuite une à une sans que la
+cause apparaisse nulle part.
+
 > Ajouter un utilisateur impose donc de modifier `ALLOWED_EMAILS` **et**
 > `database.rules.json`, puis de redéployer les règles (`npm run deploy:rules`).
 
@@ -55,6 +73,24 @@ Les données vivent sous `household/`, et les essais sous `sandbox/`
 isole les *données*, pas les droits. La racine est explicitement en
 `".read": false, ".write": false` : tout nœud non déclaré est inaccessible,
 y compris à un compte autorisé.
+
+Chaque espace décrit en outre ce qu'il accepte : types, longueurs et bornes
+sur chaque champ, format de période, et refus de tout nœud non déclaré. Sans
+ces `.validate`, un compte autorisé — ou un jeton dérobé, ou un onglet
+compromis — écrivait n'importe quelle structure, de n'importe quelle taille,
+à n'importe quel chemin. Les deux espaces portent le **même** schéma : le bac
+à sable éprouve donc réellement ce que le foyer subira
+(`tests/compte-bac-a-sable.test.js` verrouille cette égalité, et
+`tests/e2e/regles-donnees.spec.js` éprouve les règles contre le moteur réel
+de l'émulateur, dans les deux sens — ce que l'application écrit passe, le
+reste est refusé).
+
+Ces bornes sont larges à dessein : elles sont une limite d'abus, pas une règle
+de saisie. Une sauvegarde issue d'une version antérieure doit pouvoir être
+restaurée, et un champ inconnu reste accepté dans une charge tant qu'il s'agit
+d'une valeur simple et bornée. Un nœud hérité qui existerait encore en base
+doit en revanche être déclaré dans les règles avant qu'une restauration puisse
+le réécrire.
 
 Il n'y a **pas** de cloisonnement entre les deux comptes, et c'est délibéré :
 ils partagent un budget de foyer, donc le même jeu de données. Aucune
@@ -74,7 +110,17 @@ configuration n'est requise — un compte autorisé se connecte et voit tout.
 Toute donnée saisie et réinjectée en HTML passe par `escapeHtml()`
 ([`js/utils/format.js`](js/utils/format.js)). Les champs concernés sont libres :
 description de charge, note, libellé de catégorie ou de destination
-personnalisée.
+personnalisée, prénoms des membres.
+
+`escapeHtml()` traite les cinq caractères — `& < > " '` — et non les seuls
+`& < >`. L'implémentation d'origine passait par `textContent` puis `innerHTML`,
+dont la sérialisation laisse les guillemets intacts : sans conséquence en
+contenu d'élément, mais la moitié des appels injectent en contexte d'attribut
+(`aria-label="Modifier …"`), où un guillemet refermait l'attribut.
+
+Les prénoms des membres viennent de la base et sont rendus par six chemins
+distincts. Ils étaient interpolés sans échappement : `tests/modules/prenoms-echappement.test.js`
+verrouille désormais chacun de ces points.
 
 `eslint-plugin-no-unsanitized` signale tout nouvel `innerHTML` dynamique pour
 relecture (avertissement — voir [`eslint.config.mjs`](eslint.config.mjs) pour
@@ -97,7 +143,14 @@ ce qui permet de se passer de `'unsafe-inline'` sur `script-src`.
 son script de redirection ayant été retiré au profit du seul `meta refresh`.
 
 Limite : `frame-ancestors` et `report-uri` sont ignorés en balise `<meta>`.
-Ni l'un ni l'autre n'est utilisé ici.
+Ni l'un ni l'autre n'est utilisé ici. Conséquence assumée : aucune protection
+contre l'affichage du site dans un cadre tiers n'est possible tant que
+l'hébergement est GitHub Pages, qui ne permet pas non plus `X-Frame-Options`.
+
+La politique de référent est fixée explicitement à
+`strict-origin-when-cross-origin` : le géocodage inversé interroge Nominatim,
+et l'adresse complète de la page n'a pas à l'accompagner. L'origine reste
+envoyée, donc une restriction de clé API par référent continue de fonctionner.
 
 ### 6. Intégrité des ressources externes
 
@@ -107,9 +160,11 @@ Firebase SDK et Leaflet sont chargés depuis un CDN avec attribut `integrity`
 ### 7. Validation des saisies
 
 [`js/utils/validation.js`](js/utils/validation.js) : bornes sur les montants
-(50 000 € par charge, 100 000 € par salaire), longueurs maximales, format de
-période. Ces contrôles préviennent les erreurs de saisie ; ils ne sont **pas**
-une frontière de sécurité, étant contournables côté client.
+(100 000 € par charge comme par salaire, cf. `LIMITS` dans
+[`js/config.js`](js/config.js)), longueurs maximales, format de période. Ces
+contrôles préviennent les erreurs de saisie ; ils ne sont **pas** une frontière
+de sécurité, étant contournables côté client. La frontière est celle des
+`.validate` décrites au point 3, dont les bornes sont plus larges.
 
 ---
 
@@ -158,6 +213,12 @@ il rétrograderait `firebase-tools` d'une version majeure.
   les éditer à la main dans la console Firebase : le prochain déploiement
   écraserait la modification sans trace.
 - Toute action GitHub Actions doit être épinglée par SHA de commit.
+- Le workflow est en `contents: read` ; seul le job de déploiement demande
+  l'écriture. Ne pas remonter ce droit au niveau du workflow : il s'appliquerait
+  aussi aux jobs qui exécutent le code des dépendances.
+- Un nœud ajouté sous `household/` doit être déclaré dans `database.rules.json`
+  **et** dans `NOEUDS_CONNUS` (`js/modules/backup.js`), sans quoi il ne pourra
+  ni être écrit ni être restauré.
 
 ---
 

@@ -346,7 +346,7 @@ export function renderReimbursements() {
     reimbDiv.innerHTML = `
       <div class="reimbursement-info">
         <span class="reimbursement-direction ${directionClass}">
-          ${directionIcon} ${directionText}
+          ${directionIcon} ${escapeHtml(directionText)}
         </span>
         ${reimb.note ? `<span class="reimbursement-note">${escapeHtml(reimb.note)}</span>` : ''}
       </div>

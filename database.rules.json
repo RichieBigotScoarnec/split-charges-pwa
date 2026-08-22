@@ -2,15 +2,639 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "household": {
-      ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
-      ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+      "salaries": {
+        "vous": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "conjointe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "extraVous": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "extraConjointe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "members": {
+        "vous": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "conjointe": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "shareMode": {
+        "mode": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "customPercents": {
+          "mode": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "vous": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "conjointe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "carryOverEnabled": {
+        ".validate": "newData.isBoolean()"
+      },
+      "categoryBudgets": {
+        "$categorie": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+        }
+      },
+      "customCategories": {
+        "$rang": {
+          ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
+          "id": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "label": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "color": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "customDestinations": {
+        "$rang": {
+          ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
+          "id": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "label": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "color": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "reminders": {
+        "finMois": {
+          ".validate": "newData.isBoolean()"
+        },
+        "budget": {
+          ".validate": "newData.isBoolean()"
+        },
+        "budgetAmount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+        },
+        "reimbursement": {
+          ".validate": "newData.isBoolean()"
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "periods": {
+        "$periode": {
+          ".validate": "$periode.matches(/^[0-9]{4}-[0-9]{2}$/)",
+          "salaries": {
+            "vous": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "conjointe": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "extraVous": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "extraConjointe": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "$autre": {
+              ".validate": false
+            }
+          },
+          "fixedCharges": {
+            "$id": {
+              "description": {
+                ".validate": "newData.isString() && newData.val().length <= 200"
+              },
+              "amount": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "category": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryId": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryIcon": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "paidBy": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "recurring": {
+                ".validate": "newData.isBoolean()"
+              },
+              "splitMode": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "splitOverride": {
+                "mode": {
+                  ".validate": "newData.isString() && newData.val().length <= 20"
+                },
+                "vous": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "conjointe": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "$autre": {
+                  ".validate": false
+                }
+              },
+              "date": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "location": {
+                "lat": {
+                  ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                },
+                "lng": {
+                  ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                },
+                "name": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "timestamp": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                },
+                "$autre": {
+                  ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                }
+              },
+              "timestamp": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$autre": {
+                ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+              }
+            }
+          },
+          "variableCharges": {
+            "$id": {
+              "description": {
+                ".validate": "newData.isString() && newData.val().length <= 200"
+              },
+              "amount": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "category": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryId": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryIcon": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "paidBy": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "recurring": {
+                ".validate": "newData.isBoolean()"
+              },
+              "splitMode": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "splitOverride": {
+                "mode": {
+                  ".validate": "newData.isString() && newData.val().length <= 20"
+                },
+                "vous": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "conjointe": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "$autre": {
+                  ".validate": false
+                }
+              },
+              "date": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "location": {
+                "lat": {
+                  ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                },
+                "lng": {
+                  ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                },
+                "name": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "timestamp": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                },
+                "$autre": {
+                  ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                }
+              },
+              "timestamp": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$autre": {
+                ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+              }
+            }
+          },
+          "reimbursements": {
+            "$id": {
+              "direction": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "amount": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "note": {
+                ".validate": "newData.isString() && newData.val().length <= 1000"
+              },
+              "timestamp": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$autre": {
+                ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+              }
+            }
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "$autre": {
+        ".validate": false
+      }
     },
-
     "sandbox": {
       ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com')",
-      ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com')"
+      ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com')",
+      "salaries": {
+        "vous": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "conjointe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "extraVous": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "extraConjointe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "members": {
+        "vous": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "conjointe": {
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "shareMode": {
+        "mode": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "customPercents": {
+          "mode": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "vous": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "conjointe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "carryOverEnabled": {
+        ".validate": "newData.isBoolean()"
+      },
+      "categoryBudgets": {
+        "$categorie": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+        }
+      },
+      "customCategories": {
+        "$rang": {
+          ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
+          "id": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "label": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "color": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "customDestinations": {
+        "$rang": {
+          ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
+          "id": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "label": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "color": {
+            ".validate": "newData.isString() && newData.val().length <= 30"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "reminders": {
+        "finMois": {
+          ".validate": "newData.isBoolean()"
+        },
+        "budget": {
+          ".validate": "newData.isBoolean()"
+        },
+        "budgetAmount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+        },
+        "reimbursement": {
+          ".validate": "newData.isBoolean()"
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "periods": {
+        "$periode": {
+          ".validate": "$periode.matches(/^[0-9]{4}-[0-9]{2}$/)",
+          "salaries": {
+            "vous": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "conjointe": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "extraVous": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "extraConjointe": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "$autre": {
+              ".validate": false
+            }
+          },
+          "fixedCharges": {
+            "$id": {
+              "description": {
+                ".validate": "newData.isString() && newData.val().length <= 200"
+              },
+              "amount": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "category": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryId": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryIcon": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "paidBy": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "recurring": {
+                ".validate": "newData.isBoolean()"
+              },
+              "splitMode": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "splitOverride": {
+                "mode": {
+                  ".validate": "newData.isString() && newData.val().length <= 20"
+                },
+                "vous": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "conjointe": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "$autre": {
+                  ".validate": false
+                }
+              },
+              "date": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "location": {
+                "lat": {
+                  ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                },
+                "lng": {
+                  ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                },
+                "name": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "timestamp": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                },
+                "$autre": {
+                  ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                }
+              },
+              "timestamp": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$autre": {
+                ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+              }
+            }
+          },
+          "variableCharges": {
+            "$id": {
+              "description": {
+                ".validate": "newData.isString() && newData.val().length <= 200"
+              },
+              "amount": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "category": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryId": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "categoryIcon": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "paidBy": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "recurring": {
+                ".validate": "newData.isBoolean()"
+              },
+              "splitMode": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "splitOverride": {
+                "mode": {
+                  ".validate": "newData.isString() && newData.val().length <= 20"
+                },
+                "vous": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "conjointe": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                },
+                "$autre": {
+                  ".validate": false
+                }
+              },
+              "date": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
+              "location": {
+                "lat": {
+                  ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                },
+                "lng": {
+                  ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                },
+                "name": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "timestamp": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                },
+                "$autre": {
+                  ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                }
+              },
+              "timestamp": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$autre": {
+                ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+              }
+            }
+          },
+          "reimbursements": {
+            "$id": {
+              "direction": {
+                ".validate": "newData.isString() && newData.val().length <= 30"
+              },
+              "amount": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "note": {
+                ".validate": "newData.isString() && newData.val().length <= 1000"
+              },
+              "timestamp": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$autre": {
+                ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+              }
+            }
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "$autre": {
+        ".validate": false
+      }
     }
   }
 }

@@ -411,7 +411,7 @@ function createMarker(charge) {
         <h4>${escapeHtml(charge.description)}</h4>
         <p><strong>Montant :</strong> ${formatCurrency(charge.amount)}</p>
         <p><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'N/A')}</p>
-        <p><strong>Payé par :</strong> ${formatPaidBy(charge.paidBy)}</p>
+        <p><strong>Payé par :</strong> ${escapeHtml(formatPaidBy(charge.paidBy))}</p>
         <p><strong>Date :</strong> ${formatDate(charge.date)}</p>
         ${charge.location.name ? `<p><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</p>` : ''}
       </div>

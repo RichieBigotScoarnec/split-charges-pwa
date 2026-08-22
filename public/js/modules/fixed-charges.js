@@ -356,7 +356,7 @@ export function renderFixedCharges() {
     categoryDiv.className = 'charge-category';
     categoryDiv.innerHTML = `
       <h4 class="category-header">
-        ${getCategoryIcon(category)} ${escapeHtml(category)}
+        ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
         <span class="category-total">${formatCurrency(categoryTotal)}</span>
       </h4>
     `;
@@ -375,12 +375,12 @@ export function renderFixedCharges() {
         ? '<span class="charge-ponctuel">ponctuelle</span>'
         : '';
       const splitTag = charge.splitOverride
-        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${charge.splitOverride.vous}/${charge.splitOverride.conjointe}`}</span>`
+        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
         : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}</span>
-          <span class="charge-payer">Payé par ${formatPaidBy(charge.paidBy)} ${destinationTag}</span>
+          <span class="charge-payer">Payé par ${escapeHtml(formatPaidBy(charge.paidBy))} ${destinationTag}</span>
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>

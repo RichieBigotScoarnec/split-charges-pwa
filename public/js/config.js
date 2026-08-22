@@ -109,6 +109,14 @@ export const DESTINATIONS = [
  * règles lui refuseraient toute lecture — l'effet se limite à l'accumulation de
  * comptes parasites, mais elle est inutile : les comptes du foyer existent.
  *
+ * Ce drapeau ne ferme pour autant aucune porte : `accounts:signUp` reste
+ * joignable avec la clé publique du projet, qui figure ci-dessus. Masquer un
+ * bouton n'est pas une mesure de sécurité. Ce qui protège l'espace du foyer,
+ * c'est que ses règles exigent `email_verified` : un compte créé par cette API
+ * et laissé en l'état n'y accède pas, même s'il porte une adresse de la liste
+ * blanche. Le bac à sable, lui, accueille le compte de test, qui s'authentifie
+ * par mot de passe sans adresse à prouver.
+ *
  * Le parcours d'inscription est conservé, pas supprimé : une mise à disposition
  * plus large de l'application le rendrait nécessaire. Passer cette valeur à
  * `true` le rétablit, bouton et fonction comprises.

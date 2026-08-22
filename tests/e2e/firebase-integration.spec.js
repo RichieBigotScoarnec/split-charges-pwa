@@ -41,6 +41,13 @@ const APP_URL = '/FairSplit.html?emulator=1';
 
 /**
  * Crée un utilisateur de test via l'API REST de l'emulator Auth
+ *
+ * L'adresse est marquée vérifiée : les règles exigent `email_verified` sur
+ * l'espace du foyer, l'API d'inscription restant joignable avec la clé
+ * publique du projet. Un compte créé et laissé en l'état — ce que produit
+ * `accounts:signUp` — n'y accède pas, et c'est le but. Ce test-ci reproduit
+ * l'état d'un compte Google, les deux seuls qui entrent dans le foyer ;
+ * `regles-donnees.spec.js` éprouve le refus symétrique.
  */
 async function createTestUser(request) {
   // Créer un compte email/password via l'API REST de l'emulator
@@ -55,7 +62,17 @@ async function createTestUser(request) {
       }
     }
   );
-  return signUpResponse.json();
+  const compte = await signUpResponse.json();
+
+  // La revendication ne vaut que pour les jetons émis ensuite : celui que
+  // renvoie l'inscription porte encore email_verified: false. L'application se
+  // connecte après cet appel, elle obtiendra donc un jeton à jour.
+  await request.post(
+    `${EMULATOR_AUTH_URL}/identitytoolkit.googleapis.com/v1/accounts:update?key=fake-api-key`,
+    { ...ADMIN, data: { localId: compte.localId, emailVerified: true } }
+  );
+
+  return compte;
 }
 
 /**

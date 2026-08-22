@@ -31,9 +31,17 @@ export default [
       }
     },
     rules: {
-      // En avertissement, pas en erreur : les 17 occurrences actuelles ont été
+      // En avertissement, pas en erreur : les occurrences actuelles ont été
       // vérifiées une à une et sont sûres (valeurs échappées par escapeHtml,
-      // numériques, ou littéraux). La règle ne sait pas suivre l'assainissement
+      // numériques, ou littéraux).
+      //
+      // Cette affirmation a déjà été fausse. Six rendus interpolaient un prénom
+      // de membre — `formatPaidBy()`, `directionLabel()`, `describeBalance()` —
+      // sans échappement, et l'avertissement les signalait sans que personne ne
+      // les relise. Une revue n'a de valeur qu'à la date où elle a lieu :
+      // relire réellement chaque avertissement, ou la règle ne sert à rien.
+      //
+      // La règle ne sait pas suivre l'assainissement
       // à travers un template literal à interpolations multiples, et l'option
       // `escape` n'y change rien. Les passer en erreur imposerait 17
       // eslint-disable — or un disable devient invisible et finit par masquer
