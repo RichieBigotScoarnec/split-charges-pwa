@@ -1,0 +1,93 @@
+/* ===== VARIABLES CSS — FairSplit v4 Design System ===== */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root {
+  /* Brand */
+  --primary-color: #4F46E5;
+  --primary-dark: #3730A3;
+  --primary-light: #6366F1;
+  --primary-glow: rgba(79, 70, 229, 0.12);
+  --secondary-color: #7C3AED;
+
+  /* Semantic */
+  --success-color: #059669;
+  --danger-color: #DC2626;
+  --danger-dark: #B91C1C;
+  --error-color: var(--danger-color);
+  --warning-color: #D97706;
+  /* Encre sur fond d'avertissement — volontairement fixe : --text-primary
+     s'inverse en thème sombre et tomberait à 1,5:1 sur l'ambre clair. */
+  --on-warning: #1E293B;
+  --info-color: #2563EB;
+
+  /* Surfaces (thème clair) */
+  --dark-bg: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --elevated-bg: #F1F5F9;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  /* Text */
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  /* Interactive */
+  --hover-bg: rgba(0, 0, 0, 0.04);
+
+  /* Shadows */
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 24px var(--primary-glow);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration: 150ms;
+
+  /* Typography */
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+/* Dark mode (optionnel — suit la préférence système) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #6366F1;
+    --primary-dark: #4F46E5;
+    --primary-light: #818CF8;
+    --primary-glow: rgba(99, 102, 241, 0.15);
+    --secondary-color: #A78BFA;
+    --success-color: #34D399;
+    --danger-color: #F87171;
+    --danger-dark: #EF4444;
+    --warning-color: #FBBF24;
+    --info-color: #60A5FA;
+    --dark-bg: #0F1117;
+    --card-bg: #181A24;
+    --elevated-bg: #1E2130;
+    --border-color: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.10);
+    --text-primary: #F0F0F5;
+    --text-secondary: #8B8FA3;
+    --text-muted: #8B8FA3;
+    --hover-bg: rgba(255, 255, 255, 0.06);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45);
+  }
+}

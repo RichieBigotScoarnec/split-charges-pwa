@@ -1,0 +1,359 @@
+/* ===== PRINT CSS (for PDF export) ===== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* Hide interactive elements (high specificity instead of !important) */
+  body .fab, body .btn, body button, body .modal-overlay,
+  body .export-actions, body .period-navigation, body .card-header button,
+  body .btn-delete, body .save-indicator {
+    display: none;
+  }
+
+  /* Hide unnecessary sections */
+  body .share-mode-selector {
+    display: none;
+  }
+
+  /* Optimize spacing */
+  .card {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+
+  .card-header {
+    background: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+    page-break-after: avoid;
+  }
+
+  /* Make sure charts and tables fit */
+  .category-chart-container {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure readability */
+  .charge-item, .reimbursement-item {
+    border: 1px solid #eee;
+    page-break-inside: avoid;
+  }
+
+  /* Add page header */
+  @page {
+    margin: 2cm;
+  }
+
+  header {
+    text-align: center;
+    border-bottom: 2px solid black;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  header::before {
+    display: none;
+  }
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 600px) {
+  .container {
+    padding: var(--space-sm);
+  }
+
+  header {
+    padding: var(--space-lg) var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  header h1 {
+    font-size: 22px;
+  }
+
+  .salaries-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charge-item {
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  .fab {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    bottom: 88px;
+    right: var(--space-md);
+  }
+
+  .category-btn .category-icon {
+    font-size: 22px;
+  }
+
+  .category-btn {
+    aspect-ratio: auto;
+    gap: 2px;
+    font-size: 11px;
+    padding: var(--space-sm);
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  .modal-header {
+    font-size: 16px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .quick-add-location {
+    margin-bottom: var(--space-xs);
+    min-height: 14px;
+    font-size: 11px;
+  }
+
+  .quick-add-header {
+    margin-bottom: var(--space-sm);
+  }
+
+  .amount-input-large {
+    margin-bottom: var(--space-sm);
+  }
+
+  .amount-input-large input {
+    padding: 10px 36px 10px 10px;
+    font-size: 20px;
+  }
+
+  .payer-toggle {
+    margin-bottom: var(--space-sm);
+  }
+
+  .modal-actions {
+    margin-top: var(--space-sm);
+  }
+
+  .category-chart-container {
+    justify-content: center;
+  }
+
+  .category-legend {
+    min-width: 100%;
+  }
+}
+
+/* ===== REDUCED MOTION (Accessibility) ===== */
+@media (prefers-reduced-motion: reduce) {
+  html *,
+  html *::before,
+  html *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}
+
+/* ===== DEUX COLONNES SUR GRAND ÉCRAN ===== */
+/*
+   Jusqu'ici le conteneur était plafonné à 720 px quelle que soit la largeur :
+   sur un écran de 1280, la mise en page mobile était simplement centrée, et
+   tout s'empilait. Il n'existait qu'un seul point de rupture, à 600 px.
+
+   Au-delà de 900 px, deux colonnes : le bilan et les salaires à gauche — ce
+   qu'on consulte —, les listes de charges à droite — ce qu'on alimente.
+   En-tête, navigation de période et solde restent pleine largeur.
+*/
+/* Le cas particulier de #mainApp est désormais couvert par la règle globale
+   `[hidden]` de base.css, qui traite la même faiblesse pour tout l'écran. */
+
+@media (min-width: 900px) {
+  .container {
+    max-width: 1120px;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    column-gap: var(--space-lg);
+    align-items: start;
+  }
+
+  .container > header,
+  .container > nav,
+  .container > #balanceBar {
+    grid-column: 1 / -1;
+  }
+
+  .col-bilan,
+  .col-reglages {
+    grid-column: 1;
+  }
+
+  .col-listes {
+    /* Le bilan et les réglages s'empilent dans la colonne de gauche : les
+       listes doivent couvrir les deux rangées correspondantes. La rangée de
+       départ est laissée au placement automatique — la fixer entrerait en
+       collision avec l'en-tête, qui occupe toute la largeur. */
+    grid-column: 2;
+    grid-row: span 2;
+  }
+}
+
+/* ===== TROIS COLONNES AU-DELÀ DE 1600 PX ===== */
+/*
+   Mesuré sur un écran de 3440 px : le contenu restait plafonné à 1120 px, soit
+   1160 px de marge vide de chaque côté — et la page mesurait 1920 px de haut
+   pour une fenêtre de 1440. L'application imposait donc de faire défiler tout
+   en laissant les deux tiers de la largeur inutilisés.
+
+   Les réglages — salaires, revenus, prénoms, mode de partage, report — se
+   consultent rarement et se modifient encore moins. Ils prennent leur propre
+   colonne plutôt que d'allonger celle du bilan.
+*/
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1560px;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr);
+  }
+
+  /* Chacune sa colonne : plus besoin de couvrir deux rangées. */
+  .col-bilan { grid-column: 1; }
+  .col-listes { grid-column: 2; grid-row: auto; }
+  .col-reglages { grid-column: 3; }
+}
+
+/* ===== BARRE DE SOLDE ===== */
+/*
+   L'application répond à une question : qui doit combien à qui. Elle exigeait
+   de faire défiler jusqu'au bilan. Cette barre garde la réponse à l'écran.
+*/
+.balance-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.balance-bar strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+   Régler le solde est l'aboutissement du mois, pas une opération courante :
+   le bouton reste discret à côté du montant plutôt que de lui disputer
+   l'attention. Il ne s'affiche que lorsqu'il y a effectivement à régler.
+*/
+.btn-settle {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-settle:hover,
+.btn-settle:focus-visible {
+  background: var(--primary-color);
+  color: #FFFFFF;
+}
+
+.balance-bar.balance-positive strong { color: var(--success-color); }
+.balance-bar.balance-negative strong { color: var(--danger-color); }
+.balance-bar.balance-zero { color: var(--text-secondary); }
+
+/* ===== CIBLES TACTILES ===== */
+/*
+   Sur un écran tactile, une commande de moins de 44 px se rate au doigt —
+   seuil des WCAG 2.5.5. La vérification sur mobile émulé en a relevé treize,
+   toutes limitées en hauteur : 19 px pour l'en-tête des rappels, 24 pour la
+   déconnexion, 38 pour les boutons d'ajout.
+
+   `pointer: coarse` vise le doigt et laisse la souris intacte : agrandir
+   partout alourdirait l'écran de bureau sans bénéfice.
+*/
+@media (pointer: coarse) {
+  .btn,
+  .btn-logout,
+  .btn-icon,
+  .btn-settle,
+  .btn-restore,
+  .btn-link,
+  .period-arrow,
+  .share-mode-option,
+  .trends-header,
+  .reminders-header,
+  .extra-income-toggle,
+  .reminder-toggle-slider,
+  .toggle-slider {
+    min-height: 44px;
+  }
+
+  /*
+     La passe précédente n'avait relevé que des boutons : les champs de
+     formulaire étaient hors de son champ. Ils tombent pourtant sous le seuil
+     eux aussi — 41 px pour le sélecteur de période, 40 pour les listes et les
+     saisies des modales — et ce sont les commandes qu'on vise le plus souvent.
+     Les cases à cocher gardent leur taille : leur zone cliquable est le label.
+  */
+  .period-dropdown,
+  .form-group select,
+  .form-group input:not([type="checkbox"]):not([type="radio"]) {
+    min-height: 44px;
+  }
+
+  /* Les flèches de période sont carrées : leur largeur suit. */
+  .period-arrow,
+  .btn-icon {
+    min-width: 44px;
+  }
+
+  /* Les en-têtes dépliables restent alignés une fois agrandis. */
+  .trends-header,
+  .reminders-header,
+  .extra-income-toggle {
+    display: flex;
+    align-items: center;
+  }
+}

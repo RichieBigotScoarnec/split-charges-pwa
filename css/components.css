@@ -1,0 +1,1028 @@
+/* ===== PERIOD ARCHIVED LABEL ===== */
+.period-archived-label {
+  color: var(--text-secondary);
+}
+
+/* ===== SEARCH BAR ===== */
+.search-bar-container {
+  margin-bottom: var(--space-md);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--card-bg);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.search-bar:focus-within {
+  border-color: var(--primary-color);
+}
+
+.search-bar-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--text-primary);
+}
+
+.search-bar input:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.search-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: var(--space-xs);
+  border-radius: var(--radius-full);
+  transition: color var(--duration) var(--ease);
+  display: none;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+}
+
+.search-clear-btn.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-results-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: var(--space-xs) var(--space-md) 0;
+  display: none;
+}
+
+.search-results-info.visible {
+  display: block;
+}
+
+/* ===== PERIOD NAVIGATION ===== */
+.period-navigation {
+  background: var(--card-bg);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+}
+
+.period-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.period-arrow {
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration) var(--ease);
+}
+
+.period-arrow:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.period-arrow:active {
+  transform: scale(0.95);
+}
+
+.period-dropdown {
+  flex: 1;
+  max-width: 200px;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font);
+  text-align: center;
+  cursor: pointer;
+}
+
+.period-info {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: var(--space-sm);
+}
+
+.current-period-badge {
+  display: inline-block;
+  background: var(--success-color);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: var(--space-sm);
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+  transition: all var(--duration) var(--ease);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  letter-spacing: -0.02em;
+}
+
+/* ===== SALARIES ===== */
+.salaries-grid {
+  display: grid;
+  /*
+     `1fr` vaut `minmax(auto, 1fr)` : la piste ne peut pas devenir plus étroite
+     que le contenu intrinsèque de son élément. Un <input> revendique environ
+     vingt caractères, si bien que les deux colonnes débordaient de la carte.
+     Le défaut est resté invisible tant que la carte occupait toute la largeur ;
+     le passage en deux colonnes l'a réduite de moitié et l'a révélé.
+  */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.salary-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  /* Même raison : sans cela, l'élément de grille impose sa largeur minimale. */
+  min-width: 0;
+}
+
+.salary-input-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.salary-input-group input {
+  /* L'élément remplit sa colonne au lieu de la dicter. */
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.salary-input-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* ===== SAVE INDICATOR ===== */
+.save-indicator {
+  text-align: center;
+  margin-top: var(--space-sm);
+  font-size: 12px;
+  min-height: 18px;
+}
+
+.save-indicator .saving {
+  color: var(--warning-color);
+  display: none;
+}
+
+.save-indicator .saved {
+  color: var(--success-color);
+  display: none;
+}
+
+.save-indicator.is-saving .saving {
+  display: inline;
+}
+
+.save-indicator.is-saved .saved {
+  display: inline;
+  animation: fadeIn 0.2s var(--ease);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===== CHARGES ===== */
+.charge-item {
+  background: var(--elevated-bg);
+  padding: 12px var(--space-md);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-sm);
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-sm);
+  align-items: center;
+  border: 1px solid transparent;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.charge-item:hover {
+  border-color: var(--border-strong);
+}
+
+.charge-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Le JS rend `charge-description` et `charge-payer` : ces deux règles
+   visaient `charge-name` et `charge-payeur`, noms d'un balisage antérieur.
+   Elles ne s'appliquaient donc à rien, et la ligne « Payé par… » s'affichait
+   sans style au milieu d'une liste qui, elle, en avait un. */
+.charge-description {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.charge-amount {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.charge-payer {
+  font-size: 11px;
+  color: var(--warning-color);
+}
+
+.charge-location {
+  font-size: 11px;
+  color: var(--primary-light);
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.charge-location i {
+  font-size: 9px;
+}
+
+.charge-split {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.btn-icon {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: all var(--duration) var(--ease);
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:not(.btn-delete):hover {
+  background: var(--primary-glow);
+  border-color: var(--primary-color);
+  color: var(--primary-light);
+}
+
+.btn-delete {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: all var(--duration) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-delete:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: #fff;
+  border: 1px solid var(--danger-color);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--duration) var(--ease);
+}
+
+.btn-danger:hover {
+  background: var(--danger-dark);
+  border-color: var(--danger-dark);
+}
+
+.charge-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ===== FORMS ===== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* ===== TOGGLE SWITCH ===== */
+.form-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--elevated-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  transition: all var(--duration) var(--ease);
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  transition: all var(--duration) var(--ease);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background-color: white;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  letter-spacing: -0.01em;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.btn-secondary:hover {
+  background: var(--hover-bg);
+  border-color: var(--text-muted);
+}
+
+.btn:disabled,
+.btn:disabled:hover,
+.btn:disabled:active {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===== SUMMARY ===== */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: var(--space-md);
+}
+
+/* ===== REIMBURSEMENT ===== */
+.reimbursement-item {
+  background: var(--elevated-bg);
+  padding: 12px var(--space-md);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 3px solid var(--success-color);
+}
+
+.reimbursement-info {
+  flex: 1;
+}
+
+.reimbursement-direction {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.reimbursement-amount {
+  font-size: 17px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--success-color);
+}
+
+/* ===== MODES DE PARTAGE ===== */
+.share-mode-selector {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.share-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.share-mode-options {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: 12px;
+}
+
+.share-mode-option {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.share-mode-option:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.share-mode-option.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  color: var(--primary-light);
+}
+
+.custom-percentages {
+  display: none;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.custom-percentages.active {
+  display: flex;
+}
+
+.custom-percentage-group {
+  flex: 1;
+  /* Un élément flex ne rétrécit pas sous la largeur intrinsèque de son
+     contenu sans cela — même débordement que la grille des salaires. */
+  min-width: 0;
+}
+
+.custom-percentage-group label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.custom-percentage-group input {
+  width: 100%;
+  padding: 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.custom-percentage-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.share-mode-validation {
+  margin-top: var(--space-sm);
+  font-size: 12px;
+  text-align: center;
+}
+
+.share-mode-validation.valid {
+  color: var(--success-color);
+}
+
+.share-mode-validation.invalid {
+  color: var(--error-color);
+}
+
+/* ===== EXPORT ACTIONS ===== */
+.export-actions {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.export-actions .btn {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* ===== TOAST NOTIFICATIONS ===== */
+.toast {
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 20px);
+  bottom: 20px;
+  right: 20px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 10000;
+  animation: slideIn 0.25s var(--ease);
+  border-left: 3px solid var(--primary-color);
+  font-size: 14px;
+  max-width: 380px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast.success {
+  border-left-color: var(--success-color);
+}
+
+.toast.error {
+  border-left-color: var(--danger-color);
+}
+
+/* ===== LOADING SPINNER ===== *
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  text-align: center;
+  /* --text-muted (#94A3B8) donne 2,56:1 sur blanc, sous le seuil AA de 4,5.
+     Ce texte n'est pas décoratif : c'est le seul contenu de la carte quand
+     elle est vide. --text-secondary atteint 4,76:1. */
+  color: var(--text-secondary);
+  padding: var(--space-xl) var(--space-lg);
+}
+
+@keyframes emptyBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* ===== FLOATING ACTION BUTTON (FAB) ===== */
+.fab {
+  position: fixed;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--primary-color);
+  color: white;
+  font-size: 24px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  z-index: 9998;
+  transition: all var(--duration) var(--ease);
+}
+
+.fab:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  transform: translateY(-2px);
+}
+
+.fab:active {
+  transform: scale(0.95) translateY(0);
+}
+
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 4px 24px rgba(99, 102, 241, 0.6), 0 0 0 8px rgba(99, 102, 241, 0.1); }
+}
+
+.fab {
+  animation: fabPulse 3s ease-in-out 2s infinite;
+}
+
+/* ===== REVENUS COMPLÉMENTAIRES ===== */
+/*
+   Repliés par défaut : la plupart des foyers n'ont que des salaires, et deux
+   champs de plus en permanence alourdiraient un écran déjà dense.
+*/
+.extra-income-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: var(--space-sm) 0;
+  border: none;
+  background: none;
+  color: var(--primary-color);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.extra-income-hint {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.extra-income-toggle[aria-expanded="true"] {
+  margin-bottom: var(--space-xs);
+}
+
+#extraIncomeFields {
+  margin-bottom: var(--space-sm);
+}
+
+/* ===== TOTAL D'UNE LISTE ===== */
+/*
+   Les trois listes calculaient déjà leur total et cherchaient où l'écrire :
+   #variableChargesTotal, #fixedChargesTotal et #reimbursementsTotal n'ont
+   jamais existé dans le HTML. Le chiffre était produit puis jeté.
+*/
+.list-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.list-total strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ===== ACTION EN LIGNE ===== */
+.btn-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary-color);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ===== PANNEAU DE DIAGNOSTIC ===== */
+/*
+   Deux pannes signalées sur téléphone n'ont jamais pu être reproduites
+   ailleurs. Ce panneau donne accès, depuis l'appareil concerné, à ce que la
+   console aurait montré si on avait pu l'ouvrir. Il ne s'affiche que sur
+   demande explicite, par « ?diag=1 » : rien ici n'apparaît pendant un usage
+   normal.
+*/
+#diagPanel {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.diag-titre {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#diagText {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  font-family: var(--font-mono);
+  /* Assez petit pour qu'une ligne d'horodatage tienne sur un écran de
+     téléphone sans repli, ce qui rend le journal illisible. */
+  font-size: 11px;
+  line-height: 1.45;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  /* Le rapport contient des lignes longues : elles défilent plutôt que de
+     déborder de la fenêtre. */
+  white-space: pre;
+  overflow: auto;
+}
+
+.diag-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.diag-actions .btn {
+  flex: 1;
+}
+
+/* ===== ÉLÉMENTS RENDUS PAR LE JS, LONGTEMPS SANS STYLE =====
+
+   Ces classes sont produites par les modules de rendu depuis toujours, mais
+   aucune règle ne les visait : les listes de charges affichaient leurs
+   en-têtes de catégorie en balise brute, le total des remboursements ne
+   portait aucune couleur malgré les classes sémantiques que le JS lui pose,
+   et le surlignage des résultats de recherche ne surlignait rien.
+*/
+
+/* Regroupement par catégorie dans les listes de charges */
+.charge-category {
+  margin-bottom: var(--space-md);
+}
+
+.category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.category-total {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.charges-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Total des remboursements : le JS y pose la classe qui dit le sens */
+.reimbursements-total {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.reimbursements-total.you-owe strong {
+  color: var(--warning-color);
+}
+
+.reimbursements-total.partner-owes strong {
+  color: var(--success-color);
+}
+
+.reimbursements-total.balanced {
+  color: var(--text-muted);
+}
+
+.reimbursement-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.reimbursement-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Résultat de recherche : sans cette règle, filtrer masquait les autres
+   lignes sans jamais désigner celles qui correspondent. */
+.search-match {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Disparition d'un toast — `removeToast` déclenchait une animation qui
+   n'existait nulle part, et la notification disparaissait d'un coup après
+   avoir attendu ses 300 ms. */
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}

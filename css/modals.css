@@ -1,0 +1,518 @@
+/* ===== MODAL ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+/*
+   Une confirmation est toujours demandée par quelque chose : parfois par une
+   autre fenêtre. À z-index égal, l'ordre du document décidait — et la modale
+   de sauvegarde, déclarée après, recouvrait la confirmation qu'elle venait
+   d'ouvrir. Le bouton « Confirmer » devenait inatteignable, rendant la
+   restauration impossible à mener à son terme.
+*/
+#modalConfirm.modal-overlay {
+  z-index: 10001;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  max-width: 480px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  animation: modalSlideIn 0.25s var(--ease);
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-12px) scale(0.99);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--space-lg);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.modal-actions .btn {
+  flex: 1;
+}
+
+/* ===== QUICK ADD MODAL ===== */
+.quick-add-modal .modal {
+  max-width: 400px;
+}
+
+.quick-add-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.quick-add-location {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 12px;
+  min-height: 18px;
+}
+
+.quick-add-location.loading {
+  color: var(--warning-color);
+}
+
+.quick-add-location.success {
+  color: var(--success-color);
+}
+
+/* Détacher le lieu : discret, mais assez grand pour le pouce (44 px minimum) */
+.quick-add-location-detach {
+  display: block;
+  margin: 0 auto var(--space-md);
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.quick-add-location-detach:hover {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+/* Description : facultative, donc plus sobre que le champ du montant */
+.quick-add-description {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.quick-add-description:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Category Grid */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.category-btn {
+  aspect-ratio: 1;
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  color: var(--text-secondary);
+  padding: var(--space-sm);
+}
+
+.category-btn .category-icon {
+  font-size: 28px;
+}
+
+.category-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.category-btn.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  color: var(--primary-light);
+  box-shadow: 0 0 16px var(--primary-glow);
+}
+
+/* Amount Input Large */
+.amount-input-large {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.amount-input-large input {
+  width: 100%;
+  padding: 14px 40px 14px 14px;
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.amount-input-large input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.amount-input-large .currency-symbol {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Payer Toggle */
+.payer-toggle {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.payer-toggle button {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+}
+
+.payer-toggle button:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.payer-toggle button.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  color: var(--primary-light);
+}
+
+/* ===== MANAGE LISTS MODAL (Categories/Destinations) ===== */
+.manage-lists-modal {
+  max-width: 420px;
+}
+
+.manage-lists-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.manage-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+}
+
+.manage-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.manage-list-item:hover {
+  border-color: var(--text-muted);
+}
+
+.manage-item-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.manage-item-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.manage-item-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  font-size: 13px;
+}
+
+.manage-item-delete:hover {
+  background: var(--danger-color, #e74c3c);
+  color: white;
+}
+
+/* Add new item row */
+.manage-list-add {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-md);
+}
+
+.manage-add-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.manage-emoji-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.manage-emoji-btn:hover {
+  border-color: var(--primary-color);
+}
+
+.manage-add-row input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.manage-add-row input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.manage-add-row .btn-sm {
+  padding: 10px 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Emoji picker grid */
+.manage-emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--space-sm);
+  margin-top: var(--space-sm);
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.emoji-pick {
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration) var(--ease);
+}
+
+.emoji-pick:hover {
+  background: var(--primary-glow);
+  border-color: var(--primary-color);
+  transform: scale(1.15);
+}
+
+/* ===== MODAL CONFIRMATION ===== */
+.modal-confirm {
+  max-width: 360px;
+}
+
+.modal-confirm-message {
+  color: var(--text-secondary);
+  margin: var(--space-md) 0 var(--space-lg);
+  line-height: 1.6;
+}
+
+/* ===== CORBEILLE ===== */
+/*
+   Les suppressions sont douces depuis toujours : la donnée restait en base
+   sans qu'aucun écran ne la montre. Cette liste est cette fenêtre.
+*/
+.modal-hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.trash-list {
+  /* Une corbeille peut s'allonger : elle défile plutôt que d'étirer la modale
+     au-delà de l'écran. */
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  margin-bottom: var(--space-md);
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.trash-item:last-child {
+  border-bottom: none;
+}
+
+.trash-item-info {
+  /* Sans cela, une longue description élargirait la ligne au-delà de la modale. */
+  min-width: 0;
+}
+
+.trash-item-desc {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.trash-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.btn-restore {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* ===== SAUVEGARDE ===== */
+/*
+   La fenêtre présente deux actions de poids très différent : télécharger une
+   copie, et remplacer toutes les données. Elles sont séparées visuellement et
+   la seconde est précédée de sa conséquence, pas d'un simple libellé.
+*/
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.modal-separator {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: var(--space-lg) 0 var(--space-md);
+}
+
+.modal-hint-warning {
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--danger-color);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--elevated-bg);
+}
+
+/* La corbeille couvre tous les mois : chaque groupe porte le sien, sans quoi
+   deux dépenses homonymes de deux mois seraient indiscernables. */
+.trash-month {
+  margin-top: var(--space-md);
+  padding-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.trash-month:first-child {
+  margin-top: 0;
+}

@@ -1,0 +1,241 @@
+/* ===== AUTHENTICATION ===== */
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--dark-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: var(--space-lg);
+}
+
+.auth-overlay.hidden {
+  display: none;
+}
+
+.auth-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: calc(var(--space-xl) + var(--space-sm)) var(--space-xl);
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+
+.auth-logo {
+  font-size: 44px;
+  margin-bottom: var(--space-sm);
+}
+
+.auth-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+  letter-spacing: -0.03em;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+/* ===== ÉTAT D'ATTENTE =====
+   Tant que Firebase n'a pas dit qui est connecté, la carte ne montre que le
+   logo et le nom. Proposer une connexion à quelqu'un qui a déjà une session
+   ouverte, pour la retirer une seconde plus tard, laisse croire à une
+   déconnexion — dans une application de comptes, c'est ce qui inquiète.
+
+   Le repli tient au cas où la feuille manquerait : sans règle, l'écran montre
+   le formulaire, ce qui reste utilisable. L'inverse ne le serait pas. */
+.auth-overlay--attente .btn-google-signin,
+.auth-overlay--attente .auth-divider,
+.auth-overlay--attente #authForm,
+.auth-overlay--attente .auth-error {
+  display: none;
+}
+
+.auth-attente {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Symétrique : le message d'attente disparaît dès que l'écran devient
+   utilisable, sinon il resterait au-dessus du formulaire. */
+.auth-overlay:not(.auth-overlay--attente) .auth-attente {
+  display: none;
+}
+
+.btn-google-signin {
+  --google-bg: #fff;
+  --google-text: #1f1f1f;
+  --google-border: #dadce0;
+  --google-hover-bg: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 12px var(--space-md);
+  background: var(--google-bg);
+  color: var(--google-text);
+  border: 1px solid var(--google-border);
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+  margin-bottom: 12px;
+}
+
+.btn-google-signin:hover {
+  background: var(--google-hover-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.btn-google-signin svg {
+  width: 18px;
+  height: 18px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: var(--space-md) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.btn-email-signin {
+  width: 100%;
+  padding: 12px var(--space-md);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+  margin-bottom: 10px;
+}
+
+.btn-email-signin:hover {
+  background: var(--primary-dark);
+}
+
+.auth-card .btn-create-account {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 10px;
+  margin-bottom: var(--space-xs);
+}
+
+.auth-card .btn-create-account:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.auth-input {
+  width: 100%;
+  padding: 11px var(--space-md);
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.auth-error {
+  color: var(--danger-color);
+  font-size: 13px;
+  margin-top: var(--space-sm);
+  min-height: 20px;
+}
+
+/* User info bar in header */
+.user-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.user-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.btn-logout {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
