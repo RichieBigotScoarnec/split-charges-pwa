@@ -64,3 +64,59 @@ test.describe('Page de connexion (pré-auth)', () => {
     await expect(page).toHaveTitle(/FairSplit/);
   });
 });
+
+// ============================================================
+// Écran d'attente
+// ============================================================
+import { setupFirebaseMock } from './_harness.js';
+
+test.describe('L\'écran d\'attente évite le clignotement de connexion', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+  });
+
+  test('au chargement, la carte ne montre que le logo et le nom', async ({ page }) => {
+    // Le simulateur répond au bout de 100 ms, comme le ferait un vrai SDK à
+    // relire une session : c'est cette fenêtre qui montrait le formulaire.
+    await page.goto('/FairSplit.html', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('#authOverlay')).toHaveClass(/auth-overlay--attente/);
+    await expect(page.locator('.auth-title')).toHaveText('FairSplit');
+    await expect(page.locator('.btn-google-signin')).toBeHidden();
+  });
+
+  test('le formulaire n\'apparaît jamais quand la session est déjà ouverte', async ({ page }) => {
+    // Le cas signalé : en tirant vers le bas pour actualiser, l'écran de
+    // connexion apparaissait une seconde avant de céder la place à
+    // l'application. On surveille tout l'intervalle, pas un instant choisi.
+    await page.addInitScript(() => {
+      window.__connexionVue = false;
+      const guetter = () => {
+        const bouton = document.querySelector('.btn-google-signin');
+        if (bouton && bouton.offsetParent !== null) window.__connexionVue = true;
+        if (!document.getElementById('mainApp')?.hidden) return;
+        requestAnimationFrame(guetter);
+      };
+      document.addEventListener('DOMContentLoaded', guetter);
+    });
+
+    await page.goto('/FairSplit.html');
+    await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+
+    expect(await page.evaluate(() => window.__connexionVue)).toBe(false);
+  });
+
+  test('déconnecté, le formulaire est bien proposé', async ({ page }) => {
+    // L'attente ne doit pas devenir une impasse : dès que Firebase annonce
+    // qu'il n'y a personne, les commandes reviennent.
+    await page.goto('/FairSplit.html');
+    await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
+
+    await page.evaluate(() => window.__mockAuthCallback(null));
+
+    await expect(page.locator('.btn-google-signin')).toBeVisible();
+    await expect(page.locator('#authEmail')).toBeVisible();
+    await expect(page.locator('#mainApp')).toBeHidden();
+  });
+});

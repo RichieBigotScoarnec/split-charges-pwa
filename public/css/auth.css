@@ -61,6 +61,33 @@
   margin-bottom: var(--space-lg);
 }
 
+/* ===== ÉTAT D'ATTENTE =====
+   Tant que Firebase n'a pas dit qui est connecté, la carte ne montre que le
+   logo et le nom. Proposer une connexion à quelqu'un qui a déjà une session
+   ouverte, pour la retirer une seconde plus tard, laisse croire à une
+   déconnexion — dans une application de comptes, c'est ce qui inquiète.
+
+   Le repli tient au cas où la feuille manquerait : sans règle, l'écran montre
+   le formulaire, ce qui reste utilisable. L'inverse ne le serait pas. */
+.auth-overlay--attente .btn-google-signin,
+.auth-overlay--attente .auth-divider,
+.auth-overlay--attente #authForm,
+.auth-overlay--attente .auth-error {
+  display: none;
+}
+
+.auth-attente {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Symétrique : le message d'attente disparaît dès que l'écran devient
+   utilisable, sinon il resterait au-dessus du formulaire. */
+.auth-overlay:not(.auth-overlay--attente) .auth-attente {
+  display: none;
+}
+
 .btn-google-signin {
   --google-bg: #fff;
   --google-text: #1f1f1f;

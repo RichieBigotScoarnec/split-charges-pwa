@@ -164,6 +164,26 @@ export async function signOut() {
 }
 
 /**
+ * Délai au-delà duquel l'écran de connexion s'affiche sans attendre Firebase.
+ * Assez long pour couvrir une 4G lente, assez court pour ne pas donner
+ * l'impression d'une application figée.
+ */
+const DELAI_ATTENTE_AUTH = 6000;
+
+/**
+ * Rend l'écran de connexion utilisable.
+ *
+ * Il part en attente — logo et nom seuls — et ne propose ses commandes qu'une
+ * fois qu'on sait qu'elles servent à quelque chose. Appelée aussi bien quand
+ * Firebase annonce que personne n'est connecté que par le garde-fou de
+ * `initAuth`, elle est sans effet la deuxième fois.
+ */
+export function revelerFormulaireConnexion() {
+  const authOverlay = document.getElementById('authOverlay');
+  if (authOverlay) authOverlay.classList.remove('auth-overlay--attente');
+}
+
+/**
  * Update UI when user state changes
  * @param {Object|null} user - Firebase user object or null
  */
@@ -219,6 +239,8 @@ function updateAuthUI(user) {
   } else {
     // No user - show auth overlay
     if (authOverlay) authOverlay.style.display = 'flex';
+    // Firebase a répondu, et il n'y a personne : le formulaire a lieu d'être.
+    revelerFormulaireConnexion();
     if (mainApp) mainApp.hidden = true;
     if (userInfoBar) userInfoBar.style.display = 'none';
 
@@ -398,7 +420,18 @@ export function initAuth() {
     log('[Auth] 🧹 Ancien listener nettoyé');
   }
 
+  // Garde-fou : l'écran d'attente ne tient que sur la promesse d'une réponse
+  // de Firebase. Si elle ne vient pas — service injoignable, jeton illisible —
+  // rester sur « Connexion… » indéfiniment enferme la personne devant un écran
+  // sans commande. Passé ce délai, le formulaire est rendu quoi qu'il arrive :
+  // il vaut mieux proposer une connexion inutile qu'aucune issue.
+  const secours = setTimeout(() => {
+    warn('[Auth] ⏱️ Aucune réponse de Firebase, formulaire affiché par défaut');
+    revelerFormulaireConnexion();
+  }, DELAI_ATTENTE_AUTH);
+
   authUnsubscribe = auth.onAuthStateChanged(async (user) => {
+    clearTimeout(secours);
     log('[Auth] État changé:', user ? user.email : 'Déconnecté');
 
     // Vérification whitelist — refuser tout compte non autorisé

@@ -11,7 +11,7 @@ import { initDatabase } from './db.js';
 import { setState } from './state.js';
 import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
-import { initAuth } from './modules/auth.js';
+import { initAuth, revelerFormulaireConnexion } from './modules/auth.js';
 import { log, error as logError } from './utils/debug.js';
 import { initDiagnostics, noter } from './utils/diagnostics.js';
 
@@ -62,6 +62,9 @@ async function initApp() {
   } catch (error) {
     logError('❌ Erreur initialisation:', error);
     toast.error('Erreur de chargement');
+    // L'échec peut précéder `initAuth`, donc son propre garde-fou : sans cela
+    // l'écran resterait sur « Connexion… », sans commande ni explication.
+    revelerFormulaireConnexion();
   }
 }
 
