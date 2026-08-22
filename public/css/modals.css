@@ -114,6 +114,48 @@
   color: var(--success-color);
 }
 
+/* Détacher le lieu : discret, mais assez grand pour le pouce (44 px minimum) */
+.quick-add-location-detach {
+  display: block;
+  margin: 0 auto var(--space-md);
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.quick-add-location-detach:hover {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+/* Description : facultative, donc plus sobre que le champ du montant */
+.quick-add-description {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.quick-add-description:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
 /* Category Grid */
 .category-grid {
   display: grid;

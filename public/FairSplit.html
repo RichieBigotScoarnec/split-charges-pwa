@@ -613,6 +613,14 @@
       <div class="quick-add-location" id="quickAddLocation" aria-live="polite" aria-atomic="true">
         <!-- GPS status will be shown here -->
       </div>
+      <!-- La position détectée est celle du téléphone au moment de la saisie,
+           pas celle de la dépense. Régulariser le lendemain épinglait donc le
+           domicile sur la carte, et nommait la charge d'après lui. Ce bouton
+           détache le lieu ; il n'apparaît que lorsqu'il y a quelque chose à
+           détacher. -->
+      <button type="button" id="quickAddLocationDetach" class="quick-add-location-detach" hidden>
+        <span aria-hidden="true">✕</span> Ce n'est pas ici
+      </button>
 
       <div class="quick-add-header">
         <strong>Catégorie</strong>
@@ -630,6 +638,30 @@
           inputmode="decimal"
         />
         <span class="currency-symbol">€</span>
+      </div>
+
+      <!-- Facultatif : sans saisie, la description reste déduite du lieu ou de
+           la catégorie, comme avant. Avec, elle prime — « Burger King » vaut
+           mieux que le nom du lieu où l'on se trouvait en saisissant. -->
+      <label for="quickAddDescription" class="sr-only">Description de la dépense</label>
+      <input
+        type="text"
+        id="quickAddDescription"
+        class="quick-add-description"
+        placeholder="Description (facultatif)"
+        maxlength="100"
+        autocomplete="off"
+      />
+
+      <div class="quick-add-header">
+        <strong>Payé par</strong>
+      </div>
+      <!-- data-member : members.js y reporte les prénoms du foyer, comme sur
+           les listes de payeur du formulaire complet. -->
+      <div class="payer-toggle" id="quickAddPayer">
+        <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
+        <button type="button" data-payer="conjointe" data-member="conjointe">Conjointe</button>
+        <button type="button" data-payer="partage"><span aria-hidden="true">🤝</span> Partagé</button>
       </div>
 
       <div class="quick-add-header">

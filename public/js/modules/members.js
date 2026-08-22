@@ -69,9 +69,12 @@ export function applyMemberNames() {
   ecrire('labelPartVous', nomme1 ? `Part ${noms.vous} (%)` : 'Votre part (%)');
   ecrire('labelPartConjointe', nomme2 ? `Part ${noms.conjointe} (%)` : 'Part conjointe (%)');
 
-  // Les <option> des listes de payeur et de sens
-  document.querySelectorAll('option[data-member]').forEach(option => {
-    option.textContent = option.dataset.member === 'vous' ? noms.vous : noms.conjointe;
+  // Les libellés de payeur, où qu'ils vivent : les <option> des formulaires
+  // complets comme les boutons de la saisie rapide. Le sélecteur ne visait que
+  // `option`, si bien qu'un nouveau sélecteur de payeur affichait « Vous » et
+  // « Conjointe » à côté d'un écran entièrement nommé.
+  document.querySelectorAll('[data-member]').forEach(element => {
+    element.textContent = element.dataset.member === 'vous' ? noms.vous : noms.conjointe;
   });
   document.querySelectorAll('option[data-direction]').forEach(option => {
     option.textContent = option.dataset.direction === 'vers-conjointe'
