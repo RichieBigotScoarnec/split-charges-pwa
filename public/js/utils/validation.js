@@ -179,7 +179,10 @@ export function validatePeriod(period) {
 export function validateCharge(charge) {
   const errors = [];
 
-  const nameResult = validateChargeName(charge.name);
+  // Les charges portent `description`, jamais `name` : cette fonction
+  // répondait donc toujours « Nom de la charge est requis ». Elle n'est
+  // appelée nulle part — c'était un piège en attente d'un appelant.
+  const nameResult = validateChargeName(charge.description ?? charge.name);
   if (!nameResult.valid) errors.push(nameResult.error);
 
   const amountResult = validateChargeAmount(charge.amount);

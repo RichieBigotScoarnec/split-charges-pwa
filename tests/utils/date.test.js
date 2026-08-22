@@ -258,3 +258,26 @@ describe('getRelativeTime', () => {
     expect(getRelativeTime(date.toISOString())).toBe('il y a 5 min');
   });
 });
+
+// ===== formatDate : l'absence ne doit pas devenir une affirmation =====
+describe('formatDate face à une date absente', () => {
+  it('rend une chaîne vide plutôt que la date du jour', () => {
+    // `Intl.format(undefined)` formate l'instant présent : une charge sans
+    // date s'affichait donc comme datée d'aujourd'hui. Sur une carte de
+    // dépenses, c'est une information fausse présentée comme sûre.
+    expect(formatDate(undefined)).toBe('');
+    expect(formatDate(null)).toBe('');
+    expect(formatDate('')).toBe('');
+  });
+
+  it('rend une chaîne vide pour une date illisible', () => {
+    expect(formatDate('pas une date')).toBe('');
+    expect(formatDate(new Date('x'))).toBe('');
+  });
+
+  it('formate toujours ce qui est exploitable', () => {
+    expect(formatDate('2026-08-22')).toMatch(/2026/);
+    expect(formatDate(new Date(2026, 7, 22))).toMatch(/2026/);
+    expect(formatDate(1755820800000)).toMatch(/20\d\d/);
+  });
+});

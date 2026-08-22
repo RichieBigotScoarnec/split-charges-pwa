@@ -303,6 +303,11 @@ describe('validatePeriod', () => {
 });
 
 // ===== validateCharge =====
+// Ces cas décrivent une charge portant `name`, forme que l'application ne
+// produit nulle part — elle écrit `description`. Écrits d'après la fonction
+// plutôt que d'après les données, ils l'ont confortée dans son erreur pendant
+// tout ce temps. Ils sont conservés : `name` reste accepté en repli, et une
+// suite de tests n'a pas à mentir sur ce que le code fait aujourd'hui.
 describe('validateCharge', () => {
   it('charge complète valide', () => {
     const r = validateCharge({ name: 'Loyer', amount: 1200 });
@@ -339,5 +344,30 @@ describe('validateCharge', () => {
   it('sans note : valide', () => {
     const r = validateCharge({ name: 'EDF', amount: 80 });
     expect(r.valid).toBe(true);
+  });
+});
+
+// ===== validateCharge lisait un champ que les charges ne portent pas =====
+describe('validateCharge sur la forme réelle d\'une charge', () => {
+  it('accepte une charge décrite par `description`', () => {
+    // Elle lisait `charge.name` : les charges portent `description`, et la
+    // fonction répondait donc toujours « Nom de la charge est requis ».
+    const verdict = validateCharge({ description: 'Courses Leclerc', amount: 42 });
+
+    expect(verdict.valid).toBe(true);
+    expect(verdict.errors).toEqual([]);
+  });
+
+  it('refuse une charge sans description', () => {
+    const verdict = validateCharge({ amount: 42 });
+
+    expect(verdict.valid).toBe(false);
+    expect(verdict.errors.join(' ')).toMatch(/[Nn]om/);
+  });
+
+  it('cumule les motifs de refus', () => {
+    const verdict = validateCharge({ description: '', amount: -5 });
+
+    expect(verdict.errors.length).toBe(2);
   });
 });

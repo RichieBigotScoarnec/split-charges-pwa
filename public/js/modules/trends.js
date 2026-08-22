@@ -11,6 +11,19 @@ import { log, warn, error as logError } from '../utils/debug.js';
 let database = null;
 
 /**
+ * Les trois séries du graphique, couleur et libellé
+ *
+ * Elles étaient écrites deux fois — une fois aux appels de tracé, une fois dans
+ * la légende — sans rien pour garantir l'accord. Une couleur changée d'un côté
+ * aurait donné une légende qui ment sur ce qu'elle désigne.
+ */
+const SERIES = {
+  fixes: { couleur: '#667eea', libelle: 'Charges fixes' },
+  variables: { couleur: '#f093fb', libelle: 'Charges variables' },
+  total: { couleur: '#4ade80', libelle: 'Total' }
+};
+
+/**
  * Initialise le module de tendances
  */
 export function initTrends() {
@@ -90,7 +103,13 @@ export async function fetchHistoricalData(months = 6) {
     }
 
     const allPeriods = snapshot.val();
-    const periodKeys = Object.keys(allPeriods).sort().reverse(); // Plus récent en premier
+    // Mêmes clés que partout ailleurs : le nœud `periods` a hébergé des
+    // écritures accidentelles (`periods/undefined`), que calculations.js écarte
+    // déjà. Sans ce filtre, elles apparaissaient sur le graphique.
+    const periodKeys = Object.keys(allPeriods)
+      .filter(key => /^\d{4}-(0[1-9]|1[0-2])$/.test(key))
+      .sort()
+      .reverse(); // Plus récent en premier
     const selectedPeriods = periodKeys.slice(0, months);
 
     const historicalData = {
@@ -172,6 +191,17 @@ export async function generateTrendsChart(months = 6) {
  */
 function renderTrendsChart(canvas, data) {
   const ctx = canvas.getContext('2d');
+  // Les couleurs venaient en dur : fond clair et texte sombre, illisibles et
+  // étrangers au thème sombre. Elles sont lues sur les jetons de la page, comme
+  // le veut le reste du projet.
+  const jeton = (nom, defaut) =>
+    getComputedStyle(document.documentElement).getPropertyValue(nom).trim() || defaut;
+  const couleurs = {
+    fond: jeton('--elevated-bg', '#f9f9f9'),
+    grille: jeton('--border-color', '#e0e0e0'),
+    texte: jeton('--text-secondary', '#666'),
+    axes: jeton('--text-primary', '#333')
+  };
   const width = canvas.width;
   const height = canvas.height;
 
@@ -195,11 +225,11 @@ function renderTrendsChart(canvas, data) {
   const yScale = chartHeight / maxValue;
 
   // Fond
-  ctx.fillStyle = '#f9f9f9';
+  ctx.fillStyle = couleurs.fond;
   ctx.fillRect(margin.left, margin.top, chartWidth, chartHeight);
 
   // Grille horizontale
-  ctx.strokeStyle = '#e0e0e0';
+  ctx.strokeStyle = couleurs.grille;
   ctx.lineWidth = 1;
   const gridLines = 5;
   for (let i = 0; i <= gridLines; i++) {
@@ -211,19 +241,19 @@ function renderTrendsChart(canvas, data) {
 
     // Labels Y
     const value = maxValue * (1 - i / gridLines);
-    ctx.fillStyle = '#666';
+    ctx.fillStyle = couleurs.texte;
     ctx.font = '12px Arial';
     ctx.textAlign = 'right';
     ctx.fillText(formatCurrency(value), margin.left - 10, y + 4);
   }
 
   // Dessiner les courbes
-  drawLine(ctx, periods, fixedTotals, margin, xStep, yScale, chartHeight, '#667eea', 'Charges fixes');
-  drawLine(ctx, periods, variableTotals, margin, xStep, yScale, chartHeight, '#f093fb', 'Charges variables');
-  drawLine(ctx, periods, totals, margin, xStep, yScale, chartHeight, '#4ade80', 'Total', 3);
+  drawLine(ctx, periods, fixedTotals, margin, xStep, yScale, chartHeight, SERIES.fixes.couleur, SERIES.fixes.libelle);
+  drawLine(ctx, periods, variableTotals, margin, xStep, yScale, chartHeight, SERIES.variables.couleur, SERIES.variables.libelle);
+  drawLine(ctx, periods, totals, margin, xStep, yScale, chartHeight, SERIES.total.couleur, SERIES.total.libelle, 3);
 
   // Axes
-  ctx.strokeStyle = '#333';
+  ctx.strokeStyle = couleurs.axes;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(margin.left, margin.top);
@@ -232,7 +262,7 @@ function renderTrendsChart(canvas, data) {
   ctx.stroke();
 
   // Labels X (périodes)
-  ctx.fillStyle = '#666';
+  ctx.fillStyle = couleurs.texte;
   ctx.font = '12px Arial';
   ctx.textAlign = 'center';
   periods.forEach((period, i) => {
@@ -242,7 +272,7 @@ function renderTrendsChart(canvas, data) {
   });
 
   // Titre
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = couleurs.axes;
   ctx.font = 'bold 16px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('Évolution des Dépenses', width / 2, 25);
@@ -302,11 +332,7 @@ function drawLine(ctx, periods, values, margin, xStep, yScale, chartHeight, colo
  * @param {Object} margin - Marges
  */
 function drawLegend(ctx, width, height, margin) {
-  const legendItems = [
-    { color: '#667eea', label: 'Charges fixes' },
-    { color: '#f093fb', label: 'Charges variables' },
-    { color: '#4ade80', label: 'Total' }
-  ];
+  const legendItems = Object.values(SERIES).map(s => ({ color: s.couleur, label: s.libelle }));
 
   const legendX = width - margin.right - 150;
   const legendY = margin.top + 20;

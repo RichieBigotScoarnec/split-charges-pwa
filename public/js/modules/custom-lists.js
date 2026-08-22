@@ -218,13 +218,20 @@ export function populateCategorySelect(selectId, options = {}) {
     select.value = currentValue;
   }
 
-  // Listener pour ouvrir le modal de gestion
+  // La valeur à rétablir est mémorisée sur l'élément, pas capturée par la
+  // fermeture : l'écouteur n'étant posé qu'une fois, il gardait la valeur du
+  // tout premier remplissage. Choisir une catégorie puis ouvrir « Gérer… »
+  // ramenait le champ sur une sélection périmée.
+  select.dataset.valeurPrecedente = currentValue || '';
+
   if (addManageOption && !select.dataset.manageListenerAdded) {
     select.addEventListener('change', (e) => {
       if (e.target.value === '__manage_categories__') {
-        e.target.value = currentValue || '';
+        e.target.value = select.dataset.valeurPrecedente || '';
         showManageModal('categories');
+        return;
       }
+      select.dataset.valeurPrecedente = e.target.value;
     });
     select.dataset.manageListenerAdded = 'true';
   }
@@ -279,13 +286,17 @@ export function populateDestinationSelect(selectId, options = {}) {
     select.value = currentValue;
   }
 
-  // Listener
+  // Même raison que pour les catégories : la valeur vit sur l'élément.
+  select.dataset.valeurPrecedente = currentValue || '';
+
   if (addManageOption && !select.dataset.manageListenerAdded) {
     select.addEventListener('change', (e) => {
       if (e.target.value === '__manage_destinations__') {
-        e.target.value = currentValue || '';
+        e.target.value = select.dataset.valeurPrecedente || '';
         showManageModal('destinations');
+        return;
       }
+      select.dataset.valeurPrecedente = e.target.value;
     });
     select.dataset.manageListenerAdded = 'true';
   }

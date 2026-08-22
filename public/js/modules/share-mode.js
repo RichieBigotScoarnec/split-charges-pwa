@@ -79,12 +79,25 @@ export function validateCustomPercents() {
   }
 }
 
+/**
+ * Un chargement est-il en cours ?
+ *
+ * Ce drapeau était positionné à trois endroits et lu nulle part. Le garde-fou
+ * qu'il devait constituer n'existait donc pas : charger le mode de partage
+ * appelait selectShareMode, qui réécrit aussitôt en base ce qu'on vient d'en
+ * lire. À chaque ouverture de l'application et à chaque changement de mois,
+ * une écriture pour rien — et, à deux appareils, la possibilité d'écraser le
+ * choix que l'autre venait de faire.
+ */
 let _isLoading = false;
 
 /**
  * Save share mode to Firebase
  */
 async function saveShareMode() {
+  // Rien à réécrire quand on vient de lire.
+  if (_isLoading) return;
+
   const shareMode = getState('shareMode');
   const customPercents = getState('customPercents');
 

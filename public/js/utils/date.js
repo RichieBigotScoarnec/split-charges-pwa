@@ -117,7 +117,14 @@ export function isCurrentPeriod(period) {
  * @returns {string}
  */
 export function formatDate(date) {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  // `Intl.format(undefined)` affiche la date du jour : une charge sans date
+  // s'affichait donc comme datée d'aujourd'hui, ce qui est pire qu'un vide —
+  // l'absence devenait une affirmation fausse.
+  if (date === null || date === undefined || date === '') return '';
+
+  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
+
   return new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'short',
