@@ -44,8 +44,15 @@ export const FIREBASE_CONFIG = {
  * ⚠️ Ne pas activer l'application forcée d'App Check dans la console Firebase
  * tant que cette valeur est vide : toute requête serait refusée, et
  * l'application n'afficherait plus rien.
+ *
+ * Déclarée pour richiebigotscoarnec.github.io, d'où l'application est servie.
+ * Renseigner cette clé fait envoyer des attestations sans qu'aucune ne soit
+ * encore exigée : c'est la phase d'observation, à lire dans la console Firebase
+ * sous App Check → API. L'application forcée ne s'active qu'ensuite, une fois
+ * la part de requêtes vérifiées proche de la totalité — sans quoi on coupe
+ * l'accès aux appareils qui n'ont pas encore rechargé l'application.
  */
-export const APP_CHECK_SITE_KEY = '';
+export const APP_CHECK_SITE_KEY = '6Lf5EJMtAAAAAHpw5l7IBNpWnug5K8yaahIYPRDT';
 
 /**
  * Fournisseur d'attestation : 'recaptcha-v3' ou 'recaptcha-enterprise'

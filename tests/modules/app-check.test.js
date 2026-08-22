@@ -169,4 +169,24 @@ describe('Cohérence entre la page et le code', () => {
     expect(scriptSrc).toContain('https://www.google.com');
     expect(frameSrc).toContain('https://www.google.com');
   });
+  it('la configuration livrée porte une clé de site', async () => {
+    // Les cas ci-dessus simulent la configuration : aucun ne dirait que la
+    // vraie est restée vide. C'est pourtant l'état dans lequel l'attestation
+    // ne part jamais, alors que tout le câblage donne l'illusion du contraire.
+    //
+    // Le fichier est lu sur le disque, non importé : `vi.doMock` a remplacé ce
+    // module pour les tests précédents, et un import rendrait la configuration
+    // simulée. Ce test passait ainsi la clé réellement vide -- un double qui
+    // ment sur la réalité ne vérifie que lui-même.
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync('public/js/config.js', 'utf8');
+
+    const cle = source.match(/APP_CHECK_SITE_KEY = '([^']*)'/)[1];
+    const fournisseur = source.match(/APP_CHECK_PROVIDER = '([^']*)'/)[1];
+
+    expect(cle, 'APP_CHECK_SITE_KEY est vide : aucune attestation ne part').toMatch(/^6L/);
+    // Le fournisseur doit correspondre au type de clé créé dans la console :
+    // une clé v3 présentée comme Enterprise est refusée à l'exécution.
+    expect(fournisseur).toBe('recaptcha-v3');
+  });
 });
