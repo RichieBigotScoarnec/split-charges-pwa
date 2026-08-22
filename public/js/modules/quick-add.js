@@ -20,6 +20,7 @@ let _gpsPermissionGranted = false; // tracks if user already granted GPS permiss
 const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
   splitMode: 'prorata',    // 'prorata' | '50-50'
+  paidBy: 'vous',          // 'vous' | 'conjointe' | 'partage'
   gpsLocation: null        // { lat, lng, accuracy, timestamp, name? }
 };
 
@@ -103,6 +104,34 @@ function setupEventListeners() {
   if (prorataBtn) prorataBtn.addEventListener('click', () => updateSplitMode('prorata'));
   if (fiftyBtn) fiftyBtn.addEventListener('click', () => updateSplitMode('50-50'));
 
+  // Payeur — délégation : les trois boutons vivent dans le balisage, et leurs
+  // libellés changent avec les prénoms du foyer.
+  const payeurs = document.getElementById('quickAddPayer');
+  if (payeurs) {
+    payeurs.addEventListener('click', (e) => {
+      const bouton = e.target.closest('button[data-payer]');
+      if (bouton) updatePayer(bouton.dataset.payer);
+    });
+  }
+
+  // Détachement du lieu
+  const detacher = document.getElementById('quickAddLocationDetach');
+  if (detacher) detacher.addEventListener('click', detachLocation);
+
+  // La description suit la même règle que le montant : Entrée soumet.
+  const descriptionInput = document.getElementById('quickAddDescription');
+  if (descriptionInput) {
+    descriptionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.getElementById('btnQuickAdd');
+        if (btn && !btn.disabled) {
+          handleQuickAddSubmit();
+        }
+      }
+    });
+  }
+
   // Fermeture modale quick-add via overlay click (reset state interne)
   const overlay = document.getElementById('modalQuickAdd');
   if (overlay) {
@@ -141,10 +170,15 @@ function showQuickAddModal() {
   const amountInput = document.getElementById('quickAddAmount');
   if (amountInput) amountInput.value = '';
 
+  const descriptionInput = document.getElementById('quickAddDescription');
+  if (descriptionInput) descriptionInput.value = '';
+
   const btn = document.getElementById('btnQuickAdd');
   if (btn) btn.disabled = true;
 
   updateSplitMode('prorata');
+  updatePayer('vous');
+  hideLocationDetach();
 
   // Peupler la grille catégories avec les catégories dynamiques
   populateCategoryGrid();
@@ -188,8 +222,13 @@ function closeQuickAddModal() {
     locationEl.textContent = '';
     locationEl.className = 'quick-add-location';
   }
+  const descriptionInput = document.getElementById('quickAddDescription');
+  if (descriptionInput) descriptionInput.value = '';
+
   document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('selected'));
   updateSplitMode('prorata');
+  updatePayer('vous');
+  hideLocationDetach();
 }
 
 /**
@@ -198,6 +237,7 @@ function closeQuickAddModal() {
 function resetState() {
   quickAddState.selectedCategory = null;
   quickAddState.splitMode = 'prorata';
+  quickAddState.paidBy = 'vous';
   quickAddState.gpsLocation = null;
 }
 
@@ -260,6 +300,61 @@ function updateSplitMode(mode) {
   if (fiftyBtn) fiftyBtn.classList.toggle('selected', mode === '50-50');
 }
 
+// ===== PAYEUR =====
+
+/**
+ * Met à jour le payeur
+ *
+ * La saisie rapide écrivait « vous » en dur : toute dépense réglée par l'autre
+ * personne était attribuée à la mauvaise, donc comptée à l'envers dans le
+ * bilan. Il fallait rouvrir la charge dans le formulaire complet pour la
+ * corriger — ce qui retire à la saisie rapide sa raison d'être.
+ *
+ * @param {string} payeur - 'vous' | 'conjointe' | 'partage'
+ */
+function updatePayer(payeur) {
+  quickAddState.paidBy = payeur;
+
+  document.querySelectorAll('#quickAddPayer button').forEach(bouton => {
+    bouton.classList.toggle('selected', bouton.dataset.payer === payeur);
+  });
+}
+
+// ===== LIEU =====
+
+/**
+ * Détache la position de la dépense en cours
+ *
+ * Le lieu détecté est celui du téléphone à l'instant de la saisie. Régulariser
+ * une dépense d'hier depuis chez soi épinglait donc le domicile sur la carte,
+ * et nommait la charge d'après lui — « Maison » pour un repas pris ailleurs.
+ * Détacher vaut mieux que corriger : une charge sans lieu ne raconte rien de
+ * faux.
+ */
+function detachLocation() {
+  quickAddState.gpsLocation = null;
+
+  const locationEl = document.getElementById('quickAddLocation');
+  if (locationEl) {
+    locationEl.textContent = 'Sans lieu';
+    locationEl.className = 'quick-add-location';
+  }
+
+  hideLocationDetach();
+}
+
+/** Affiche le bouton de détachement — seulement s'il y a un lieu à détacher */
+function showLocationDetach() {
+  const bouton = document.getElementById('quickAddLocationDetach');
+  if (bouton) bouton.hidden = false;
+}
+
+/** Masque le bouton de détachement */
+function hideLocationDetach() {
+  const bouton = document.getElementById('quickAddLocationDetach');
+  if (bouton) bouton.hidden = true;
+}
+
 // ===== VALIDATION =====
 
 /**
@@ -305,8 +400,10 @@ async function handleQuickAddSubmit() {
   const gps = quickAddState.gpsLocation;
   const splitMode = quickAddState.splitMode;
 
-  // Construire la description : nom du lieu GPS ou label catégorie
-  const description = gps?.name || category.label;
+  // La saisie prime sur toute déduction : elle seule sait ce qui a été acheté.
+  // À défaut, on retombe sur le nom du lieu puis sur la catégorie, comme avant.
+  const saisie = document.getElementById('quickAddDescription')?.value.trim();
+  const description = saisie || gps?.name || category.label;
 
   const chargeData = {
     description,
@@ -314,7 +411,7 @@ async function handleQuickAddSubmit() {
     category: category.label,
     categoryId: category.id,
     categoryIcon: category.icon,
-    paidBy: 'vous',
+    paidBy: quickAddState.paidBy,
     splitMode,
     date: new Date().toISOString().split('T')[0],
     timestamp: Date.now(),
@@ -495,6 +592,9 @@ async function processGPSPosition(gpsData, locationEl) {
   try {
     quickAddState.gpsLocation = gpsData;
 
+    // Il y a désormais quelque chose à détacher.
+    showLocationDetach();
+
     // Géocodage inversé pour obtenir le nom du lieu
     try {
       const place = await reverseGeocode(gpsData.lat, gpsData.lng);
@@ -523,6 +623,7 @@ async function processGPSPosition(gpsData, locationEl) {
     logError('❌ [GPS] Erreur traitement position:', err);
     locationEl.textContent = '✗ Erreur GPS';
     locationEl.className = 'quick-add-location error';
+    hideLocationDetach();
   }
 }
 

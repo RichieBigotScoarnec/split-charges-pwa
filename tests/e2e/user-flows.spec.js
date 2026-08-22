@@ -460,6 +460,29 @@ test.describe('FAB — Saisie rapide', () => {
     await expect(page.locator('#categoryGrid')).toBeAttached();
   });
 
+  test('la modal contient un champ description', async ({ page }) => {
+    // Sans lui, la description se déduisait du lieu où l'on se trouvait en
+    // saisissant — le domicile, pour une régularisation du lendemain.
+    await page.locator('.fab').click();
+    await expect(page.locator('#quickAddDescription')).toBeVisible();
+  });
+
+  test('le payeur est choisissable, « vous » par défaut', async ({ page }) => {
+    // La saisie rapide écrivait « vous » en dur : une dépense réglée par
+    // l'autre personne était comptée du mauvais côté du bilan.
+    await page.locator('.fab').click();
+
+    await expect(page.locator('#quickAddPayer [data-payer="vous"]')).toHaveClass(/selected/);
+    await page.locator('#quickAddPayer [data-payer="conjointe"]').click();
+    await expect(page.locator('#quickAddPayer [data-payer="conjointe"]')).toHaveClass(/selected/);
+    await expect(page.locator('#quickAddPayer [data-payer="vous"]')).not.toHaveClass(/selected/);
+  });
+
+  test('le détachement du lieu n\'apparaît que s\'il y a un lieu', async ({ page }) => {
+    await page.locator('.fab').click();
+    await expect(page.locator('#quickAddLocationDetach')).toBeHidden();
+  });
+
   test('les boutons prorata et 50-50 sont présents', async ({ page }) => {
     await page.locator('.fab').click();
     await expect(page.locator('#quickSplitProrata')).toBeVisible();
