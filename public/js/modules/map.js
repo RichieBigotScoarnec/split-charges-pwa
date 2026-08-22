@@ -381,14 +381,23 @@ function createMarker(charge) {
     });
 
     // Popup avec détails de la charge
+    //
+    // Les classes reprennent celles que map.css dessine déjà. Le balisage
+    // avait dérivé vers `.marker-popup` et des balises nues : la maquette
+    // existait, plus rien ne l'utilisait.
+    //
+    // La date n'est affichée que si la charge en porte une. Les charges
+    // créées par le formulaire complet n'ont pas de champ `date` : les
+    // passer à formatDate revenait à afficher la date du jour, Intl
+    // interprétant `undefined` comme « maintenant ».
     const popupContent = `
-      <div class="marker-popup">
-        <h4>${escapeHtml(charge.description)}</h4>
-        <p><strong>Montant :</strong> ${formatCurrency(charge.amount)}</p>
-        <p><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'N/A')}</p>
-        <p><strong>Payé par :</strong> ${escapeHtml(formatPaidBy(charge.paidBy))}</p>
-        <p><strong>Date :</strong> ${formatDate(charge.date)}</p>
-        ${charge.location.name ? `<p><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</p>` : ''}
+      <div class="popup-content">
+        <div class="popup-title">${escapeHtml(charge.description)}</div>
+        <div class="popup-detail"><strong>Montant :</strong> ${formatCurrency(charge.amount)}</div>
+        <div class="popup-detail"><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'Sans catégorie')}</div>
+        <div class="popup-detail"><strong>Payé par :</strong> ${escapeHtml(formatPaidBy(charge.paidBy))}</div>
+        ${charge.date ? `<div class="popup-detail"><strong>Date :</strong> ${escapeHtml(formatDate(charge.date))}</div>` : ''}
+        ${charge.location.name ? `<div class="popup-detail"><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</div>` : ''}
       </div>
     `;
 
@@ -413,21 +422,13 @@ function getCategoryMarkerIcon(category) {
   // Même source que les listes de charges et la saisie rapide : une deuxième
   // table figée ici ne montrait 📍 pour presque tout, et ignorait les icônes
   // choisies dans les catégories personnalisées.
-  const emoji = getCategoryIcon(category);
-
-  return `
-    <div style="
-      font-size: 24px;
-      text-align: center;
-      line-height: 30px;
-      background: white;
-      border-radius: 50%;
-      border: 2px solid #667eea;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    ">
-      ${escapeHtml(emoji)}
-    </div>
-  `;
+  //
+  // L'apparence était posée en style en ligne, avec un bleu écrit en dur qui
+  // ne suit ni les jetons de couleur ni le thème sombre — et qui luttait au
+  // passage avec la règle `.custom-marker` de map.css, laquelle dessinait un
+  // tout autre marqueur. Le balisage ne porte plus que l'emoji ; le dessin
+  // appartient à la feuille de style.
+  return escapeHtml(getCategoryIcon(category));
 }
 
 /**

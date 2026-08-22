@@ -310,7 +310,11 @@
   gap: 2px;
 }
 
-.charge-name {
+/* Le JS rend `charge-description` et `charge-payer` : ces deux règles
+   visaient `charge-name` et `charge-payeur`, noms d'un balisage antérieur.
+   Elles ne s'appliquaient donc à rien, et la ligne « Payé par… » s'affichait
+   sans style au milieu d'une liste qui, elle, en avait un. */
+.charge-description {
   font-weight: 500;
   font-size: 14px;
 }
@@ -322,7 +326,7 @@
   font-weight: 500;
 }
 
-.charge-payeur {
+.charge-payer {
   font-size: 11px;
   color: var(--warning-color);
 }
@@ -1004,4 +1008,90 @@
 
 .diag-actions .btn {
   flex: 1;
+}
+
+/* ===== ÉLÉMENTS RENDUS PAR LE JS, LONGTEMPS SANS STYLE =====
+
+   Ces classes sont produites par les modules de rendu depuis toujours, mais
+   aucune règle ne les visait : les listes de charges affichaient leurs
+   en-têtes de catégorie en balise brute, le total des remboursements ne
+   portait aucune couleur malgré les classes sémantiques que le JS lui pose,
+   et le surlignage des résultats de recherche ne surlignait rien.
+*/
+
+/* Regroupement par catégorie dans les listes de charges */
+.charge-category {
+  margin-bottom: var(--space-md);
+}
+
+.category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.category-total {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.charges-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Total des remboursements : le JS y pose la classe qui dit le sens */
+.reimbursements-total {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.reimbursements-total.you-owe strong {
+  color: var(--warning-color);
+}
+
+.reimbursements-total.partner-owes strong {
+  color: var(--success-color);
+}
+
+.reimbursements-total.balanced {
+  color: var(--text-muted);
+}
+
+.reimbursement-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.reimbursement-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Résultat de recherche : sans cette règle, filtrer masquait les autres
+   lignes sans jamais désigner celles qui correspondent. */
+.search-match {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Disparition d'un toast — `removeToast` déclenchait une animation qui
+   n'existait nulle part, et la notification disparaissait d'un coup après
+   avoir attendu ses 300 ms. */
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
 }

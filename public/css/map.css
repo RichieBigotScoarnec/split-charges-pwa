@@ -40,12 +40,104 @@
   color: var(--text-primary);
 }
 
-/* Custom marker */
+/* Custom marker
+   Le module posait son apparence en style en ligne — fond blanc, bordure
+   #667eea écrite en dur — qui contredisait cette règle et ignorait le thème
+   sombre. Le balisage ne porte plus que l'emoji, le dessin est ici, et les
+   dimensions suivent l'iconSize déclaré par Leaflet (30 × 30). */
 .custom-marker {
-  background-color: var(--primary-color);
-  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  font-size: 17px;
+  line-height: 1;
+  background: var(--card-bg);
+  border: 2px solid var(--primary-color);
   border-radius: var(--radius-full);
-  width: 18px;
-  height: 18px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
+}
+
+/* ===== STRUCTURE DE LA MODALE =====
+   Ces classes sont produites par map.js depuis toujours ; aucune règle ne les
+   visait. L'en-tête, les filtres et les totaux s'affichaient sans mise en
+   forme, au-dessus d'une carte qui, elle, en avait une. */
+.map-modal-content {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+}
+
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.map-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.btn-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.btn-close:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.map-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.map-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.map-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.map-stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.map-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.map-stat-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
 }
