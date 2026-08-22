@@ -107,6 +107,18 @@ describe('Routage du service worker', () => {
     }
   });
 
+  it('laisse passer reCAPTCHA, dont App Check dépend', () => {
+    // Un script reCAPTCHA servi depuis le cache produit des attestations
+    // refusées : la base devient injoignable alors que le réseau fonctionne.
+    const distants = [
+      'https://www.google.com/recaptcha/api.js?render=cle',
+      'https://www.google.com/recaptcha/api2/anchor'
+    ];
+    for (const url of distants) {
+      expect(estInterceptee(fetchHandler, url), `intercepte : ${url}`).toBe(false);
+    }
+  });
+
   it('laisse passer le géocodage, dont une réponse en cache serait fausse', () => {
     const url = 'https://nominatim.openstreetmap.org/reverse?lat=48.85&lon=2.35&format=json';
     expect(estInterceptee(fetchHandler, url)).toBe(false);

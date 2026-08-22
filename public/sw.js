@@ -139,6 +139,11 @@ const HOSTS_JAMAIS_INTERCEPTES = [
   'googleapis.com',         // identitytoolkit, securetoken
   'accounts.google.com',    // connexion Google
   'apis.google.com',        // client d'authentification
+  // reCAPTCHA, dont dépend l'attestation App Check. Son script est révisé
+  // fréquemment et ses jetons sont à usage unique : une copie servie depuis le
+  // cache produirait des attestations refusées, donc une base injoignable —
+  // pour une cause introuvable, le réseau paraissant fonctionner.
+  'google.com',
   'openstreetmap.org'       // géocodage : une réponse mise en cache serait fausse
 ];
 

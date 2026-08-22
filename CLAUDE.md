@@ -8,7 +8,7 @@ App web PWA de partage de charges en couple au prorata des salaires. Synchronisa
 
 - HTML5 sémantique, CSS3 (variables, responsive mobile-first)
 - JavaScript ES6 Modules (import/export, async/await)
-- Firebase Realtime Database (compat SDK 10.7.1), Firebase Auth
+- Firebase Realtime Database (compat SDK 10.14.1), Firebase Auth
 - Leaflet.js (carte), PWA (Service Worker, manifest)
 - Tests : Vitest (unitaires), Playwright (E2E)
 

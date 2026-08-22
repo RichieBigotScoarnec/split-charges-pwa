@@ -152,12 +152,45 @@ La politique de référent est fixée explicitement à
 et l'adresse complète de la page n'a pas à l'accompagner. L'origine reste
 envoyée, donc une restriction de clé API par référent continue de fonctionner.
 
-### 6. Intégrité des ressources externes
+### 6. App Check — attestation de l'origine des requêtes
+
+Les règles vérifient *qui* parle. App Check atteste *d'où* : le jeton prouve
+que la requête vient de cette application, et non d'un script quelconque muni
+de la clé API — laquelle est publique par construction. C'est ce qui limite le
+martèlement de `signInWithPassword` contre les deux comptes du foyer, que les
+règles de base de données ne voient même pas passer.
+
+Le câblage vit dans [`js/firebase-init.js`](js/firebase-init.js), activé entre
+l'initialisation de l'application et le premier accès. Il est **inerte tant que
+`APP_CHECK_SITE_KEY` est vide** dans [`js/config.js`](js/config.js) — la clé de
+site reCAPTCHA, publique elle aussi, se récupère dans la console Firebase.
+
+> ⚠️ **Ne pas activer l'application forcée dans la console tant que cette clé
+> est vide.** Toute requête serait refusée et l'application n'afficherait plus
+> rien. La console distingue « non appliqué » (mesure seule) et « appliqué » :
+> renseigner la clé, déployer, vérifier les mesures pendant quelques jours,
+> puis appliquer.
+
+Chaque abandon est journalisé — clé absente, SDK non chargé, activation
+refusée. Une attestation silencieusement inactive donne l'illusion d'une
+protection, et c'est précisément dans cet état qu'on active l'application
+forcée en croyant le client prêt.
+
+Le mode émulateur ne l'active pas : les émulateurs n'exigent aucune
+attestation, et les tests end-to-end passent par eux.
+
+Deux conséquences ailleurs : la politique de sécurité autorise
+`https://www.google.com` en `script-src` et `frame-src` — reCAPTCHA charge son
+script et affiche son épreuve depuis cette origine — et le service worker
+n'intercepte pas ce domaine, une copie en cache produisant des attestations
+refusées.
+
+### 7. Intégrité des ressources externes
 
 Firebase SDK et Leaflet sont chargés depuis un CDN avec attribut `integrity`
 (SRI) et `crossorigin`. Un CDN compromis ne peut pas substituer son code.
 
-### 7. Validation des saisies
+### 8. Validation des saisies
 
 [`js/utils/validation.js`](js/utils/validation.js) : bornes sur les montants
 (100 000 € par charge comme par salaire, cf. `LIMITS` dans
