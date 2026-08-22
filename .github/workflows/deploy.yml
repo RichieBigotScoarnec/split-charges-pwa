@@ -85,6 +85,66 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  # Le déploiement de GitHub Pages ne publie que `public/`. Les règles de
+  # sécurité, elles, vivent dans Firebase et n'y montent que par une commande
+  # lancée à la main — étape invisible depuis le dépôt, donc oubliée. Une base
+  # tourne alors sous des règles plus anciennes que le code qui l'interroge,
+  # sans que rien ne le signale : le dépôt affiche la protection, la base ne
+  # l'applique pas.
+  deploy-rules:
+    needs: [test, e2e]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Déploiement systématique, sans condition sur la modification du
+      # fichier. Une condition mal posée ne casse rien de visible : elle saute
+      # le déploiement en silence, ce qui est exactement la panne qu'on cherche
+      # à supprimer. Déployer des règles identiques est sans effet.
+      - name: Déployer les règles de base de données
+        env:
+          # Compte de service Firebase, en JSON. À créer dans la console Google
+          # Cloud (rôle « Firebase Realtime Database Admin ») puis à déposer en
+          # secret du dépôt sous ce nom.
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${COMPTE_DE_SERVICE:-}" ]; then
+            echo "::warning title=Règles non déployées::Le secret FIREBASE_SERVICE_ACCOUNT est absent. Les règles de database.rules.json ne sont PAS appliquées à Firebase — lancez « npm run deploy:rules » à la main, ou créez le secret."
+            {
+              echo "### ⚠️ Règles de sécurité non déployées"
+              echo ""
+              echo "Le secret \`FIREBASE_SERVICE_ACCOUNT\` est absent du dépôt."
+              echo "La base tourne donc sous les règles déployées précédemment, qui"
+              echo "peuvent être plus anciennes que \`database.rules.json\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Le secret transite par une variable puis un fichier hors du dépôt :
+          # jamais par la ligne de commande, que les journaux conservent.
+          fichier="$RUNNER_TEMP/compte-de-service.json"
+          printf '%s' "$COMPTE_DE_SERVICE" > "$fichier"
+          export GOOGLE_APPLICATION_CREDENTIALS="$fichier"
+
+          npx firebase deploy --only database --project fairsplit-foyer --non-interactive
+
+          rm -f "$fichier"
+          echo "### ✅ Règles de sécurité déployées" >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     needs: [test, e2e]
     if: github.event_name == 'push'

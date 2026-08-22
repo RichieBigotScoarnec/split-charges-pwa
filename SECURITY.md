@@ -245,6 +245,13 @@ il rétrograderait `firebase-tools` d'une version majeure.
 - Les règles vivent dans `database.rules.json` et nulle part ailleurs. Ne jamais
   les éditer à la main dans la console Firebase : le prochain déploiement
   écraserait la modification sans trace.
+- Leur déploiement est automatique à chaque fusion sur `main` (job
+  `deploy-rules`), après les tests unitaires et end-to-end. Il **exige le secret
+  de dépôt `FIREBASE_SERVICE_ACCOUNT`** — un compte de service Firebase au
+  format JSON, rôle « Firebase Realtime Database Admin ». Sans ce secret, le
+  job n'échoue pas mais pose un avertissement visible sur l'exécution : la base
+  tourne alors sous des règles potentiellement plus anciennes que le dépôt.
+  Vérifier ce point avant de conclure qu'une règle est appliquée.
 - Toute action GitHub Actions doit être épinglée par SHA de commit.
 - Le workflow est en `contents: read` ; seul le job de déploiement demande
   l'écriture. Ne pas remonter ce droit au niveau du workflow : il s'appliquerait
