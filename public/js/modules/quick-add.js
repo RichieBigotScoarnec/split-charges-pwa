@@ -11,6 +11,8 @@ import { calculateSummary } from './summary.js';
 import { getCategories } from './custom-lists.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { parseMontant, parseMontantOu } from '../utils/montant.js';
+import { decrireLieu } from '../utils/lieu.js';
 
 // ===== STATE INTERNE =====
 let _keydownHandler = null;
@@ -361,7 +363,7 @@ function hideLocationDetach() {
  * Valide le formulaire (catégorie + montant)
  */
 function validateForm() {
-  const amount = parseFloat(document.getElementById('quickAddAmount')?.value) || 0;
+  const amount = parseMontantOu(document.getElementById('quickAddAmount')?.value);
   const hasCategory = quickAddState.selectedCategory !== null;
   const hasAmount = amount > 0;
 
@@ -388,7 +390,7 @@ async function handleQuickAddSubmit() {
   }
 
   const amountEl = document.getElementById('quickAddAmount');
-  const amount = parseFloat(amountEl?.value);
+  const amount = parseMontant(amountEl?.value);
   // Ce formulaire plafonnait à 50 000 € quand les trois autres acceptaient
   // 100 000 : la même charge passait ou non selon la porte empruntée.
   const montantValide = validateChargeAmount(amount);
@@ -402,8 +404,10 @@ async function handleQuickAddSubmit() {
 
   // La saisie prime sur toute déduction : elle seule sait ce qui a été acheté.
   // À défaut, on retombe sur le nom du lieu puis sur la catégorie, comme avant.
+  // La description se lit dans une liste : on y met de quoi lever l'ambiguïté
+  // — l'enseigne et sa commune — et non l'adresse complète, qui vit sur le lieu.
   const saisie = document.getElementById('quickAddDescription')?.value.trim();
-  const description = saisie || gps?.name || category.label;
+  const description = saisie || gps?.etiquetteCourte || gps?.name || category.label;
 
   const chargeData = {
     description,
@@ -426,6 +430,11 @@ async function handleQuickAddSubmit() {
       name: gps.name || 'Position',
       timestamp: gps.timestamp
     };
+    // Champs facultatifs : les règles les acceptent déjà sous `location`, et
+    // les garder séparés permet de regrouper par ville sans redécouper une
+    // étiquette. Absents quand le géocodage n'a rien rendu.
+    if (gps.commune) chargeData.location.commune = gps.commune;
+    if (gps.codePostal) chargeData.location.codePostal = gps.codePostal;
   }
 
   try {
@@ -598,11 +607,17 @@ async function processGPSPosition(gpsData, locationEl) {
     // Géocodage inversé pour obtenir le nom du lieu
     try {
       const place = await reverseGeocode(gpsData.lat, gpsData.lng);
-      if (place?.name) {
-        gpsData.name = place.name;
+      if (place?.etiquette) {
+        // `name` porte l'étiquette complète : c'est elle qui part en base et
+        // qui s'affiche sur la carte. « Brioche Dorée » seul ne disait pas
+        // laquelle ; « Brioche Dorée, 12 Rue Le Bastard, 35000 Rennes » le dit.
+        gpsData.name = place.etiquette;
+        gpsData.etiquetteCourte = place.etiquetteCourte;
+        gpsData.commune = place.commune;
+        gpsData.codePostal = place.codePostal;
         quickAddState.gpsLocation = gpsData;
 
-        locationEl.textContent = `✓ ${place.name}`;
+        locationEl.textContent = `✓ ${place.etiquette}`;
         locationEl.className = 'quick-add-location success';
 
         // Auto-détection catégorie
@@ -629,23 +644,23 @@ async function processGPSPosition(gpsData, locationEl) {
 
 /**
  * Géocodage inversé via Nominatim (OpenStreetMap, gratuit)
+ *
+ * `addressdetails=1` réclame l'adresse décomposée — rue, code postal, commune.
+ * Sans ce paramètre, la réponse ne portait que le nom de l'enseigne et
+ * `display_name`, une seule chaîne allant du bâtiment jusqu'au pays.
+ * `zoom=18` vise le bâtiment plutôt que le quartier, et `accept-language=fr`
+ * évite qu'une commune revienne dans une autre langue que celle de l'écran.
  */
 async function reverseGeocode(lat, lng) {
   try {
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}` +
+      '&format=json&addressdetails=1&zoom=18&accept-language=fr',
       { headers: { 'User-Agent': 'FairSplit/1.0' } }
     );
     if (!response.ok) return null;
 
-    const data = await response.json();
-    return {
-      name: data.name || data.address?.shop || data.address?.amenity || data.address?.building,
-      address: data.display_name,
-      city: data.address?.city || data.address?.town,
-      type: data.type,
-      rawAddress: data.address
-    };
+    return decrireLieu(await response.json());
   } catch (error) {
     logError('Reverse geocoding failed:', error);
     return null;
@@ -674,7 +689,7 @@ function detectCategoryFromPlace(place) {
   }
 
   // Fallback : analyse du nom du lieu
-  const fullText = ((place.name || '') + ' ' + (place.address || '')).toLowerCase();
+  const fullText = ((place.nom || '') + ' ' + (place.adresseComplete || '')).toLowerCase();
 
   if (/leclerc|carrefour|intermarché|auchan|lidl|super u|picard/.test(fullText)) {
     return findCat('courses');
@@ -707,7 +722,7 @@ export async function addQuickCharge(chargeData) {
 
   const charge = {
     description: chargeData.description,
-    amount: parseFloat(chargeData.amount),
+    amount: parseMontant(chargeData.amount),
     category: chargeData.category || 'Autre',
     paidBy: chargeData.paidBy || 'vous',
     date: chargeData.date || new Date().toISOString().split('T')[0],

@@ -1,5 +1,6 @@
 import { resolveIncomeBase } from './salaries.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
+import { parseMontant } from './montant.js';
 
 // ===== FONCTIONS DE CALCUL PURES (testables) =====
 // Extraites de summary.js pour permettre les tests unitaires
@@ -294,7 +295,7 @@ export function computeBalanceChain(periods, { shareMode, customPercents, global
 function normalizePair(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const toNumber = (value) => {
-    const n = typeof value === 'number' ? value : parseFloat(value);
+    const n = parseMontant(value);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
   return { vous: toNumber(raw.vous), conjointe: toNumber(raw.conjointe) };

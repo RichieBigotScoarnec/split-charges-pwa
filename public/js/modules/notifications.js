@@ -5,6 +5,7 @@ import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { saveReminders, loadReminders } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { parseMontantOu } from '../utils/montant.js';
 
 let _hourlyIntervalId = null;
 let _dailyTimeoutId = null;
@@ -383,7 +384,7 @@ export function cleanupNotifications() {
  * Appelée via data-on-change depuis FairSplit.html
  */
 function saveReminderSettings() {
-  const budgetAmount = parseFloat(document.getElementById('budgetAmount').value) || 3000;
+  const budgetAmount = parseMontantOu(document.getElementById('budgetAmount').value, 3000);
   const settings = {
     finMois: document.getElementById('reminderFinMois').checked,
     budget: document.getElementById('reminderBudget').checked,

@@ -7,6 +7,7 @@ import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
 import { log, error as logError } from '../utils/debug.js';
+import { parseMontantOu } from '../utils/montant.js';
 
 /**
  * Select and apply share mode
@@ -55,8 +56,8 @@ export function validateCustomPercents() {
 
   if (!yourPercentEl || !partnerPercentEl || !validationEl) return;
 
-  const yourPercent = parseFloat(yourPercentEl.value) || 0;
-  const partnerPercent = parseFloat(partnerPercentEl.value) || 0;
+  const yourPercent = parseMontantOu(yourPercentEl.value);
+  const partnerPercent = parseMontantOu(partnerPercentEl.value);
   const total = yourPercent + partnerPercent;
 
   if (total === 100 && yourPercent >= 0 && partnerPercent >= 0) {

@@ -15,6 +15,7 @@ import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
+import { parseMontant } from '../utils/montant.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -103,7 +104,7 @@ export async function saveReimbursement() {
   }
 
   const direction = document.getElementById('reimbursementDirection').value;
-  const amount = parseFloat(document.getElementById('reimbursementAmount').value);
+  const amount = parseMontant(document.getElementById('reimbursementAmount').value);
   const note = document.getElementById('reimbursementNote').value.trim();
 
   // Validation

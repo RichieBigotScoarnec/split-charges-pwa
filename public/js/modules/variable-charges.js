@@ -16,6 +16,7 @@ import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
+import { parseMontant } from '../utils/montant.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -151,7 +152,7 @@ export async function saveVariableCharge() {
 
   const chargeId = document.getElementById('variableChargeId').value;
   const description = document.getElementById('variableChargeDescription').value.trim();
-  const amount = parseFloat(document.getElementById('variableChargeAmount').value);
+  const amount = parseMontant(document.getElementById('variableChargeAmount').value);
   const category = document.getElementById('variableChargeCategory').value;
   const paidBy = document.getElementById('variableChargePaidBy').value;
 

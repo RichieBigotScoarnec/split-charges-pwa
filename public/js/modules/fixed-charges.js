@@ -16,6 +16,7 @@ import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
+import { parseMontant } from '../utils/montant.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -134,7 +135,7 @@ export async function saveFixedCharge() {
 
   const chargeId = document.getElementById('fixedChargeId').value;
   const description = document.getElementById('fixedChargeDescription').value.trim();
-  const amount = parseFloat(document.getElementById('fixedChargeAmount').value);
+  const amount = parseMontant(document.getElementById('fixedChargeAmount').value);
   const category = document.getElementById('fixedChargeCategory').value;
   const paidBy = document.getElementById('fixedChargePaidBy').value;
   const destination = document.getElementById('fixedChargeDestination')?.value || '';

@@ -1415,3 +1415,63 @@ test.describe('Écritures simultanées', () => {
     expect(new Set(libelles).size, `doublons dans : ${rendu}`).toBe(libelles.length);
   });
 });
+
+// ============================================================
+// Séparateur décimal
+// ============================================================
+test.describe('Un montant se saisit à la virgule', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  /**
+   * Ajoute une charge variable et rend le montant relu depuis la base.
+   * @param {import('@playwright/test').Page} page
+   * @param {string} montant - Ce qui est tapé dans le champ
+   */
+  async function ajouterEtRelire(page, montant) {
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Boulangerie');
+    await page.locator('#variableChargeAmount').fill(montant);
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#variableChargePaidBy').selectOption('vous');
+    await page.locator('#saveVariableCharge').click();
+
+    await expect(
+      page.locator('#variableChargesList').getByText('Boulangerie')
+    ).toBeVisible({ timeout: 5000 });
+
+    // Le montant est relu en base, non à l'écran : c'est là que les centimes
+    // manquaient, et un affichage arrondi ne l'aurait pas montré.
+    return page.evaluate(() => {
+      for (const noeud of Object.values(window.__db)) {
+        if (!noeud || typeof noeud !== 'object') continue;
+        for (const charge of Object.values(noeud)) {
+          if (charge && charge.description === 'Boulangerie') return charge.amount;
+        }
+      }
+      return null;
+    });
+  }
+
+  test('la virgule garde les centimes', async ({ page }) => {
+    // Sur un clavier français, la touche décimale produit une virgule.
+    // `parseFloat('12,50')` rendait 12 : les centimes disparaissaient entre le
+    // champ et la base, sans refus ni avertissement.
+    expect(await ajouterEtRelire(page, '12,50')).toBe(12.5);
+  });
+
+  test('le point continue de fonctionner', async ({ page }) => {
+    expect(await ajouterEtRelire(page, '12.50')).toBe(12.5);
+  });
+
+  test('la liste affiche bien les centimes saisis à la virgule', async ({ page }) => {
+    await ajouterEtRelire(page, '12,50');
+
+    await expect(
+      page.locator('#variableChargesList .charge-amount').getByText(/12[.,]50/)
+    ).toBeVisible();
+  });
+});

@@ -9,6 +9,7 @@ import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
+import { parseMontantOu } from '../utils/montant.js';
 
 /**
  * Initialise le module summary
@@ -312,7 +313,7 @@ function renderBudgetGauge(totalCharges) {
 
   if (!budgetToggle || !budgetToggle.checked || !budgetInput) return '';
 
-  const budgetLimit = parseFloat(budgetInput.value) || 0;
+  const budgetLimit = parseMontantOu(budgetInput.value);
   if (budgetLimit <= 0) return '';
 
   const percentage = Math.min((totalCharges / budgetLimit) * 100, 100);
