@@ -284,26 +284,34 @@ describe('Le lieu enregistré dit où la dépense a eu lieu', () => {
     expect(global.fetch.mock.calls[0][0]).toContain('addressdetails=1');
   });
 
-  it('affiche l\'adresse complète pendant la saisie', async () => {
+  it('affiche l\'enseigne et sa commune pendant la saisie', async () => {
     await ouvrirAvecPosition();
 
     expect(document.getElementById('quickAddLocation').textContent)
-      .toBe('✓ Brioche Dorée, 12 Rue Le Bastard, 35000 Rennes');
+      .toBe('✓ Brioche Dorée, 35000 Rennes');
   });
 
-  it('enregistre l\'adresse complète sur le lieu de la charge', async () => {
+  it('ne reprend pas la rue', async () => {
+    // Le code postal et la commune suffisent à savoir de quel établissement il
+    // s\'agit, et l\'étiquette se lit dans une liste de charges.
+    await ouvrirAvecPosition();
+
+    expect(document.getElementById('quickAddLocation').textContent)
+      .not.toContain('Rue Le Bastard');
+  });
+
+  it('enregistre la commune et le code postal sur le lieu', async () => {
     await ouvrirAvecPosition();
     saisir({ montant: '9,80' });
     await valider();
 
-    expect(derniereCharge().location.name).toBe('Brioche Dorée, 12 Rue Le Bastard, 35000 Rennes');
+    expect(derniereCharge().location.name).toBe('Brioche Dorée, 35000 Rennes');
     expect(derniereCharge().location.commune).toBe('Rennes');
     expect(derniereCharge().location.codePostal).toBe('35000');
   });
 
   it('la description à défaut de saisie nomme l\'enseigne et sa commune', async () => {
-    // Le cas signalé : « Brioche Dorée » ne disait pas laquelle. La liste des
-    // charges reste lisible, donc l'adresse complète y est de trop.
+    // Le cas signalé : « Brioche Dorée » ne disait pas laquelle.
     await ouvrirAvecPosition();
     saisir({ montant: '9,80' });
     await valider();

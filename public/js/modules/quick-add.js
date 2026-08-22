@@ -404,10 +404,8 @@ async function handleQuickAddSubmit() {
 
   // La saisie prime sur toute déduction : elle seule sait ce qui a été acheté.
   // À défaut, on retombe sur le nom du lieu puis sur la catégorie, comme avant.
-  // La description se lit dans une liste : on y met de quoi lever l'ambiguïté
-  // — l'enseigne et sa commune — et non l'adresse complète, qui vit sur le lieu.
   const saisie = document.getElementById('quickAddDescription')?.value.trim();
-  const description = saisie || gps?.etiquetteCourte || gps?.name || category.label;
+  const description = saisie || gps?.name || category.label;
 
   const chargeData = {
     description,
@@ -608,11 +606,9 @@ async function processGPSPosition(gpsData, locationEl) {
     try {
       const place = await reverseGeocode(gpsData.lat, gpsData.lng);
       if (place?.etiquette) {
-        // `name` porte l'étiquette complète : c'est elle qui part en base et
-        // qui s'affiche sur la carte. « Brioche Dorée » seul ne disait pas
-        // laquelle ; « Brioche Dorée, 12 Rue Le Bastard, 35000 Rennes » le dit.
+        // « Brioche Dorée » seul ne disait pas laquelle ; « Brioche Dorée,
+        // 35000 Rennes » le dit, et reste lisible dans une liste de charges.
         gpsData.name = place.etiquette;
-        gpsData.etiquetteCourte = place.etiquetteCourte;
         gpsData.commune = place.commune;
         gpsData.codePostal = place.codePostal;
         quickAddState.gpsLocation = gpsData;

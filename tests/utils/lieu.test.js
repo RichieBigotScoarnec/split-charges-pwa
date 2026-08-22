@@ -3,12 +3,15 @@ import { decrireLieu } from '../../public/js/utils/lieu.js';
 
 /**
  * Les réponses ci-dessous reprennent la forme réelle de Nominatim `/reverse`
- * avec `addressdetails=1` : le nom du lieu sous la clé de sa classe, la voie et
- * le numéro séparés, le code postal à part de la commune.
+ * avec `addressdetails=1` : le nom du lieu sous la clé de sa classe, le code
+ * postal à part de la commune.
+ *
+ * L'étiquette ne reprend pas la rue : le code postal et la commune suffisent à
+ * savoir de quel établissement il s'agit, et elle se lit dans une liste.
  */
 
 describe('decrireLieu', () => {
-  it('nomme le lieu, sa rue et sa commune', () => {
+  it('nomme le lieu, son code postal et sa commune', () => {
     // Le cas signalé : « Brioche Dorée » seul ne dit pas laquelle.
     const lieu = decrireLieu({
       name: 'Brioche Dorée',
@@ -23,13 +26,12 @@ describe('decrireLieu', () => {
       }
     });
 
-    expect(lieu.etiquette).toBe('Brioche Dorée, 12 Rue Le Bastard, 35000 Rennes');
-    expect(lieu.etiquetteCourte).toBe('Brioche Dorée, 35000 Rennes');
+    expect(lieu.etiquette).toBe('Brioche Dorée, 35000 Rennes');
     expect(lieu.commune).toBe('Rennes');
     expect(lieu.codePostal).toBe('35000');
   });
 
-  it('distingue deux enseignes de même nom par leur adresse', () => {
+  it('distingue deux enseignes de même nom par leur commune', () => {
     const premiere = decrireLieu({
       name: 'Brioche Dorée',
       address: { road: 'Rue Le Bastard', city: 'Rennes', postcode: '35000' }
@@ -40,7 +42,8 @@ describe('decrireLieu', () => {
     });
 
     expect(premiere.etiquette).not.toBe(seconde.etiquette);
-    expect(premiere.etiquetteCourte).not.toBe(seconde.etiquetteCourte);
+    expect(premiere.etiquette).toBe('Brioche Dorée, 35000 Rennes');
+    expect(seconde.etiquette).toBe('Brioche Dorée, 44000 Nantes');
   });
 
   it('lit le nom sous la clé de la classe du lieu', () => {
@@ -50,17 +53,16 @@ describe('decrireLieu', () => {
     });
 
     expect(lieu.nom).toBe('Le Petit Bistrot');
-    expect(lieu.etiquette).toBe('Le Petit Bistrot, Rue de la Paix, 35000 Rennes');
+    expect(lieu.etiquette).toBe('Le Petit Bistrot, 35000 Rennes');
   });
 
-  it('se contente de l\'adresse quand le lieu n\'a pas de nom', () => {
+  it('se rabat sur la rue quand le lieu n\'a pas de nom', () => {
     const lieu = decrireLieu({
       address: { house_number: '5', road: 'Rue des Lilas', town: 'Vitré', postcode: '35500' }
     });
 
     expect(lieu.nom).toBe('');
     expect(lieu.etiquette).toBe('5 Rue des Lilas, 35500 Vitré');
-    expect(lieu.etiquetteCourte).toBe('5 Rue des Lilas, 35500 Vitré');
   });
 
   it('accepte une commune rurale sans city ni town', () => {
@@ -71,15 +73,6 @@ describe('decrireLieu', () => {
 
     expect(lieu.commune).toBe('Saint-Didier');
     expect(lieu.etiquette).toBe('Boulangerie du Bourg, 35220 Saint-Didier');
-  });
-
-  it('ne répète pas la rue quand elle porte le nom du lieu', () => {
-    const lieu = decrireLieu({
-      name: 'Rue du Marché',
-      address: { road: 'Rue du Marché', city: 'Rennes', postcode: '35000' }
-    });
-
-    expect(lieu.etiquette).toBe('Rue du Marché, 35000 Rennes');
   });
 
   it('garde la commune même sans code postal', () => {
