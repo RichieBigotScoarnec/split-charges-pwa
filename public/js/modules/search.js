@@ -136,7 +136,9 @@ function matchesQuery(charge, query) {
   const description = (charge.description || '').toLowerCase();
   const category = (charge.category || '').toLowerCase();
   const note = (charge.note || '').toLowerCase();
-  const amount = charge.amount.toString();
+  // Une charge héritée peut ne pas porter de montant exploitable : appeler
+  // toString() dessus interrompait la recherche entière sur une seule entrée.
+  const amount = String(charge.amount ?? '');
 
   return description.includes(query) ||
          category.includes(query) ||
@@ -279,8 +281,6 @@ function showAllCharges() {
     category.style.display = '';
   });
 }
-
-// ✅ FIX CRITIQUE 3: Function escapeHtml removed - now imported from utils.js
 
 // Exposer globalement pour compatibilité
 window.clearSearch = clearSearch;

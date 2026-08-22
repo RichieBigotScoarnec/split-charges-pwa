@@ -48,7 +48,6 @@ const initialState = {
 
 // ===== STATE STORE =====
 let state = JSON.parse(JSON.stringify(initialState));
-const listeners = new Map();
 
 // ===== PUBLIC API =====
 
@@ -75,9 +74,16 @@ export function getState(key) {
 }
 
 /**
- * Set state value and notify listeners
- * @param {string} key - State key
- * @param {*} value - New value
+ * Écrit une valeur dans l'état
+ *
+ * Un registre d'abonnés vivait ici, avec `subscribe()`, la propagation aux
+ * clés parentes et un joker `*`. Personne ne s'y est jamais abonné : chaque
+ * module appelle directement ses fonctions de rendu après avoir écrit. La
+ * machinerie ne faisait donc que s'exécuter à vide à chaque écriture, tout en
+ * laissant croire à un mécanisme de réaction qui n'existait pas.
+ *
+ * @param {string} key - Clé, notation pointée acceptée
+ * @param {*} value - Nouvelle valeur
  */
 /** Segments de clé qui atteindraient le prototype au lieu de l'état */
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -125,26 +131,6 @@ export function setState(key, value) {
     log('📝 [STATE] État complet quickAddState:', JSON.stringify(state.quickAddState));
   }
 
-  // Notify listeners
-  notifyListeners(key, value);
-}
-
-/**
- * Subscribe to state changes
- * @param {string} key - State key to watch
- * @param {Function} callback - Callback function(newValue, key)
- * @returns {Function} Unsubscribe function
- */
-export function subscribe(key, callback) {
-  if (!listeners.has(key)) {
-    listeners.set(key, new Set());
-  }
-  listeners.get(key).add(callback);
-
-  // Return unsubscribe function
-  return () => {
-    listeners.get(key)?.delete(callback);
-  };
 }
 
 /**
@@ -152,9 +138,6 @@ export function subscribe(key, callback) {
  */
 export function resetState() {
   state = JSON.parse(JSON.stringify(initialState));
-  listeners.forEach((callbacks, key) => {
-    callbacks.forEach(cb => cb(getState(key), key));
-  });
 }
 
 /**
@@ -189,85 +172,6 @@ export function resetUserData() {
   setState('selectedReconductionItems', []);
 
   log('🧹 User data reset on logout');
-}
-
-// ===== ARRAY HELPERS =====
-
-/**
- * Add item to array state
- * @param {string} key - Array state key
- * @param {Object} item - Item to add
- */
-export function addToArray(key, item) {
-  const current = getState(key) || [];
-  setState(key, [...current, item]);
-}
-
-/**
- * Update item in array state
- * @param {string} key - Array state key
- * @param {number|string} id - Item ID
- * @param {Object} updates - Properties to update
- */
-export function updateInArray(key, id, updates) {
-  const current = getState(key) || [];
-  const updated = current.map(item =>
-    item.id === id ? { ...item, ...updates } : item
-  );
-  setState(key, updated);
-}
-
-/**
- * Remove item from array state (soft delete)
- * @param {string} key - Array state key
- * @param {number|string} id - Item ID
- * @param {boolean} hard - If true, remove completely; if false, mark as deleted
- */
-export function removeFromArray(key, id, hard = false) {
-  const current = getState(key) || [];
-
-  if (hard) {
-    setState(key, current.filter(item => item.id !== id));
-  } else {
-    // Soft delete
-    updateInArray(key, id, {
-      deleted: true,
-      deletedAt: new Date().toISOString()
-    });
-  }
-}
-
-/**
- * Get active items (not soft-deleted)
- * @param {string} key - Array state key
- * @returns {Array} Active items
- */
-export function getActiveItems(key) {
-  const items = getState(key) || [];
-  return items.filter(item => !item.deleted);
-}
-
-// ===== PRIVATE HELPERS =====
-
-function notifyListeners(changedKey, newValue) {
-  // Notify exact key listeners
-  if (listeners.has(changedKey)) {
-    listeners.get(changedKey).forEach(cb => cb(newValue, changedKey));
-  }
-
-  // Notify parent key listeners (e.g., 'salaries' when 'salaries.vous' changes)
-  const parts = changedKey.split('.');
-  for (let i = 1; i < parts.length; i++) {
-    const parentKey = parts.slice(0, i).join('.');
-    if (listeners.has(parentKey)) {
-      listeners.get(parentKey).forEach(cb => cb(getState(parentKey), parentKey));
-    }
-  }
-
-  // Notify wildcard listeners
-  if (listeners.has('*')) {
-    listeners.get('*').forEach(cb => cb(newValue, changedKey));
-  }
 }
 
 // ===== INITIALIZE CURRENT PERIOD =====

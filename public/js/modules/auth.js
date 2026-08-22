@@ -27,7 +27,8 @@ import { noter } from '../utils/diagnostics.js';
 
 let appInitialized = false;
 
-// ✅ FIX CRITIQUE 2: Stocker l'unsubscribe function pour éviter fuite mémoire
+// Conservée pour être appelée avant d'en poser un nouveau : sans cela, deux
+// écouteurs d'authentification coexistaient.
 let authUnsubscribe = null;
 
 // Guard against concurrent popup calls
@@ -392,13 +393,11 @@ export function initAuth() {
     if (creerCompte) creerCompte.hidden = false;
   }
 
-  // ✅ FIX CRITIQUE 2: Nettoyer l'ancien listener s'il existe
   if (authUnsubscribe) {
     authUnsubscribe();
     log('[Auth] 🧹 Ancien listener nettoyé');
   }
 
-  // ✅ FIX CRITIQUE 2: Stocker la fonction unsubscribe
   authUnsubscribe = auth.onAuthStateChanged(async (user) => {
     log('[Auth] État changé:', user ? user.email : 'Déconnecté');
 
@@ -460,7 +459,6 @@ export function initAuth() {
       cleanupMap();
       cleanupModals();
 
-      // ✅ FIX: Reset user data on logout for security/privacy
       const { resetUserData } = await import('../state.js');
       resetUserData();
 

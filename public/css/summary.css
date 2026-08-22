@@ -177,77 +177,6 @@
   color: var(--primary-light);
 }
 
-/* ===== BILAN FINAL ===== */
-.bilan-final {
-  background: var(--card-bg);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  margin-top: var(--space-md);
-  text-align: center;
-}
-
-.bilan-final-header {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--primary-light);
-  margin-bottom: var(--space-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  letter-spacing: -0.01em;
-}
-
-.bilan-final-amount {
-  font-size: 32px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  margin: var(--space-md) 0;
-  color: var(--text-primary);
-  letter-spacing: -0.03em;
-}
-
-.bilan-final-direction {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-md);
-}
-
-.bilan-final-balanced {
-  color: var(--success-color);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.bilan-final-action {
-  margin-top: var(--space-md);
-}
-
-.bilan-final-details {
-  background: var(--elevated-bg);
-  border-radius: var(--radius);
-  padding: var(--space-md);
-  margin-top: var(--space-md);
-  text-align: left;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.bilan-final-details-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--space-sm);
-}
-
-.bilan-final-details-row:last-child {
-  margin-bottom: 0;
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--border-color);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
 /* ===== ANALYSE PAR CATEGORIE ===== */
 .category-analysis {
   margin-top: var(--space-md);
@@ -281,89 +210,9 @@
   position: relative;
 }
 
-.category-chart-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90px;
-  height: 90px;
-  background: var(--card-bg);
-  border-radius: var(--radius-full);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.category-chart-center-amount {
-  font-size: 16px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--primary-light);
-}
-
 .category-legend {
   flex: 1;
   min-width: 220px;
-}
-
-.category-legend-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-sm) 10px;
-  margin-bottom: var(--space-xs);
-  background: var(--elevated-bg);
-  border-radius: var(--radius);
-  border-left: 3px solid currentColor;
-  transition: background var(--duration) var(--ease);
-}
-
-.category-legend-item:hover {
-  background: var(--hover-bg);
-}
-
-.category-legend-item-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.category-legend-icon {
-  font-size: 18px;
-}
-
-.category-legend-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.category-legend-right {
-  text-align: right;
-}
-
-.category-legend-amount {
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-}
-
-.category-legend-percentage {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.no-category-data {
-  text-align: center;
-  color: var(--text-muted);
-  padding: var(--space-xl);
-  font-size: 13px;
 }
 
 /* ===== TRENDS CHART ===== */
@@ -413,39 +262,6 @@
   max-width: 100%;
   height: auto;
   margin-bottom: var(--space-md);
-}
-
-.trends-chart-container {
-  width: 100%;
-  height: 200px;
-  position: relative;
-  margin-bottom: var(--space-sm);
-}
-
-.trends-chart-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.trends-legend {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.trends-legend-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.trends-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
 }
 
 /* ===== REMINDERS / NOTIFICATIONS ===== */
@@ -630,11 +446,7 @@
   color: var(--danger-color);
 }
 
-/* ===== CARTE GPS & STATS LIEUX ===== */
-.gps-view-map-btn {
-  width: 100%;
-  margin-top: var(--space-md);
-}
+/* ===== CARTE GPS & STATS LIEUX ===== *
 
 /* ===== JAUGE BUDGET ===== */
 .budget-gauge {

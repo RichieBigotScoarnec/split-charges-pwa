@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
-> **Version** : 3.2 | **Mise à jour** : 2026-08-19 | **Branche unique** : main
+> **Version** : 4.0.0 | **Mise à jour** : 2026-08-22 | **Branche unique** : main
 
 ## Stack
 
@@ -34,9 +34,9 @@ FairSplit/
 │       ├── config.js           # Firebase config, DATA_ROOT, liste blanche
 │       ├── firebase-init.js    # Init Firebase, providers, émulateurs
 │       ├── db.js               # Abstraction DB (préfixage DATA_ROOT)
-│       ├── state.js            # État global (Observer pattern)
+│       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 16 modules fonctionnels
+│       ├── modules/            # 21 modules fonctionnels
 │       └── utils/              # calculations, date, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generate-icons.ps1
@@ -54,7 +54,7 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 
 | Module | Imports | Risque |
 |---|---|---|
-| `state.js` | 14 | Critique — état global |
+| `state.js` | 22 | Critique — état global |
 | `toast.js` | 13 | Critique — feedback utilisateur partout |
 | `firebase-init.js` | 5 | Critique — connexion DB |
 | `auth.js` | Hub | Critique — initialise TOUS les modules |
@@ -72,6 +72,8 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ### JavaScript
 - ES6 modules partout, pas de globals sauf compat legacy (`window.xxx`)
 - State centralisé : `getState('key')` / `setState('key', value)` via `state.js`
+  (lecture/écriture seules : le registre d'abonnés n'a jamais eu d'abonné et a
+  été retiré — chaque module appelle son rendu après avoir écrit)
 - DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (chemins auto-préfixés par `DATA_ROOT` : `household/`, ou `sandbox/` avec `?sandbox=1`)
 - Async/await + try/catch sur tous les appels Firebase
 - `escapeHtml()` obligatoire pour tout contenu dynamique injecté en HTML
@@ -142,6 +144,10 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Font Awesome non chargé | `public/js/modules/variable-charges.js`, `fixed-charges.js` | ✅ RÉSOLU 2026-03-22 — emojis utilisés + `.btn-icon` stylé | — |
 | `escapeHtml()` dupliqué | `public/js/utils/format.js` | ✅ RÉSOLU 2026-03-22 — utils.js supprimé, une seule copie dans format.js | — |
 | Bilan en bas de page | `public/FairSplit.html` + `summary.js` | ✅ RÉSOLU 2026-03-22 — bilan en position 3, solde net 28px en tête | — |
+
+| `state.js` = Observer pattern | `public/js/state.js` | ✅ RÉSOLU 2026-08-22 — registre d'abonnés retiré, personne ne s'y abonnait | — |
+| Liste de précache tenue à la main | `public/sw.js` | ✅ RÉSOLU 2026-08-22 — test comparant la liste au disque | — |
+| Classes CSS orphelines des deux côtés | `public/css/`, modules de rendu | ✅ RÉSOLU 2026-08-22 — feuilles alignées sur le balisage, règles mortes retirées | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

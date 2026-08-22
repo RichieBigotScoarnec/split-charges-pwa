@@ -11,7 +11,7 @@
   }
 
   /* Hide interactive elements (high specificity instead of !important) */
-  body .fab, body .btn, body button, body .modal-overlay, body .reconduction-banner,
+  body .fab, body .btn, body button, body .modal-overlay,
   body .export-actions, body .period-navigation, body .card-header button,
   body .btn-delete, body .save-indicator {
     display: none;
@@ -42,7 +42,7 @@
   }
 
   /* Ensure readability */
-  .charge-item, .reimbursement-item, .reconduction-preview-item {
+  .charge-item, .reimbursement-item {
     border: 1px solid #eee;
     page-break-inside: avoid;
   }
@@ -325,16 +325,27 @@
   .trends-header,
   .reminders-header,
   .extra-income-toggle,
-  .close-btn,
   .reminder-toggle-slider,
   .toggle-slider {
     min-height: 44px;
   }
 
+  /*
+     La passe précédente n'avait relevé que des boutons : les champs de
+     formulaire étaient hors de son champ. Ils tombent pourtant sous le seuil
+     eux aussi — 41 px pour le sélecteur de période, 40 pour les listes et les
+     saisies des modales — et ce sont les commandes qu'on vise le plus souvent.
+     Les cases à cocher gardent leur taille : leur zone cliquable est le label.
+  */
+  .period-dropdown,
+  .form-group select,
+  .form-group input:not([type="checkbox"]):not([type="radio"]) {
+    min-height: 44px;
+  }
+
   /* Les flèches de période sont carrées : leur largeur suit. */
   .period-arrow,
-  .btn-icon,
-  .close-btn {
+  .btn-icon {
     min-width: 44px;
   }
 

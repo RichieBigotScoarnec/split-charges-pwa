@@ -8,10 +8,17 @@
  *   3 = INFO   — infos + warnings + erreurs
  *   4 = DEBUG  — tout (dev)
  *
- * Passer CURRENT_LEVEL à 1 avant un déploiement prod.
+ * Le fichier prescrivait de passer à 1 avant un déploiement, et est resté à 4
+ * en production : la console recevait tout, y compris les coordonnées GPS et
+ * l'état complet de la saisie rapide. Le niveau 2 conserve ce qui sert
+ * réellement après coup — avertissements et erreurs, « Charge invalide
+ * ignorée » en tête — et tait le reste. Le journal de diagnostic, lui, garde
+ * sa trace complète et se consulte par ?diag=1.
+ *
+ * Passer à 4 pour développer.
  */
 
-const CURRENT_LEVEL = 4;
+const CURRENT_LEVEL = 2;
 
 /**
  * Log niveau INFO (3)

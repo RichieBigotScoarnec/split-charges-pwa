@@ -27,9 +27,15 @@ function populatePeriodDropdown() {
   const currentPeriod = getState('currentPeriod');
 
   // Generate last 12 months + current month
+  //
+  // Le premier du mois, jamais la date du jour : `setMonth` conserve le
+  // quantième, et le 31 mars un `setMonth(1)` donne le 31 février, que
+  // JavaScript reporte au 3 mars. La liste affichait alors deux fois le même
+  // mois et en omettait un — visible seulement du 29 au 31, donc presque
+  // jamais pendant qu'on développe.
+  const aujourdhui = new Date();
   for (let i = 0; i < 12; i++) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
+    const date = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() - i, 1);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const periodStr = `${year}-${month}`;
@@ -425,9 +431,7 @@ export function initPeriod() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.changePeriod = changePeriod;
   window.navigatePeriod = navigatePeriod;
-  window.saveSalaries = saveSalaries;
   window.focusSalaries = focusSalaries;
-  window.toggleExtraIncome = toggleExtraIncome;
 
   log('📅 Gestion périodes initialisée');
 }

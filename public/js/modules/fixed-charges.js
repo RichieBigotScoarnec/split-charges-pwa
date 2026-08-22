@@ -63,7 +63,6 @@ export function initFixedCharges() {
   populateDestinationSelect('fixedChargeDestination');
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showAddFixedChargeModal = showAddFixedChargeModal;
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
   window.toggleFixedChargeSplit = function() {
@@ -301,7 +300,7 @@ export async function deleteFixedCharge(chargeId) {
     // Mettre à jour le state local
     await loadFixedCharges();
     toast.success('Charge supprimée', {
-      undo: async () => {
+      onUndo: async () => {
         await dbUpdate(`periods/${currentPeriod}/fixedCharges/${chargeId}`, { deleted: false });
         await loadFixedCharges();
         calculateSummary();

@@ -119,35 +119,3 @@ function calculateTotalAnalysis(fixedAnalysis, variableAnalysis) {
   return totalData;
 }
 
-/**
- * Obtient les statistiques pour une catégorie spécifique
- * @param {string} categoryName - Nom de la catégorie
- * @returns {Object|null} Statistiques de la catégorie
- */
-export function getCategoryStats(categoryName) {
-  const analysis = analyzeCategoriesData();
-  return analysis.total[categoryName] || null;
-}
-
-/**
- * Compare deux catégories
- * @param {string} category1 - Première catégorie
- * @param {string} category2 - Deuxième catégorie
- * @returns {Object} Comparaison
- */
-export function compareCategories(category1, category2) {
-  const stats1 = getCategoryStats(category1);
-  const stats2 = getCategoryStats(category2);
-
-  if (!stats1 || !stats2) {
-    return null;
-  }
-
-  return {
-    categories: [category1, category2],
-    totalDifference: stats1.total - stats2.total,
-    countDifference: stats1.count - stats2.count,
-    averageDifference: stats1.average - stats2.average,
-    percentageDifference: stats1.percentage - stats2.percentage
-  };
-}

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  getState, setState, subscribe, resetState, resetUserData,
-  addToArray, updateInArray, removeFromArray, getActiveItems
+  getState, setState, resetState, resetUserData
 } from '../public/js/state.js';
 
 beforeEach(() => {
@@ -97,72 +96,6 @@ describe('setState', () => {
   });
 });
 
-// ===== subscribe =====
-describe('subscribe', () => {
-  it('appelle le callback lors d\'un changement', () => {
-    let called = false;
-    subscribe('shareMode', () => { called = true; });
-    setState('shareMode', '50-50');
-    expect(called).toBe(true);
-  });
-
-  it('reçoit la nouvelle valeur', () => {
-    let received;
-    subscribe('shareMode', (val) => { received = val; });
-    setState('shareMode', 'custom');
-    expect(received).toBe('custom');
-  });
-
-  it('reçoit la clé modifiée', () => {
-    let receivedKey;
-    subscribe('shareMode', (val, key) => { receivedKey = key; });
-    setState('shareMode', '50-50');
-    expect(receivedKey).toBe('shareMode');
-  });
-
-  it('notifie le parent lors d\'un changement de clé enfant', () => {
-    let parentCalled = false;
-    subscribe('salaries', () => { parentCalled = true; });
-    setState('salaries.vous', 2000);
-    expect(parentCalled).toBe(true);
-  });
-
-  it('notifie le wildcard *', () => {
-    let count = 0;
-    subscribe('*', () => { count++; });
-    setState('shareMode', '50-50');
-    setState('shareMode', 'prorata');
-    expect(count).toBeGreaterThanOrEqual(2);
-  });
-
-  it('l\'unsubscribe arrête les notifications', () => {
-    let count = 0;
-    const unsub = subscribe('shareMode', () => { count++; });
-    setState('shareMode', '50-50');
-    unsub();
-    setState('shareMode', 'prorata');
-    expect(count).toBe(1);
-  });
-
-  it('supporte plusieurs subscribers sur la même clé', () => {
-    let a = 0, b = 0;
-    subscribe('shareMode', () => { a++; });
-    subscribe('shareMode', () => { b++; });
-    setState('shareMode', '50-50');
-    expect(a).toBe(1);
-    expect(b).toBe(1);
-  });
-
-  it('ne déclenche pas les autres subscribers', () => {
-    let calledA = false, calledB = false;
-    subscribe('shareMode', () => { calledA = true; });
-    subscribe('isAuthenticated', () => { calledB = true; });
-    setState('shareMode', 'custom');
-    expect(calledA).toBe(true);
-    expect(calledB).toBe(false);
-  });
-});
-
 // ===== resetState =====
 describe('resetState', () => {
   it('réinitialise shareMode à prorata', () => {
@@ -181,13 +114,6 @@ describe('resetState', () => {
     setState('salaries.vous', 5000);
     resetState();
     expect(getState('salaries.vous')).toBe(0);
-  });
-
-  it('notifie les subscribers lors du reset', () => {
-    let notified = false;
-    subscribe('shareMode', () => { notified = true; });
-    resetState();
-    expect(notified).toBe(true);
   });
 
   it('remet customPercents à 50/50', () => {
@@ -246,159 +172,6 @@ describe('resetUserData', () => {
     setState('editingCharge', { id: '1' });
     resetUserData();
     expect(getState('editingCharge')).toBeNull();
-  });
-});
-
-// ===== addToArray =====
-describe('addToArray', () => {
-  it('ajoute un élément dans un tableau vide', () => {
-    addToArray('variableCharges', { id: '1', amount: 100 });
-    expect(getState('variableCharges')).toHaveLength(1);
-  });
-
-  it('préserve les éléments existants', () => {
-    addToArray('variableCharges', { id: '1', amount: 100 });
-    addToArray('variableCharges', { id: '2', amount: 200 });
-    expect(getState('variableCharges')).toHaveLength(2);
-  });
-
-  it('initialise si le tableau était null/undefined', () => {
-    setState('variableCharges', undefined);
-    addToArray('variableCharges', { id: '1', amount: 50 });
-    expect(getState('variableCharges')).toHaveLength(1);
-  });
-
-  it('l\'élément ajouté est bien présent', () => {
-    addToArray('variableCharges', { id: 'xyz', amount: 150 });
-    const charges = getState('variableCharges');
-    expect(charges.find(c => c.id === 'xyz')).toBeDefined();
-  });
-});
-
-// ===== updateInArray =====
-describe('updateInArray', () => {
-  beforeEach(() => {
-    setState('variableCharges', [
-      { id: 'abc', amount: 100, description: 'Loyer' },
-      { id: 'def', amount: 200, description: 'EDF' }
-    ]);
-  });
-
-  it('met à jour la bonne propriété du bon élément', () => {
-    updateInArray('variableCharges', 'abc', { amount: 999 });
-    expect(getState('variableCharges').find(c => c.id === 'abc').amount).toBe(999);
-  });
-
-  it('préserve les autres propriétés de l\'élément', () => {
-    updateInArray('variableCharges', 'abc', { amount: 999 });
-    expect(getState('variableCharges').find(c => c.id === 'abc').description).toBe('Loyer');
-  });
-
-  it('ne modifie pas les autres éléments', () => {
-    updateInArray('variableCharges', 'abc', { amount: 999 });
-    expect(getState('variableCharges').find(c => c.id === 'def').amount).toBe(200);
-  });
-
-  it('ignore un id inexistant sans erreur', () => {
-    updateInArray('variableCharges', 'zzz', { amount: 0 });
-    expect(getState('variableCharges')).toHaveLength(2);
-  });
-
-  it('peut ajouter de nouvelles propriétés', () => {
-    updateInArray('variableCharges', 'abc', { note: 'Ajouté' });
-    expect(getState('variableCharges').find(c => c.id === 'abc').note).toBe('Ajouté');
-  });
-});
-
-// ===== removeFromArray — soft delete =====
-describe('removeFromArray — soft delete (par défaut)', () => {
-  beforeEach(() => {
-    setState('variableCharges', [
-      { id: 'abc', amount: 100 },
-      { id: 'def', amount: 200 }
-    ]);
-  });
-
-  it('marque l\'élément comme deleted', () => {
-    removeFromArray('variableCharges', 'abc');
-    expect(getState('variableCharges').find(c => c.id === 'abc').deleted).toBe(true);
-  });
-
-  it('ajoute deletedAt en ISO string', () => {
-    removeFromArray('variableCharges', 'abc');
-    const deletedAt = getState('variableCharges').find(c => c.id === 'abc').deletedAt;
-    expect(deletedAt).toBeDefined();
-    expect(() => new Date(deletedAt)).not.toThrow();
-  });
-
-  it('conserve l\'élément dans le tableau (soft)', () => {
-    removeFromArray('variableCharges', 'abc');
-    expect(getState('variableCharges')).toHaveLength(2);
-  });
-
-  it('ne touche pas les autres éléments', () => {
-    removeFromArray('variableCharges', 'abc');
-    expect(getState('variableCharges').find(c => c.id === 'def').deleted).toBeUndefined();
-  });
-});
-
-// ===== removeFromArray — hard delete =====
-describe('removeFromArray — hard delete', () => {
-  beforeEach(() => {
-    setState('variableCharges', [
-      { id: 'abc', amount: 100 },
-      { id: 'def', amount: 200 }
-    ]);
-  });
-
-  it('supprime complètement l\'élément', () => {
-    removeFromArray('variableCharges', 'abc', true);
-    expect(getState('variableCharges')).toHaveLength(1);
-    expect(getState('variableCharges').find(c => c.id === 'abc')).toBeUndefined();
-  });
-
-  it('préserve les autres éléments', () => {
-    removeFromArray('variableCharges', 'abc', true);
-    expect(getState('variableCharges').find(c => c.id === 'def')).toBeDefined();
-  });
-});
-
-// ===== getActiveItems =====
-describe('getActiveItems', () => {
-  it('filtre les items marqués deleted', () => {
-    setState('variableCharges', [
-      { id: '1', amount: 100 },
-      { id: '2', amount: 200, deleted: true },
-      { id: '3', amount: 300 }
-    ]);
-    expect(getActiveItems('variableCharges')).toHaveLength(2);
-  });
-
-  it('retourne tout si aucun supprimé', () => {
-    setState('variableCharges', [
-      { id: '1', amount: 100 },
-      { id: '2', amount: 200 }
-    ]);
-    expect(getActiveItems('variableCharges')).toHaveLength(2);
-  });
-
-  it('retourne tableau vide si tout est supprimé', () => {
-    setState('variableCharges', [{ id: '1', deleted: true }]);
-    expect(getActiveItems('variableCharges')).toHaveLength(0);
-  });
-
-  it('retourne tableau vide si clé inexistante', () => {
-    expect(getActiveItems('inexistant')).toHaveLength(0);
-  });
-
-  it('fonctionne avec les charges fixes', () => {
-    setState('fixedCharges', [
-      { id: 'a', amount: 500, deleted: true },
-      { id: 'b', amount: 1000 }
-    ]);
-    const active = getActiveItems('fixedCharges');
-    expect(active).toHaveLength(1);
-    expect(active[0].id).toBe('b');
   });
 });
 

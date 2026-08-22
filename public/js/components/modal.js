@@ -58,7 +58,10 @@ export function showModal(modalId) {
       setTimeout(() => firstInput.focus(), 100);
     }
 
-    // Activer le focus trap
+    // Rouvrir une modale déjà ouverte écrasait la fonction de nettoyage sans
+    // l'appeler : l'écouteur précédent restait attaché. `showManageModal` se
+    // re-rend après chaque ajout ou suppression, les écouteurs s'accumulaient.
+    if (_focusTraps[modalId]) _focusTraps[modalId]();
     _focusTraps[modalId] = trapFocus(modal);
   }
 }
@@ -138,7 +141,6 @@ export function initModals() {
   setupModalEscapeClose();
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showModal = showModal;
   window.closeModal = closeModal;
 }
 

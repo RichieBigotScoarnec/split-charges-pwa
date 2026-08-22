@@ -10,7 +10,10 @@ import { log, warn, error as logError } from '../utils/debug.js';
 
 let map = null;
 let markers = [];
-let markerClusterGroup = null;
+
+// Le regroupement de marqueurs (leaflet.markercluster) n'a jamais été chargé :
+// seul leaflet.js l'est. Toutes les branches qui le testaient étaient donc
+// mortes, et laissaient croire que la carte regroupait ses marqueurs.
 
 /**
  * Initialise le module de carte interactive
@@ -47,21 +50,12 @@ export function refreshMapButton() {
 
   bouton.hidden = localisees.length === 0;
 
-  // Bouton fermer carte
-  const closeMapBtn = document.getElementById('closeMapBtn');
-  if (closeMapBtn) {
-    closeMapBtn.addEventListener('click', () => {
-      hideMapModal();
-    });
-  }
-
-  // Filtres de catégorie
-  const categoryFilters = document.querySelectorAll('.map-category-filter');
-  categoryFilters.forEach(filter => {
-    filter.addEventListener('change', () => {
-      updateMapMarkers();
-    });
-  });
+  // Cette fonction ne fait que montrer ou cacher le bouton d'accès. Elle
+  // posait aussi des écouteurs sur le bouton de fermeture et sur les cases de
+  // filtrage — que `createMapModal` câble déjà, et une seule fois. Comme elle
+  // est appelée après chaque chargement de charges, ces écouteurs
+  // s'accumulaient à chaque saisie ; et ceux des cases visaient de toute façon
+  // des éléments reconstruits depuis, donc perdus.
 }
 
 /**
@@ -271,17 +265,6 @@ function initializeLeafletMap() {
       maxZoom: 19
     }).addTo(map);
 
-    // Initialiser le cluster de marqueurs si disponible
-    if (typeof L.markerClusterGroup !== 'undefined') {
-      markerClusterGroup = L.markerClusterGroup({
-        maxClusterRadius: 50,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true
-      });
-      map.addLayer(markerClusterGroup);
-    }
-
     log('✅ Carte Leaflet initialisée');
   } catch (error) {
     logError('❌ Erreur initialisation carte :', error);
@@ -335,11 +318,7 @@ async function loadChargesOnMap() {
     const marker = createMarker(charge);
     if (marker) {
       markers.push(marker);
-      if (markerClusterGroup) {
-        markerClusterGroup.addLayer(marker);
-      } else {
-        marker.addTo(map);
-      }
+      marker.addTo(map);
       totalAmount += charge.amount;
     }
   });
@@ -381,14 +360,23 @@ function createMarker(charge) {
     });
 
     // Popup avec détails de la charge
+    //
+    // Les classes reprennent celles que map.css dessine déjà. Le balisage
+    // avait dérivé vers `.marker-popup` et des balises nues : la maquette
+    // existait, plus rien ne l'utilisait.
+    //
+    // La date n'est affichée que si la charge en porte une. Les charges
+    // créées par le formulaire complet n'ont pas de champ `date` : les
+    // passer à formatDate revenait à afficher la date du jour, Intl
+    // interprétant `undefined` comme « maintenant ».
     const popupContent = `
-      <div class="marker-popup">
-        <h4>${escapeHtml(charge.description)}</h4>
-        <p><strong>Montant :</strong> ${formatCurrency(charge.amount)}</p>
-        <p><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'N/A')}</p>
-        <p><strong>Payé par :</strong> ${escapeHtml(formatPaidBy(charge.paidBy))}</p>
-        <p><strong>Date :</strong> ${formatDate(charge.date)}</p>
-        ${charge.location.name ? `<p><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</p>` : ''}
+      <div class="popup-content">
+        <div class="popup-title">${escapeHtml(charge.description)}</div>
+        <div class="popup-detail"><strong>Montant :</strong> ${formatCurrency(charge.amount)}</div>
+        <div class="popup-detail"><strong>Catégorie :</strong> ${escapeHtml(charge.category || 'Sans catégorie')}</div>
+        <div class="popup-detail"><strong>Payé par :</strong> ${escapeHtml(formatPaidBy(charge.paidBy))}</div>
+        ${charge.date ? `<div class="popup-detail"><strong>Date :</strong> ${escapeHtml(formatDate(charge.date))}</div>` : ''}
+        ${charge.location.name ? `<div class="popup-detail"><strong>Lieu :</strong> ${escapeHtml(charge.location.name)}</div>` : ''}
       </div>
     `;
 
@@ -413,36 +401,24 @@ function getCategoryMarkerIcon(category) {
   // Même source que les listes de charges et la saisie rapide : une deuxième
   // table figée ici ne montrait 📍 pour presque tout, et ignorait les icônes
   // choisies dans les catégories personnalisées.
-  const emoji = getCategoryIcon(category);
-
-  return `
-    <div style="
-      font-size: 24px;
-      text-align: center;
-      line-height: 30px;
-      background: white;
-      border-radius: 50%;
-      border: 2px solid #667eea;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    ">
-      ${escapeHtml(emoji)}
-    </div>
-  `;
+  //
+  // L'apparence était posée en style en ligne, avec un bleu écrit en dur qui
+  // ne suit ni les jetons de couleur ni le thème sombre — et qui luttait au
+  // passage avec la règle `.custom-marker` de map.css, laquelle dessinait un
+  // tout autre marqueur. Le balisage ne porte plus que l'emoji ; le dessin
+  // appartient à la feuille de style.
+  return escapeHtml(getCategoryIcon(category));
 }
 
 /**
  * Nettoie tous les marqueurs de la carte
  */
 function clearMarkers() {
-  if (markerClusterGroup) {
-    markerClusterGroup.clearLayers();
-  } else {
-    markers.forEach(marker => {
-      if (map && marker) {
-        map.removeLayer(marker);
-      }
-    });
-  }
+  markers.forEach(marker => {
+    if (map && marker) {
+      map.removeLayer(marker);
+    }
+  });
   markers = [];
 }
 
@@ -463,28 +439,14 @@ function updateMapMarkers() {
     const charge = marker.chargeData;
     const isVisible = activeCategories.includes(charge.category);
 
-    if (markerClusterGroup) {
-      if (isVisible) {
-        if (!markerClusterGroup.hasLayer(marker)) {
-          markerClusterGroup.addLayer(marker);
-        }
-        visibleCount++;
-        totalAmount += charge.amount;
-      } else {
-        markerClusterGroup.removeLayer(marker);
+    if (isVisible) {
+      if (!map.hasLayer(marker)) {
+        marker.addTo(map);
       }
-    } else {
-      if (isVisible) {
-        if (!map.hasLayer(marker)) {
-          marker.addTo(map);
-        }
-        visibleCount++;
-        totalAmount += charge.amount;
-      } else {
-        if (map.hasLayer(marker)) {
-          map.removeLayer(marker);
-        }
-      }
+      visibleCount++;
+      totalAmount += charge.amount;
+    } else if (map.hasLayer(marker)) {
+      map.removeLayer(marker);
     }
   });
 
@@ -531,7 +493,6 @@ export function cleanupMap() {
     map.remove();
     map = null;
   }
-  markerClusterGroup = null;
   const modal = document.getElementById('mapModal');
   if (modal) {
     modal.remove();
@@ -541,5 +502,3 @@ export function cleanupMap() {
 
 // Exposer les fonctions globalement pour compatibilité
 window.showMapModal = showMapModal;
-window.hideMapModal = hideMapModal;
-window.centerMap = centerMap;

@@ -1,7 +1,7 @@
 // ===== MODULE : GESTION DU BILAN/SUMMARY =====
 // Fonctionnalités : calculateSummary, renderSummary
 
-import { getState } from '../state.js';
+import { getState, setState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
@@ -40,6 +40,10 @@ export function calculateSummary() {
 
   // Si pas de salaires, impossible de calculer
   if (totalSalaries === 0) {
+    // Le solde publié dans l'état sert aux rappels, qui ne peuvent pas
+    // importer ce module sans créer un cycle.
+    setState('dernierSolde', 0);
+
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
       updateBalanceBar(null, '');
@@ -61,6 +65,10 @@ export function calculateSummary() {
   const summary = computeSummary({
     salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver
   });
+
+  // Publié pour les rappels : eux ne peuvent pas appeler ce module sans créer
+  // un cycle d'imports, et le solde est la seule chose qu'ils aient à savoir.
+  setState('dernierSolde', summary.balance);
 
   // Récap virements par destination (charges fixes actives uniquement)
   const activeFixed = fixedCharges.filter(c => !c.deleted);

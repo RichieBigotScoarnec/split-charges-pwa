@@ -146,9 +146,19 @@ export function showBudgetEditor() {
   const budgets = getState('categoryBudgets') || {};
   const depenses = analyzeCategoriesData().total;
 
+  // `getCategories()` rend des objets {id, icon, label} : les mêler à des clés
+  // de chaînes produisait une ligne « [object Object] » par catégorie
+  // configurée, dont le budget ne pouvait ni se lire ni s'enregistrer — la clé
+  // écrite en base étant cette même chaîne. Seul le libellé a cours ici, c'est
+  // lui qui indexe dépenses et budgets.
+  //
   // Les catégories ayant reçu une dépense hors liste courante ne doivent pas
   // disparaître de l'éditeur : leur budget deviendrait inaccessible.
-  const noms = [...new Set([...getCategories(), ...Object.keys(depenses), ...Object.keys(budgets)])].sort();
+  const noms = [...new Set([
+    ...getCategories().map(c => c.label),
+    ...Object.keys(depenses),
+    ...Object.keys(budgets)
+  ])].sort();
 
   liste.replaceChildren();
 

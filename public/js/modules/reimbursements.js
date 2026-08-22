@@ -45,7 +45,6 @@ export function initReimbursements() {
   }
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showAddReimbursementModal = showAddReimbursementModal;
   window.deleteReimbursement = deleteReimbursement;
   window.settleBalance = settleBalance;
 
@@ -279,7 +278,7 @@ export async function deleteReimbursement(reimbursementId) {
     // Mettre à jour le state local
     await loadReimbursements();
     toast.success('Remboursement supprimé', {
-      undo: async () => {
+      onUndo: async () => {
         await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, { deleted: false });
         await loadReimbursements();
         calculateSummary();

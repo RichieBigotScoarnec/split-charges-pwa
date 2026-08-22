@@ -82,19 +82,6 @@
   display: block;
 }
 
-/* Charge notes display */
-.charge-note {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-top: 2px;
-}
-
-.note-textarea {
-  resize: vertical;
-  min-height: 50px;
-}
-
 /* ===== PERIOD NAVIGATION ===== */
 .period-navigation {
   background: var(--card-bg);
@@ -310,7 +297,11 @@
   gap: 2px;
 }
 
-.charge-name {
+/* Le JS rend `charge-description` et `charge-payer` : ces deux règles
+   visaient `charge-name` et `charge-payeur`, noms d'un balisage antérieur.
+   Elles ne s'appliquaient donc à rien, et la ligne « Payé par… » s'affichait
+   sans style au milieu d'une liste qui, elle, en avait un. */
+.charge-description {
   font-weight: 500;
   font-size: 14px;
 }
@@ -322,7 +313,7 @@
   font-weight: 500;
 }
 
-.charge-payeur {
+.charge-payer {
   font-size: 11px;
   color: var(--warning-color);
 }
@@ -347,7 +338,6 @@
   font-weight: 500;
 }
 
-.btn-edit,
 .btn-icon {
   background: transparent;
   color: var(--text-secondary);
@@ -366,7 +356,6 @@
   justify-content: center;
 }
 
-.btn-edit:hover,
 .btn-icon:not(.btn-delete):hover {
   background: var(--primary-glow);
   border-color: var(--primary-color);
@@ -573,30 +562,6 @@
   margin-top: var(--space-md);
 }
 
-.summary-item {
-  background: var(--elevated-bg);
-  padding: var(--space-md);
-  border-radius: var(--radius);
-  text-align: center;
-}
-
-.summary-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: var(--space-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-}
-
-.summary-value {
-  font-size: 22px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--primary-light);
-  letter-spacing: -0.02em;
-}
-
 /* ===== REIMBURSEMENT ===== */
 .reimbursement-item {
   background: var(--elevated-bg);
@@ -624,11 +589,6 @@
   font-weight: 600;
   font-family: var(--font-mono);
   color: var(--success-color);
-}
-
-.reimbursement-date {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 /* ===== MODES DE PARTAGE ===== */
@@ -791,16 +751,7 @@
   border-left-color: var(--danger-color);
 }
 
-/* ===== LOADING SPINNER ===== */
-.spinner {
-  border: 2px solid var(--border-color);
-  border-top: 2px solid var(--primary-color);
-  border-radius: var(--radius-full);
-  width: 32px;
-  height: 32px;
-  animation: spin 0.8s linear infinite;
-  margin: var(--space-lg) auto;
-}
+/* ===== LOADING SPINNER ===== *
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -817,20 +768,9 @@
   padding: var(--space-xl) var(--space-lg);
 }
 
-.empty-state-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
-  opacity: 0.6;
-  animation: emptyBounce 2s ease-in-out infinite;
-}
-
 @keyframes emptyBounce {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
-}
-
-.empty-state-text {
-  font-size: 14px;
 }
 
 /* ===== FLOATING ACTION BUTTON (FAB) ===== */
@@ -947,11 +887,6 @@
   cursor: pointer;
 }
 
-/* Une corbeille vide reste accessible, mais ne réclame pas l'attention. */
-.btn.is-empty {
-  opacity: 0.6;
-}
-
 /* ===== PANNEAU DE DIAGNOSTIC ===== */
 /*
    Deux pannes signalées sur téléphone n'ont jamais pu être reproduites
@@ -1004,4 +939,90 @@
 
 .diag-actions .btn {
   flex: 1;
+}
+
+/* ===== ÉLÉMENTS RENDUS PAR LE JS, LONGTEMPS SANS STYLE =====
+
+   Ces classes sont produites par les modules de rendu depuis toujours, mais
+   aucune règle ne les visait : les listes de charges affichaient leurs
+   en-têtes de catégorie en balise brute, le total des remboursements ne
+   portait aucune couleur malgré les classes sémantiques que le JS lui pose,
+   et le surlignage des résultats de recherche ne surlignait rien.
+*/
+
+/* Regroupement par catégorie dans les listes de charges */
+.charge-category {
+  margin-bottom: var(--space-md);
+}
+
+.category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.category-total {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.charges-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Total des remboursements : le JS y pose la classe qui dit le sens */
+.reimbursements-total {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.reimbursements-total.you-owe strong {
+  color: var(--warning-color);
+}
+
+.reimbursements-total.partner-owes strong {
+  color: var(--success-color);
+}
+
+.reimbursements-total.balanced {
+  color: var(--text-muted);
+}
+
+.reimbursement-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.reimbursement-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Résultat de recherche : sans cette règle, filtrer masquait les autres
+   lignes sans jamais désigner celles qui correspondent. */
+.search-match {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Disparition d'un toast — `removeToast` déclenchait une animation qui
+   n'existait nulle part, et la notification disparaissait d'un coup après
+   avoir attendu ses 300 ms. */
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
 }

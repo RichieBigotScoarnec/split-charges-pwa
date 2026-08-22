@@ -15,7 +15,7 @@ global.Blob = class MockBlob {
 global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = vi.fn();
 
-import { getState, setState, resetState } from '../../public/js/state.js';
+import { setState, resetState } from '../../public/js/state.js';
 import { exportToCSV, exportToPDF, champCsv } from '../../public/js/modules/export.js';
 import { toast } from '../../public/js/components/toast.js';
 

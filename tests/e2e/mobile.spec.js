@@ -71,6 +71,34 @@ for (const { nom, profil } of APPAREILS) {
       expect(trop_petites, `cibles trop petites : ${trop_petites.join(' | ')}`).toEqual([]);
     });
 
+    test('les champs d\'une modale atteignent aussi la taille de cible', async ({ page }) => {
+      // Le test précédent ne voit que l'écran d'accueil : les listes et les
+      // saisies des modales lui échappaient, et elles étaient restées à 40 px
+      // quand tout le reste avait été agrandi. C'est pourtant là qu'on saisit
+      // une dépense, au doigt, dans un magasin.
+      await page.locator('#addVariableChargeBtn').click();
+      await expect(page.locator('#modalAddVariableCharge')).toBeVisible();
+
+      const trop_petites = await page.evaluate((seuil) => {
+        const modale = document.getElementById('modalAddVariableCharge');
+        const resultats = [];
+        for (const el of modale.querySelectorAll('select, input:not([type="checkbox"]):not([type="radio"]), button')) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (getComputedStyle(el).visibility === 'hidden') continue;
+          // Arrondi avant comparaison : à la densité d'un mobile, une hauteur
+          // de 44 px se mesure 43,99 et un test au strict inférieur signalerait
+          // des cibles conformes.
+          if (Math.round(r.height) < seuil) {
+            resultats.push(`${el.id || el.className || el.tagName} ${Math.round(r.width)}×${Math.round(r.height)}`);
+          }
+        }
+        return resultats;
+      }, CIBLE_MINIMALE);
+
+      expect(trop_petites, `cibles trop petites : ${trop_petites.join(' | ')}`).toEqual([]);
+    });
+
     test('la saisie tactile d\'une charge aboutit', async ({ page }) => {
       // `tap` produit de vrais événements tactiles, là où `click` simule la
       // souris : un gestionnaire mal câblé passerait inaperçu autrement.
@@ -168,12 +196,18 @@ test.describe('Installation en application', () => {
   test('le service worker s\'enregistre', async ({ page }) => {
     await page.goto('/FairSplit.html');
 
-    const enregistre = await page.evaluate(async () => {
-      if (!('serviceWorker' in navigator)) return 'non pris en charge';
-      const reg = await navigator.serviceWorker.getRegistration();
-      return reg ? 'enregistré' : 'absent';
-    });
+    expect(await page.evaluate(() => 'serviceWorker' in navigator)).toBe(true);
 
-    expect(enregistre).toBe('enregistré');
+    // `register()` est appelé depuis le gestionnaire `load` et rend une
+    // promesse : interroger `getRegistration()` juste après la navigation
+    // gagnait la course la plupart du temps, et la perdait quand la machine
+    // était chargée. Le test échouait alors sans rien dire de l'application.
+    // Attendre l'enregistrement, plutôt que l'échantillonner une fois.
+    await expect
+      .poll(
+        () => page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => Boolean(r))),
+        { message: 'aucun service worker enregistré', timeout: 10000 }
+      )
+      .toBe(true);
   });
 });
