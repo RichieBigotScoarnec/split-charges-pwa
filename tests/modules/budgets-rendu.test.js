@@ -10,8 +10,16 @@ vi.mock('../../public/js/components/modal.js', () => ({
 vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
+// Le double doit rendre ce que rend l'original : des objets {id, icon, label}.
+// Il rendait des chaînes, et c'est ce mensonge qui a laissé passer un défaut
+// visible à l'écran — l'éditeur affichait une ligne « [object Object] » par
+// catégorie configurée. Un double plus commode que la réalité ne teste que
+// lui-même.
 vi.mock('../../public/js/modules/custom-lists.js', () => ({
-  getCategories: vi.fn(() => ['Courses', 'Loisirs'])
+  getCategories: vi.fn(() => [
+    { id: 'courses', icon: '🛒', label: 'Courses' },
+    { id: 'loisirs', icon: '🎮', label: 'Loisirs' }
+  ])
 }));
 
 const { renderCategoryBudgets, showBudgetEditor } = await import('../../public/js/modules/category-budgets.js');
@@ -93,6 +101,21 @@ describe('Éditeur de budgets', () => {
 
     const noms = [...document.querySelectorAll('.budget-editor-input')].map(i => i.dataset.category);
     expect(noms).toEqual(['Courses', 'Loisirs']);
+  });
+
+  it('nomme les catégories, jamais « [object Object] »', () => {
+    // getCategories() rend des objets : les mêler à des clés de chaînes
+    // produisait une ligne illisible par catégorie configurée, dont le budget
+    // ne pouvait ni se lire ni s'enregistrer.
+    setState('variableCharges', []);
+    setState('fixedCharges', []);
+    setState('categoryBudgets', {});
+
+    showBudgetEditor();
+
+    const libelles = [...document.querySelectorAll('.budget-editor-label')].map(l => l.textContent);
+    expect(libelles).not.toContain('[object Object]');
+    expect(libelles).toEqual(['Courses', 'Loisirs']);
   });
 
   it('n\'oublie pas une catégorie budgétée absente de la liste courante', () => {

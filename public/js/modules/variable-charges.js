@@ -310,7 +310,7 @@ export async function deleteVariableCharge(chargeId) {
     // Mettre à jour le state local
     await loadVariableCharges();
     toast.success('Charge supprimée', {
-      undo: async () => {
+      onUndo: async () => {
         await dbUpdate(`periods/${currentPeriod}/variableCharges/${chargeId}`, { deleted: false });
         await loadVariableCharges();
         calculateSummary();

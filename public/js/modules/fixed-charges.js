@@ -301,7 +301,7 @@ export async function deleteFixedCharge(chargeId) {
     // Mettre à jour le state local
     await loadFixedCharges();
     toast.success('Charge supprimée', {
-      undo: async () => {
+      onUndo: async () => {
         await dbUpdate(`periods/${currentPeriod}/fixedCharges/${chargeId}`, { deleted: false });
         await loadFixedCharges();
         calculateSummary();

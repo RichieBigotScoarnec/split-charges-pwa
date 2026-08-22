@@ -8,72 +8,79 @@
 const CACHE_VERSION = '__CACHE_VERSION__';
 const CACHE_NAME = `fairsplit-${CACHE_VERSION}`;
 
-// Fichiers à mettre en cache pour le mode offline
+// Fichiers mis en cache pour le fonctionnement hors ligne
+//
+// Cette liste doit couvrir TOUT ce que la page charge. Elle avait décroché :
+// douze modules manquaient, dont utils/calculations.js — le moteur du solde,
+// importé statiquement par summary.js. Hors ligne, cette requête échouait, le
+// repli renvoyait la page HTML à la place d'un module, et l'application ne
+// démarrait plus du tout. Une liste tenue à la main dérive ; le test
+// tests/utils/service-worker-precache.test.js la compare désormais au contenu
+// réel de public/.
 const STATIC_ASSETS = [
+  // Page et manifeste
   './FairSplit.html',
   './manifest.json',
-  // Icônes (absentes du cache jusqu'ici : PWA sans icône hors ligne)
-  './icon-192.png',
-  './icon-512.png',
+  // Icônes — sans elles, l'application installée n'en a pas hors ligne
   './icon-192-maskable.png',
+  './icon-192.png',
   './icon-512-maskable.png',
-  // CSS
-  './css/variables.css',
+  './icon-512.png',
+  // Feuilles de style
+  './css/auth.css',
   './css/base.css',
   './css/components.css',
-  './css/modals.css',
-  './css/auth.css',
-  './css/summary.css',
   './css/map.css',
+  './css/modals.css',
   './css/responsive.css',
-  // JS Infrastructure
+  './css/summary.css',
+  './css/variables.css',
+  // Socle : délégation, configuration, état, accès aux données
   './js/init.js',
+  './js/app.js',
   './js/config.js',
+  './js/firebase-init.js',
   './js/state.js',
   './js/db.js',
-  './js/utils/debug.js',
-  './js/utils/format.js',
-  './js/utils/date.js',
-  './js/utils/validation.js',
-  './js/utils/diagnostics.js',
+  // Utilitaires — dont le moteur de calcul du solde
+  './js/utils/budgets.js',
+  './js/utils/calculations.js',
   './js/utils/connection-banner.js',
-  // JS Modules (Étape 3a)
-  './js/app.js',
-  './js/firebase-init.js',
-  './js/components/toast.js',
+  './js/utils/date.js',
+  './js/utils/debug.js',
+  './js/utils/diagnostics.js',
+  './js/utils/format.js',
+  './js/utils/members.js',
+  './js/utils/recurrence.js',
+  './js/utils/salaries.js',
+  './js/utils/sandbox-banner.js',
+  './js/utils/soft-delete.js',
+  './js/utils/validation.js',
+  // Composants
   './js/components/modal.js',
-  // JS Modules (Étape 3b)
+  './js/components/toast.js',
+  // Modules fonctionnels
   './js/modules/auth.js',
-  // JS Modules (Étape 3c)
-  './js/modules/period.js',
-  // JS Modules (Étape 3d)
-  './js/modules/share-mode.js',
-  // JS Modules (Étape 3e)
-  './js/modules/variable-charges.js',
-  // JS Modules (Étape 3f)
-  './js/modules/fixed-charges.js',
-  // JS Modules (Étape 3g)
-  './js/modules/reimbursements.js',
-  // JS Modules (Étape 3h)
-  './js/modules/summary.js',
-  // JS Modules (Étape 4a)
-  './js/modules/search.js',
-  // JS Modules (Étape 4b)
-  './js/modules/export.js',
-  // JS Modules (Étape 4c)
-  './js/modules/notifications.js',
-  // JS Modules (Étape 4d)
+  './js/modules/backup.js',
+  './js/modules/carry-over.js',
   './js/modules/categories.js',
-  // JS Modules (Étape 4e)
-  './js/modules/trends.js',
-  // JS Modules (Étape 4f)
-  './js/modules/reconduction.js',
-  // JS Modules (Étape 4g)
-  './js/modules/quick-add.js',
-  // JS Modules (Étape 4h)
+  './js/modules/category-budgets.js',
+  './js/modules/custom-lists.js',
+  './js/modules/export.js',
+  './js/modules/fixed-charges.js',
   './js/modules/map.js',
-  // JS Modules (Étape 5a)
-  './js/modules/custom-lists.js'
+  './js/modules/members.js',
+  './js/modules/notifications.js',
+  './js/modules/period.js',
+  './js/modules/quick-add.js',
+  './js/modules/reconduction.js',
+  './js/modules/reimbursements.js',
+  './js/modules/search.js',
+  './js/modules/share-mode.js',
+  './js/modules/summary.js',
+  './js/modules/trash.js',
+  './js/modules/trends.js',
+  './js/modules/variable-charges.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -183,7 +190,18 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           return caches.match(event.request).then((cachedResponse) => {
-            return cachedResponse || caches.match('./FairSplit.html');
+            if (cachedResponse) return cachedResponse;
+
+            // Le repli vers la page ne vaut que pour une navigation. Il
+            // s'appliquait à tout : une requête de module absente du cache
+            // recevait du HTML, que le navigateur tentait d'interpréter comme
+            // du JavaScript. L'erreur parlait alors de syntaxe inattendue, à
+            // mille lieues de la cause — un fichier oublié dans la liste.
+            // Mieux vaut un échec franc, qui nomme la ressource manquante.
+            if (event.request.mode === 'navigate') {
+              return caches.match('./FairSplit.html');
+            }
+            return Response.error();
           });
         })
     );
@@ -210,7 +228,12 @@ self.addEventListener('fetch', (event) => {
           return response;
         });
       }).catch(() => {
-        return caches.match('./FairSplit.html');
+        // Même règle : une feuille de style ou une image manquante ne se
+        // remplace pas par la page d'accueil.
+        if (event.request.mode === 'navigate') {
+          return caches.match('./FairSplit.html');
+        }
+        return Response.error();
       })
     );
   }

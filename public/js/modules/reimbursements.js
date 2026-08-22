@@ -279,7 +279,7 @@ export async function deleteReimbursement(reimbursementId) {
     // Mettre à jour le state local
     await loadReimbursements();
     toast.success('Remboursement supprimé', {
-      undo: async () => {
+      onUndo: async () => {
         await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, { deleted: false });
         await loadReimbursements();
         calculateSummary();
