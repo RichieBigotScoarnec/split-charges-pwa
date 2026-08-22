@@ -16,6 +16,7 @@ import { analyzeCategoriesData } from './categories.js';
 import { computeCategoryBudgets, summarizeBudgets } from '../utils/budgets.js';
 import { getCategories } from './custom-lists.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { parseMontant } from '../utils/montant.js';
 
 /** Chemin du réglage en base — global : un budget vaut pour tous les mois */
 const BUDGETS_PATH = 'categoryBudgets';
@@ -206,7 +207,7 @@ export async function saveCategoryBudgets() {
     const brut = champ.value.trim();
     if (brut === '') continue;
 
-    const valeur = parseFloat(brut);
+    const valeur = parseMontant(brut);
     if (isNaN(valeur) || valeur < 0) {
       toast.error(`Montant invalide pour « ${champ.dataset.category} »`);
       return;

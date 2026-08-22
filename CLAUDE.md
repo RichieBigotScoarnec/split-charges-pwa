@@ -37,7 +37,9 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 21 modules fonctionnels
-│       └── utils/              # calculations, date, format, validation, salaries
+│       └── utils/              # 15 aides pures — dont montant (lecture d'une
+│                               # saisie), lieu (géocodage), calculations,
+│                               # format, validation, salaries, budgets
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generate-icons.ps1
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
@@ -148,6 +150,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | `state.js` = Observer pattern | `public/js/state.js` | ✅ RÉSOLU 2026-08-22 — registre d'abonnés retiré, personne ne s'y abonnait | — |
 | Liste de précache tenue à la main | `public/sw.js` | ✅ RÉSOLU 2026-08-22 — test comparant la liste au disque | — |
 | Classes CSS orphelines des deux côtés | `public/css/`, modules de rendu | ✅ RÉSOLU 2026-08-22 — feuilles alignées sur le balisage, règles mortes retirées | — |
+| `utils/` listé à cinq fichiers | `public/js/utils/` (15 fichiers) | ✅ RÉSOLU 2026-08-22 — inventaire remis à jour | — |
+| Montants lus par `parseFloat` | `public/js/utils/montant.js` | ✅ RÉSOLU 2026-08-22 — virgule acceptée, une seule lecture partagée | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

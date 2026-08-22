@@ -13,6 +13,8 @@
  * d'instantané.
  */
 
+import { parseMontant } from './montant.js';
+
 /**
  * Normalise un couple de salaires en nombres finis positifs
  *
@@ -28,7 +30,7 @@ export function normalizeSalaries(raw) {
   if (!raw || typeof raw !== 'object') return null;
 
   const toNumber = (value) => {
-    const n = typeof value === 'number' ? value : parseFloat(value);
+    const n = parseMontant(value);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
 
@@ -52,7 +54,7 @@ export function normalizeSalaries(raw) {
  */
 export function resolveIncomeBase(salaries) {
   const toNumber = (value) => {
-    const n = typeof value === 'number' ? value : parseFloat(value);
+    const n = parseMontant(value);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
 

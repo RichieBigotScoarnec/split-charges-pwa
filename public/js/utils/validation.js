@@ -10,6 +10,7 @@
  */
 
 import { LIMITS } from '../config.js';
+import { parseMontant } from './montant.js';
 
 /**
  * Validate amount
@@ -23,7 +24,10 @@ export function validateAmount(value, fieldName = 'Montant', max = LIMITS.MAX_CH
     return { valid: false, error: `${fieldName} est requis` };
   }
 
-  const num = parseFloat(value);
+  // `parseFloat` lisait « 12,50 » comme 12 et « 2 450,50 » comme 2 : la
+  // validation déclarait donc valide un montant amputé, et c'est lui qui
+  // partait en base.
+  const num = parseMontant(value);
 
   if (isNaN(num)) {
     return { valid: false, error: `${fieldName} doit être un nombre` };
@@ -54,7 +58,7 @@ export function validateChargeAmount(value) {
   const base = validateAmount(value, 'Montant', LIMITS.MAX_CHARGE);
   if (!base.valid) return base;
 
-  if (parseFloat(value) === 0) {
+  if (parseMontant(value) === 0) {
     return { valid: false, error: 'Montant doit être supérieur à zéro' };
   }
 

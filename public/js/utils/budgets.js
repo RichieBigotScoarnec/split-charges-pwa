@@ -10,6 +10,8 @@
  * période affichée.
  */
 
+import { parseMontant } from './montant.js';
+
 /** Part du budget à partir de laquelle on alerte sans qu'il soit dépassé */
 const SEUIL_ALERTE = 80;
 
@@ -89,7 +91,7 @@ function resolveStatus(spent, budget) {
  * @returns {number} Nombre fini positif, 0 à défaut
  */
 function toPositiveNumber(valeur) {
-  const n = typeof valeur === 'number' ? valeur : parseFloat(valeur);
+  const n = parseMontant(valeur);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 

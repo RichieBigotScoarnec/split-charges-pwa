@@ -15,6 +15,7 @@ import { loadReimbursements } from './reimbursements.js';
 import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
+import { parseMontant } from '../utils/montant.js';
 
 /**
  * Populate period dropdown with last 12 months
@@ -210,7 +211,7 @@ function readIncomeFields() {
       return { revenus: null, erreur: verdict.error };
     }
 
-    revenus[champ.cle] = parseFloat(brut);
+    revenus[champ.cle] = parseMontant(brut);
   }
 
   return { revenus, erreur: null };
