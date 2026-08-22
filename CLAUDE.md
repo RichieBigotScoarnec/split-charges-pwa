@@ -41,7 +41,8 @@ FairSplit/
 │                               # saisie), lieu (géocodage), calculations,
 │                               # format, validation, salaries, budgets
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # generate-icons.ps1
+├── tools/                      # generate-icons.ps1, enveloppe-sauvegarde.mjs
+│                               # (hors `public/`, donc jamais publié)
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
 └── database.rules.json         # Règles de sécurité — source de vérité unique
 ```
@@ -152,6 +153,7 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Classes CSS orphelines des deux côtés | `public/css/`, modules de rendu | ✅ RÉSOLU 2026-08-22 — feuilles alignées sur le balisage, règles mortes retirées | — |
 | `utils/` listé à cinq fichiers | `public/js/utils/` (15 fichiers) | ✅ RÉSOLU 2026-08-22 — inventaire remis à jour | — |
 | Montants lus par `parseFloat` | `public/js/utils/montant.js` | ✅ RÉSOLU 2026-08-22 — virgule acceptée, une seule lecture partagée | — |
+| Sauvegarde entièrement manuelle | `.github/workflows/sauvegarde.yml` | ✅ RÉSOLU 2026-08-22 — export chiffré quotidien, restaurable depuis l'application | Exige le secret `SAUVEGARDE_PASSPHRASE` |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

@@ -1,0 +1,144 @@
+name: Sauvegarde chiffrée de la base
+
+# Le foyer n'a qu'un exemplaire de son historique : une base Realtime Database,
+# sans sauvegarde automatique sur le forfait gratuit. La sauvegarde existante
+# dans l'application est entièrement manuelle — il faut y penser, et on n'y
+# pense qu'après.
+#
+# Ce workflow l'automatise. Il ne remplace pas l'export manuel : il garantit
+# qu'une copie existe même les mois où personne n'y a songé.
+on:
+  schedule:
+    # 03:17 UTC chaque jour. Un horaire décalé du haut de l'heure : les runners
+    # y sont moins encombrés, et un retard de plusieurs minutes est sans effet
+    # sur une sauvegarde quotidienne.
+    - cron: '17 3 * * *'
+  # Déclenchement à la demande, depuis l'onglet Actions — utilisable depuis un
+  # téléphone, avant une manipulation risquée par exemple.
+  workflow_dispatch:
+
+# Lecture seule : ce workflow ne pousse rien dans le dépôt.
+permissions:
+  contents: read
+
+jobs:
+  sauvegarder:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Contrairement au déploiement des règles, l'absence de secret échoue ici.
+      # Un déploiement manqué se rattrape à la fusion suivante ; une sauvegarde
+      # manquée ne se rattrape pas — et une sauvegarde qu'on croit faite est
+      # pire que pas de sauvegarde du tout.
+      - name: Vérifier les secrets
+        env:
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PHRASE_SECRETE: ${{ secrets.SAUVEGARDE_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          # `[ test ] && affectation` rendrait 1 quand le test est faux, donc
+          # quand le secret est présent : sous `set -e`, l'étape échouerait
+          # précisément dans le cas nominal.
+          manquants=""
+          if [ -z "${COMPTE_DE_SERVICE:-}" ]; then
+            manquants="$manquants FIREBASE_SERVICE_ACCOUNT"
+          fi
+          if [ -z "${PHRASE_SECRETE:-}" ]; then
+            manquants="$manquants SAUVEGARDE_PASSPHRASE"
+          fi
+
+          if [ -n "$manquants" ]; then
+            echo "::error title=Sauvegarde impossible::Secret(s) absent(s) :$manquants"
+            {
+              echo "### ❌ Sauvegarde non effectuée"
+              echo ""
+              echo "Secret(s) absent(s) :$manquants"
+              echo ""
+              echo "Sans eux, aucune copie de l'historique du foyer n'est conservée."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      # Le secret transite par une variable puis un fichier hors du dépôt,
+      # jamais par la ligne de commande que les journaux conservent.
+      - name: Extraire la base
+        env:
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          fichier="$RUNNER_TEMP/compte-de-service.json"
+          printf '%s' "$COMPTE_DE_SERVICE" > "$fichier"
+          export GOOGLE_APPLICATION_CREDENTIALS="$fichier"
+
+          # `household` seul : le bac à sable ne contient que des données
+          # d'essai, qu'il serait trompeur de conserver aux côtés des vraies.
+          npx firebase database:get /household \
+            --project fairsplit-foyer \
+            -o "$RUNNER_TEMP/vidage.json"
+
+          rm -f "$fichier"
+
+      # L'application refuse un fichier qui ne porte pas son enveloppe : sans
+      # cette étape, la sauvegarde ne serait restaurable qu'en ligne de
+      # commande, donc pas depuis un téléphone. Le script refuse aussi un
+      # vidage vide, qui s'archiverait aussi bien qu'un autre.
+      - name: Envelopper au format FairSplit
+        run: node tools/enveloppe-sauvegarde.mjs "$RUNNER_TEMP/vidage.json" "$RUNNER_TEMP/sauvegarde.json"
+
+      # Le dépôt est public : ses artefacts sont téléchargeables par qui peut le
+      # lire, c'est-à-dire tout le monde. Le contenu part donc chiffré. La phrase
+      # secrète passe par un fichier, jamais par la ligne de commande.
+      - name: Chiffrer
+        env:
+          PHRASE_SECRETE: ${{ secrets.SAUVEGARDE_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          phrase="$RUNNER_TEMP/phrase"
+          printf '%s' "$PHRASE_SECRETE" > "$phrase"
+
+          gpg --batch --yes --symmetric \
+            --cipher-algo AES256 \
+            --passphrase-file "$phrase" \
+            --output "$RUNNER_TEMP/sauvegarde.json.gpg" \
+            "$RUNNER_TEMP/sauvegarde.json"
+
+          rm -f "$phrase" "$RUNNER_TEMP/sauvegarde.json" "$RUNNER_TEMP/vidage.json"
+
+          echo "HORODATAGE=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+
+      - name: Déposer l'archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sauvegarde-${{ env.HORODATAGE }}
+          path: ${{ runner.temp }}/sauvegarde.json.gpg
+          # 90 jours, le maximum côté GitHub. Au-delà, seule une copie
+          # téléchargée à la main subsiste.
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Résumé
+        run: |
+          {
+            echo "### ✅ Sauvegarde déposée"
+            echo ""
+            echo "Archive : \`sauvegarde-$HORODATAGE.json.gpg\`, conservée 90 jours."
+            echo ""
+            echo "Pour la restaurer : télécharger l'artefact, le déchiffrer avec"
+            echo "\`gpg --decrypt sauvegarde.json.gpg > sauvegarde.json\`, puis"
+            echo "passer par « Restaurer depuis un fichier » dans l'application."
+          } >> "$GITHUB_STEP_SUMMARY"
