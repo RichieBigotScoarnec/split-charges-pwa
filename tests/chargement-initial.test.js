@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
@@ -38,56 +38,83 @@ describe('Les feuilles de style ne mettent rien en file', () => {
 });
 
 describe('Les polices', () => {
-  /** La balise qui charge les polices, s'il y en a une */
-  const lienPolices = html
-    .split('\n')
-    .find((ligne) => ligne.includes('fonts.googleapis.com') && ligne.includes('rel="stylesheet"'));
+  const variables = feuilles.find(({ nom }) => nom === 'variables.css').source;
 
-  it('sont chargées depuis le document, en parallèle des feuilles', () => {
-    expect(lienPolices, 'aucun <link> de polices dans le document').toBeTruthy();
+  it('sont servies par l\'application, sans passer par un tiers', () => {
+    // Le <link> vers Google supprimait bien la mise en file, mais restait une
+    // inclusion de code depuis une origine tierce, sans empreinte possible :
+    // le CSS de Google varie selon le navigateur, `integrity` n'y est pas
+    // applicable. CodeQL l'a signale, a juste titre.
+    expect(html).not.toContain('fonts.googleapis.com');
+    expect(variables).toMatch(/@font-face/);
+    expect(variables).toMatch(/url\('\.\.\/fonts\//);
   });
 
-  it('ne demandent que les graisses réellement employées', () => {
-    // DM Sans 300 était téléchargée sans qu'aucune règle ne l'utilise.
-    const graissesUtilisees = new Set(
+  it('pointent vers des fichiers qui existent', () => {
+    const declarees = [...variables.matchAll(/url\('\.\.\/(fonts\/[^']+)'\)/g)].map((m) => m[1]);
+    const absentes = declarees.filter(
+      (chemin) => !existsSync(resolve(RACINE, 'public', chemin))
+    );
+
+    expect(declarees.length).toBeGreaterThan(0);
+    expect(absentes, `declarees mais absentes : ${absentes.join(', ')}`).toEqual([]);
+  });
+
+  it('ne declarent que les graisses reellement employees', () => {
+    // DM Sans 300 etait telechargee sans qu'aucune regle ne l'utilise.
+    const employees = new Set(
       feuilles.flatMap(({ source }) =>
-        [...source.matchAll(/font-weight:\s*(\d{3})/g)].map((m) => m[1])
+        [...source.matchAll(/^\s*font-weight:\s*(\d{3});/gm)].map((m) => m[1])
       )
     );
-    const graissesDemandees = new Set(
-      [...lienPolices.matchAll(/[,@](\d{3})[;&"]/g)].map((m) => m[1])
+    const declarees = new Set(
+      [...variables.matchAll(/@font-face[^}]*?font-weight:\s*(\d{3});/gs)].map((m) => m[1])
     );
 
-    for (const demandee of graissesDemandees) {
+    for (const graisse of declarees) {
       expect(
-        graissesUtilisees.has(demandee),
-        `graisse ${demandee} demandée mais employée par aucune règle`
+        employees.has(graisse),
+        `graisse ${graisse} declaree mais employee par aucune regle`
       ).toBe(true);
     }
-    expect(graissesDemandees.size).toBeGreaterThan(0);
+    expect(declarees.size).toBeGreaterThan(0);
   });
 
-  it('ne demandent pas d\'italique, qui n\'est employé nulle part', () => {
+  it('ne declarent pas d\'italique, qui n\'est employe nulle part', () => {
     const italiqueEmploye = feuilles.some(({ source }) => /font-style:\s*italic/.test(source));
 
     expect(italiqueEmploye).toBe(false);
-    expect(lienPolices).not.toContain('ital');
   });
 
   it('laissent le texte s\'afficher pendant leur chargement', () => {
-    // Sans `display=swap`, le texte reste invisible le temps du téléchargement
-    // — le pire comportement possible sur une connexion lente.
-    expect(lienPolices).toContain('display=swap');
+    // Sans `font-display: swap`, le texte reste invisible le temps du
+    // telechargement -- le pire comportement possible sur connexion lente.
+    const blocs = variables.match(/@font-face\s*\{[^}]*\}/g) || [];
+
+    for (const bloc of blocs) {
+      expect(bloc, 'un @font-face sans font-display: swap').toContain('font-display: swap');
+    }
   });
 });
 
-describe('Les connexions anticipées', () => {
-  it('ne visent que des origines employées au démarrage', () => {
-    // unpkg ne sert qu'à Leaflet, chargé seulement si la carte s'ouvre :
-    // anticiper sa connexion coûtait DNS et TLS pour rien.
+describe('Les connexions anticipees', () => {
+  it('ne visent aucune origine tierce, faute d\'en joindre une au demarrage', () => {
+    // unpkg ne sert qu'a Leaflet, charge seulement si la carte s'ouvre ; les
+    // polices sont desormais locales. Anticiper une connexion inutilisee
+    // coutait DNS et TLS pour rien.
     const preconnects = [...html.matchAll(/rel="preconnect"\s+href="([^"]+)"/g)].map((m) => m[1]);
 
-    expect(preconnects).not.toContain('https://unpkg.com');
-    expect(preconnects).toContain('https://fonts.gstatic.com');
+    expect(preconnects, `preconnect inutilise : ${preconnects.join(', ')}`).toEqual([]);
+  });
+});
+
+describe('La politique de securite', () => {
+  it('n\'autorise plus Google pour les styles ni les polices', () => {
+    // Une origine qui n'est plus jointe n'a pas a rester autorisee.
+    const csp = html.split('\n').find((l) => l.includes('Content-Security-Policy'));
+
+    expect(csp).toContain("font-src 'self'");
+    expect(csp).not.toContain('fonts.googleapis.com');
+    expect(csp).not.toContain('fonts.gstatic.com');
   });
 });
