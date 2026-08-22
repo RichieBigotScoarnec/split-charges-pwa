@@ -190,7 +190,7 @@
               <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
             </div>
             <label class="reminder-toggle">
-              <input type="checkbox" id="reminderFinMois" data-on-change="saveReminderSettings" />
+              <input type="checkbox" id="reminderFinMois" aria-label="Rappel de fin de mois" data-on-change="saveReminderSettings" />
               <span class="reminder-toggle-slider"></span>
             </label>
           </div>
@@ -200,7 +200,7 @@
               <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
             </div>
             <label class="reminder-toggle">
-              <input type="checkbox" id="reminderBudget" data-on-change="saveReminderSettings,toggleBudgetInput" />
+              <input type="checkbox" id="reminderBudget" aria-label="Alerte de budget dépassé" data-on-change="saveReminderSettings,toggleBudgetInput" />
               <span class="reminder-toggle-slider"></span>
             </label>
           </div>
@@ -214,7 +214,7 @@
               <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
             </div>
             <label class="reminder-toggle">
-              <input type="checkbox" id="reminderReimbursement" data-on-change="saveReminderSettings" />
+              <input type="checkbox" id="reminderReimbursement" aria-label="Rappel de remboursement en attente" data-on-change="saveReminderSettings" />
               <span class="reminder-toggle-slider"></span>
             </label>
           </div>
@@ -468,6 +468,7 @@
 
         <div id="variableChargeSplitOptions" class="split-override-options" style="display:none;">
           <div class="split-override-row">
+            <label for="variableChargeSplitMode" class="sr-only">Mode de partage de cette charge</label>
             <select id="variableChargeSplitMode" data-on-change="toggleVariableChargeSplitMode">
               <option value="50-50">50 / 50</option>
               <option value="custom">Personnalisé</option>
@@ -552,6 +553,7 @@
 
         <div id="fixedChargeSplitOptions" class="split-override-options" style="display:none;">
           <div class="split-override-row">
+            <label for="fixedChargeSplitMode" class="sr-only">Mode de partage de cette charge</label>
             <select id="fixedChargeSplitMode">
               <option value="50-50">50 / 50</option>
               <option value="custom">Personnalisé</option>

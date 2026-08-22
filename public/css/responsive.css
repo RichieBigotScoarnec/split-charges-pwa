@@ -330,6 +330,19 @@
     min-height: 44px;
   }
 
+  /*
+     La passe précédente n'avait relevé que des boutons : les champs de
+     formulaire étaient hors de son champ. Ils tombent pourtant sous le seuil
+     eux aussi — 41 px pour le sélecteur de période, 40 pour les listes et les
+     saisies des modales — et ce sont les commandes qu'on vise le plus souvent.
+     Les cases à cocher gardent leur taille : leur zone cliquable est le label.
+  */
+  .period-dropdown,
+  .form-group select,
+  .form-group input:not([type="checkbox"]):not([type="radio"]) {
+    min-height: 44px;
+  }
+
   /* Les flèches de période sont carrées : leur largeur suit. */
   .period-arrow,
   .btn-icon {

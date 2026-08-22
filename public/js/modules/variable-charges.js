@@ -64,7 +64,6 @@ export function initVariableCharges() {
   populateCategorySelect('variableChargeCategory');
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showAddVariableChargeModal = showAddVariableChargeModal;
   window.editVariableCharge = editVariableCharge;
   window.deleteVariableCharge = deleteVariableCharge;
   window.toggleVariableChargeSplit = function() {

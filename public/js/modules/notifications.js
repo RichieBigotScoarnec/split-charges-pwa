@@ -437,4 +437,3 @@ window.saveReminderSettings = saveReminderSettings;
 window.toggleRemindersPanel = toggleRemindersPanel;
 window.toggleBudgetInput = toggleBudgetInput;
 window.requestNotificationPermission = requestNotificationPermission;
-window.checkUpcomingDeadlines = checkUpcomingDeadlines;

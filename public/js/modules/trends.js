@@ -436,7 +436,3 @@ export async function comparePeriods(period1, period2) {
   };
 }
 
-// Exposer globalement pour compatibilité
-window.generateTrendsChart = generateTrendsChart;
-window.fetchHistoricalData = fetchHistoricalData;
-window.comparePeriods = comparePeriods;

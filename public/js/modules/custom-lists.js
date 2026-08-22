@@ -479,4 +479,3 @@ function showManageModal(listType) {
 
 // Expose globally for compatibility
 window.showManageCategoriesModal = () => showManageModal('categories');
-window.showManageDestinationsModal = () => showManageModal('destinations');

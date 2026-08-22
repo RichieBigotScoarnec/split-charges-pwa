@@ -18,7 +18,7 @@ vi.mock('../../public/js/firebase-init.js', () => ({
   getFirebaseDatabase: vi.fn(() => mockDatabase)
 }));
 
-import { getState, setState, resetState } from '../../public/js/state.js';
+import { setState, resetState } from '../../public/js/state.js';
 import { initTrends, fetchHistoricalData } from '../../public/js/modules/trends.js';
 import { toast } from '../../public/js/components/toast.js';
 

@@ -135,11 +135,3 @@ describe('validateChargeName', () => {
     expect(validateChargeName('a'.repeat(LIMITS.MAX_NAME_LENGTH + 1)).valid).toBe(false);
   });
 });
-
-// ===== validateCharge =====
-// Ces cas décrivent une charge portant `name`, forme que l'application ne
-// produit nulle part — elle écrit `description`. Écrits d'après la fonction
-// plutôt que d'après les données, ils l'ont confortée dans son erreur pendant
-// tout ce temps. Ils sont conservés : `name` reste accepté en repli, et une
-// suite de tests n'a pas à mentir sur ce que le code fait aujourd'hui.
-

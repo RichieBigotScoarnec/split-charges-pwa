@@ -431,9 +431,7 @@ export function initPeriod() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.changePeriod = changePeriod;
   window.navigatePeriod = navigatePeriod;
-  window.saveSalaries = saveSalaries;
   window.focusSalaries = focusSalaries;
-  window.toggleExtraIncome = toggleExtraIncome;
 
   log('📅 Gestion périodes initialisée');
 }

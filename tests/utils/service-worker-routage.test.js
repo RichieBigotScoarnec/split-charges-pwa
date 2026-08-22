@@ -46,7 +46,6 @@ function chargerServiceWorker() {
     delete: () => Promise.resolve(true)
   };
 
-  // eslint-disable-next-line no-new-func
   new Function('self', 'caches', 'fetch', 'console', 'URL', SOURCE)(
     self, caches, () => Promise.resolve({ ok: true, clone: () => ({}) }),
     { log: () => {}, warn: () => {} }, URL

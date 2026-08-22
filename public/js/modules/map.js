@@ -502,5 +502,3 @@ export function cleanupMap() {
 
 // Exposer les fonctions globalement pour compatibilité
 window.showMapModal = showMapModal;
-window.hideMapModal = hideMapModal;
-window.centerMap = centerMap;

@@ -141,7 +141,6 @@ export function initModals() {
   setupModalEscapeClose();
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showModal = showModal;
   window.closeModal = closeModal;
 }
 

@@ -45,7 +45,6 @@ export function initReimbursements() {
   }
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showAddReimbursementModal = showAddReimbursementModal;
   window.deleteReimbursement = deleteReimbursement;
   window.settleBalance = settleBalance;
 

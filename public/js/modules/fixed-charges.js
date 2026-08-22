@@ -63,7 +63,6 @@ export function initFixedCharges() {
   populateDestinationSelect('fixedChargeDestination');
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
-  window.showAddFixedChargeModal = showAddFixedChargeModal;
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
   window.toggleFixedChargeSplit = function() {

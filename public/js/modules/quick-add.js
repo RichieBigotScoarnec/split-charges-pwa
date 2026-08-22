@@ -739,4 +739,3 @@ export async function addQuickCharge(chargeData) {
 window.showQuickAddModal = showQuickAddModal;
 window.closeQuickAddModal = closeQuickAddModal;
 window.handleQuickAddSubmit = handleQuickAddSubmit;
-window.addQuickCharge = addQuickCharge;
