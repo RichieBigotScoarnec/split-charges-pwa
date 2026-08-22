@@ -12,11 +12,18 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { log, error as logError } from '../utils/debug.js';
 
-/** Marqueur du format, vérifié à la restauration */
-const FORMAT = 'fairsplit-backup';
+/**
+ * Marqueur du format, vérifié à la restauration
+ *
+ * Exporté et lu à la source par `tools/enveloppe-sauvegarde.mjs` : la
+ * sauvegarde automatique doit produire exactement l'enveloppe que
+ * `validateBackup` accepte. Deux définitions du format finiraient par diverger,
+ * et le jour où on s'en apercevrait serait celui d'une restauration.
+ */
+export const FORMAT = 'fairsplit-backup';
 
 /** Version du format ; un fichier plus récent que le code est refusé */
-const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 1;
 
 /**
  * Initialise le module de sauvegarde

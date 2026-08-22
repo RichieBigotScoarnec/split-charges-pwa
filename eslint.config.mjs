@@ -84,6 +84,24 @@ export default [
     }
   },
 
+  // ===== Outillage (Node, hors application publiée) =====
+  // `tools/` n'est pas déployé — le déploiement ne publie que `public/`. Ces
+  // scripts tournent dans Node, en CI : ils disposent de `process` et de
+  // `console`, que la configuration navigateur ne connaît pas.
+  {
+    files: ['tools/**/*.mjs', 'tools/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node }
+    },
+    rules: {
+      'no-console': 'off',
+      'prefer-const': 'error',
+      'no-var': 'error'
+    }
+  },
+
   // ===== Fichiers de configuration =====
   {
     files: ['*.config.js', '*.config.mjs'],
