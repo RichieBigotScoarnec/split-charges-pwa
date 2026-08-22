@@ -1,5 +1,14 @@
 /* ===== VARIABLES CSS — FairSplit v4 Design System ===== */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500;700&display=swap');
+
+/* Les polices étaient chargées ici par `@import`. Placé en tête de la première
+   feuille, il imposait une chaîne strictement séquentielle avant tout rendu :
+   HTML, puis variables.css, puis le CSS de Google Fonts, puis les fichiers de
+   police. Quatre allers-retours l'un après l'autre, chacun bloquant — sur une
+   connexion mobile à forte latence, plus d'une seconde à ne rien faire d'autre
+   qu'attendre, avant même Firebase.
+
+   Le chargement vit désormais dans un <link> de FairSplit.html, où il part en
+   parallèle des autres feuilles. Même ressource, même prix, sans la file. */
 
 :root {
   /* Brand */

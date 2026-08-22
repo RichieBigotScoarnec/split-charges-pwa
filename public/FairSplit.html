@@ -28,10 +28,23 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-192-maskable.png" />
 
-  <!-- Preconnect (perf: DNS + TLS anticipé) -->
+  <!-- Preconnect (perf: DNS + TLS anticipé)
+       unpkg n'y figure plus : Leaflet n'est chargé que si la carte s'ouvre, ce
+       qu'un test end-to-end vérifie. Anticiper sa connexion coûtait une
+       résolution DNS et une poignée de main TLS au démarrage, pour une
+       ressource qui ne sert presque jamais. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+  <!-- Polices, chargées ici et non par `@import` depuis variables.css : en tête
+       de la première feuille, l'import imposait une chaîne séquentielle de
+       quatre allers-retours bloquants avant tout rendu. Ce <link> part en
+       parallèle des feuilles ci-dessous.
+
+       Les graisses demandées sont celles réellement employées : 400, 500, 600,
+       700. DM Sans 300 et l'italique étaient téléchargés sans qu'aucune règle
+       ne les utilise — `font-style: italic` n'apparaît nulle part. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@500;700&display=swap">
 
   <!-- FairSplit CSS (ordre important) -->
   <link rel="stylesheet" href="css/variables.css">
