@@ -2,6 +2,7 @@
 // Fonctionnalités : visualisation géographique des dépenses avec Leaflet
 
 import { getState } from '../state.js';
+import { getCategories, getCategoryIcon } from './custom-lists.js';
 import { formatCurrency, formatPaidBy, escapeHtml } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
@@ -122,28 +123,12 @@ function createMapModal() {
         <button id="closeMapBtn" class="btn-close">&times;</button>
       </div>
 
-      <div class="map-filters">
-        <label>
-          <input type="checkbox" class="map-category-filter" value="Alimentation" checked>
-          🍽️ Alimentation
-        </label>
-        <label>
-          <input type="checkbox" class="map-category-filter" value="Transport" checked>
-          🚗 Transport
-        </label>
-        <label>
-          <input type="checkbox" class="map-category-filter" value="Loisirs" checked>
-          🎮 Loisirs
-        </label>
-        <label>
-          <input type="checkbox" class="map-category-filter" value="Santé" checked>
-          ❤️ Santé
-        </label>
-        <label>
-          <input type="checkbox" class="map-category-filter" value="Autre" checked>
-          📦 Autre
-        </label>
-      </div>
+      <!-- Peuplés à l'ouverture, à partir des catégories réellement portées
+           par les dépenses affichées. La liste figée qui vivait ici — dont une
+           catégorie « Alimentation » qui n'a jamais existé dans le projet —
+           masquait toute dépense de Courses, Maison, Essence ou Restaurant,
+           ainsi que toute catégorie personnalisée. -->
+      <div class="map-filters" id="mapFilters"></div>
 
       <div id="mapContainer" class="map-container"></div>
 
@@ -168,12 +153,49 @@ function createMapModal() {
     closeBtn.addEventListener('click', hideMapModal);
   }
 
-  const filters = document.querySelectorAll('.map-category-filter');
-  filters.forEach(filter => {
-    filter.addEventListener('change', () => {
-      updateMapMarkers();
+  // Délégation : les cases sont reconstruites à chaque ouverture, un écouteur
+  // posé sur chacune serait perdu au rendu suivant.
+  const filtres = document.getElementById('mapFilters');
+  if (filtres) {
+    filtres.addEventListener('change', (e) => {
+      if (e.target.classList.contains('map-category-filter')) updateMapMarkers();
     });
-  });
+  }
+}
+
+/**
+ * Construit les cases de filtrage à partir des dépenses affichées
+ *
+ * La liste était figée dans le balisage et ne correspondait pas aux catégories
+ * du projet : le filtrage étant une correspondance exacte sur le libellé, une
+ * dépense de Courses, Maison, Essence ou Restaurant n'était retenue par aucune
+ * case et disparaissait de la carte — cases toutes cochées comprises. Les
+ * catégories personnalisées subissaient le même sort.
+ *
+ * Dériver les cases des dépenses réellement présentes garantit l'invariant qui
+ * manquait : tout marqueur a une case qui le montre.
+ *
+ * @param {Array<Object>} charges - Dépenses géolocalisées à afficher
+ */
+export function buildCategoryFilters(charges) {
+  const conteneur = document.getElementById('mapFilters');
+  if (!conteneur) return;
+
+  // L'ordre des catégories configurées d'abord, les libellés hérités ensuite :
+  // une catégorie supprimée depuis reste filtrable tant qu'une dépense la porte.
+  const presentes = [...new Set(charges.map(c => c.category).filter(Boolean))];
+  const configurees = getCategories().map(c => c.label);
+  const ordonnees = [
+    ...configurees.filter(label => presentes.includes(label)),
+    ...presentes.filter(label => !configurees.includes(label))
+  ];
+
+  conteneur.innerHTML = ordonnees.map(label => `
+    <label>
+      <input type="checkbox" class="map-category-filter" value="${escapeHtml(label)}" checked>
+      ${escapeHtml(getCategoryIcon(label))} ${escapeHtml(label)}
+    </label>
+  `).join('');
 }
 
 /** URL et empreintes de Leaflet, reprises telles quelles du HTML */
@@ -268,6 +290,25 @@ function initializeLeafletMap() {
 }
 
 /**
+ * Dépenses du mois portant de vraies coordonnées
+ *
+ * Une simulation se glissait ici : à défaut de coordonnées, elle en inventait
+ * à Paris d'après un mot-clé de la description — « carrefour », « restaurant »,
+ * « essence » — avec une variation aléatoire, si bien que le même repas
+ * changeait de place à chaque ouverture. Le commentaire d'origine l'annonçait
+ * comme provisoire (« en production, ces données viendraient de la base »).
+ * Une carte de comptes doit montrer ce qui a été enregistré, ou ne rien
+ * montrer : un marqueur inventé se lit exactement comme un marqueur réel.
+ *
+ * @returns {Array<Object>} Dépenses variables et fixes réellement localisées
+ */
+export function chargesLocalisees() {
+  return [...(getState('variableCharges') || []), ...(getState('fixedCharges') || [])]
+    .filter(charge => charge && !charge.deleted)
+    .filter(charge => charge.location && charge.location.lat && charge.location.lng);
+}
+
+/**
  * Charge les charges géolocalisées sur la carte
  */
 async function loadChargesOnMap() {
@@ -278,29 +319,15 @@ async function loadChargesOnMap() {
 
   log('🗺️ [MAP-1] Chargement des charges sur la carte');
 
-  // Récupérer les charges
-  const variableCharges = getState('variableCharges') || [];
-  const fixedCharges = getState('fixedCharges') || [];
-  const allCharges = [...variableCharges, ...fixedCharges];
-
-  log(`🗺️ [MAP-2] Charges récupérées: ${variableCharges.length} variables, ${fixedCharges.length} fixes`);
-  log('🗺️ [MAP-2b] Charges variables avec location:',
-    variableCharges.filter(c => c.location).map(c => ({
-      desc: c.description,
-      location: c.location
-    }))
-  );
-
   // Nettoyer les marqueurs existants
   clearMarkers();
 
-  // Filtrer les charges avec géolocalisation (simulation pour démo)
-  const geoCharges = allCharges
-    .filter(charge => !charge.deleted)
-    .map(charge => addGeolocationToCharge(charge))
-    .filter(charge => charge.location);
+  const geoCharges = chargesLocalisees();
 
-  log(`🗺️ [MAP-3] Charges géolocalisées après traitement: ${geoCharges.length}`);
+  log(`🗺️ [MAP-3] Charges géolocalisées : ${geoCharges.length}`);
+
+  // Les cases de filtrage suivent ce qui est affiché, jamais l'inverse.
+  buildCategoryFilters(geoCharges);
 
   // Créer les marqueurs
   let totalAmount = 0;
@@ -327,58 +354,6 @@ async function loadChargesOnMap() {
   }
 
   log(`📍 ${markers.length} marqueur(s) affiché(s) sur la carte`);
-}
-
-/**
- * Ajoute une géolocalisation simulée à une charge SI elle n'en a pas déjà
- * (En production, ces données viendraient de la base ou d'une API de géocodage)
- * @param {Object} charge - Charge à géolocaliser
- * @returns {Object} Charge avec location ajoutée
- */
-function addGeolocationToCharge(charge) {
-  // ✅ IMPORTANT: Si la charge a déjà une vraie géolocalisation, la préserver
-  if (charge.location && charge.location.lat && charge.location.lng) {
-    log('📍 [GEO-PRESERVE] Vraie géolocalisation préservée:',
-      charge.description,
-      'GPS:', charge.location.lat.toFixed(5), charge.location.lng.toFixed(5),
-      'Nom:', charge.location.name
-    );
-    return charge;
-  }
-
-  log('🔍 [GEO-SIMULATE] Pas de GPS réel pour:', charge.description, '- tentative simulation');
-
-  // Simulation : détection de mots-clés dans la description pour assigner des coordonnées
-  const description = charge.description.toLowerCase();
-
-  // Base de données simplifiée de lieux connus
-  const locationDatabase = {
-    'carrefour': { lat: 48.8566, lng: 2.3522, name: 'Carrefour Paris' },
-    'auchan': { lat: 48.8738, lng: 2.2950, name: 'Auchan' },
-    'lidl': { lat: 48.8462, lng: 2.3371, name: 'Lidl' },
-    'restaurant': { lat: 48.8606, lng: 2.3376, name: 'Restaurant' },
-    'pharmacie': { lat: 48.8584, lng: 2.2945, name: 'Pharmacie' },
-    'essence': { lat: 48.8400, lng: 2.3200, name: 'Station Essence' },
-    'cinéma': { lat: 48.8700, lng: 2.3100, name: 'Cinéma' }
-  };
-
-  // Rechercher un match pour simulation
-  for (const [keyword, location] of Object.entries(locationDatabase)) {
-    if (description.includes(keyword)) {
-      log('📍 Géolocalisation simulée:', charge.description, keyword);
-      return {
-        ...charge,
-        location: {
-          lat: location.lat + (Math.random() - 0.5) * 0.01, // Ajouter petite variation
-          lng: location.lng + (Math.random() - 0.5) * 0.01,
-          name: location.name
-        }
-      };
-    }
-  }
-
-  // Si aucun match, pas de localisation
-  return charge;
 }
 
 /**
@@ -435,15 +410,10 @@ function createMarker(charge) {
  * @returns {string} HTML de l'icône
  */
 function getCategoryMarkerIcon(category) {
-  const icons = {
-    'Alimentation': '🍽️',
-    'Transport': '🚗',
-    'Loisirs': '🎮',
-    'Santé': '❤️',
-    'Autre': '📦'
-  };
-
-  const emoji = icons[category] || '📍';
+  // Même source que les listes de charges et la saisie rapide : une deuxième
+  // table figée ici ne montrait 📍 pour presque tout, et ignorait les icônes
+  // choisies dans les catégories personnalisées.
+  const emoji = getCategoryIcon(category);
 
   return `
     <div style="
@@ -455,7 +425,7 @@ function getCategoryMarkerIcon(category) {
       border: 2px solid #667eea;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     ">
-      ${emoji}
+      ${escapeHtml(emoji)}
     </div>
   `;
 }

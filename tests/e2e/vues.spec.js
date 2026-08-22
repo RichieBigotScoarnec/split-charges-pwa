@@ -305,6 +305,29 @@ test.describe('Prénoms des membres', () => {
     await expect(options.filter({ hasText: 'Cindy → Richard' })).toHaveCount(1);
   });
 
+  test('les boutons de payeur de la saisie rapide portent les prénoms', async ({ page }) => {
+    // Le report des prénoms ne visait que les <option> : ces boutons, ajoutés
+    // depuis, affichaient « Vous » et « Conjointe » au milieu d'un écran
+    // entièrement nommé.
+    await nommer(page, 'Richard', 'Cindy');
+    await page.locator('.fab').click();
+
+    await expect(page.locator('#quickAddPayer [data-payer="vous"]')).toHaveText('Richard');
+    await expect(page.locator('#quickAddPayer [data-payer="conjointe"]')).toHaveText('Cindy');
+  });
+
+  test('le total des remboursements nomme la personne', async ({ page }) => {
+    // Dernier libellé à parler de « Conjointe » à l'écran.
+    await nommer(page, 'Richard', 'Cindy');
+
+    await page.locator('#addReimbursementBtn').click();
+    await page.locator('#reimbursementDirection').selectOption('vous-to-conjointe');
+    await page.locator('#reimbursementAmount').fill('120');
+    await page.locator('#saveReimbursement').click();
+
+    await expect(page.locator('#reimbursementsTotal')).toContainText('Cindy', { timeout: 5000 });
+  });
+
   test('la phrase du solde nomme les deux personnes', async ({ page }) => {
     // « Conjointe vous doit » désignait un « vous » relatif au compte
     // connecté : la phrase disait le contraire à l'une des deux personnes.

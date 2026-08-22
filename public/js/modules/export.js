@@ -2,6 +2,8 @@
 // Fonctionnalités : CSV, PDF (optionnel)
 
 import { getState } from '../state.js';
+import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
+import { memberLabel } from '../utils/members.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
@@ -71,8 +73,9 @@ export function exportToCSV() {
     // Salaires
     csv += '=== SALAIRES ===\n';
     csv += 'Personne;Salaire\n';
-    csv += `Vous;${Number(salaries.vous) || 0}\n`;
-    csv += `Conjointe;${Number(salaries.conjointe) || 0}\n`;
+    const membres = getState('members');
+    csv += `${champCsv(memberLabel('vous', membres))};${Number(salaries.vous) || 0}\n`;
+    csv += `${champCsv(memberLabel('conjointe', membres))};${Number(salaries.conjointe) || 0}\n`;
     csv += '\n';
 
     // Charges fixes
@@ -220,11 +223,11 @@ export function exportToPDF() {
               <th>Salaire</th>
             </tr>
             <tr>
-              <td>Vous</td>
+              <td>${escapeHtml(memberLabel('vous', getState('members')))}</td>
               <td>${formatCurrency(salaries.vous)}</td>
             </tr>
             <tr>
-              <td>Conjointe</td>
+              <td>${escapeHtml(memberLabel('conjointe', getState('members')))}</td>
               <td>${formatCurrency(salaries.conjointe)}</td>
             </tr>
           </table>
@@ -294,8 +297,8 @@ export function exportToPDF() {
             </tr>
             ${reimbursements.map(reimb => `
               <tr>
-                <td>${parseReimbDirection(reimb.direction).from}</td>
-                <td>${parseReimbDirection(reimb.direction).to}</td>
+                <td>${escapeHtml(parseReimbDirection(reimb.direction).from)}</td>
+                <td>${escapeHtml(parseReimbDirection(reimb.direction).to)}</td>
                 <td>${formatCurrency(reimb.amount)}</td>
                 <td>${formatDate(reimb.timestamp)}</td>
               </tr>
@@ -328,12 +331,27 @@ export function exportToPDF() {
 
 /**
  * Parse le champ direction d'un remboursement en from/to lisibles
- * @param {string} direction - "vous-to-conjointe" ou "conjointe-to-vous"
- * @returns {{from: string, to: string}}
+ *
+ * Les deux libellés étaient figés à « Vous » et « Conjointe ». Un relevé
+ * exporté portait donc des noms que l'application n'utilise plus dès qu'un
+ * prénom est renseigné — et c'est le document qu'on transmet, celui où
+ * l'ambiguïté coûte le plus cher : « Vous » ne désigne personne pour qui le
+ * lit.
+ *
+ * Les deux valeurs de direction étaient par ailleurs écrites en clair ici,
+ * alors qu'elles ont des constantes partagées : c'est exactement la divergence
+ * qui avait déjà fait compter des remboursements à l'envers.
+ *
+ * @param {string} direction - Valeur de REIMBURSEMENT_DIRECTIONS
+ * @returns {{from: string, to: string}} Prénoms du foyer, ou « ? » si inconnue
  */
 function parseReimbDirection(direction) {
-  if (direction === 'vous-to-conjointe') return { from: 'Vous', to: 'Conjointe' };
-  if (direction === 'conjointe-to-vous') return { from: 'Conjointe', to: 'Vous' };
+  const membres = getState('members');
+  const vous = memberLabel('vous', membres);
+  const conjointe = memberLabel('conjointe', membres);
+
+  if (direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) return { from: vous, to: conjointe };
+  if (direction === REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU) return { from: conjointe, to: vous };
   return { from: '?', to: '?' };
 }
 

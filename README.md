@@ -78,7 +78,7 @@ npm run check           # lint + tests unitaires (ce que la CI exécute)
 | `npm run lint` | ESLint |
 | `npm run lint:fix` | ESLint avec correction automatique |
 | `npm run emulators` | Émulateurs Firebase locaux |
-| `npm run deploy:rules` | Déploie `database.rules.json` |
+| `npm run deploy:rules` | Déploie `database.rules.json` — automatique à chaque fusion sur `main`, cette commande ne sert qu'en secours |
 
 ### Travailler sans toucher aux données réelles
 
