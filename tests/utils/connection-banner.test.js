@@ -90,4 +90,43 @@ describe('Bandeau de liaison', () => {
       vi.advanceTimersByTime(9000);
     }).not.toThrow();
   });
+  it('ne crie pas au loup au retour de veille', async () => {
+    // Un telephone en veille gele la page et coupe la liaison. Au reveil, la
+    // temporisation avait couru pendant tout ce temps : le bandeau s'affichait
+    // au retour, annoncant une panne la ou Firebase se reconnectait
+    // simplement. Un bandeau qui crie au loup finit par ne plus etre lu.
+    const { initConnectionBanner } = await import('../../public/js/utils/connection-banner.js');
+    initConnectionBanner();
+
+    refreshConnectionBanner(false);
+
+    // La veille : le delai s'ecoule pendant que la page est gelee.
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    vi.advanceTimersByTime(30000);
+
+    // Le reveil.
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(
+      document.getElementById('offlineBanner').hidden,
+      'le bandeau ne doit pas apparaitre au reveil'
+    ).toBe(true);
+  });
+
+  it('finit par alerter si la coupure persiste apres le reveil', async () => {
+    // Repartir sur un delai neuf ne doit pas revenir a ne jamais alerter : une
+    // vraie coupure, elle, dure au-dela du reveil.
+    const { initConnectionBanner } = await import('../../public/js/utils/connection-banner.js');
+    initConnectionBanner();
+
+    refreshConnectionBanner(false);
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    vi.advanceTimersByTime(9000);
+
+    expect(document.getElementById('offlineBanner').hidden).toBe(false);
+  });
 });

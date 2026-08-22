@@ -82,6 +82,33 @@
   margin: 0;
 }
 
+/* L'attente prolongée n'apparaît qu'après le délai, et seulement pendant
+   l'attente : une fois l'écran rendu utilisable, elle n'a plus d'objet. */
+.auth-attente-longue {
+  display: none;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: var(--space-sm) 0 0;
+}
+
+.auth-overlay--attente.auth-overlay--lent .auth-attente-longue {
+  display: block;
+}
+
+.auth-overlay--attente.auth-overlay--lent .auth-attente {
+  display: none;
+}
+
+.auth-card .btn-link.auth-attente-longue {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  text-decoration: underline;
+  font-family: var(--font);
+  cursor: pointer;
+  padding: var(--space-sm);
+}
+
 /* Symétrique : le message d'attente disparaît dès que l'écran devient
    utilisable, sinon il resterait au-dessus du formulaire. */
 .auth-overlay:not(.auth-overlay--attente) .auth-attente {

@@ -5,7 +5,7 @@
 
 import { VERSION, IS_SANDBOX, DATA_ROOT } from './config.js';
 import { showSandboxBanner } from './utils/sandbox-banner.js';
-import { refreshConnectionBanner } from './utils/connection-banner.js';
+import { refreshConnectionBanner, initConnectionBanner } from './utils/connection-banner.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
 import { initDatabase } from './db.js';
 import { setState } from './state.js';
@@ -47,6 +47,10 @@ async function initApp() {
       // injoignable renvoyait un écran vide crédible et avalait les saisies.
       refreshConnectionBanner(isConnected);
     });
+
+    // Au retour de veille, la reconnexion est normale : la temporisation du
+    // bandeau repart, au lieu de se conclure sur du temps passé en veille.
+    initConnectionBanner();
 
     // 3. Initialize UI components
     initModals();
