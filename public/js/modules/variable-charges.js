@@ -17,6 +17,7 @@ import { grouperParCategorie } from '../utils/tri.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
+import { initChoixLieu, lieuChoisi, poserLieu, reinitialiserLieu } from './choix-lieu.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
@@ -51,6 +52,7 @@ export function showAddVariableChargeModal() {
     document.getElementById('variableChargeSplitOptions').style.display = 'none';
   }
 
+  reinitialiserLieu();
   accorderModaleVariable(false);
 
   showModal('modalAddVariableCharge');
@@ -96,6 +98,8 @@ export function initVariableCharges() {
 
   // Peupler le select catégorie dynamiquement
   populateCategorySelect('variableChargeCategory');
+
+  initChoixLieu();
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.editVariableCharge = editVariableCharge;
@@ -195,6 +199,9 @@ export async function saveVariableCharge() {
   // À défaut de saisie, le jour courant : une charge sans date ne pourrait plus
   // être située, et `timestamp` ne dit que le moment de l'écriture.
   const date = document.getElementById('variableChargeDate')?.value || dateDuJour();
+  // Le lieu retenu dans le champ de recherche, ou celui que la charge portait
+  // déjà — `poserLieu` l'a remis en place à la réouverture.
+  const location = lieuChoisi();
 
   // Répartition spéciale
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -245,6 +252,9 @@ export async function saveVariableCharge() {
       paidBy,
       envelope,
       date,
+      // `null` supprime la clé côté Firebase : c'est exactement ce qu'on veut
+      // quand le lieu vient d'être retiré.
+      location: location || null,
       splitOverride,
       timestamp: Date.now(),
       deleted: false
@@ -326,6 +336,7 @@ export function editVariableCharge(chargeId) {
     splitOptions.style.display = 'none';
   }
 
+  poserLieu(charge.location || null);
   accorderModaleVariable(true);
 
   showModal('modalAddVariableCharge');

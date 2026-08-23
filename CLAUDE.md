@@ -42,6 +42,8 @@ FairSplit/
 │                               # (catégorie déduite du lieu),
 │                               # categories-frequentes, auth-errors,
 │                               # enveloppes (regroupements transversaux),
+│                               # recherche-lieu (chercher un lieu par son nom),
+│                               # tri (ordre d'affichage des listes),
 │                               # identifiant (fabrique d'identifiants, partagée
 │                               # par catégories, destinations et enveloppes),
 │                               # calculations, format, validation, salaries
@@ -171,6 +173,7 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Un remboursement n'avait ni date ni moyen d'être corrigé | `public/js/modules/reimbursements.js` | ✅ RÉSOLU 2026-08-23 — champ date, réouverture, tri | — |
 | Recherche aveugle au payeur, à l'enveloppe, à la date, au lieu et aux remboursements | `public/js/modules/search.js` | ✅ RÉSOLU 2026-08-23 — ce qu'on lit à l'écran se cherche | — |
 | Éditer une charge affichait « Ajouter » | les trois modales de saisie | ✅ RÉSOLU 2026-08-23 — titre et bouton accordés au geste | — |
+| Le lieu ne s'écrivait que par le GPS, au moment de la saisie | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — recherche par nom, rattachable après coup | Charges variables seules |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
