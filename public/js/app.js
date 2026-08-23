@@ -61,7 +61,13 @@ async function initApp() {
     // 5. Mark app as initialized
     setState('appInitialized', true);
 
-    toast.success('FairSplit chargé');
+    // Aucune confirmation ici. « FairSplit chargé » s'affichait à cette ligne,
+    // qui ne marque que la pose de l'écouteur d'authentification : Firebase
+    // n'a encore rien répondu, aucune donnée n'est lue. Le message paraissait
+    // donc par-dessus l'écran d'attente, à côté de « Connexion… » — deux
+    // affirmations contraires dans le même coup d'œil, la fausse étant la
+    // rassurante. La confirmation est émise là où elle est vraie : à la fin de
+    // `initializeAppData`, quand les données du mois sont effectivement là.
 
   } catch (error) {
     logError('❌ Erreur initialisation:', error);
