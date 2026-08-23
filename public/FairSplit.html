@@ -642,13 +642,13 @@
         <span aria-hidden="true">✕</span> Ce n'est pas ici
       </button>
 
-      <div class="quick-add-header">
-        <strong>Catégorie</strong>
-      </div>
-      <div class="category-grid" id="categoryGrid">
-        <!-- Categories will be populated by JavaScript -->
-      </div>
-
+      <!-- Le montant vient en premier, et ce n'est pas un détail de mise en
+           page : c'est la seule chose qu'on connaisse toujours en saisissant
+           une dépense. La catégorie se devine — le lieu la pré-sélectionne
+           souvent tout seul — et se corrige après coup ; le montant, non.
+           Il arrivait après huit tuiles, alors que le champ recevait le focus
+           à l'ouverture : le clavier s'ouvrait pour un champ qu'il fallait
+           d'abord aller chercher. -->
       <div class="amount-input-large">
         <label for="quickAddAmount" class="sr-only">Montant en euros</label>
         <input
@@ -658,6 +658,13 @@
           inputmode="decimal"
         />
         <span class="currency-symbol">€</span>
+      </div>
+
+      <div class="quick-add-header">
+        <strong>Catégorie</strong>
+      </div>
+      <div class="category-grid" id="categoryGrid">
+        <!-- Categories will be populated by JavaScript -->
       </div>
 
       <!-- Facultatif : sans saisie, la description reste déduite du lieu ou de
@@ -694,7 +701,13 @@
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" data-action="closeQuickAddModal">Annuler</button>
-        <button type="button" class="btn btn-primary" id="btnQuickAdd" data-action="handleQuickAddSubmit" disabled>✓ Ajouter</button>
+        <!-- Ce bouton était désactivé tant que catégorie et montant n'étaient
+             pas tous deux renseignés. Un bouton désactivé n'émet aucun
+             événement au toucher : on tapait dessus et il ne se passait rien,
+             sans que rien ne dise ce qui manquait. Or `handleQuickAddSubmit`
+             sait déjà le nommer — l'attribut l'empêchait simplement de parler.
+             Il reste donc actif, et c'est la soumission qui explique. -->
+        <button type="button" class="btn btn-primary" id="btnQuickAdd" data-action="handleQuickAddSubmit">✓ Ajouter</button>
       </div>
     </div>
   </div>
