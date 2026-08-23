@@ -330,6 +330,15 @@ async function initializeAppData() {
     populateAllSelects();
   }, failures);
 
+  // Les enveloppes étiquettent les charges à l'affichage : elles doivent être
+  // connues avant que les listes ne soient rendues, sinon la première peinture
+  // n'en montrerait aucune et rien ne la referait.
+  await runStep('enveloppes', async () => {
+    const { initEnvelopes, populateAllEnvelopeSelects } = await import('./envelopes.js');
+    await initEnvelopes();
+    populateAllEnvelopeSelects();
+  }, failures);
+
   // Le mode de partage et le report sont des entrées de tout calcul de solde :
   // ils précèdent le chargement des données du mois. Chargé après, le mode de
   // partage laissait le premier bilan se calculer au prorata par défaut.

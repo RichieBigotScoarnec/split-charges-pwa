@@ -36,11 +36,14 @@ FairSplit/
 │       ├── db.js               # Abstraction DB (préfixage DATA_ROOT)
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 21 modules fonctionnels
-│       └── utils/              # 18 aides pures — dont montant (lecture d'une
+│       ├── modules/            # 22 modules fonctionnels
+│       └── utils/              # 20 aides pures — dont montant (lecture d'une
 │                               # saisie), lieu (géocodage), categorie-lieu
 │                               # (catégorie déduite du lieu),
 │                               # categories-frequentes, auth-errors,
+│                               # enveloppes (regroupements transversaux),
+│                               # identifiant (fabrique d'identifiants, partagée
+│                               # par catégories, destinations et enveloppes),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generate-icons.ps1, enveloppe-sauvegarde.mjs,
@@ -159,6 +162,9 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Sauvegarde entièrement manuelle | `.github/workflows/sauvegarde.yml` | ✅ RÉSOLU 2026-08-22 — export chiffré quotidien, restaurable depuis l'application | Exige le secret `SAUVEGARDE_PASSPHRASE` |
 | Répartition de la saisie rapide écrite dans `splitMode`, que personne ne lit | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-23 — `splitOverride`, le champ qu'interroge le calcul | — |
 | Charges antérieures restées au prorata malgré un « 50-50 » choisi | `.github/workflows/migration-repartition.yml` | ✅ RÉSOLU 2026-08-23 — migration à la demande, simulation par défaut, sauvegarde puis contrôle après écriture | Lancer depuis l'onglet Actions |
+| Gestion des destinations exposée sur `window` sans aucun bouton | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-23 — bouton « 🏦 Destinations », les deux sens fermés par `tests/actions-atteignables.test.js` | — |
+| Sélecteur d'emoji sans bière, café ni croissant — les catégories que le GPS vise | `public/js/modules/custom-lists.js` | ✅ RÉSOLU 2026-08-23 — 57 propositions rangées par familles, contrôlées par test | — |
+| Aucun moyen de regrouper les dépenses d'un séjour ou d'un chantier | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-23 — enveloppes transversales, sur charges fixes comme variables, sans effet sur le solde | Vue dédiée et enveloppe active à venir |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

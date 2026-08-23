@@ -136,6 +136,11 @@ const NOEUDS_CONNUS = [
   'categoryBudgets',
   'customCategories',
   'customDestinations',
+  // Les enveloppes transversales. La sauvegarde lit la racine entière : elles y
+  // figuraient donc dès leur création, mais la restauration les aurait refusées
+  // — « des données que l'application ne connaît pas » — et le foyer aurait
+  // perdu la restauration de ses propres sauvegardes récentes.
+  'envelopes',
   'reminders',
   'periods'
 ];
