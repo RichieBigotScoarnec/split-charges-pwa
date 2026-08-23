@@ -13,8 +13,15 @@ import { toast } from '../components/toast.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, warn } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
+import { getState } from '../state.js';
 import { decrireLieu } from '../utils/lieu.js';
-import { resultatsDeRecherche, lieuAEcrire, requeteUtile } from '../utils/recherche-lieu.js';
+import {
+  resultatsDeRecherche,
+  lieuAEcrire,
+  requeteUtile,
+  boiteDeRecherche,
+  distanceLisible
+} from '../utils/recherche-lieu.js';
 
 /**
  * Délai d'attente avant d'interroger Nominatim
@@ -24,6 +31,15 @@ import { resultatsDeRecherche, lieuAEcrire, requeteUtile } from '../utils/recher
  * de saturer un service gratuit pour des requêtes que la suivante périme.
  */
 const ATTENTE_FRAPPE = 600;
+
+/**
+ * Rayon de la recherche de proximité, en kilomètres
+ *
+ * Assez large pour couvrir la journée : la côte depuis Argelès, une ville
+ * voisine, un col. Assez étroit pour qu'un homonyme d'un autre pays n'y entre
+ * pas — ce qui est tout l'objet.
+ */
+const RAYON_PROXIMITE_KM = 60;
 
 /** Le lieu retenu pour la charge en cours d'édition, ou null */
 let _lieuChoisi = null;
@@ -153,26 +169,125 @@ function surFrappe(evenement) {
 }
 
 /**
- * Interroge Nominatim et affiche les propositions
+ * Où chercher en priorité
+ *
+ * Trois sources, de la plus sûre à la plus lointaine :
+ *
+ * 1. La position du téléphone, tenue à jour en arrière-plan par la saisie
+ *    rapide. C'est la bonne réponse dans le cas courant — on note le soir
+ *    même, depuis chez soi, un verre bu à quelques kilomètres.
+ * 2. Le lieu déjà porté par la charge qu'on rouvre : on cherche alors
+ *    vraisemblablement dans le même coin.
+ * 3. La dernière dépense localisée. Sur un ordinateur, sans GPS, c'est tout ce
+ *    qu'on a — et cela vaut infiniment mieux que la planète entière.
+ *
+ * Aucune n'est vérifiée pour sa fraîcheur : une position d'hier désigne encore
+ * la bonne région, et c'est une région qu'on cherche ici, pas une adresse.
+ *
+ * @returns {{lat: number, lng: number}|null}
+ */
+function centreDeRecherche() {
+  const cache = getState('cachedGpsPosition');
+  if (point(cache)) return { lat: cache.lat, lng: cache.lng };
+
+  if (point(_lieuChoisi)) return { lat: _lieuChoisi.lat, lng: _lieuChoisi.lng };
+
+  const charges = getState('variableCharges');
+  if (!Array.isArray(charges)) return null;
+
+  let recente = null;
+  for (const charge of charges) {
+    if (!charge || charge.deleted) continue;
+    if (!point(charge.location)) continue;
+    const instant = Number.isFinite(charge.timestamp) ? charge.timestamp : 0;
+    if (!recente || instant >= recente.instant) {
+      recente = { instant, lat: charge.location.lat, lng: charge.location.lng };
+    }
+  }
+
+  return recente ? { lat: recente.lat, lng: recente.lng } : null;
+}
+
+/**
+ * Un objet porte-t-il des coordonnées exploitables ?
+ * @param {*} valeur
+ * @returns {boolean}
+ */
+function point(valeur) {
+  return Boolean(valeur) && typeof valeur === 'object'
+    && Number.isFinite(valeur.lat) && Number.isFinite(valeur.lng);
+}
+
+/**
+ * Un appel à Nominatim, cadré ou non
+ *
+ * `bounded=1` transforme `viewbox` d'une préférence en une contrainte. La
+ * nuance décide de tout : sans lui, un homonyme mondialement connu reste rendu
+ * avant le bar d'à côté, qui n'apparaît alors dans aucune des dix réponses —
+ * et aucun tri côté application ne peut classer ce qu'il n'a pas reçu.
  *
  * @param {string} saisie
+ * @param {{lat: number, lng: number}|null} centre - null pour chercher partout
+ * @returns {Promise<*>} Corps JSON
+ */
+async function interroger(saisie, centre) {
+  const parametres = new URLSearchParams({
+    q: saisie.trim(),
+    format: 'json',
+    addressdetails: '1',
+    limit: '10',
+    'accept-language': 'fr'
+  });
+
+  const boite = centre ? boiteDeRecherche(centre, RAYON_PROXIMITE_KM) : null;
+  if (boite) {
+    parametres.set('viewbox', boite);
+    parametres.set('bounded', '1');
+  }
+
+  const reponse = await fetch(`https://nominatim.openstreetmap.org/search?${parametres}`);
+  if (!reponse.ok) throw new Error(`Nominatim a répondu ${reponse.status}`);
+  return reponse.json();
+}
+
+/**
+ * Interroge Nominatim et affiche les propositions
+ *
+ * En deux temps quand on sait où se trouve l'utilisateur : d'abord les
+ * environs seuls, puis le monde entier si les environs ne rendent rien. Le
+ * second appel n'a lieu que sur un échec, et l'élargissement est annoncé —
+ * une liste de villes lointaines présentée sans un mot est exactement ce qui a
+ * été signalé à l'usage.
+ *
+ * Restait un cas que le repli automatique n'attrape pas : le bar des vacances,
+ * à deux cents kilomètres, quand une enseigne du même nom existe à côté de
+ * chez soi. Les environs répondent, donc rien ne s'élargit, et la bonne
+ * réponse n'est jamais demandée. D'où la sortie explicite : `partout`.
+ *
+ * @param {string} saisie
+ * @param {{partout?: boolean}} [options] - `partout` ignore le cadrage
  * @returns {Promise<void>}
  */
-async function lancerRecherche(saisie) {
+async function lancerRecherche(saisie, options = {}) {
   if (!requeteUtile(saisie)) return;
 
   const mien = ++_rang;
-  afficherEtat('Recherche…');
+  const centre = centreDeRecherche();
+  const cadrer = Boolean(centre) && !options.partout;
+  afficherEtat(cadrer ? 'Recherche autour de vous…' : 'Recherche…');
 
   try {
-    const reponse = await fetch(
-      'https://nominatim.openstreetmap.org/search'
-      + `?q=${encodeURIComponent(saisie.trim())}`
-      + '&format=json&addressdetails=1&limit=8&accept-language=fr'
-    );
-    if (!reponse.ok) throw new Error(`Nominatim a répondu ${reponse.status}`);
+    let resultats = cadrer
+      ? resultatsDeRecherche(await interroger(saisie, centre), { centre })
+      : [];
 
-    const resultats = resultatsDeRecherche(await reponse.json());
+    // Une réponse dépassée ne doit pas relancer un second appel pour rien.
+    if (mien !== _rang) return;
+
+    const elargi = cadrer && resultats.length === 0;
+    if (resultats.length === 0) {
+      resultats = resultatsDeRecherche(await interroger(saisie, null), { centre });
+    }
 
     // Une réponse dépassée ne doit pas écraser la liste courante.
     if (mien !== _rang) return;
@@ -182,7 +297,9 @@ async function lancerRecherche(saisie) {
       return;
     }
 
-    rendreResultats(resultats);
+    // La sortie n'est proposée que si le cadrage a effectivement restreint la
+    // réponse : après un élargissement, il n'y a plus rien à élargir.
+    rendreResultats(resultats, { elargi, cadree: cadrer && !elargi, saisie });
   } catch (erreur) {
     if (mien !== _rang) return;
     // Hors ligne ou service indisponible : le formulaire reste utilisable, la
@@ -249,18 +366,45 @@ function surRetrait() {
 
 /**
  * Affiche les propositions, chacune cliquable
+ *
+ * La distance est affichée dès qu'on la connaît. Elle sert deux fois : elle
+ * départage deux enseignes du même nom, et elle rend lisible d'un coup d'œil le
+ * cas qui a été signalé — « 6 400 km » sous une proposition dit ce qu'aucune
+ * liste nue ne disait.
+ *
  * @param {Array<Object>} resultats
+ * @param {{elargi?: boolean, cadree?: boolean, saisie?: string}} [contexte]
  * @returns {void}
  */
-function rendreResultats(resultats) {
+function rendreResultats(resultats, contexte = {}) {
   const liste = document.getElementById('variableChargeLieuResultats');
   if (!liste) return;
 
-  liste.innerHTML = resultats.map((resultat, rang) => `
+  const entete = contexte.elargi
+    ? '<p class="lieu-etat">Rien de ce nom près de vous — voici ailleurs</p>'
+    : '';
+
+  const sortie = contexte.cadree
+    ? '<button type="button" class="lieu-elargir">Ce n\'est pas là ? Chercher plus loin</button>'
+    : '';
+
+  liste.innerHTML = entete + resultats.map((resultat, rang) => {
+    const distance = distanceLisible(resultat.distanceKm);
+    const suffixe = distance
+      ? `<span class="lieu-resultat-distance">${escapeHtml(distance)}</span>`
+      : '';
+    return `
     <button type="button" class="lieu-resultat" data-rang="${rang}">
-      ${escapeHtml(resultat.etiquette)}
+      <span class="lieu-resultat-nom">${escapeHtml(resultat.etiquette)}</span>
+      ${suffixe}
     </button>
-  `).join('');
+  `;
+  }).join('') + sortie;
+
+  const elargir = liste.querySelector('.lieu-elargir');
+  if (elargir) {
+    elargir.addEventListener('click', () => lancerRecherche(contexte.saisie || '', { partout: true }));
+  }
 
   liste.querySelectorAll('.lieu-resultat').forEach(bouton => {
     bouton.addEventListener('click', () => {

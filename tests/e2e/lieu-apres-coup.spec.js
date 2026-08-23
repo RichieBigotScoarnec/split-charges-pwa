@@ -29,6 +29,16 @@ test.describe('Rattacher un lieu à une dépense', () => {
         address: { amenity: 'Caffe Mamma', postcode: '35000', city: 'Rennes' }
       }])
     }));
+
+    // Le bouton 📍 interroge le géocodage inversé : même raison.
+    await page.route('**/nominatim.openstreetmap.org/reverse**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        lat: '42.5450', lon: '3.0244', name: 'Plage nord', type: 'beach',
+        address: { leisure: 'Plage nord', postcode: '66700', city: 'Argelès-sur-Mer' }
+      })
+    }));
   });
 
   /** Ouvre le formulaire d'ajout de charge variable */
@@ -122,6 +132,43 @@ test.describe('Rattacher un lieu à une dépense', () => {
     // Et il revient quand on rouvre la charge.
     await page.locator('#variableChargesList [data-action="editVariableCharge"]').first().click();
     await expect(page.locator('#variableChargeLieuNom')).toHaveText(/Caffe Mamma/);
+  });
+
+  test('une fois un lieu retenu, la recherche se cadre autour de lui', async ({ page, context }) => {
+    // Signalé à l'usage : « je lui mets le Caffe Mamma qui se situe à
+    // Argelès-sur-Mer mais il me met des villes lointaines comme à New York ».
+    // Ce test suit la requête réellement partie du navigateur : c'est le seul
+    // endroit où l'on peut affirmer que Nominatim a été cadré.
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ latitude: 42.5450, longitude: 3.0244 });
+
+    const requetes = [];
+    page.on('request', requete => {
+      if (requete.url().includes('nominatim.openstreetmap.org/search')) requetes.push(requete.url());
+    });
+
+    await ouvrirFormulaire(page);
+
+    // On reprend la position actuelle : elle devient le centre des recherches.
+    await page.locator('#variableChargeLieuIci').click();
+    await expect(page.locator('#variableChargeLieuNom')).toHaveText(/Argelès/, { timeout: 15000 });
+
+    await page.locator('#variableChargeLieuRecherche').fill('Caffe mamma');
+    await page.locator('#variableChargeLieuChercher').click();
+    await expect(page.locator('.lieu-resultat')).toBeVisible({ timeout: 5000 });
+
+    expect(requetes.length).toBeGreaterThan(0);
+    const parametres = new URL(requetes[0]).searchParams;
+    expect(parametres.get('bounded')).toBe('1');
+
+    const [ouest, sud, est, nord] = parametres.get('viewbox').split(',').map(Number);
+    expect(ouest).toBeLessThan(3.0244);
+    expect(est).toBeGreaterThan(3.0244);
+    expect(sud).toBeLessThan(42.5450);
+    expect(nord).toBeGreaterThan(42.5450);
+
+    // Et la distance se lit sous la proposition.
+    await expect(page.locator('.lieu-resultat-distance').first()).toBeVisible();
   });
 
   test('le bouton de position dit ce qu\'il fait quand elle est refusée', async ({ page, context }) => {

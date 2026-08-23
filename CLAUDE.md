@@ -174,6 +174,7 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Recherche aveugle au payeur, à l'enveloppe, à la date, au lieu et aux remboursements | `public/js/modules/search.js` | ✅ RÉSOLU 2026-08-23 — ce qu'on lit à l'écran se cherche | — |
 | Éditer une charge affichait « Ajouter » | les trois modales de saisie | ✅ RÉSOLU 2026-08-23 — titre et bouton accordés au geste | — |
 | Le lieu ne s'écrivait que par le GPS, au moment de la saisie | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — recherche par nom, rattachable après coup | Charges variables seules |
+| Recherche de lieu à l'échelle de la planète : « Caffe Mamma » à Argelès rendait New York | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — cadrée sur 60 km autour de la position connue, classée par distance, élargie et annoncée si rien | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
