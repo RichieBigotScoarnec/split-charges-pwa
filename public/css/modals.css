@@ -701,3 +701,99 @@
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
+
+/* ===== CHOISIR UN LIEU APRÈS COUP ===== */
+
+.lieu-recherche {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.lieu-recherche input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cible tactile de 44 px, comme partout ailleurs. */
+.lieu-recherche .btn-icon {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lieu-resultats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-xs);
+  /* Nominatim rend jusqu'à huit entrées : sans limite de hauteur, la liste
+     repousserait le reste du formulaire hors de l'écran sur un téléphone. */
+  max-height: 190px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+}
+
+.lieu-resultat {
+  /* Une proposition se lit en entier : le nom d'un lieu tient rarement sur une
+     ligne une fois la commune ajoutée. */
+  text-align: left;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lieu-resultat:last-child {
+  border-bottom: none;
+}
+
+.lieu-resultat:hover,
+.lieu-resultat:focus-visible {
+  background: var(--primary-glow);
+  outline: none;
+}
+
+.lieu-etat {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.lieu-retenu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.lieu-retenu span:nth-of-type(2) {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lieu-retenu .btn-icon {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

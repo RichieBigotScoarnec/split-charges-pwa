@@ -495,6 +495,32 @@
           </select>
         </div>
 
+        <!-- Le lieu ne s'écrivait que par le GPS, au moment de la saisie rapide.
+             C'est le bon moment quand on paie, le mauvais dès qu'on note la
+             dépense plus tard : un verre bu hier soir, saisi le lendemain depuis
+             chez soi, épinglait le domicile. On cherche donc par le nom. -->
+        <div class="form-group">
+          <label for="variableChargeLieuRecherche">Lieu (facultatif)</label>
+          <div class="lieu-recherche">
+            <input
+              type="text"
+              id="variableChargeLieuRecherche"
+              placeholder="Ex : Le Bistrot Rennes"
+              maxlength="120"
+              autocomplete="off"
+            />
+            <button type="button" id="variableChargeLieuIci" class="btn-icon" title="Utiliser ma position actuelle" aria-label="Utiliser ma position actuelle">
+              📍
+            </button>
+          </div>
+          <div id="variableChargeLieuResultats" class="lieu-resultats" hidden></div>
+          <div id="variableChargeLieuRetenu" class="lieu-retenu" hidden>
+            <span aria-hidden="true">📍</span>
+            <span id="variableChargeLieuNom"></span>
+            <button type="button" id="variableChargeLieuRetirer" class="btn-icon btn-delete" aria-label="Retirer le lieu">✕</button>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="variableChargeEnvelope">Enveloppe (facultatif)</label>
           <select id="variableChargeEnvelope">
