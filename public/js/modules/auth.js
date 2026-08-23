@@ -24,6 +24,7 @@ import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
+import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
 
 let appInitialized = false;
 
@@ -57,14 +58,17 @@ export async function signInWithGoogle() {
     await auth.signInWithPopup(googleProvider);
     log('[Auth] ✅ Connexion Google réussie !');
   } catch (error) {
-    // Ignore cancelled-popup-request (user opened a new popup or clicked again)
-    if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+    // Fermer la fenêtre, ou en rouvrir une seconde, n'est pas une panne.
+    if (estUnGesteUtilisateur(error)) {
       warn('[Auth] ⚠️ Popup annulé/fermé:', error.code);
     } else {
       logError('[Auth] ❌ ERREUR Google sign-in:', error);
-      const message = `Erreur Google : ${error.message}`;
-      if (authErrorEl) authErrorEl.textContent = message;
-      toast.error(message);
+      noter('auth', 'échec connexion Google', { code: error?.code });
+      // Affiché dans la carte, et là seulement : c'est l'endroit où se trouve
+      // le regard, et le message y reste le temps d'agir. Le doubler d'un toast
+      // faisait lire deux fois la même phrase, dont l'une s'effaçait toute
+      // seule au moment où on la lisait.
+      if (authErrorEl) authErrorEl.textContent = messageErreurAuth(error);
     }
   } finally {
     signInPending = false;
@@ -94,9 +98,8 @@ export async function signInWithEmail() {
     const auth = getFirebaseAuth();
     await auth.signInWithEmailAndPassword(email, password);
   } catch (error) {
-    const message = `Erreur : ${error.message}`;
-    if (authErrorEl) authErrorEl.textContent = message;
-    toast.error(message);
+    if (authErrorEl) authErrorEl.textContent = messageErreurAuth(error);
+    noter('auth', 'échec connexion e-mail', { code: error?.code });
     logError('[Auth] Email sign-in error:', error);
   }
 }
@@ -139,9 +142,7 @@ export async function createAccount() {
     await auth.createUserWithEmailAndPassword(email, password);
     toast.success('Compte créé avec succès');
   } catch (error) {
-    const message = `Erreur : ${error.message}`;
-    if (authErrorEl) authErrorEl.textContent = message;
-    toast.error(message);
+    if (authErrorEl) authErrorEl.textContent = messageErreurAuth(error);
     logError('[Auth] Account creation error:', error);
   }
 }
