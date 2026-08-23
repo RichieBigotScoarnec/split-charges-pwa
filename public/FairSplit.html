@@ -267,6 +267,15 @@
         <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés, tous mois confondus">
           <span aria-hidden="true">🗑️</span> Corbeille
         </button>
+        <!-- L'écran de gestion des catégories existait, complet — liste,
+             sélecteur d'emoji, ajout, suppression, écriture en base — mais
+             aucun bouton ne l'ouvrait. `window.showManageCategoriesModal` était
+             exposé « pour compatibilité » et personne ne l'appelait : la seule
+             façon d'y accéder était la console du navigateur, c'est-à-dire pas
+             depuis un téléphone. Même famille que la carte, plus haut. -->
+        <button type="button" class="btn btn-secondary" data-action="showManageCategoriesModal" title="Ajouter, renommer ou retirer des catégories">
+          <span aria-hidden="true">🏷️</span> Catégories
+        </button>
       </div>
     </div>
     </section>
