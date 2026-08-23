@@ -16,6 +16,8 @@ import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
+import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
+import { trierParDate } from '../utils/tri.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -27,6 +29,60 @@ export function showAddReimbursementModal() {
   const formEl = document.getElementById('reimbursementForm');
   if (formEl) formEl.reset();
 
+  const idEl = document.getElementById('reimbursementId');
+  if (idEl) idEl.value = '';
+
+  const dateEl = document.getElementById('reimbursementDate');
+  if (dateEl) dateEl.value = dateDuJour();
+
+  accorderModale(false);
+  showModal('modalAddReimbursement');
+}
+
+/**
+ * Accorde le titre et le bouton au geste en cours
+ *
+ * @param {boolean} edition - Vrai si un remboursement existant est rouvert
+ * @returns {void}
+ */
+function accorderModale(edition) {
+  const titre = document.getElementById('modalAddReimbursementTitle');
+  if (titre) titre.textContent = edition ? 'Modifier Remboursement' : 'Ajouter Remboursement';
+
+  const bouton = document.getElementById('saveReimbursement');
+  if (bouton) bouton.textContent = edition ? 'Enregistrer' : 'Ajouter';
+}
+
+/**
+ * Rouvre un remboursement pour le corriger
+ *
+ * Le module n'exposait que la suppression : une erreur de montant ou de sens
+ * obligeait à supprimer puis resaisir. Or un remboursement déplace le solde —
+ * s'en défaire pour le refaire est précisément le geste où l'on se trompe.
+ *
+ * @param {string} reimbursementId - Identifiant du remboursement
+ * @returns {void}
+ */
+export function editReimbursement(reimbursementId) {
+  const reimbursements = getState('reimbursements') || [];
+  const reimb = reimbursements.find(r => r.id === reimbursementId);
+
+  if (!reimb) {
+    toast.error('Remboursement introuvable');
+    return;
+  }
+
+  document.getElementById('reimbursementId').value = reimb.id;
+  document.getElementById('reimbursementDirection').value = reimb.direction || '';
+  document.getElementById('reimbursementAmount').value = reimb.amount;
+  document.getElementById('reimbursementNote').value = reimb.note || '';
+
+  // Les remboursements d'avant ce champ n'ont qu'un horodatage : le repli évite
+  // qu'une simple correction de montant ne les redate d'aujourd'hui.
+  const dateEl = document.getElementById('reimbursementDate');
+  if (dateEl) dateEl.value = dateSaisissable(reimb);
+
+  accorderModale(true);
   showModal('modalAddReimbursement');
 }
 
@@ -46,6 +102,7 @@ export function initReimbursements() {
   }
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
+  window.editReimbursement = editReimbursement;
   window.deleteReimbursement = deleteReimbursement;
   window.settleBalance = settleBalance;
 
@@ -103,9 +160,14 @@ export async function saveReimbursement() {
     return;
   }
 
+  const reimbursementId = document.getElementById('reimbursementId')?.value || '';
   const direction = document.getElementById('reimbursementDirection').value;
   const amount = parseMontant(document.getElementById('reimbursementAmount').value);
   const note = document.getElementById('reimbursementNote').value.trim();
+  // La date du transfert, pas celle de sa saisie. `timestamp` ne dit que la
+  // seconde, et rien ne l'affichait : plusieurs remboursements dans le mois
+  // étaient indiscernables.
+  const date = document.getElementById('reimbursementDate')?.value || dateDuJour();
 
   // Validation
   if (!direction) {
@@ -124,16 +186,20 @@ export async function saveReimbursement() {
       direction,
       amount,
       note: note || '',
+      date,
       timestamp: Date.now(),
       deleted: false
     };
 
-    // Use dbPush from db.js which handles UID-scoped paths
-    const { dbPush } = await import('../db.js');
+    const { dbPush, dbUpdate } = await import('../db.js');
 
-    // Ajout
-    await dbPush(`periods/${currentPeriod}/reimbursements`, reimbursementData);
-    toast.success('Remboursement ajouté');
+    if (reimbursementId) {
+      await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, reimbursementData);
+      toast.success('Remboursement modifié');
+    } else {
+      await dbPush(`periods/${currentPeriod}/reimbursements`, reimbursementData);
+      toast.success('Remboursement ajouté');
+    }
 
     // Mettre à jour le state local
     await loadReimbursements();
@@ -231,6 +297,7 @@ async function reglerLeSolde() {
       direction,
       amount,
       note: 'Règlement du solde',
+      date: dateDuJour(),
       timestamp: Date.now(),
       deleted: false
     });
@@ -321,6 +388,7 @@ export function renderReimbursements() {
   let totalYouToPartner = 0;
   let totalPartnerToYou = 0;
 
+  // Une somme ne dépend pas de l'ordre : ce passage-ci n'a pas à être trié.
   reimbursements.forEach(reimb => {
     if (reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) {
       totalYouToPartner += reimb.amount;
@@ -330,7 +398,9 @@ export function renderReimbursements() {
   });
 
   // Afficher les remboursements
-  reimbursements.forEach(reimb => {
+  // Le plus récent d'abord : rien n'était trié, les remboursements sortaient
+  // dans l'ordre des clés Firebase.
+  trierParDate(reimbursements).forEach(reimb => {
     const reimbDiv = document.createElement('div');
     reimbDiv.className = 'reimbursement-item';
 
@@ -348,10 +418,17 @@ export function renderReimbursements() {
         <span class="reimbursement-direction ${directionClass}">
           ${directionIcon} ${escapeHtml(directionText)}
         </span>
+        ${(() => {
+          const jour = formatDate(dateDeLaCharge(reimb));
+          return jour ? `<span class="charge-date">${escapeHtml(jour)}</span>` : '';
+        })()}
         ${reimb.note ? `<span class="reimbursement-note">${escapeHtml(reimb.note)}</span>` : ''}
       </div>
       <div class="reimbursement-actions">
         <span class="reimbursement-amount">${formatCurrency(reimb.amount)}</span>
+        <button class="btn-icon" data-action="editReimbursement" data-arg="${escapeHtml(reimb.id)}" aria-label="Modifier ce remboursement">
+          ✏️
+        </button>
         <button class="btn-icon btn-delete" data-action="deleteReimbursement" data-arg="${escapeHtml(reimb.id)}" aria-label="Supprimer ce remboursement">
           🗑️
         </button>

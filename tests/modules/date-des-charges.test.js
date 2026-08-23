@@ -50,7 +50,8 @@ vi.mock('../../public/js/modules/envelopes.js', () => ({
 const {
   saveVariableCharge,
   renderVariableCharges,
-  editVariableCharge
+  editVariableCharge,
+  showAddVariableChargeModal
 } = await import('../../public/js/modules/variable-charges.js');
 const { saveFixedCharge, renderFixedCharges } = await import('../../public/js/modules/fixed-charges.js');
 const { setState, resetState } = await import('../../public/js/state.js');
@@ -245,5 +246,72 @@ describe('Rouvrir une charge ne la redate pas', () => {
     editVariableCharge('1');
 
     expect(document.getElementById('variableChargeDate').value).toBe('2026-07-09');
+  });
+});
+
+describe('La modale dit ce qu\'on est en train de faire', () => {
+  /**
+   * Éditer une charge ouvrait « Ajouter Charge Variable », bouton « Ajouter ».
+   * Rien ne distinguait une modification d'une création — et un formulaire
+   * prérempli qu'on croit vide invite à tout ressaisir.
+   */
+  const balisage = `
+    <h2 id="modalAddVariableChargeTitle">Ajouter Charge Variable</h2>
+    <button id="saveVariableCharge">Ajouter</button>
+  ` + formulaireVariable;
+
+  it('« Modifier » et « Enregistrer » en édition', () => {
+    document.body.innerHTML = balisage;
+    setState('variableCharges', [
+      { id: '1', description: 'Courses', amount: 42, category: 'Courses', paidBy: 'vous', date: '2026-08-15' }
+    ]);
+
+    editVariableCharge('1');
+
+    expect(document.getElementById('modalAddVariableChargeTitle').textContent).toContain('Modifier');
+    expect(document.getElementById('saveVariableCharge').textContent).toBe('Enregistrer');
+  });
+
+  it('« Ajouter » revient à l\'ouverture suivante', () => {
+    // Sans ce retour, la modale resterait intitulée « Modifier » pour toutes
+    // les créations de la session.
+    document.body.innerHTML = balisage;
+    setState('variableCharges', [
+      { id: '1', description: 'Courses', amount: 42, category: 'Courses', paidBy: 'vous', date: '2026-08-15' }
+    ]);
+
+    editVariableCharge('1');
+    showAddVariableChargeModal();
+
+    expect(document.getElementById('modalAddVariableChargeTitle').textContent).toContain('Ajouter');
+    expect(document.getElementById('saveVariableCharge').textContent).toBe('Ajouter');
+  });
+});
+
+describe('L\'ordre de la liste', () => {
+  it('la plus récente en tête, à l\'intérieur d\'une catégorie', () => {
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      { id: 'vieille', description: 'A', amount: 10, category: 'Courses', paidBy: 'vous', date: '2026-08-03' },
+      { id: 'recente', description: 'B', amount: 20, category: 'Courses', paidBy: 'vous', date: '2026-08-20' }
+    ]);
+
+    renderVariableCharges();
+
+    const ordre = [...document.querySelectorAll('.charge-item')].map(e => e.dataset.id);
+    expect(ordre).toEqual(['recente', 'vieille']);
+  });
+
+  it('la catégorie la plus dépensière en tête', () => {
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      { id: '1', description: 'Petite', amount: 10, category: 'Loisirs', paidBy: 'vous', date: '2026-08-03' },
+      { id: '2', description: 'Grosse', amount: 500, category: 'Maison', paidBy: 'vous', date: '2026-08-05' }
+    ]);
+
+    renderVariableCharges();
+
+    const categories = [...document.querySelectorAll('.category-header')].map(e => e.textContent.trim());
+    expect(categories[0]).toContain('Maison');
   });
 });

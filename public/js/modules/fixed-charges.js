@@ -13,6 +13,7 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
+import { grouperParCategorie } from '../utils/tri.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
@@ -52,7 +53,27 @@ export function showAddFixedChargeModal() {
     document.getElementById('fixedChargeSplitOptions').style.display = 'none';
   }
 
+  accorderModaleFixed(false);
+
   showModal('modalAddFixedCharge');
+}
+
+/**
+ * Accorde le titre et le bouton de la modale au geste en cours
+ *
+ * Éditer une charge ouvrait une modale intitulée « Ajouter Charge Fixe », dont le
+ * bouton disait « Ajouter ». Rien ne distinguait donc une modification d'une
+ * création — et un formulaire prérempli qu'on croit vide invite à tout ressaisir.
+ *
+ * @param {boolean} edition - Vrai si une charge existante est rouverte
+ * @returns {void}
+ */
+function accorderModaleFixed(edition) {
+  const titre = document.getElementById('modalAddFixedChargeTitle');
+  if (titre) titre.textContent = edition ? 'Modifier Charge Fixe' : 'Ajouter Charge Fixe';
+
+  const bouton = document.getElementById('saveFixedCharge');
+  if (bouton) bouton.textContent = edition ? 'Enregistrer' : 'Ajouter';
 }
 
 export function initFixedCharges() {
@@ -294,6 +315,8 @@ export function editFixedCharge(chargeId) {
     splitOptions.style.display = 'none';
   }
 
+  accorderModaleFixed(true);
+
   showModal('modalAddFixedCharge');
 }
 
@@ -367,17 +390,17 @@ export function renderFixedCharges() {
     return;
   }
 
-  // Grouper par catégorie
-  const byCategory = charges.reduce((acc, charge) => {
-    if (!acc[charge.category]) acc[charge.category] = [];
-    acc[charge.category].push(charge);
-    return acc;
-  }, {});
+  // Grouper par catégorie, la plus dépensière en tête, et dater chaque groupe.
+  //
+  // Rien n'était trié : les charges sortaient dans l'ordre des clés Firebase,
+  // c'est-à-dire l'ordre de création, et les catégories dans celui de la
+  // première charge rencontrée. Invisible tant qu'aucune date ne s'affichait —
+  // sans repère temporel, un ordre arbitraire ressemble à un ordre.
+  const groupes = grouperParCategorie(charges);
 
   // Afficher par catégorie
   let total = 0;
-  Object.entries(byCategory).forEach(([category, categoryCharges]) => {
-    const categoryTotal = categoryCharges.reduce((sum, c) => sum + c.amount, 0);
+  groupes.forEach(({ categorie: category, charges: categoryCharges, total: categoryTotal }) => {
     total += categoryTotal;
 
     const categoryDiv = document.createElement('div');

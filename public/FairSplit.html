@@ -653,6 +653,10 @@
     <div class="modal">
       <h2 class="modal-header" id="modalAddReimbursementTitle">Ajouter Remboursement</h2>
       <form id="reimbursementForm">
+        <!-- Un remboursement ne pouvait ni être daté, ni être rouvert : une
+             erreur de montant ou de sens obligeait à supprimer puis resaisir. -->
+        <input type="hidden" id="reimbursementId" value="" />
+
         <div class="form-group">
           <label for="reimbursementDirection">Direction</label>
           <select id="reimbursementDirection" required>
@@ -665,6 +669,11 @@
           <label for="reimbursementAmount">Montant (€)</label>
           <input type="text" id="reimbursementAmount" placeholder="Ex: 50" inputmode="decimal" maxlength="10" required />
         </div>
+        <div class="form-group">
+          <label for="reimbursementDate">Date du remboursement</label>
+          <input type="date" id="reimbursementDate" />
+        </div>
+
         <div class="form-group">
           <label for="reimbursementNote">Note (optionnel)</label>
           <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" maxlength="200" />
@@ -709,6 +718,14 @@
           inputmode="decimal"
         />
         <span class="currency-symbol">€</span>
+      </div>
+
+      <!-- Discrète et préremplie au jour courant : la saisie rapide doit rester
+           rapide, et le montant garde le focus. Elle sert à régulariser une
+           dépense d'hier sans passer par le formulaire complet. -->
+      <div class="quick-add-date">
+        <label for="quickAddDate">Date</label>
+        <input type="date" id="quickAddDate" />
       </div>
 
       <div class="quick-add-header">
