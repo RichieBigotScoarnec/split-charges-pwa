@@ -156,10 +156,12 @@
   display: none;
 }
 
+/* `--text-secondary`, et non `--text-muted` : sur la carte de la modale, muted
+   tombe à 2,6:1 en thème clair. Mesuré, pas estimé. */
 .category-frequentes-titre {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   flex-shrink: 0;

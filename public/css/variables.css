@@ -99,7 +99,12 @@
 
   /* Text */
   --text-primary: #1E293B;
-  --text-secondary: #64748B;
+  /* 4,34:1 sur --elevated-bg auparavant, sous le seuil AA de 4,5 — c'est la
+     couleur des libellés de la grille de catégories. Assombri juste assez
+     pour passer à 5,07:1 ; l'écart ne se voit pas, le manquement si.
+     Le thème sombre redéfinit ce jeton plus bas et n'est pas concerné : il
+     mesure déjà 4,98:1. */
+  --text-secondary: #5B6980;
   --text-muted: #94A3B8;
 
   /* Interactive */
