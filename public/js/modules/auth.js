@@ -415,6 +415,11 @@ async function initializeAppData() {
     toast.error(`Chargement partiel — en échec : ${failures.join(', ')}`);
   } else {
     log('✅ Données utilisateur initialisées');
+    // Le pendant du message d'échec ci-dessus, et à la même place : ici, les
+    // données du mois sont lues et affichées. Cette confirmation était émise
+    // par `initApp`, juste après la pose de l'écouteur d'authentification —
+    // avant toute réponse de Firebase, donc par-dessus « Connexion… ».
+    toast.success('FairSplit chargé');
   }
 }
 

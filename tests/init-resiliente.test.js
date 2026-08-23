@@ -87,6 +87,29 @@ describe('Ordre d\'initialisation', () => {
     });
   });
 
+  /**
+   * Une confirmation ne vaut que si elle dit vrai au moment où elle paraît.
+   *
+   * « FairSplit chargé » était émis par `initApp`, juste après la pose de
+   * l'écouteur d'authentification. À cet instant Firebase n'a rien répondu et
+   * aucune donnée n'est lue : le message s'affichait par-dessus l'écran
+   * d'attente, à côté de « Connexion… ». Deux affirmations contraires dans le
+   * même coup d'œil, et la fausse était la rassurante.
+   */
+  it('la confirmation de chargement n\'est émise qu\'une fois les données lues', () => {
+    const entree = readFileSync(resolve(process.cwd(), 'public/js/app.js'), 'utf8');
+
+    expect(entree, 'initApp ne peut rien confirmer : Firebase n\'a pas répondu')
+      .not.toContain('toast.success(');
+
+    const confirmation = source.indexOf("toast.success('FairSplit chargé')");
+    expect(confirmation, 'confirmation introuvable dans auth.js').toBeGreaterThan(-1);
+    expect(
+      confirmation,
+      'la confirmation doit suivre la fin des étapes de chargement'
+    ).toBeGreaterThan(source.indexOf('appInitialized = true'));
+  });
+
   it('chaque étape est isolée par runStep, aucune n\'échappe au filet', () => {
     // Un appel direct hors runStep propagerait son échec et interromprait
     // toutes les étapes suivantes.
