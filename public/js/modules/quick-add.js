@@ -155,6 +155,7 @@ export function cleanupQuickAdd() {
   }
   stopBackgroundGPS();
   resetState();
+  oublierHistoriqueFrequentes();
   log('🧹 Listeners quick-add nettoyés');
 }
 
@@ -278,14 +279,19 @@ function populateCategoryGrid() {
 }
 
 /**
- * Charges du mois précédent, lues une fois par session
+ * Charges du mois précédent, lues une fois par mois consulté
  *
  * Sans elles, la ligne des fréquentes resterait vide les premiers jours du
  * mois — précisément quand la grille est la plus longue à parcourir, puisque
  * rien n'a encore été saisi. Une lecture, mise de côté ensuite : la rouvrir à
  * chaque ouverture de la modale coûterait un aller-retour pour un confort.
+ *
+ * La période lue est retenue avec les charges. Un cache anonyme aurait servi
+ * les charges de juin en naviguant vers septembre, et celles du foyer à un
+ * compte du bac à sable — sans que rien ne le signale, puisque la ligne aurait
+ * l'air aussi crédible dans un cas que dans l'autre.
  */
-let _chargesMoisPrecedent = null;
+let _historiqueFrequentes = { periode: null, charges: null };
 
 /**
  * Dépouille les charges connues et remplit la ligne des fréquentes
@@ -298,12 +304,7 @@ function peuplerFrequentes(categories) {
   const liste = document.getElementById('categoryFrequentesListe');
   if (!ligne || !liste) return;
 
-  const charges = [
-    ...(getState('variableCharges') || []),
-    ...(_chargesMoisPrecedent || [])
-  ];
-
-  const frequentes = categoriesFrequentes(charges, categories);
+  const frequentes = categoriesFrequentes(chargesConnues(), categories);
 
   if (!ligneFrequentesUtile(frequentes, categories)) {
     ligne.hidden = true;
@@ -336,11 +337,28 @@ function peuplerFrequentes(categories) {
  * @returns {Array} Catégories ordonnées par usage décroissant
  */
 function habitudesDuFoyer() {
-  const charges = [
-    ...(getState('variableCharges') || []),
-    ...(_chargesMoisPrecedent || [])
-  ];
-  return categoriesFrequentes(charges, getCategories(), { maximum: Number.MAX_SAFE_INTEGER });
+  return categoriesFrequentes(chargesConnues(), getCategories(), {
+    maximum: Number.MAX_SAFE_INTEGER
+  });
+}
+
+/**
+ * Charges sur lesquelles se fondent les habitudes
+ *
+ * Le mois en cours, et le précédent s'il a été lu pour cette période-là. La
+ * vérification n'est pas une précaution de style : l'historique reste en
+ * mémoire quand on change de mois, et le servir sans le vérifier reviendrait à
+ * décrire les habitudes d'un mois par celles d'un autre.
+ *
+ * @returns {Array} Charges connues, tous mois confondus
+ */
+function chargesConnues() {
+  const attendue = periodePrecedente(getState('currentPeriod'));
+  const historique = _historiqueFrequentes.periode === attendue
+    ? (_historiqueFrequentes.charges || [])
+    : [];
+
+  return [...(getState('variableCharges') || []), ...historique];
 }
 
 /**
@@ -353,21 +371,37 @@ function habitudesDuFoyer() {
  * @returns {Promise<void>}
  */
 async function chargerHistoriqueFrequentes() {
-  if (_chargesMoisPrecedent !== null) return;
-
   const precedente = periodePrecedente(getState('currentPeriod'));
   if (!precedente) return;
+  if (_historiqueFrequentes.periode === precedente) return;
 
   try {
     const { dbGet } = await import('../db.js');
     const noeud = await dbGet(`periods/${precedente}/variableCharges`);
-    _chargesMoisPrecedent = noeud && typeof noeud === 'object' ? Object.values(noeud) : [];
+    _historiqueFrequentes = {
+      periode: precedente,
+      charges: noeud && typeof noeud === 'object' ? Object.values(noeud) : []
+    };
   } catch (error) {
     warn('[Fréquentes] Historique indisponible, mois en cours seul :', error?.message || error);
-    _chargesMoisPrecedent = [];
+    _historiqueFrequentes = { periode: precedente, charges: [] };
   }
 
   peuplerFrequentes(getCategories());
+}
+
+/**
+ * Oublie l'historique retenu
+ *
+ * Appelé à la déconnexion : le compte suivant n'a rien à voir avec le
+ * précédent, et le compte de test vit dans un autre espace de données. Servir
+ * l'un à l'autre ne produirait aucune erreur — juste une ligne parfaitement
+ * crédible, et fausse.
+ *
+ * @returns {void}
+ */
+function oublierHistoriqueFrequentes() {
+  _historiqueFrequentes = { periode: null, charges: null };
 }
 
 /**

@@ -17,10 +17,11 @@ import { resolve } from 'node:path';
  */
 
 const dbPush = vi.fn(() => Promise.resolve('cle'));
+const dbGet = vi.fn(() => Promise.resolve(null));
 
 vi.mock('../../public/js/db.js', () => ({
   dbPush,
-  dbGet: vi.fn(() => Promise.resolve(null)),
+  dbGet,
   dbSet: vi.fn(() => Promise.resolve()),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`)
@@ -53,7 +54,7 @@ vi.mock('../../public/js/modules/custom-lists.js', () => ({
 // n'existe pas.
 Element.prototype.scrollIntoView = vi.fn();
 
-const { initQuickAdd } = await import('../../public/js/modules/quick-add.js');
+const { initQuickAdd, cleanupQuickAdd } = await import('../../public/js/modules/quick-add.js');
 const { toast } = await import('../../public/js/components/toast.js');
 const { getCategories } = await import('../../public/js/modules/custom-lists.js');
 const { setState, resetState } = await import('../../public/js/state.js');
@@ -66,8 +67,9 @@ const BALISAGE = `
       <button type="button" id="quickAddLocationDetach" hidden>Ce n'est pas ici</button>
       <input type="text" id="quickAddAmount" />
       <div class="category-frequentes" id="categoryFrequentes" hidden>
-        <span class="category-frequentes-titre">Souvent</span>
-        <div class="category-frequentes-liste" id="categoryFrequentesListe"></div>
+        <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
+        <div class="category-frequentes-liste" id="categoryFrequentesListe"
+             role="group" aria-labelledby="categoryFrequentesTitre"></div>
       </div>
       <div class="category-grid" id="categoryGrid"></div>
       <input type="text" id="quickAddDescription" maxlength="100" />
@@ -617,5 +619,106 @@ describe('La ligne des catégories souvent employées', () => {
     const libelles = [...document.querySelectorAll('.category-frequente-btn')]
       .map(b => b.dataset.categoryId);
     expect(libelles).not.toContain('sante');
+  });
+});
+
+describe('L\'historique retenu ne déborde pas de son mois ni de son compte', () => {
+  /**
+   * Les charges du mois précédent sont lues une fois, puis gardées en mémoire.
+   * Un cache anonyme aurait servi les charges de juin en naviguant vers
+   * septembre, et celles du foyer à un compte du bac à sable. Rien n'aurait
+   * signalé l'erreur : la ligne aurait l'air aussi crédible dans un cas que
+   * dans l'autre.
+   */
+  const NEUF = [
+    { id: 'courses', icon: '🛒', label: 'Courses' },
+    { id: 'maison', icon: '🏠', label: 'Maison' },
+    { id: 'essence', icon: '🚗', label: 'Essence' },
+    { id: 'restaurant', icon: '🍕', label: 'Restaurant' },
+    { id: 'sante', icon: '💊', label: 'Santé' },
+    { id: 'loisirs', icon: '🎮', label: 'Loisirs' },
+    { id: 'transport', icon: '🚌', label: 'Transport' },
+    { id: 'autre', icon: '⚡', label: 'Autre' },
+    { id: 'bar', icon: '🍺', label: 'Bar' }
+  ];
+
+  const ORIGINE = getCategories();
+
+  beforeEach(() => {
+    // Le `beforeEach` global ouvre déjà la modale, ce qui remplit le cache
+    // pour la période en cours. On repart donc d'un module vierge.
+    cleanupQuickAdd();
+    dbGet.mockClear();
+  });
+
+  afterEach(() => {
+    getCategories.mockReturnValue(ORIGINE);
+    dbGet.mockResolvedValue(null);
+  });
+
+  /** Libellés actuellement proposés dans la ligne */
+  const proposes = () => [...document.querySelectorAll('.category-frequente-btn')]
+    .map(b => b.dataset.categoryId);
+
+  it('l\'historique d\'un mois ne sert pas à un autre', async () => {
+    getCategories.mockReturnValue(NEUF);
+    setState('variableCharges', []);
+    setState('currentPeriod', '2026-08');
+    dbGet.mockResolvedValue({ a: { category: 'Bar' }, b: { category: 'Bar' }, c: { category: 'Loisirs' } });
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    await vi.waitFor(() => expect(proposes()).toEqual(['bar', 'loisirs']));
+
+    // On navigue vers un autre mois : juillet n'a rien à dire de septembre.
+    setState('currentPeriod', '2026-10');
+    dbGet.mockResolvedValue(null);
+
+    document.body.innerHTML = BALISAGE;
+    window.showQuickAddModal();
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('la déconnexion efface l\'historique : le compte suivant part de zéro', async () => {
+    // Le compte de test vit dans le bac à sable. Lui servir les habitudes du
+    // foyer — ou l'inverse — ne lèverait aucune erreur.
+    getCategories.mockReturnValue(NEUF);
+    setState('variableCharges', []);
+    setState('currentPeriod', '2026-08');
+    dbGet.mockResolvedValue({ a: { category: 'Bar' }, b: { category: 'Bar' }, c: { category: 'Loisirs' } });
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    await vi.waitFor(() => expect(proposes()).toEqual(['bar', 'loisirs']));
+
+    cleanupQuickAdd();
+    dbGet.mockResolvedValue(null);
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('ne relit pas la base quand le mois n\'a pas changé', async () => {
+    // Le confort ne vaut pas un aller-retour par ouverture de la modale.
+    getCategories.mockReturnValue(NEUF);
+    setState('variableCharges', []);
+    setState('currentPeriod', '2026-08');
+    dbGet.mockResolvedValue({ a: { category: 'Bar' }, b: { category: 'Bar' } });
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    await vi.waitFor(() => expect(dbGet).toHaveBeenCalledTimes(1));
+
+    window.showQuickAddModal();
+    window.showQuickAddModal();
+
+    expect(dbGet).toHaveBeenCalledTimes(1);
   });
 });
