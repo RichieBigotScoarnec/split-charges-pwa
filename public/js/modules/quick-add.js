@@ -12,6 +12,7 @@ import { getCategories } from './custom-lists.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
+import { dateDuJour } from '../utils/date.js';
 import { decrireLieu } from '../utils/lieu.js';
 import { categoriePourLieu } from '../utils/categorie-lieu.js';
 import {
@@ -610,7 +611,9 @@ async function soumettre() {
     // `null` pour le prorata : c'est l'absence de dérogation, donc le mode du
     // foyer, exactement comme dans `variable-charges.js`.
     splitOverride: splitMode === '50-50' ? { mode: '50-50' } : null,
-    date: new Date().toISOString().split('T')[0],
+    // `toISOString()` rend le jour UTC : en hiver, une course de 00h30
+    // était datée de la veille. `dateDuJour` lit le fuseau de l'appareil.
+    date: dateDuJour(),
     timestamp: Date.now(),
     deleted: false
   };
@@ -876,7 +879,7 @@ export async function addQuickCharge(chargeData) {
     amount: parseMontant(chargeData.amount),
     category: chargeData.category || 'Autre',
     paidBy: chargeData.paidBy || 'vous',
-    date: chargeData.date || new Date().toISOString().split('T')[0],
+    date: chargeData.date || dateDuJour(),
     timestamp: Date.now(),
     deleted: false
   };

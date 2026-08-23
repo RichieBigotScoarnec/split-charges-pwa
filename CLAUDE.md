@@ -165,6 +165,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Gestion des destinations exposée sur `window` sans aucun bouton | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-23 — bouton « 🏦 Destinations », les deux sens fermés par `tests/actions-atteignables.test.js` | — |
 | Sélecteur d'emoji sans bière, café ni croissant — les catégories que le GPS vise | `public/js/modules/custom-lists.js` | ✅ RÉSOLU 2026-08-23 — 57 propositions rangées par familles, contrôlées par test | — |
 | Aucun moyen de regrouper les dépenses d'un séjour ou d'un chantier | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-23 — enveloppes transversales, sur charges fixes comme variables, sans effet sur le solde | Vue dédiée et enveloppe active à venir |
+| Aucune charge ne portait ni n'affichait la date de la dépense | `public/js/utils/date.js`, les deux formulaires | ✅ RÉSOLU 2026-08-23 — champ « Date de la dépense », affichage sur chaque ligne, exports corrigés | — |
+| Jour calculé en UTC : une dépense de 00h30 datée de la veille en hiver | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-23 — `dateDuJour()` lit le fuseau de l'appareil | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

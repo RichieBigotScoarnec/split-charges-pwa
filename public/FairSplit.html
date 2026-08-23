@@ -480,6 +480,14 @@
           <input type="text" id="variableChargeAmount" placeholder="Ex: 150,50" inputmode="decimal" maxlength="10" required />
         </div>
 
+        <!-- La date de la DÉPENSE, pas celle de la saisie. Le formulaire n'en
+             portait aucune : une course de samedi régularisée le lundi était
+             datée du lundi, et rien ne permettait de le corriger. -->
+        <div class="form-group">
+          <label for="variableChargeDate">Date de la dépense</label>
+          <input type="date" id="variableChargeDate" />
+        </div>
+
         <div class="form-group">
           <label for="variableChargeCategory">Catégorie</label>
           <select id="variableChargeCategory" required>
@@ -555,6 +563,11 @@
         <div class="form-group">
           <label for="fixedChargeAmount">Montant (€)</label>
           <input type="text" id="fixedChargeAmount" placeholder="Ex: 800" inputmode="decimal" maxlength="10" required />
+        </div>
+
+        <div class="form-group">
+          <label for="fixedChargeDate">Date de la dépense</label>
+          <input type="date" id="fixedChargeDate" />
         </div>
 
         <div class="form-group">

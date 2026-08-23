@@ -331,6 +331,16 @@
   font-size: 9px;
 }
 
+/* La date de la dépense, en tête de la ligne « Payé par ». Aucune vue n'en
+   affichait : une charge était située dans son mois, jamais dans son jour.
+   Chiffres à chasse fixe pour que la colonne s'aligne d'une ligne à l'autre. */
+.charge-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-right: 8px;
+}
+
 /* L'étiquette d'enveloppe, sur une charge fixe comme sur une charge variable.
    Elle se distingue du payeur et du lieu : ces trois lignes se suivent, et
    trois gris identiques n'auraient formé qu'un bloc. */
