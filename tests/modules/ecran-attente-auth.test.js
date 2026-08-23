@@ -119,20 +119,50 @@ describe('Le garde-fou de délai', () => {
     vi.useRealTimers();
   });
 
-  it('révèle le formulaire quand Firebase ne répond jamais', async () => {
-    // Un écran d'attente sans issue enferme la personne : passé le délai, le
-    // formulaire est rendu, même s'il ne servira peut-être à rien.
+  it('signale une attente longue sans ouvrir le formulaire', async () => {
+    // Ce test affirmait l'inverse, et décrivait le défaut signalé à l'usage :
+    // sur téléphone, la restauration de session dépasse régulièrement six
+    // secondes. Le formulaire s'ouvrait donc alors que la session était valide,
+    // et l'application s'ouvrait seule un instant plus tard — on croyait avoir
+    // été déconnecté à chaque actualisation.
     const { initAuth } = await import('../../public/js/modules/auth.js');
 
     poserEcranDeConnexion();
     initAuth();
 
-    expect(document.getElementById('authOverlay').className)
-      .toContain('auth-overlay--attente');
-
     vi.advanceTimersByTime(6000);
+
+    const ecran = document.getElementById('authOverlay');
+    expect(ecran.className, 'l\'écran ne doit pas prétendre à une déconnexion')
+      .toContain('auth-overlay--attente');
+    expect(ecran.className).toContain('auth-overlay--lent');
+  });
+
+  it('laisse une issue : le formulaire s\'ouvre à la demande', async () => {
+    // L'attente prolongée doit rester une issue offerte, pas un écran mort.
+    const { initAuth } = await import('../../public/js/modules/auth.js');
+
+    poserEcranDeConnexion();
+    initAuth();
+    vi.advanceTimersByTime(6000);
+
+    document.getElementById('authForcerFormulaire').click();
 
     expect(document.getElementById('authOverlay').className)
       .not.toContain('auth-overlay--attente');
+  });
+
+  it('ne signale rien si Firebase répond avant le délai', async () => {
+    const { initAuth } = await import('../../public/js/modules/auth.js');
+
+    poserEcranDeConnexion();
+    initAuth();
+
+    // Firebase répond : le minuteur est annulé.
+    authMuet.onAuthStateChanged.mock.calls.at(-1)[0](null);
+    vi.advanceTimersByTime(20000);
+
+    expect(document.getElementById('authOverlay').className)
+      .not.toContain('auth-overlay--lent');
   });
 });

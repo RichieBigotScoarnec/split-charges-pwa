@@ -68,6 +68,35 @@ export function refreshConnectionBanner(connecte) {
 }
 
 /**
+ * Repart sur un délai neuf au retour de l'application au premier plan
+ *
+ * Un téléphone qui se met en veille gèle la page et coupe la liaison. Au
+ * réveil, Firebase se reconnecte — c'est normal, et ça prend un instant. Or la
+ * temporisation, elle, a couru pendant la veille : le bandeau s'affichait donc
+ * au retour, annonçant une panne là où il n'y avait qu'une reconnexion.
+ *
+ * Un bandeau qui crie au loup finit par ne plus être lu, ce qui lui retire
+ * exactement ce pour quoi il existe.
+ *
+ * @returns {void}
+ */
+export function initConnectionBanner() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+
+    if (minuterie) {
+      window.clearTimeout(minuterie);
+      minuterie = null;
+    }
+    basculer(false);
+
+    // Toujours coupée selon Firebase : la temporisation recommence, au lieu de
+    // se conclure sur du temps passé en veille.
+    if (dernierEtat === false) refreshConnectionBanner(false);
+  });
+}
+
+/**
  * Affiche ou masque le bandeau
  * @param {boolean} visible - Faut-il le montrer ?
  * @returns {void}

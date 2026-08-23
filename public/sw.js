@@ -26,6 +26,12 @@ const STATIC_ASSETS = [
   './icon-192.png',
   './icon-512-maskable.png',
   './icon-512.png',
+
+  // Polices servies par l'application : les précacher est tout l'intérêt de
+  // les avoir rapatriées. Sans cela elles seraient retéléchargées à chaque
+  // version, et absentes hors ligne.
+  './fonts/dm-sans-latin.woff2',
+  './fonts/jetbrains-mono-latin.woff2',
   // Feuilles de style
   './css/auth.css',
   './css/base.css',

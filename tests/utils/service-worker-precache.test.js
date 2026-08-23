@@ -68,11 +68,20 @@ describe('Précache du service worker', () => {
     expect(manquants, `absents de STATIC_ASSETS : ${manquants.join(', ')}`).toEqual([]);
   });
 
+  it('couvre les polices servies par l\'application', () => {
+    // Les rapatrier depuis Google n'a d'intérêt que si elles sont mises en
+    // cache : sans cela elles seraient retéléchargées à chaque version, et
+    // absentes hors ligne — c'est-à-dire le contraire du but recherché.
+    const manquantes = fichiersPublies(/\.woff2?$/).filter(f => !declarees.has(f));
+
+    expect(manquantes, `absentes de STATIC_ASSETS : ${manquantes.join(', ')}`).toEqual([]);
+  });
+
   it('ne déclare rien qui n\'existe pas', () => {
     // `cache.addAll` échoue en bloc : une seule entrée fantôme et rien n'est
     // mis en cache, sans que l'application s'en aperçoive.
     const tous = new Set([
-      ...fichiersPublies(/\.(js|css|png|html|json)$/)
+      ...fichiersPublies(/\.(js|css|png|html|json|woff2?)$/)
     ]);
     const fantomes = [...declarees].filter(f => !tous.has(f));
 

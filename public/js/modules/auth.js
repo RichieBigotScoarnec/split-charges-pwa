@@ -164,9 +164,14 @@ export async function signOut() {
 }
 
 /**
- * Délai au-delà duquel l'écran de connexion s'affiche sans attendre Firebase.
- * Assez long pour couvrir une 4G lente, assez court pour ne pas donner
- * l'impression d'une application figée.
+ * Délai au-delà duquel l'attente est signalée comme anormalement longue.
+ *
+ * Ce délai ne décide plus de l'affichage du formulaire. Il le proposait, et
+ * c'était une erreur : sur un téléphone, la restauration de session dépasse
+ * régulièrement six secondes — depuis l'activation d'App Check, une
+ * attestation reCAPTCHA s'ajoute avant le premier accès. Le formulaire
+ * apparaissait donc alors que la session était valide, et l'application
+ * s'ouvrait seule un instant plus tard. On croyait avoir été déconnecté.
  */
 const DELAI_ATTENTE_AUTH = 6000;
 
@@ -174,13 +179,25 @@ const DELAI_ATTENTE_AUTH = 6000;
  * Rend l'écran de connexion utilisable.
  *
  * Il part en attente — logo et nom seuls — et ne propose ses commandes qu'une
- * fois qu'on sait qu'elles servent à quelque chose. Appelée aussi bien quand
- * Firebase annonce que personne n'est connecté que par le garde-fou de
- * `initAuth`, elle est sans effet la deuxième fois.
+ * fois qu'on sait qu'elles servent à quelque chose : quand Firebase annonce
+ * que personne n'est connecté, quand l'initialisation échoue, ou quand la
+ * personne le demande. Sans effet la deuxième fois.
  */
 export function revelerFormulaireConnexion() {
   const authOverlay = document.getElementById('authOverlay');
   if (authOverlay) authOverlay.classList.remove('auth-overlay--attente');
+}
+
+/**
+ * Signale une attente anormalement longue, sans rien affirmer.
+ *
+ * L'écran reste en attente : il dit que c'est long et offre d'ouvrir le
+ * formulaire à la demande. Une issue, donc, mais pas un état — quelqu'un dont
+ * la session est valide ne doit jamais lire qu'il est déconnecté.
+ */
+function signalerAttenteLongue() {
+  const authOverlay = document.getElementById('authOverlay');
+  if (authOverlay) authOverlay.classList.add('auth-overlay--lent');
 }
 
 /**
@@ -420,14 +437,24 @@ export function initAuth() {
     log('[Auth] 🧹 Ancien listener nettoyé');
   }
 
+  // Le bouton n'apparaît qu'en attente prolongée, mais son écouteur se pose
+  // une fois pour toutes : le reposer à chaque bascule en accumulerait.
+  const forcer = document.getElementById('authForcerFormulaire');
+  if (forcer) forcer.addEventListener('click', revelerFormulaireConnexion);
+
   // Garde-fou : l'écran d'attente ne tient que sur la promesse d'une réponse
-  // de Firebase. Si elle ne vient pas — service injoignable, jeton illisible —
-  // rester sur « Connexion… » indéfiniment enferme la personne devant un écran
-  // sans commande. Passé ce délai, le formulaire est rendu quoi qu'il arrive :
-  // il vaut mieux proposer une connexion inutile qu'aucune issue.
+  // de Firebase. Si elle tarde — service lent, attestation App Check, jeton
+  // illisible — rester muet devant « Connexion… » enferme la personne devant
+  // un écran sans commande.
+  //
+  // Passé ce délai, l'écran le dit et offre d'ouvrir le formulaire. Il ne
+  // l'ouvre plus de lui-même : c'est ce qu'il faisait, et une session valide
+  // mais lente se voyait alors présenter un écran de connexion démenti la
+  // seconde suivante.
   const secours = setTimeout(() => {
-    warn('[Auth] ⏱️ Aucune réponse de Firebase, formulaire affiché par défaut');
-    revelerFormulaireConnexion();
+    warn('[Auth] ⏱️ Firebase tarde à répondre, attente signalée à l\'écran');
+    noter('auth', 'attente prolongée signalée');
+    signalerAttenteLongue();
   }, DELAI_ATTENTE_AUTH);
 
   authUnsubscribe = auth.onAuthStateChanged(async (user) => {
