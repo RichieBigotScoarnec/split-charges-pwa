@@ -41,7 +41,8 @@ FairSplit/
 │                               # saisie), lieu (géocodage), calculations,
 │                               # format, validation, salaries, budgets
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # generate-icons.ps1, enveloppe-sauvegarde.mjs
+├── tools/                      # generate-icons.ps1, enveloppe-sauvegarde.mjs,
+│                               # migration-repartition.mjs
 │                               # (hors `public/`, donc jamais publié)
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
 └── database.rules.json         # Règles de sécurité — source de vérité unique
@@ -154,6 +155,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | `utils/` listé à cinq fichiers | `public/js/utils/` (15 fichiers) | ✅ RÉSOLU 2026-08-22 — inventaire remis à jour | — |
 | Montants lus par `parseFloat` | `public/js/utils/montant.js` | ✅ RÉSOLU 2026-08-22 — virgule acceptée, une seule lecture partagée | — |
 | Sauvegarde entièrement manuelle | `.github/workflows/sauvegarde.yml` | ✅ RÉSOLU 2026-08-22 — export chiffré quotidien, restaurable depuis l'application | Exige le secret `SAUVEGARDE_PASSPHRASE` |
+| Répartition de la saisie rapide écrite dans `splitMode`, que personne ne lit | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-23 — `splitOverride`, le champ qu'interroge le calcul | — |
+| Charges antérieures restées au prorata malgré un « 50-50 » choisi | `.github/workflows/migration-repartition.yml` | ✅ RÉSOLU 2026-08-23 — migration à la demande, simulation par défaut, sauvegarde puis contrôle après écriture | Lancer depuis l'onglet Actions |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

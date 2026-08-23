@@ -1,0 +1,200 @@
+name: Migration — répartition 50-50 des anciennes charges
+
+# Rattrape les charges dont la répartition choisie n'a jamais été appliquée.
+#
+# La saisie rapide écrivait `splitMode: '50-50'`, que personne ne lit : le calcul
+# du solde n'interroge que `splitOverride`. Ces charges sont donc restées
+# réparties selon le mode du foyer, alors que l'écran annonçait « 50-50 ».
+#
+# Le défaut est corrigé pour les nouvelles saisies. Ce workflow répare les
+# anciennes — et modifie donc des soldes passés. D'où trois précautions :
+#
+#   1. il ne part jamais tout seul : aucune minuterie, uniquement à la demande ;
+#   2. il simule par défaut, et n'écrit que si on le lui demande explicitement ;
+#   3. il dépose une sauvegarde chiffrée de la base AVANT d'écrire quoi que ce
+#      soit. Pas la sauvegarde de cette nuit : celle de l'instant d'avant.
+on:
+  workflow_dispatch:
+    inputs:
+      appliquer:
+        description: "Écrire réellement en base (sinon : simulation seule)"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Les deux secrets sont exigés même en simulation : sans la phrase
+      # secrète, une exécution en simulation réussirait, on l'enchaînerait en
+      # application, et c'est là seulement que la sauvegarde échouerait — après
+      # avoir mis en confiance.
+      - name: Vérifier les secrets
+        env:
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PHRASE_SECRETE: ${{ secrets.SAUVEGARDE_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          manquants=""
+          if [ -z "${COMPTE_DE_SERVICE:-}" ]; then
+            manquants="$manquants FIREBASE_SERVICE_ACCOUNT"
+          fi
+          if [ -z "${PHRASE_SECRETE:-}" ]; then
+            manquants="$manquants SAUVEGARDE_PASSPHRASE"
+          fi
+
+          if [ -n "$manquants" ]; then
+            echo "::error title=Migration impossible::Secret(s) absent(s) :$manquants"
+            exit 1
+          fi
+
+      - name: Extraire la base
+        env:
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          fichier="$RUNNER_TEMP/compte-de-service.json"
+          printf '%s' "$COMPTE_DE_SERVICE" > "$fichier"
+          export GOOGLE_APPLICATION_CREDENTIALS="$fichier"
+
+          npx firebase database:get /household \
+            --project fairsplit-foyer \
+            -o "$RUNNER_TEMP/vidage.json"
+
+          rm -f "$fichier"
+
+      # Le point de restauration, pris à l'instant d'avant. La sauvegarde
+      # quotidienne ne suffit pas ici : entre elle et maintenant, des saisies
+      # ont pu avoir lieu, et c'est cet état-là qu'il faudrait retrouver.
+      - name: Sauvegarder avant d'écrire
+        env:
+          PHRASE_SECRETE: ${{ secrets.SAUVEGARDE_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          node tools/enveloppe-sauvegarde.mjs \
+            "$RUNNER_TEMP/vidage.json" "$RUNNER_TEMP/sauvegarde.json"
+
+          phrase="$RUNNER_TEMP/phrase"
+          printf '%s' "$PHRASE_SECRETE" > "$phrase"
+
+          gpg --batch --yes --symmetric \
+            --cipher-algo AES256 \
+            --passphrase-file "$phrase" \
+            --output "$RUNNER_TEMP/sauvegarde.json.gpg" \
+            "$RUNNER_TEMP/sauvegarde.json"
+
+          rm -f "$phrase" "$RUNNER_TEMP/sauvegarde.json"
+
+          echo "HORODATAGE=$(date -u +%Y-%m-%dT%H-%M-%SZ)" >> "$GITHUB_ENV"
+
+      - name: Déposer la sauvegarde
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: avant-migration-${{ env.HORODATAGE }}
+          path: ${{ runner.temp }}/sauvegarde.json.gpg
+          retention-days: 90
+          if-no-files-found: error
+
+      # Aucune écriture ici : le script lit et rend la liste des chemins.
+      - name: Établir le correctif
+        run: |
+          set -euo pipefail
+
+          node tools/migration-repartition.mjs \
+            "$RUNNER_TEMP/vidage.json" "$RUNNER_TEMP/correctif.json" \
+            | tee "$RUNNER_TEMP/rapport.txt"
+
+          nombre=$(node -e "
+            const c = require('$RUNNER_TEMP/correctif.json');
+            process.stdout.write(String(Object.keys(c).length));
+          ")
+          echo "NOMBRE=$nombre" >> "$GITHUB_ENV"
+
+      # Écriture multi-chemins : tout passe ou rien. Un correctif vide n'est pas
+      # écrit — `database:update` avec un objet vide serait accepté sans effet,
+      # mais le résumé annoncerait une migration là où il n'y avait rien à faire.
+      - name: Appliquer le correctif
+        if: ${{ inputs.appliquer && env.NOMBRE != '0' }}
+        env:
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          fichier="$RUNNER_TEMP/compte-de-service.json"
+          printf '%s' "$COMPTE_DE_SERVICE" > "$fichier"
+          export GOOGLE_APPLICATION_CREDENTIALS="$fichier"
+
+          npx firebase database:update /household "$RUNNER_TEMP/correctif.json" \
+            --project fairsplit-foyer \
+            --force
+
+          rm -f "$fichier"
+
+      # Relire plutôt que supposer. L'écriture multi-chemins repose sur le fait
+      # que Realtime Database interprète les barres des clés comme une descente
+      # dans l'arbre ; si ce n'était pas le cas, le foyer se retrouverait avec
+      # des clés littérales à sa racine. Le constater ici plutôt que le mois
+      # suivant, et pendant que la sauvegarde d'avant est encore sous la main.
+      - name: Contrôler après écriture
+        if: ${{ inputs.appliquer && env.NOMBRE != '0' }}
+        env:
+          COMPTE_DE_SERVICE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          fichier="$RUNNER_TEMP/compte-de-service.json"
+          printf '%s' "$COMPTE_DE_SERVICE" > "$fichier"
+          export GOOGLE_APPLICATION_CREDENTIALS="$fichier"
+
+          npx firebase database:get /household \
+            --project fairsplit-foyer \
+            -o "$RUNNER_TEMP/relu.json"
+
+          rm -f "$fichier"
+
+          node tools/migration-repartition.mjs --verifier "$RUNNER_TEMP/relu.json"
+
+      - name: Résumé
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.appliquer }}" = "true" ] && [ "$NOMBRE" != "0" ]; then
+            titre="### ✅ Migration appliquée — $NOMBRE charge(s)"
+            suite="Les soldes des périodes concernées ont changé. La sauvegarde de l'état précédent est déposée en artefact : \`avant-migration-$HORODATAGE\`."
+          elif [ "$NOMBRE" = "0" ]; then
+            titre="### ℹ️ Rien à migrer"
+            suite="Aucune charge ne porte « 50-50 » sans répartition explicite. La base est déjà cohérente."
+          else
+            titre="### 🔍 Simulation — $NOMBRE charge(s) seraient migrées"
+            suite="**Rien n'a été écrit.** Relancer avec « Écrire réellement en base » coché pour appliquer."
+          fi
+
+          {
+            echo "$titre"
+            echo ""
+            echo "$suite"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/rapport.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
