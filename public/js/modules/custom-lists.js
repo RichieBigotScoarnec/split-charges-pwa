@@ -520,5 +520,10 @@ function showManageModal(listType) {
   requestAnimationFrame(() => modal.classList.add('active'));
 }
 
-// Expose globally for compatibility
+// Joignables depuis le balisage, par la délégation `data-action` de init.js.
+//
+// `showManageModal` savait afficher les destinations depuis toujours, mais rien
+// ne l'exposait : elles n'étaient donc modifiables par personne — le même angle
+// mort que les catégories, découvert le même jour.
 window.showManageCategoriesModal = () => showManageModal('categories');
+window.showManageDestinationsModal = () => showManageModal('destinations');
