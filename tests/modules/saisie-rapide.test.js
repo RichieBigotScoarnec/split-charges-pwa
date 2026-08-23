@@ -722,3 +722,89 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     expect(dbGet).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Deux appuis ne font pas deux charges', () => {
+  /**
+   * Rien n'empêchait d'entrer deux fois dans l'écriture. Sur une connexion
+   * lente, `dbPush` met le temps qu'il met : la modale reste ouverte, rien ne
+   * bouge, et le second appui est le réflexe naturel. Mesuré avant correctif :
+   * le second appel franchissait toute la validation et atteignait la base.
+   */
+  it('un second appui pendant l\'écriture est ignoré', async () => {
+    dbPush.mockImplementation(() => new Promise(r => setTimeout(() => r('cle'), 30)));
+
+    saisir({ montant: '12,50' });
+    const { handleQuickAddSubmit } = window;
+    await Promise.all([handleQuickAddSubmit(), handleQuickAddSubmit()]);
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
+    // Et surtout : aucune erreur affichée. Le second appui n'a pas à produire
+    // un bandeau rouge pour une charge qui, elle, s'est bien enregistrée.
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('le verrou est relâché : la charge suivante passe', async () => {
+    // Un verrou qui ne se rouvre pas rendrait la saisie rapide inutilisable
+    // pour le reste de la session.
+    saisir({ montant: '12,50' });
+    await valider();
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    saisir({ montant: '8' });
+    await valider();
+
+    expect(dbPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('un refus de validation ne referme pas le verrou sur lui-même', async () => {
+    // Le verrou est posé avant la validation : s'il n'était pas relâché sur les
+    // chemins de refus, une saisie incomplète condamnerait toutes les suivantes.
+    document.querySelector('[data-category-id="restaurant"]').click();
+    await valider();                       // montant vide → refus
+    expect(dbPush).not.toHaveBeenCalled();
+
+    document.getElementById('quickAddAmount').value = '9,90';
+    await valider();
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Les écouteurs ne s\'empilent pas au fil des connexions', () => {
+  /**
+   * `initQuickAdd` est rappelé à chaque connexion, tandis que les éléments de
+   * la modale vivent aussi longtemps que la page. Mesuré avant correctif :
+   * trois connexions posaient trois écouteurs sur chaque élément, et une
+   * pression sur Entrée entrait trois fois dans la soumission.
+   */
+  it('trois connexions successives n\'en posent qu\'un par élément', () => {
+    const poses = {};
+    const cibles = [
+      'quickAddAmount', 'quickAddDescription', 'quickSplitProrata',
+      'quickSplit5050', 'quickAddPayer', 'quickAddLocationDetach', 'modalQuickAdd'
+    ];
+
+    for (const id of cibles) {
+      const element = document.getElementById(id);
+      const pose = element.addEventListener.bind(element);
+      const retire = element.removeEventListener.bind(element);
+      element.addEventListener = (type, fn, opts) => {
+        poses[`${id}:${type}`] = (poses[`${id}:${type}`] || 0) + 1;
+        return pose(type, fn, opts);
+      };
+      element.removeEventListener = (type, fn, opts) => {
+        if (poses[`${id}:${type}`]) poses[`${id}:${type}`] -= 1;
+        return retire(type, fn, opts);
+      };
+    }
+
+    cleanupQuickAdd(); initQuickAdd();
+    cleanupQuickAdd(); initQuickAdd();
+    cleanupQuickAdd(); initQuickAdd();
+
+    const empiles = Object.entries(poses).filter(([, n]) => n > 1);
+    expect(empiles, `écouteurs empilés : ${JSON.stringify(empiles)}`).toEqual([]);
+  });
+});

@@ -25,6 +25,23 @@ let _keydownHandler = null;
 let _gpsWatchId = null;       // watchPosition ID for background GPS
 let _gpsPermissionGranted = false; // tracks if user already granted GPS permission
 
+/**
+ * Une soumission est-elle déjà partie ?
+ *
+ * Rien n'empêchait d'entrer deux fois dans l'écriture. Sur une connexion lente,
+ * `dbPush` met le temps qu'il met : la modale reste ouverte, rien ne bouge, et
+ * le second appui est le réflexe naturel. Deux charges identiques partaient
+ * alors en base — et le bilan comptait la dépense deux fois.
+ *
+ * Mesuré plutôt que supposé : le second appel franchissait toute la validation
+ * et atteignait l'écriture.
+ *
+ * `dbPush` passe par `borner()`, qui rejette au bout du délai : le verrou est
+ * donc toujours relâché, et une écriture qui n'aboutit pas ne bloque pas les
+ * suivantes.
+ */
+let _soumissionEnCours = false;
+
 const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
   splitMode: 'prorata',    // 'prorata' | '50-50'
@@ -76,10 +93,66 @@ async function initBackgroundGPS() {
 }
 
 /**
+ * Pose un écouteur en garantissant qu'il n'y en a qu'un seul
+ *
+ * `initQuickAdd` est rappelé à chaque connexion, tandis que les éléments de la
+ * modale, eux, vivent aussi longtemps que la page. Les écouteurs s'empilaient
+ * donc : après trois connexions successives, une pression sur Entrée entrait
+ * trois fois dans la soumission. Mesuré, et non supposé.
+ *
+ * Retirer avant de poser suppose une référence stable : c'est pourquoi les
+ * gestionnaires ci-dessous sont des fonctions de module et non des fermetures
+ * créées à chaque appel. Sur un élément neuf, le retrait ne fait rien — le
+ * procédé vaut donc dans les deux cas.
+ *
+ * @param {Element|null} cible
+ * @param {string} type
+ * @param {Function} gestionnaire
+ * @returns {void}
+ */
+function poserUnique(cible, type, gestionnaire) {
+  if (!cible) return;
+  cible.removeEventListener(type, gestionnaire);
+  cible.addEventListener(type, gestionnaire);
+}
+
+/** Entrée soumet, depuis le montant comme depuis la description */
+function surEntree(e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  handleQuickAddSubmit();
+}
+
+/** Bascule vers le prorata */
+function surProrata() {
+  updateSplitMode('prorata');
+}
+
+/** Bascule vers le 50-50 */
+function surCinquanteCinquante() {
+  updateSplitMode('50-50');
+}
+
+/** Délégation : les libellés des payeurs changent avec les prénoms du foyer */
+function surPayeur(e) {
+  const bouton = e.target.closest('button[data-payer]');
+  if (bouton) updatePayer(bouton.dataset.payer);
+}
+
+/** Clic hors de la carte : ferme et réinitialise */
+function surFondDeModale(e) {
+  const overlay = document.getElementById('modalQuickAdd');
+  if (e.target !== overlay) return;
+  e.stopImmediatePropagation(); // Empêcher le handler générique
+  closeQuickAddModal();
+}
+
+/**
  * Configure les event listeners
  */
 function setupEventListeners() {
-  // Raccourci clavier Ctrl+Q
+  // Raccourci clavier Ctrl+Q — posé sur `document`, il survit au balisage et
+  // doit donc être retiré explicitement à la déconnexion.
   if (_keydownHandler) {
     document.removeEventListener('keydown', _keydownHandler);
   }
@@ -91,58 +164,13 @@ function setupEventListeners() {
   };
   document.addEventListener('keydown', _keydownHandler);
 
-  // Input montant : Enter pour soumettre
-  const amountInput = document.getElementById('quickAddAmount');
-  if (amountInput) {
-    amountInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleQuickAddSubmit();
-      }
-    });
-  }
-
-  // Split mode toggle
-  const prorataBtn = document.getElementById('quickSplitProrata');
-  const fiftyBtn = document.getElementById('quickSplit5050');
-  if (prorataBtn) prorataBtn.addEventListener('click', () => updateSplitMode('prorata'));
-  if (fiftyBtn) fiftyBtn.addEventListener('click', () => updateSplitMode('50-50'));
-
-  // Payeur — délégation : les trois boutons vivent dans le balisage, et leurs
-  // libellés changent avec les prénoms du foyer.
-  const payeurs = document.getElementById('quickAddPayer');
-  if (payeurs) {
-    payeurs.addEventListener('click', (e) => {
-      const bouton = e.target.closest('button[data-payer]');
-      if (bouton) updatePayer(bouton.dataset.payer);
-    });
-  }
-
-  // Détachement du lieu
-  const detacher = document.getElementById('quickAddLocationDetach');
-  if (detacher) detacher.addEventListener('click', detachLocation);
-
-  // La description suit la même règle que le montant : Entrée soumet.
-  const descriptionInput = document.getElementById('quickAddDescription');
-  if (descriptionInput) {
-    descriptionInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleQuickAddSubmit();
-      }
-    });
-  }
-
-  // Fermeture modale quick-add via overlay click (reset state interne)
-  const overlay = document.getElementById('modalQuickAdd');
-  if (overlay) {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        e.stopImmediatePropagation(); // Empêcher le handler générique
-        closeQuickAddModal();
-      }
-    });
-  }
+  poserUnique(document.getElementById('quickAddAmount'), 'keypress', surEntree);
+  poserUnique(document.getElementById('quickAddDescription'), 'keypress', surEntree);
+  poserUnique(document.getElementById('quickSplitProrata'), 'click', surProrata);
+  poserUnique(document.getElementById('quickSplit5050'), 'click', surCinquanteCinquante);
+  poserUnique(document.getElementById('quickAddPayer'), 'click', surPayeur);
+  poserUnique(document.getElementById('quickAddLocationDetach'), 'click', detachLocation);
+  poserUnique(document.getElementById('modalQuickAdd'), 'click', surFondDeModale);
 }
 
 /**
@@ -156,6 +184,9 @@ export function cleanupQuickAdd() {
   stopBackgroundGPS();
   resetState();
   oublierHistoriqueFrequentes();
+  // Une écriture interrompue par une déconnexion ne doit pas laisser le verrou
+  // fermé pour la session suivante.
+  _soumissionEnCours = false;
   log('🧹 Listeners quick-add nettoyés');
 }
 
@@ -496,6 +527,29 @@ function hideLocationDetach() {
  * Gère la soumission du formulaire quick-add
  */
 async function handleQuickAddSubmit() {
+  if (_soumissionEnCours) {
+    log('[Saisie rapide] ⏳ Écriture déjà en cours, appui ignoré');
+    return;
+  }
+  _soumissionEnCours = true;
+
+  try {
+    await soumettre();
+  } finally {
+    _soumissionEnCours = false;
+  }
+}
+
+/**
+ * Valide la saisie et écrit la charge
+ *
+ * Séparée de `handleQuickAddSubmit` pour que le verrou tienne sur tous les
+ * chemins de sortie, y compris les refus de validation, sans avoir à le
+ * relâcher à la main devant chaque `return`.
+ *
+ * @returns {Promise<void>}
+ */
+async function soumettre() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');
