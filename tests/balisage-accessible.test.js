@@ -88,3 +88,24 @@ describe('Le balisage livré', () => {
     expect(perdues, `étiquettes sans champ : ${perdues.join(' | ')}`).toEqual([]);
   });
 });
+
+describe('Les raccourcis de catégories', () => {
+  const doc = documentLivre();
+
+  it('forment un groupe nommé, pour ne pas doubler la grille sans le dire', () => {
+    // Ces boutons portent les mêmes libellés que des tuiles situées juste en
+    // dessous. Sans groupe nommé, la synthèse vocale annonce deux fois
+    // « Courses » sans rien qui distingue le raccourci de la tuile.
+    const liste = doc.getElementById('categoryFrequentesListe');
+    expect(liste, 'la ligne des fréquentes est absente du balisage').not.toBeNull();
+    expect(liste.getAttribute('role')).toBe('group');
+
+    const titre = doc.getElementById(liste.getAttribute('aria-labelledby'));
+    expect(titre, 'le groupe renvoie à un identifiant qui n\'existe pas').not.toBeNull();
+    expect(titre.textContent.trim()).toBe('Souvent');
+  });
+
+  it('part masquée : elle n\'a rien à montrer avant d\'avoir compté', () => {
+    expect(doc.getElementById('categoryFrequentes').hasAttribute('hidden')).toBe(true);
+  });
+});

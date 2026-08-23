@@ -13,11 +13,34 @@ import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
 import { decrireLieu } from '../utils/lieu.js';
+import { categoriePourLieu } from '../utils/categorie-lieu.js';
+import {
+  categoriesFrequentes,
+  ligneFrequentesUtile,
+  periodePrecedente
+} from '../utils/categories-frequentes.js';
 
 // ===== STATE INTERNE =====
 let _keydownHandler = null;
 let _gpsWatchId = null;       // watchPosition ID for background GPS
 let _gpsPermissionGranted = false; // tracks if user already granted GPS permission
+
+/**
+ * Une soumission est-elle déjà partie ?
+ *
+ * Rien n'empêchait d'entrer deux fois dans l'écriture. Sur une connexion lente,
+ * `dbPush` met le temps qu'il met : la modale reste ouverte, rien ne bouge, et
+ * le second appui est le réflexe naturel. Deux charges identiques partaient
+ * alors en base — et le bilan comptait la dépense deux fois.
+ *
+ * Mesuré plutôt que supposé : le second appel franchissait toute la validation
+ * et atteignait l'écriture.
+ *
+ * `dbPush` passe par `borner()`, qui rejette au bout du délai : le verrou est
+ * donc toujours relâché, et une écriture qui n'aboutit pas ne bloque pas les
+ * suivantes.
+ */
+let _soumissionEnCours = false;
 
 const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
@@ -70,10 +93,66 @@ async function initBackgroundGPS() {
 }
 
 /**
+ * Pose un écouteur en garantissant qu'il n'y en a qu'un seul
+ *
+ * `initQuickAdd` est rappelé à chaque connexion, tandis que les éléments de la
+ * modale, eux, vivent aussi longtemps que la page. Les écouteurs s'empilaient
+ * donc : après trois connexions successives, une pression sur Entrée entrait
+ * trois fois dans la soumission. Mesuré, et non supposé.
+ *
+ * Retirer avant de poser suppose une référence stable : c'est pourquoi les
+ * gestionnaires ci-dessous sont des fonctions de module et non des fermetures
+ * créées à chaque appel. Sur un élément neuf, le retrait ne fait rien — le
+ * procédé vaut donc dans les deux cas.
+ *
+ * @param {Element|null} cible
+ * @param {string} type
+ * @param {Function} gestionnaire
+ * @returns {void}
+ */
+function poserUnique(cible, type, gestionnaire) {
+  if (!cible) return;
+  cible.removeEventListener(type, gestionnaire);
+  cible.addEventListener(type, gestionnaire);
+}
+
+/** Entrée soumet, depuis le montant comme depuis la description */
+function surEntree(e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  handleQuickAddSubmit();
+}
+
+/** Bascule vers le prorata */
+function surProrata() {
+  updateSplitMode('prorata');
+}
+
+/** Bascule vers le 50-50 */
+function surCinquanteCinquante() {
+  updateSplitMode('50-50');
+}
+
+/** Délégation : les libellés des payeurs changent avec les prénoms du foyer */
+function surPayeur(e) {
+  const bouton = e.target.closest('button[data-payer]');
+  if (bouton) updatePayer(bouton.dataset.payer);
+}
+
+/** Clic hors de la carte : ferme et réinitialise */
+function surFondDeModale(e) {
+  const overlay = document.getElementById('modalQuickAdd');
+  if (e.target !== overlay) return;
+  e.stopImmediatePropagation(); // Empêcher le handler générique
+  closeQuickAddModal();
+}
+
+/**
  * Configure les event listeners
  */
 function setupEventListeners() {
-  // Raccourci clavier Ctrl+Q
+  // Raccourci clavier Ctrl+Q — posé sur `document`, il survit au balisage et
+  // doit donc être retiré explicitement à la déconnexion.
   if (_keydownHandler) {
     document.removeEventListener('keydown', _keydownHandler);
   }
@@ -85,58 +164,13 @@ function setupEventListeners() {
   };
   document.addEventListener('keydown', _keydownHandler);
 
-  // Input montant : Enter pour soumettre
-  const amountInput = document.getElementById('quickAddAmount');
-  if (amountInput) {
-    amountInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleQuickAddSubmit();
-      }
-    });
-  }
-
-  // Split mode toggle
-  const prorataBtn = document.getElementById('quickSplitProrata');
-  const fiftyBtn = document.getElementById('quickSplit5050');
-  if (prorataBtn) prorataBtn.addEventListener('click', () => updateSplitMode('prorata'));
-  if (fiftyBtn) fiftyBtn.addEventListener('click', () => updateSplitMode('50-50'));
-
-  // Payeur — délégation : les trois boutons vivent dans le balisage, et leurs
-  // libellés changent avec les prénoms du foyer.
-  const payeurs = document.getElementById('quickAddPayer');
-  if (payeurs) {
-    payeurs.addEventListener('click', (e) => {
-      const bouton = e.target.closest('button[data-payer]');
-      if (bouton) updatePayer(bouton.dataset.payer);
-    });
-  }
-
-  // Détachement du lieu
-  const detacher = document.getElementById('quickAddLocationDetach');
-  if (detacher) detacher.addEventListener('click', detachLocation);
-
-  // La description suit la même règle que le montant : Entrée soumet.
-  const descriptionInput = document.getElementById('quickAddDescription');
-  if (descriptionInput) {
-    descriptionInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleQuickAddSubmit();
-      }
-    });
-  }
-
-  // Fermeture modale quick-add via overlay click (reset state interne)
-  const overlay = document.getElementById('modalQuickAdd');
-  if (overlay) {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        e.stopImmediatePropagation(); // Empêcher le handler générique
-        closeQuickAddModal();
-      }
-    });
-  }
+  poserUnique(document.getElementById('quickAddAmount'), 'keypress', surEntree);
+  poserUnique(document.getElementById('quickAddDescription'), 'keypress', surEntree);
+  poserUnique(document.getElementById('quickSplitProrata'), 'click', surProrata);
+  poserUnique(document.getElementById('quickSplit5050'), 'click', surCinquanteCinquante);
+  poserUnique(document.getElementById('quickAddPayer'), 'click', surPayeur);
+  poserUnique(document.getElementById('quickAddLocationDetach'), 'click', detachLocation);
+  poserUnique(document.getElementById('modalQuickAdd'), 'click', surFondDeModale);
 }
 
 /**
@@ -149,6 +183,10 @@ export function cleanupQuickAdd() {
   }
   stopBackgroundGPS();
   resetState();
+  oublierHistoriqueFrequentes();
+  // Une écriture interrompue par une déconnexion ne doit pas laisser le verrou
+  // fermé pour la session suivante.
+  _soumissionEnCours = false;
   log('🧹 Listeners quick-add nettoyés');
 }
 
@@ -201,6 +239,10 @@ function showQuickAddModal() {
     if (amountInput) amountInput.focus();
   }, 100);
 
+  // L'historique des catégories, une fois par session, sans bloquer
+  // l'ouverture : la ligne apparaît quand il arrive.
+  chargerHistoriqueFrequentes();
+
   // Lancer détection GPS en arrière-plan
   startGPSDetection();
 }
@@ -221,7 +263,8 @@ function closeQuickAddModal() {
   const descriptionInput = document.getElementById('quickAddDescription');
   if (descriptionInput) descriptionInput.value = '';
 
-  document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('selected'));
+  document.querySelectorAll('.category-btn, .category-frequente-btn')
+    .forEach(btn => btn.classList.remove('selected'));
   updateSplitMode('prorata');
   updatePayer('vous');
   hideLocationDetach();
@@ -262,6 +305,134 @@ function populateCategoryGrid() {
       selectCategory(catId);
     });
   });
+
+  peuplerFrequentes(categories);
+}
+
+/**
+ * Charges du mois précédent, lues une fois par mois consulté
+ *
+ * Sans elles, la ligne des fréquentes resterait vide les premiers jours du
+ * mois — précisément quand la grille est la plus longue à parcourir, puisque
+ * rien n'a encore été saisi. Une lecture, mise de côté ensuite : la rouvrir à
+ * chaque ouverture de la modale coûterait un aller-retour pour un confort.
+ *
+ * La période lue est retenue avec les charges. Un cache anonyme aurait servi
+ * les charges de juin en naviguant vers septembre, et celles du foyer à un
+ * compte du bac à sable — sans que rien ne le signale, puisque la ligne aurait
+ * l'air aussi crédible dans un cas que dans l'autre.
+ */
+let _historiqueFrequentes = { periode: null, charges: null };
+
+/**
+ * Dépouille les charges connues et remplit la ligne des fréquentes
+ *
+ * @param {Array} categories - Catégories du foyer
+ * @returns {void}
+ */
+function peuplerFrequentes(categories) {
+  const ligne = document.getElementById('categoryFrequentes');
+  const liste = document.getElementById('categoryFrequentesListe');
+  if (!ligne || !liste) return;
+
+  const frequentes = categoriesFrequentes(chargesConnues(), categories);
+
+  if (!ligneFrequentesUtile(frequentes, categories)) {
+    ligne.hidden = true;
+    liste.innerHTML = '';
+    return;
+  }
+
+  liste.innerHTML = frequentes.map(cat => `
+    <button type="button" class="category-frequente-btn" data-category-id="${escapeHtml(cat.id)}">
+      <span aria-hidden="true">${escapeHtml(cat.icon)}</span>
+      <span>${escapeHtml(cat.label)}</span>
+    </button>
+  `).join('');
+
+  liste.querySelectorAll('.category-frequente-btn').forEach(bouton => {
+    bouton.addEventListener('click', () => selectCategory(bouton.dataset.categoryId));
+  });
+
+  ligne.hidden = false;
+}
+
+/**
+ * Les catégories du foyer, de la plus employée à la moins
+ *
+ * La ligne des fréquentes n'en montre que les premières ; l'arbitrage du GPS a
+ * besoin du classement entier, jusqu'aux catégories rarement employées — c'est
+ * précisément entre celles-là qu'il faut trancher quand la catégorie exacte
+ * n'existe pas.
+ *
+ * @returns {Array} Catégories ordonnées par usage décroissant
+ */
+function habitudesDuFoyer() {
+  return categoriesFrequentes(chargesConnues(), getCategories(), {
+    maximum: Number.MAX_SAFE_INTEGER
+  });
+}
+
+/**
+ * Charges sur lesquelles se fondent les habitudes
+ *
+ * Le mois en cours, et le précédent s'il a été lu pour cette période-là. La
+ * vérification n'est pas une précaution de style : l'historique reste en
+ * mémoire quand on change de mois, et le servir sans le vérifier reviendrait à
+ * décrire les habitudes d'un mois par celles d'un autre.
+ *
+ * @returns {Array} Charges connues, tous mois confondus
+ */
+function chargesConnues() {
+  const attendue = periodePrecedente(getState('currentPeriod'));
+  const historique = _historiqueFrequentes.periode === attendue
+    ? (_historiqueFrequentes.charges || [])
+    : [];
+
+  return [...(getState('variableCharges') || []), ...historique];
+}
+
+/**
+ * Va chercher les charges du mois précédent, une seule fois
+ *
+ * Son échec est sans conséquence visible : la ligne se contentera du mois en
+ * cours. C'est un confort, pas une donnée — un bandeau d'erreur pour cela
+ * apprendrait à ignorer les bandeaux d'erreur.
+ *
+ * @returns {Promise<void>}
+ */
+async function chargerHistoriqueFrequentes() {
+  const precedente = periodePrecedente(getState('currentPeriod'));
+  if (!precedente) return;
+  if (_historiqueFrequentes.periode === precedente) return;
+
+  try {
+    const { dbGet } = await import('../db.js');
+    const noeud = await dbGet(`periods/${precedente}/variableCharges`);
+    _historiqueFrequentes = {
+      periode: precedente,
+      charges: noeud && typeof noeud === 'object' ? Object.values(noeud) : []
+    };
+  } catch (error) {
+    warn('[Fréquentes] Historique indisponible, mois en cours seul :', error?.message || error);
+    _historiqueFrequentes = { periode: precedente, charges: [] };
+  }
+
+  peuplerFrequentes(getCategories());
+}
+
+/**
+ * Oublie l'historique retenu
+ *
+ * Appelé à la déconnexion : le compte suivant n'a rien à voir avec le
+ * précédent, et le compte de test vit dans un autre espace de données. Servir
+ * l'un à l'autre ne produirait aucune erreur — juste une ligne parfaitement
+ * crédible, et fausse.
+ *
+ * @returns {void}
+ */
+function oublierHistoriqueFrequentes() {
+  _historiqueFrequentes = { periode: null, charges: null };
 }
 
 /**
@@ -274,8 +445,9 @@ function selectCategory(categoryId) {
 
   quickAddState.selectedCategory = category;
 
-  // Update UI
-  document.querySelectorAll('.category-btn').forEach(btn => {
+  // Les deux surfaces désignent les mêmes catégories : n'en marquer qu'une
+  // laisserait croire à deux choix distincts, dont l'un serait resté vide.
+  document.querySelectorAll('.category-btn, .category-frequente-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
   });
 }
@@ -355,6 +527,29 @@ function hideLocationDetach() {
  * Gère la soumission du formulaire quick-add
  */
 async function handleQuickAddSubmit() {
+  if (_soumissionEnCours) {
+    log('[Saisie rapide] ⏳ Écriture déjà en cours, appui ignoré');
+    return;
+  }
+  _soumissionEnCours = true;
+
+  try {
+    await soumettre();
+  } finally {
+    _soumissionEnCours = false;
+  }
+}
+
+/**
+ * Valide la saisie et écrit la charge
+ *
+ * Séparée de `handleQuickAddSubmit` pour que le verrou tienne sur tous les
+ * chemins de sortie, y compris les refus de validation, sans avoir à le
+ * relâcher à la main devant chaque `return`.
+ *
+ * @returns {Promise<void>}
+ */
+async function soumettre() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');
@@ -617,7 +812,7 @@ async function processGPSPosition(gpsData, locationEl) {
         locationEl.className = 'quick-add-location success';
 
         // Auto-détection catégorie
-        const detected = detectCategoryFromPlace(place);
+        const detected = categoriePourLieu(place, getCategories(), habitudesDuFoyer());
         if (detected && !quickAddState.selectedCategory) {
           selectCategory(detected.id);
           toast.info(`📍 ${detected.label} détecté`);
@@ -661,46 +856,6 @@ async function reverseGeocode(lat, lng) {
     logError('Reverse geocoding failed:', error);
     return null;
   }
-}
-
-/**
- * Détecte la catégorie depuis le type de lieu OSM
- */
-function detectCategoryFromPlace(place) {
-  if (!place) return null;
-
-  const categories = getCategories();
-  const findCat = (id) => categories.find(c => c.id === id);
-
-  // Mapping types OSM → catégories
-  const typeMapping = {
-    'supermarket': findCat('courses'),
-    'fuel': findCat('essence'),
-    'restaurant': findCat('restaurant'),
-    'pharmacy': findCat('sante')
-  };
-
-  if (place.type && typeMapping[place.type]) {
-    return typeMapping[place.type];
-  }
-
-  // Fallback : analyse du nom du lieu
-  const fullText = ((place.nom || '') + ' ' + (place.adresseComplete || '')).toLowerCase();
-
-  if (/leclerc|carrefour|intermarché|auchan|lidl|super u|picard/.test(fullText)) {
-    return findCat('courses');
-  }
-  if (/total|esso|shell|bp |engie|station/.test(fullText)) {
-    return findCat('essence');
-  }
-  if (/restaurant|pizzeria|brasserie|bistrot|kebab|mcdo|burger/.test(fullText)) {
-    return findCat('restaurant');
-  }
-  if (/pharmacie|clinique|hôpital|médecin/.test(fullText)) {
-    return findCat('sante');
-  }
-
-  return null;
 }
 
 // ===== API PROGRAMMATIQUE =====

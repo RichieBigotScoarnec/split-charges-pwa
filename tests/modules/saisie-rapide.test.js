@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -17,10 +17,11 @@ import { resolve } from 'node:path';
  */
 
 const dbPush = vi.fn(() => Promise.resolve('cle'));
+const dbGet = vi.fn(() => Promise.resolve(null));
 
 vi.mock('../../public/js/db.js', () => ({
   dbPush,
-  dbGet: vi.fn(() => Promise.resolve(null)),
+  dbGet,
   dbSet: vi.fn(() => Promise.resolve()),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`)
@@ -53,8 +54,9 @@ vi.mock('../../public/js/modules/custom-lists.js', () => ({
 // n'existe pas.
 Element.prototype.scrollIntoView = vi.fn();
 
-const { initQuickAdd } = await import('../../public/js/modules/quick-add.js');
+const { initQuickAdd, cleanupQuickAdd } = await import('../../public/js/modules/quick-add.js');
 const { toast } = await import('../../public/js/components/toast.js');
+const { getCategories } = await import('../../public/js/modules/custom-lists.js');
 const { setState, resetState } = await import('../../public/js/state.js');
 
 /** Balisage de la modale, réduit à ce que le module manipule */
@@ -64,6 +66,11 @@ const BALISAGE = `
       <div class="quick-add-location" id="quickAddLocation"></div>
       <button type="button" id="quickAddLocationDetach" hidden>Ce n'est pas ici</button>
       <input type="text" id="quickAddAmount" />
+      <div class="category-frequentes" id="categoryFrequentes" hidden>
+        <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
+        <div class="category-frequentes-liste" id="categoryFrequentesListe"
+             role="group" aria-labelledby="categoryFrequentesTitre"></div>
+      </div>
       <div class="category-grid" id="categoryGrid"></div>
       <input type="text" id="quickAddDescription" maxlength="100" />
       <div class="payer-toggle" id="quickAddPayer">
@@ -453,5 +460,351 @@ describe('Le balisage livré, et non celui des tests', () => {
     // ouvrait le clavier pour un champ qu'il fallait aller chercher.
     expect(modale.indexOf('id="quickAddAmount"'))
       .toBeLessThan(modale.indexOf('id="categoryGrid"'));
+  });
+});
+
+describe('La catégorie déduite du lieu', () => {
+  /**
+   * Signalé à l'usage : à la Brioche Dorée, aucune catégorie n'était proposée.
+   * La table n'en connaissait que quatre — supermarché, station-service,
+   * restaurant, pharmacie — et une boulangerie est taguée `bakery`.
+   */
+  it('une boulangerie sélectionne une catégorie, là où rien ne se passait', async () => {
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'Brioche Dorée',
+        type: 'bakery',
+        display_name: 'Brioche Dorée, Rue de Nantes, 35000 Rennes',
+        address: { shop: 'Brioche Dorée', road: 'Rue de Nantes', postcode: '35000', city: 'Rennes' }
+      })
+    }));
+
+    setState('cachedGpsPosition', { lat: 48.11, lng: -1.68, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.category-btn.selected')).not.toBeNull();
+    });
+
+    // « Boulangerie » n'existe pas dans les catégories de ce foyer : le repli
+    // sur « Courses » est ce qui évite de ne rien détecter du tout.
+    expect(document.querySelector('.category-btn.selected').dataset.categoryId)
+      .toBe('courses');
+  });
+
+  it('une rue sans commerce ne sélectionne rien', async () => {
+    // Le cas de la capture : « Quai Vasco de Gama ». Proposer une catégorie ici
+    // serait deviner, et une catégorie fausse part en base sans qu'on la relise.
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        type: 'residential',
+        display_name: 'Quai Vasco de Gama, 66700 Argelès-sur-Mer',
+        address: { road: 'Quai Vasco de Gama', postcode: '66700', city: 'Argelès-sur-Mer' }
+      })
+    }));
+
+    setState('cachedGpsPosition', { lat: 42.55, lng: 3.03, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    await vi.waitFor(() => {
+      expect(document.getElementById('quickAddLocation').textContent).toMatch(/Argelès/);
+    });
+
+    expect(document.querySelector('.category-btn.selected')).toBeNull();
+  });
+});
+
+describe('La ligne des catégories souvent employées', () => {
+  /**
+   * La grille présente toutes les catégories à poids égal. C'est juste tant
+   * qu'elles sont huit ; ça cesse de l'être dès qu'on en crée d'autres, car
+   * l'usage réel est très inégal.
+   */
+  const ORIGINE = getCategories();
+  afterEach(() => { getCategories.mockReturnValue(ORIGINE); });
+
+  const NEUF = [
+    { id: 'courses', icon: '🛒', label: 'Courses' },
+    { id: 'maison', icon: '🏠', label: 'Maison' },
+    { id: 'essence', icon: '🚗', label: 'Essence' },
+    { id: 'restaurant', icon: '🍕', label: 'Restaurant' },
+    { id: 'sante', icon: '💊', label: 'Santé' },
+    { id: 'loisirs', icon: '🎮', label: 'Loisirs' },
+    { id: 'transport', icon: '🚌', label: 'Transport' },
+    { id: 'autre', icon: '⚡', label: 'Autre' },
+    { id: 'bar', icon: '🍺', label: 'Bar' }
+  ];
+
+  /**
+   * Rouvre la modale avec une liste de catégories et un historique donnés
+   * @param {Array} categories
+   * @param {Array} charges
+   */
+  async function rouvrir(categories, charges) {
+    getCategories.mockReturnValue(categories);
+    setState('variableCharges', charges);
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+  }
+
+  it('reste masquée sur une grille courte : elle ne raccourcit aucun geste', async () => {
+    await rouvrir(NEUF.slice(0, 3), [
+      { category: 'Courses' }, { category: 'Courses' }, { category: 'Maison' }
+    ]);
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('reste masquée sans historique : rien à en tirer', async () => {
+    await rouvrir(NEUF, []);
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('apparaît sur une longue grille, la plus employée en tête', async () => {
+    await rouvrir(NEUF, [
+      { category: 'Bar' }, { category: 'Bar' }, { category: 'Bar' },
+      { category: 'Courses' }, { category: 'Courses' },
+      { category: 'Restaurant' }
+    ]);
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(false);
+
+    const libelles = [...document.querySelectorAll('.category-frequente-btn')]
+      .map(b => b.dataset.categoryId);
+    expect(libelles).toEqual(['bar', 'courses', 'restaurant']);
+  });
+
+  it('un raccourci sélectionne la catégorie, comme la tuile', async () => {
+    await rouvrir(NEUF, [
+      { category: 'Bar' }, { category: 'Bar' }, { category: 'Courses' }
+    ]);
+
+    document.querySelector('.category-frequente-btn[data-category-id="bar"]').click();
+    document.getElementById('quickAddAmount').value = '7,50';
+    await valider();
+
+    expect(derniereCharge().category).toBe('Bar');
+    expect(derniereCharge().categoryId).toBe('bar');
+  });
+
+  it('le choix se voit sur les deux surfaces, pas sur une seule', async () => {
+    // N'en marquer qu'une laisserait croire à deux choix distincts, dont l'un
+    // serait resté vide.
+    await rouvrir(NEUF, [
+      { category: 'Bar' }, { category: 'Bar' }, { category: 'Courses' }
+    ]);
+
+    document.querySelector('.category-btn[data-category-id="bar"]').click();
+
+    expect(document.querySelector('.category-frequente-btn[data-category-id="bar"]').className)
+      .toContain('selected');
+  });
+
+  it('ignore la corbeille : une charge retirée n\'est pas une habitude', async () => {
+    await rouvrir(NEUF, [
+      { category: 'Santé', deleted: true }, { category: 'Santé', deleted: true },
+      { category: 'Bar' }, { category: 'Courses' }
+    ]);
+
+    const libelles = [...document.querySelectorAll('.category-frequente-btn')]
+      .map(b => b.dataset.categoryId);
+    expect(libelles).not.toContain('sante');
+  });
+});
+
+describe('L\'historique retenu ne déborde pas de son mois ni de son compte', () => {
+  /**
+   * Les charges du mois précédent sont lues une fois, puis gardées en mémoire.
+   * Un cache anonyme aurait servi les charges de juin en naviguant vers
+   * septembre, et celles du foyer à un compte du bac à sable. Rien n'aurait
+   * signalé l'erreur : la ligne aurait l'air aussi crédible dans un cas que
+   * dans l'autre.
+   */
+  const NEUF = [
+    { id: 'courses', icon: '🛒', label: 'Courses' },
+    { id: 'maison', icon: '🏠', label: 'Maison' },
+    { id: 'essence', icon: '🚗', label: 'Essence' },
+    { id: 'restaurant', icon: '🍕', label: 'Restaurant' },
+    { id: 'sante', icon: '💊', label: 'Santé' },
+    { id: 'loisirs', icon: '🎮', label: 'Loisirs' },
+    { id: 'transport', icon: '🚌', label: 'Transport' },
+    { id: 'autre', icon: '⚡', label: 'Autre' },
+    { id: 'bar', icon: '🍺', label: 'Bar' }
+  ];
+
+  const ORIGINE = getCategories();
+
+  beforeEach(() => {
+    // Le `beforeEach` global ouvre déjà la modale, ce qui remplit le cache
+    // pour la période en cours. On repart donc d'un module vierge.
+    cleanupQuickAdd();
+    dbGet.mockClear();
+  });
+
+  afterEach(() => {
+    getCategories.mockReturnValue(ORIGINE);
+    dbGet.mockResolvedValue(null);
+  });
+
+  /** Libellés actuellement proposés dans la ligne */
+  const proposes = () => [...document.querySelectorAll('.category-frequente-btn')]
+    .map(b => b.dataset.categoryId);
+
+  it('l\'historique d\'un mois ne sert pas à un autre', async () => {
+    getCategories.mockReturnValue(NEUF);
+    setState('variableCharges', []);
+    setState('currentPeriod', '2026-08');
+    dbGet.mockResolvedValue({ a: { category: 'Bar' }, b: { category: 'Bar' }, c: { category: 'Loisirs' } });
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    await vi.waitFor(() => expect(proposes()).toEqual(['bar', 'loisirs']));
+
+    // On navigue vers un autre mois : juillet n'a rien à dire de septembre.
+    setState('currentPeriod', '2026-10');
+    dbGet.mockResolvedValue(null);
+
+    document.body.innerHTML = BALISAGE;
+    window.showQuickAddModal();
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('la déconnexion efface l\'historique : le compte suivant part de zéro', async () => {
+    // Le compte de test vit dans le bac à sable. Lui servir les habitudes du
+    // foyer — ou l'inverse — ne lèverait aucune erreur.
+    getCategories.mockReturnValue(NEUF);
+    setState('variableCharges', []);
+    setState('currentPeriod', '2026-08');
+    dbGet.mockResolvedValue({ a: { category: 'Bar' }, b: { category: 'Bar' }, c: { category: 'Loisirs' } });
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    await vi.waitFor(() => expect(proposes()).toEqual(['bar', 'loisirs']));
+
+    cleanupQuickAdd();
+    dbGet.mockResolvedValue(null);
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('ne relit pas la base quand le mois n\'a pas changé', async () => {
+    // Le confort ne vaut pas un aller-retour par ouverture de la modale.
+    getCategories.mockReturnValue(NEUF);
+    setState('variableCharges', []);
+    setState('currentPeriod', '2026-08');
+    dbGet.mockResolvedValue({ a: { category: 'Bar' }, b: { category: 'Bar' } });
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    await vi.waitFor(() => expect(dbGet).toHaveBeenCalledTimes(1));
+
+    window.showQuickAddModal();
+    window.showQuickAddModal();
+
+    expect(dbGet).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Deux appuis ne font pas deux charges', () => {
+  /**
+   * Rien n'empêchait d'entrer deux fois dans l'écriture. Sur une connexion
+   * lente, `dbPush` met le temps qu'il met : la modale reste ouverte, rien ne
+   * bouge, et le second appui est le réflexe naturel. Mesuré avant correctif :
+   * le second appel franchissait toute la validation et atteignait la base.
+   */
+  it('un second appui pendant l\'écriture est ignoré', async () => {
+    dbPush.mockImplementation(() => new Promise(r => setTimeout(() => r('cle'), 30)));
+
+    saisir({ montant: '12,50' });
+    const { handleQuickAddSubmit } = window;
+    await Promise.all([handleQuickAddSubmit(), handleQuickAddSubmit()]);
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
+    // Et surtout : aucune erreur affichée. Le second appui n'a pas à produire
+    // un bandeau rouge pour une charge qui, elle, s'est bien enregistrée.
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('le verrou est relâché : la charge suivante passe', async () => {
+    // Un verrou qui ne se rouvre pas rendrait la saisie rapide inutilisable
+    // pour le reste de la session.
+    saisir({ montant: '12,50' });
+    await valider();
+
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    saisir({ montant: '8' });
+    await valider();
+
+    expect(dbPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('un refus de validation ne referme pas le verrou sur lui-même', async () => {
+    // Le verrou est posé avant la validation : s'il n'était pas relâché sur les
+    // chemins de refus, une saisie incomplète condamnerait toutes les suivantes.
+    document.querySelector('[data-category-id="restaurant"]').click();
+    await valider();                       // montant vide → refus
+    expect(dbPush).not.toHaveBeenCalled();
+
+    document.getElementById('quickAddAmount').value = '9,90';
+    await valider();
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Les écouteurs ne s\'empilent pas au fil des connexions', () => {
+  /**
+   * `initQuickAdd` est rappelé à chaque connexion, tandis que les éléments de
+   * la modale vivent aussi longtemps que la page. Mesuré avant correctif :
+   * trois connexions posaient trois écouteurs sur chaque élément, et une
+   * pression sur Entrée entrait trois fois dans la soumission.
+   */
+  it('trois connexions successives n\'en posent qu\'un par élément', () => {
+    const poses = {};
+    const cibles = [
+      'quickAddAmount', 'quickAddDescription', 'quickSplitProrata',
+      'quickSplit5050', 'quickAddPayer', 'quickAddLocationDetach', 'modalQuickAdd'
+    ];
+
+    for (const id of cibles) {
+      const element = document.getElementById(id);
+      const pose = element.addEventListener.bind(element);
+      const retire = element.removeEventListener.bind(element);
+      element.addEventListener = (type, fn, opts) => {
+        poses[`${id}:${type}`] = (poses[`${id}:${type}`] || 0) + 1;
+        return pose(type, fn, opts);
+      };
+      element.removeEventListener = (type, fn, opts) => {
+        if (poses[`${id}:${type}`]) poses[`${id}:${type}`] -= 1;
+        return retire(type, fn, opts);
+      };
+    }
+
+    cleanupQuickAdd(); initQuickAdd();
+    cleanupQuickAdd(); initQuickAdd();
+    cleanupQuickAdd(); initQuickAdd();
+
+    const empiles = Object.entries(poses).filter(([, n]) => n > 1);
+    expect(empiles, `écouteurs empilés : ${JSON.stringify(empiles)}`).toEqual([]);
   });
 });
