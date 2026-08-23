@@ -55,6 +55,24 @@ describe('Validation d\'un fichier de sauvegarde', () => {
     expect(validateBackup(valide({ version: '1' }))).toMatch(/plus récente/);
   });
 
+  it('accepte une sauvegarde portant des enveloppes transversales', () => {
+    // La sauvegarde lit la racine entière : les enveloppes y figurent dès leur
+    // création. Omises de la liste des nœuds connus, elles auraient fait
+    // refuser la restauration des sauvegardes les plus récentes du foyer —
+    // celles-là mêmes qu'on veut restaurer.
+    expect(validateBackup(valide({
+      data: { envelopes: [{ id: 'vacances', label: 'Vacances' }], periods: {} }
+    }))).toBeNull();
+  });
+
+  it('refuse toujours un nœud que l\'application ne sait pas écrire', () => {
+    // Le garde-fou reste en place : élargir la liste pour les enveloppes ne
+    // doit pas l'avoir ouverte à tout.
+    expect(validateBackup(valide({
+      data: { periods: {}, nimporteQuoi: { a: 1 } }
+    }))).toMatch(/ne connaît pas : nimporteQuoi/);
+  });
+
   it('refuse une enveloppe sans données exploitables', () => {
     expect(validateBackup(valide({ data: null }))).toMatch(/aucune donnée/);
     expect(validateBackup(valide({ data: [] }))).toMatch(/aucune donnée/);
@@ -73,6 +91,7 @@ describe('Validation d\'un fichier de sauvegarde', () => {
         categoryBudgets: { Courses: 400 },
         customCategories: [],
         customDestinations: [],
+        envelopes: [{ id: 'vacances', label: 'Vacances', icon: '🏖️' }],
         reminders: { finMois: false },
         periods: {}
       }

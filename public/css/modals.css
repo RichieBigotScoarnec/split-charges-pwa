@@ -442,12 +442,17 @@
 }
 
 /* Emoji picker grid */
+/* La planche est passée de vingt-quatre à cinquante-sept images : sans limite
+   de hauteur elle repoussait le bouton « Ajouter » hors de l'écran sur un
+   téléphone, et rien n'indiquait qu'il fallait faire défiler la modale. */
 .manage-emoji-picker {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: var(--space-sm);
   margin-top: var(--space-sm);
+  max-height: 180px;
+  overflow-y: auto;
   background: var(--elevated-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
@@ -579,4 +584,89 @@
 
 .trash-month:first-child {
   margin-top: 0;
+}
+
+/* ===== ENVELOPPES TRANSVERSALES ===== */
+
+/* Le texte d'aide de l'écran de gestion. Une enveloppe est une notion neuve :
+   sans une phrase pour la distinguer d'une catégorie, l'écran ressemble à celui
+   des catégories et sera employé comme tel. */
+.manage-lists-aide {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.envelope-item {
+  align-items: flex-start;
+}
+
+/* Une enveloppe close reste lisible — les vacances de l'an dernier ont eu
+   lieu — mais s'efface derrière les enveloppes en cours. */
+.envelope-close {
+  opacity: 0.6;
+}
+
+.envelope-etat {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.envelope-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.envelope-toggle,
+.envelope-delete {
+  flex-shrink: 0;
+  /* Cible tactile : 44 px, comme partout ailleurs. */
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.envelope-add-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.envelope-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 120px;
+}
+
+.envelope-field label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.envelope-field input {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.envelope-field input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
 }

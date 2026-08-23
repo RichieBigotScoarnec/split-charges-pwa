@@ -14,6 +14,7 @@ import { showModal, closeModal, showConfirmModal } from '../components/modal.js'
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
+import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
@@ -30,6 +31,11 @@ export function showAddFixedChargeModal() {
 
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
+
+  // Repeuplée à l'ouverture : une enveloppe créée depuis le début de la session
+  // doit être proposée sans avoir à recharger l'application.
+  populateEnvelopeSelect('fixedChargeEnvelope', '');
+
   const recurringEl = document.getElementById('fixedChargeRecurring');
   if (recurringEl) recurringEl.checked = true;
 
@@ -139,6 +145,10 @@ export async function saveFixedCharge() {
   const category = document.getElementById('fixedChargeCategory').value;
   const paidBy = document.getElementById('fixedChargePaidBy').value;
   const destination = document.getElementById('fixedChargeDestination')?.value || '';
+  // Chaîne vide plutôt que `null` quand aucune enveloppe n'est choisie :
+  // Firebase supprime la clé sur `null`, et une édition qui détache une charge
+  // de son enveloppe doit effacer l'ancienne valeur, pas la laisser en place.
+  const envelope = document.getElementById('fixedChargeEnvelope')?.value || '';
   const recurring = document.getElementById('fixedChargeRecurring')?.checked ?? true;
 
   // Répartition spéciale
@@ -189,6 +199,7 @@ export async function saveFixedCharge() {
       category,
       paidBy,
       destination,
+      envelope,
       recurring,
       splitOverride,
       timestamp: Date.now(),
@@ -243,6 +254,9 @@ export function editFixedCharge(chargeId) {
   document.getElementById('fixedChargePaidBy').value = charge.paidBy;
   const destEl = document.getElementById('fixedChargeDestination');
   if (destEl) destEl.value = charge.destination || '';
+  // Repeupler plutôt que fixer la valeur : c'est ce qui permet de rattacher
+  // après coup une dépense oubliée, y compris à une enveloppe close depuis.
+  populateEnvelopeSelect('fixedChargeEnvelope', charge.envelope || '');
   const recurringEl = document.getElementById('fixedChargeRecurring');
   if (recurringEl) recurringEl.checked = charge.recurring !== false;
 
@@ -381,6 +395,8 @@ export function renderFixedCharges() {
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}</span>
           <span class="charge-payer">Payé par ${escapeHtml(formatPaidBy(charge.paidBy))} ${destinationTag}</span>
+          ${etiquetteEnveloppe(charge)}
+          ${etiquetteEnveloppe(charge)}
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>

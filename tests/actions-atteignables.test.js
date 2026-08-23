@@ -74,6 +74,7 @@ describe('Tout écran a une porte', () => {
   const OUVERTURES = [
     'showManageCategoriesModal',
     'showManageDestinationsModal',
+    'showManageEnvelopesModal',
     'showQuickAddModal',
     'showTrash',
     'showBackup',

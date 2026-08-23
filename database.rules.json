@@ -103,6 +103,35 @@
           }
         }
       },
+      "envelopes": {
+        "$rang": {
+          ".validate": "newData.hasChildren(['id', 'label'])",
+          "id": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "label": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "budget": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000000"
+          },
+          "debut": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)"
+          },
+          "fin": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)"
+          },
+          "cloturee": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
       "reminders": {
         "finMois": {
           ".validate": "newData.isBoolean()"
@@ -161,6 +190,9 @@
                 ".validate": "newData.isString() && newData.val().length <= 30"
               },
               "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "envelope": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
               "recurring": {
@@ -235,6 +267,9 @@
                 ".validate": "newData.isString() && newData.val().length <= 30"
               },
               "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "envelope": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
               "recurring": {
@@ -420,6 +455,35 @@
           }
         }
       },
+      "envelopes": {
+        "$rang": {
+          ".validate": "newData.hasChildren(['id', 'label'])",
+          "id": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "label": {
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "budget": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000000"
+          },
+          "debut": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)"
+          },
+          "fin": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)"
+          },
+          "cloturee": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
       "reminders": {
         "finMois": {
           ".validate": "newData.isBoolean()"
@@ -478,6 +542,9 @@
                 ".validate": "newData.isString() && newData.val().length <= 30"
               },
               "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "envelope": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
               "recurring": {
@@ -552,6 +619,9 @@
                 ".validate": "newData.isString() && newData.val().length <= 30"
               },
               "destination": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "envelope": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
               "recurring": {

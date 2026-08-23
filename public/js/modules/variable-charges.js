@@ -14,6 +14,7 @@ import { showModal, closeModal, showConfirmModal } from '../components/modal.js'
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
+import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
@@ -30,6 +31,10 @@ export function showAddVariableChargeModal() {
 
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
+
+  // Repeuplée à l'ouverture : une enveloppe créée depuis le début de la session
+  // doit être proposée sans avoir à recharger l'application.
+  populateEnvelopeSelect('variableChargeEnvelope', '');
 
   // Reset split override
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -155,6 +160,10 @@ export async function saveVariableCharge() {
   const amount = parseMontant(document.getElementById('variableChargeAmount').value);
   const category = document.getElementById('variableChargeCategory').value;
   const paidBy = document.getElementById('variableChargePaidBy').value;
+  // Chaîne vide plutôt que `null` quand aucune enveloppe n'est choisie :
+  // Firebase supprime la clé sur `null`, et une édition qui détache une charge
+  // de son enveloppe doit effacer l'ancienne valeur, pas la laisser en place.
+  const envelope = document.getElementById('variableChargeEnvelope')?.value || '';
 
   // Répartition spéciale
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -203,6 +212,7 @@ export async function saveVariableCharge() {
       amount,
       category,
       paidBy,
+      envelope,
       splitOverride,
       timestamp: Date.now(),
       deleted: false
@@ -254,6 +264,9 @@ export function editVariableCharge(chargeId) {
   document.getElementById('variableChargeAmount').value = charge.amount;
   document.getElementById('variableChargeCategory').value = charge.category;
   document.getElementById('variableChargePaidBy').value = charge.paidBy;
+  // Repeupler plutôt que fixer la valeur : c'est ce qui permet de rattacher
+  // après coup une dépense oubliée, y compris à une enveloppe close depuis.
+  populateEnvelopeSelect('variableChargeEnvelope', charge.envelope || '');
 
   // Restaurer splitOverride
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -394,6 +407,7 @@ export function renderVariableCharges() {
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}</span>
           <span class="charge-payer">Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
+          ${etiquetteEnveloppe(charge)}
           ${locationTag}
         </div>
         <div class="charge-actions">

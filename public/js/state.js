@@ -19,6 +19,9 @@ const initialState = {
   variableCharges: [],
   reimbursements: [],
 
+  // Enveloppes transversales — étiquettes de lecture, sans effet sur le solde
+  envelopes: [],
+
   // Share settings
   shareMode: 'prorata',
   customPercents: { vous: 50, conjointe: 50 },
