@@ -12,6 +12,7 @@
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, warn } from '../utils/debug.js';
+import { exigerElement } from '../utils/diagnostics.js';
 import { decrireLieu } from '../utils/lieu.js';
 import { resultatsDeRecherche, lieuAEcrire, requeteUtile } from '../utils/recherche-lieu.js';
 
@@ -77,11 +78,44 @@ export function reinitialiserLieu() {
  * @returns {void}
  */
 export function initChoixLieu() {
-  poserUnique(document.getElementById('variableChargeLieuRecherche'), 'input', surFrappe);
-  poserUnique(document.getElementById('variableChargeLieuRecherche'), 'keydown', surEntree);
-  poserUnique(document.getElementById('variableChargeLieuIci'), 'click', surPositionActuelle);
-  poserUnique(document.getElementById('variableChargeLieuRetirer'), 'click', surRetrait);
+  // `exigerElement` journalise bruyamment un identifiant absent. Sans lui, un
+  // champ orphelin — parce que le balisage a bougé, ou parce qu'un service
+  // worker sert un HTML et un JavaScript de versions différentes — reste
+  // simplement inerte : on tape, on clique, il ne se passe rien, et rien nulle
+  // part ne dit pourquoi. C'est exactement ce qui a été signalé.
+  const champ = exigerElement('variableChargeLieuRecherche', 'chercher un lieu');
+  poserUnique(champ, 'input', surFrappe);
+  poserUnique(champ, 'keydown', surEntree);
+
+  poserUnique(exigerElement('variableChargeLieuChercher', 'lancer la recherche de lieu'),
+    'click', surBoutonChercher);
+  poserUnique(exigerElement('variableChargeLieuIci', 'reprendre la position actuelle'),
+    'click', surPositionActuelle);
+  poserUnique(exigerElement('variableChargeLieuRetirer', 'retirer le lieu'),
+    'click', surRetrait);
+
+  // Marque visible depuis le DOM : elle permet à un test de bout en bout
+  // d'affirmer que le branchement a réellement eu lieu, plutôt que de le
+  // supposer parce que les éléments existent.
+  if (champ) champ.dataset.lieuPret = 'oui';
+
   log('📦 Module choix du lieu initialisé');
+}
+
+/** Le bouton « chercher » : ce que l'utilisateur attendait de 📍 */
+function surBoutonChercher() {
+  const champ = document.getElementById('variableChargeLieuRecherche');
+  const saisie = champ ? champ.value : '';
+
+  if (!requeteUtile(saisie)) {
+    // Ne jamais rester muet sur un geste explicite : un bouton qui ne répond
+    // pas est indiscernable d'un bouton mort.
+    afficherEtat('Tapez au moins trois lettres');
+    return;
+  }
+
+  if (_minuteur) clearTimeout(_minuteur);
+  lancerRecherche(saisie);
 }
 
 /**

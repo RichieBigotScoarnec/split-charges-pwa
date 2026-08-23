@@ -725,7 +725,11 @@
   justify-content: center;
 }
 
-.lieu-resultats {
+/* `:not([hidden])` est indispensable : `hidden` ne pose `display: none` que
+   par la feuille du navigateur, et n'importe quelle règle d'auteur portant
+   `display` la bat. Sans cette précaution, la boîte de propositions resterait
+   affichée en permanence, vide. */
+.lieu-resultats:not([hidden]) {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -771,7 +775,7 @@
   color: var(--text-secondary);
 }
 
-.lieu-retenu {
+.lieu-retenu:not([hidden]) {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
@@ -796,4 +800,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.lieu-aide {
+  margin: var(--space-xs) 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
 }

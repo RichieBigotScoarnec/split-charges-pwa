@@ -509,10 +509,18 @@
               maxlength="120"
               autocomplete="off"
             />
+            <!-- Un bouton « chercher » explicite. La première version n'offrait
+                 que 📍, dont le sens est « ma position actuelle » : on a tapé un
+                 nom, on a cliqué dessus, et il ne s'est rien passé de ce qu'on
+                 attendait. Une icône seule ne dit pas ce qu'elle fait. -->
+            <button type="button" id="variableChargeLieuChercher" class="btn-icon" title="Chercher ce lieu" aria-label="Chercher ce lieu">
+              🔍
+            </button>
             <button type="button" id="variableChargeLieuIci" class="btn-icon" title="Utiliser ma position actuelle" aria-label="Utiliser ma position actuelle">
               📍
             </button>
           </div>
+          <p class="lieu-aide">Tapez un nom, puis 🔍. Ou 📍 pour votre position actuelle.</p>
           <div id="variableChargeLieuResultats" class="lieu-resultats" hidden></div>
           <div id="variableChargeLieuRetenu" class="lieu-retenu" hidden>
             <span aria-hidden="true">📍</span>
