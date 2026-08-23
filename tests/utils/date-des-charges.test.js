@@ -22,16 +22,69 @@ import {
  * déclenchée.
  */
 
-describe('Le jour courant', () => {
-  it('est celui du fuseau de l\'appareil, pas celui d\'UTC', () => {
-    // `new Date().toISOString().split('T')[0]` rend le jour UTC. En hiver la
-    // France est à UTC+1 : une course faite à 00h30 était datée de la veille.
-    // Rien ne le signalait, puisque aucune vue n'affichait la date.
-    const minuitEtDemi = new Date(2026, 0, 15, 0, 30, 0);
-    expect(dateDuJour(minuitEtDemi)).toBe('2026-01-15');
+describe('Le banc d\'essai lui-même', () => {
+  /**
+   * Sans ce contrôle, tout ce fichier peut devenir muet sans prévenir.
+   *
+   * Les tests s'exécutaient en UTC. Or en UTC le jour local et le jour UTC
+   * coïncident toujours : les contrôles ci-dessous passaient quoi qu'il arrive,
+   * y compris avec le défaut réintroduit. Mesuré — le sabotage n'échouait qu'en
+   * forçant le fuseau à la main.
+   *
+   * `vitest.config.js` fixe donc `TZ=Europe/Paris`, le fuseau du foyer. Si ce
+   * réglage disparaît, c'est ici que ça se voit, plutôt que nulle part.
+   */
+  it('s\'exécute dans le fuseau du foyer, seul endroit où ces cas prouvent quelque chose', () => {
+    expect(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      'les tests de date ne prouvent rien hors d\'un fuseau décalé d\'UTC : voir test.env.TZ dans vitest.config.js'
+    ).toBe('Europe/Paris');
+  });
 
-    const presqueMinuit = new Date(2026, 0, 15, 23, 45, 0);
-    expect(dateDuJour(presqueMinuit)).toBe('2026-01-15');
+  it('le fuseau bascule bien deux fois dans l\'année', () => {
+    // Si la base de fuseaux n'était pas chargée, Paris resterait à UTC+0 toute
+    // l'année et les cas d'été comme d'hiver deviendraient vides.
+    const hiver = -new Date(2026, 0, 15).getTimezoneOffset() / 60;
+    const ete = -new Date(2026, 6, 15).getTimezoneOffset() / 60;
+    expect(hiver, 'heure d\'hiver attendue à UTC+1').toBe(1);
+    expect(ete, 'heure d\'été attendue à UTC+2').toBe(2);
+  });
+});
+
+describe('Le jour courant', () => {
+  it('tient en heure d\'hiver, où la France est à UTC+1', () => {
+    // `toISOString().split('T')[0]` rend le jour UTC : de minuit à 01h00, il
+    // renvoyait la veille. Mesuré : 2026-01-14 au lieu de 2026-01-15.
+    expect(dateDuJour(new Date(2026, 0, 15, 0, 30))).toBe('2026-01-15');
+    expect(dateDuJour(new Date(2026, 0, 15, 23, 45))).toBe('2026-01-15');
+  });
+
+  it('tient en heure d\'été, où la fenêtre de faux était deux fois plus large', () => {
+    // À UTC+2, ce sont les deux premières heures de la nuit qui basculaient sur
+    // la veille — pas une seule. J'avais annoncé « en hiver » : c'était
+    // incomplet, et l'été est le cas le plus défavorable.
+    expect(dateDuJour(new Date(2026, 6, 15, 0, 30))).toBe('2026-07-15');
+    expect(dateDuJour(new Date(2026, 6, 15, 1, 30))).toBe('2026-07-15');
+    expect(dateDuJour(new Date(2026, 6, 15, 23, 45))).toBe('2026-07-15');
+  });
+
+  it('traverse les deux nuits de bascule sans se troubler', () => {
+    // Le dernier dimanche de mars, 02h00 devient 03h00 ; le dernier dimanche
+    // d'octobre, 03h00 redevient 02h00 — cette heure-là existe donc deux fois.
+    // Le jour civil, lui, ne devient jamais ambigu : c'est l'instant qui l'est.
+    expect(dateDuJour(new Date(2026, 2, 29, 1, 30))).toBe('2026-03-29');
+    expect(dateDuJour(new Date(2026, 2, 29, 3, 30))).toBe('2026-03-29');
+    expect(dateDuJour(new Date(2026, 9, 25, 2, 30))).toBe('2026-10-25');
+    expect(dateDuJour(new Date(2026, 9, 25, 3, 30))).toBe('2026-10-25');
+  });
+
+  it('ne renvoie pas une dépense dans l\'année précédente', () => {
+    // Le cas le plus visible : le 1er janvier à 00h01, l'ancien calcul datait
+    // la dépense du 31 décembre. La charge était bien rangée dans le mois
+    // courant — la période, elle, se calcule en local depuis toujours — mais
+    // elle s'affichait comme appartenant au mois d'avant.
+    expect(dateDuJour(new Date(2027, 0, 1, 0, 1))).toBe('2027-01-01');
+    expect(dateDuJour(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
   });
 
   it('complète le mois et le jour à deux chiffres', () => {

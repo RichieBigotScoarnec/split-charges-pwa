@@ -41,15 +41,24 @@ export function formatPeriod(period) {
  * Le jour courant, tel qu'il est ici — AAAA-MM-JJ
  *
  * La saisie rapide le calculait par `new Date().toISOString().split('T')[0]`,
- * qui rend le jour **UTC**. En hiver, la France est à UTC+1 : une course faite
- * à 00h30 était donc enregistrée à la date de la veille. En été, à UTC+2, le
- * décalage porte sur les deux premières heures de la nuit.
+ * qui rend le jour **UTC**. La France n'y est jamais : UTC+1 en heure d'hiver,
+ * UTC+2 en heure d'été. Les dépenses faites après minuit et avant le décalage
+ * étaient donc datées de la veille — une heure de fenêtre l'hiver, deux l'été.
  *
  * Rien ne le signalait — la charge s'enregistrait, le toast était vert, et la
  * date fausse ne se voyait nulle part puisque aucune vue ne l'affichait.
  *
- * Les composantes locales n'ont pas ce défaut : `getFullYear`, `getMonth` et
- * `getDate` rendent le jour du fuseau de l'appareil, qui est celui du foyer.
+ * Les composantes locales n'ont pas ce défaut, et n'ont rien à savoir des deux
+ * bascules annuelles : `getFullYear`, `getMonth` et `getDate` interrogent la
+ * base de fuseaux du système, qui encode depuis toujours la règle française —
+ * dernier dimanche de mars, dernier dimanche d'octobre. Le décalage du jour
+ * demandé en découle, sans qu'aucun code d'ici n'ait à en connaître.
+ *
+ * Et il n'y a rien à tirer du GPS pour cela : le fuseau d'un téléphone suit
+ * déjà sa position. En vacances à l'étranger, une dépense est datée du jour
+ * qu'affiche le téléphone sur place — celui du ticket de caisse. Déduire un
+ * fuseau des coordonnées exigerait une base de frontières, hors ligne comme en
+ * ligne, pour retrouver ce que l'appareil sait déjà.
  *
  * @param {Date} [instant] - Instant à convertir ; maintenant par défaut
  * @returns {string} AAAA-MM-JJ
