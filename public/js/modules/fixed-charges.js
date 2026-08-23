@@ -12,6 +12,7 @@ import { validateChargeAmount, validateChargeName } from '../utils/validation.js
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
+import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
@@ -35,6 +36,11 @@ export function showAddFixedChargeModal() {
   // Repeuplée à l'ouverture : une enveloppe créée depuis le début de la session
   // doit être proposée sans avoir à recharger l'application.
   populateEnvelopeSelect('fixedChargeEnvelope', '');
+
+  // Le jour courant par défaut, modifiable : une charge fixe se règle rarement
+  // le jour où on la saisit.
+  const dateEl = document.getElementById('fixedChargeDate');
+  if (dateEl) dateEl.value = dateDuJour();
 
   const recurringEl = document.getElementById('fixedChargeRecurring');
   if (recurringEl) recurringEl.checked = true;
@@ -149,6 +155,9 @@ export async function saveFixedCharge() {
   // Firebase supprime la clé sur `null`, et une édition qui détache une charge
   // de son enveloppe doit effacer l'ancienne valeur, pas la laisser en place.
   const envelope = document.getElementById('fixedChargeEnvelope')?.value || '';
+  // À défaut de saisie, le jour courant : `timestamp` ne dit que le moment de
+  // l'écriture, et la reconduction le réécrit chaque mois.
+  const date = document.getElementById('fixedChargeDate')?.value || dateDuJour();
   const recurring = document.getElementById('fixedChargeRecurring')?.checked ?? true;
 
   // Répartition spéciale
@@ -200,6 +209,7 @@ export async function saveFixedCharge() {
       paidBy,
       destination,
       envelope,
+      date,
       recurring,
       splitOverride,
       timestamp: Date.now(),
@@ -257,6 +267,10 @@ export function editFixedCharge(chargeId) {
   // Repeupler plutôt que fixer la valeur : c'est ce qui permet de rattacher
   // après coup une dépense oubliée, y compris à une enveloppe close depuis.
   populateEnvelopeSelect('fixedChargeEnvelope', charge.envelope || '');
+  // Les charges antérieures à ce champ n'ont que `timestamp` : le repli évite
+  // qu'une simple correction de montant ne les redate d'aujourd'hui.
+  const dateEl = document.getElementById('fixedChargeDate');
+  if (dateEl) dateEl.value = dateSaisissable(charge);
   const recurringEl = document.getElementById('fixedChargeRecurring');
   if (recurringEl) recurringEl.checked = charge.recurring !== false;
 
@@ -382,6 +396,10 @@ export function renderFixedCharges() {
       const chargeDiv = document.createElement('div');
       chargeDiv.className = 'charge-item';
       chargeDiv.dataset.id = charge.id;
+      const dateLisible = formatDate(dateDeLaCharge(charge));
+      const dateTag = dateLisible
+        ? `<span class="charge-date">${escapeHtml(dateLisible)}</span>`
+        : '';
       const destinationTag = charge.destination
         ? `<span class="charge-destination">→ ${escapeHtml(charge.destination)}</span>`
         : '';
@@ -394,7 +412,7 @@ export function renderFixedCharges() {
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}</span>
-          <span class="charge-payer">Payé par ${escapeHtml(formatPaidBy(charge.paidBy))} ${destinationTag}</span>
+          <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))} ${destinationTag}</span>
           ${etiquetteEnveloppe(charge)}
           ${etiquetteEnveloppe(charge)}
         </div>

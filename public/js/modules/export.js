@@ -5,7 +5,7 @@ import { getState } from '../state.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { memberLabel } from '../utils/members.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
-import { formatDate } from '../utils/date.js';
+import { formatDate, dateDeLaCharge } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { log, error as logError } from '../utils/debug.js';
 
@@ -82,7 +82,7 @@ export function exportToCSV() {
     csv += '=== CHARGES FIXES ===\n';
     csv += 'Description;Catégorie;Montant;Payé par;Date\n';
     fixedCharges.forEach(charge => {
-      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(charge.timestamp))}\n`;
+      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(dateDeLaCharge(charge)))}\n`;
     });
     csv += `\nTotal charges fixes: ${formatCurrency(fixedCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -91,7 +91,7 @@ export function exportToCSV() {
     csv += '=== CHARGES VARIABLES ===\n';
     csv += 'Description;Catégorie;Montant;Payé par;Date\n';
     variableCharges.forEach(charge => {
-      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(charge.timestamp))}\n`;
+      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(dateDeLaCharge(charge)))}\n`;
     });
     csv += `\nTotal charges variables: ${formatCurrency(variableCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -249,7 +249,7 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
                 <td>${escapeHtml(formatPaidBy(charge.paidBy))}</td>
-                <td>${escapeHtml(formatDate(charge.timestamp))}</td>
+                <td>${escapeHtml(formatDate(dateDeLaCharge(charge)))}</td>
               </tr>
             `).join('')}
             <tr class="total">
@@ -275,7 +275,7 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
                 <td>${escapeHtml(formatPaidBy(charge.paidBy))}</td>
-                <td>${escapeHtml(formatDate(charge.timestamp))}</td>
+                <td>${escapeHtml(formatDate(dateDeLaCharge(charge)))}</td>
               </tr>
             `).join('')}
             <tr class="total">

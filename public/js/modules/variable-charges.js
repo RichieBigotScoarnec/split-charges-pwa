@@ -12,6 +12,7 @@ import { validateChargeAmount, validateChargeName } from '../utils/validation.js
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
+import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
@@ -35,6 +36,12 @@ export function showAddVariableChargeModal() {
   // Repeuplée à l'ouverture : une enveloppe créée depuis le début de la session
   // doit être proposée sans avoir à recharger l'application.
   populateEnvelopeSelect('variableChargeEnvelope', '');
+
+  // Le jour courant par défaut : c'est le cas de loin le plus fréquent, et un
+  // champ vide obligerait à le saisir à chaque fois. Il reste modifiable, ce
+  // qui est tout l'intérêt — régulariser une dépense de samedi le lundi.
+  const dateEl = document.getElementById('variableChargeDate');
+  if (dateEl) dateEl.value = dateDuJour();
 
   // Reset split override
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -164,6 +171,9 @@ export async function saveVariableCharge() {
   // Firebase supprime la clé sur `null`, et une édition qui détache une charge
   // de son enveloppe doit effacer l'ancienne valeur, pas la laisser en place.
   const envelope = document.getElementById('variableChargeEnvelope')?.value || '';
+  // À défaut de saisie, le jour courant : une charge sans date ne pourrait plus
+  // être située, et `timestamp` ne dit que le moment de l'écriture.
+  const date = document.getElementById('variableChargeDate')?.value || dateDuJour();
 
   // Répartition spéciale
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -213,6 +223,7 @@ export async function saveVariableCharge() {
       category,
       paidBy,
       envelope,
+      date,
       splitOverride,
       timestamp: Date.now(),
       deleted: false
@@ -267,6 +278,12 @@ export function editVariableCharge(chargeId) {
   // Repeupler plutôt que fixer la valeur : c'est ce qui permet de rattacher
   // après coup une dépense oubliée, y compris à une enveloppe close depuis.
   populateEnvelopeSelect('variableChargeEnvelope', charge.envelope || '');
+
+  // Les charges antérieures à ce champ n'ont que `timestamp` : le repli les
+  // ouvre à leur date d'écriture plutôt qu'à un champ vide, qu'un
+  // enregistrement remplacerait par la date du jour.
+  const dateEl = document.getElementById('variableChargeDate');
+  if (dateEl) dateEl.value = dateSaisissable(charge);
 
   // Restaurer splitOverride
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -399,6 +416,10 @@ export function renderVariableCharges() {
       const splitTag = charge.splitOverride
         ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
         : '';
+      const dateLisible = formatDate(dateDeLaCharge(charge));
+      const dateTag = dateLisible
+        ? `<span class="charge-date">${escapeHtml(dateLisible)}</span>`
+        : '';
       const locationName = charge.location ? (charge.location.name || charge.location.place) : null;
       const locationTag = locationName
         ? `<span class="charge-location">📍 ${escapeHtml(locationName)}</span>`
@@ -406,7 +427,7 @@ export function renderVariableCharges() {
       chargeDiv.innerHTML = `
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}</span>
-          <span class="charge-payer">Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
+          <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
           ${etiquetteEnveloppe(charge)}
           ${locationTag}
         </div>

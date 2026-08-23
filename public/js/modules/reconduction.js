@@ -18,6 +18,7 @@
 import { getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
 import { getDataPath } from '../db.js';
+import { reporterDansLaPeriode } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { planRecurrence } from '../utils/recurrence.js';
@@ -92,8 +93,17 @@ export async function applyRecurringCharges() {
 
     for (const charge of plan.charges) {
       const key = database.ref().push().key;
+      // La date suit le mois, en gardant son quantième : un loyer prélevé le 5
+      // reste prélevé le 5. Recopiée telle quelle, la date de janvier ferait
+      // afficher « 5 janv. » sur la charge de février — une charge qui dit
+      // appartenir à un mois où elle ne figure pas.
+      const date = reporterDansLaPeriode(charge.date, target);
       updates[getDataPath(`periods/${target}/fixedCharges/${key}`)] = {
         ...charge,
+        // `null` supprimerait la clé, ce qui est le bon comportement pour une
+        // charge d'avant ce champ : mieux vaut aucune date qu'une date d'un
+        // autre mois.
+        ...(date ? { date } : { date: null }),
         timestamp: Date.now()
       };
     }
