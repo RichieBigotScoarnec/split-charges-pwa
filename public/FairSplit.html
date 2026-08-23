@@ -663,6 +663,14 @@
       <div class="quick-add-header">
         <strong>Catégorie</strong>
       </div>
+      <!-- Les catégories que ce foyer emploie le plus, comptées sur ses propres
+           charges. Rempli par quick-add.js, et masqué tant que la grille est
+           courte ou l'historique trop mince : une ligne qui répète des tuiles
+           déjà visibles fait hésiter au lieu d'aider. -->
+      <div class="category-frequentes" id="categoryFrequentes" hidden>
+        <span class="category-frequentes-titre">Souvent</span>
+        <div class="category-frequentes-liste" id="categoryFrequentesListe"></div>
+      </div>
       <div class="category-grid" id="categoryGrid">
         <!-- Categories will be populated by JavaScript -->
       </div>

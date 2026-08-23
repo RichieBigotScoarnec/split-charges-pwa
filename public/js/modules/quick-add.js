@@ -13,6 +13,12 @@ import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
 import { decrireLieu } from '../utils/lieu.js';
+import { categoriePourLieu } from '../utils/categorie-lieu.js';
+import {
+  categoriesFrequentes,
+  ligneFrequentesUtile,
+  periodePrecedente
+} from '../utils/categories-frequentes.js';
 
 // ===== STATE INTERNE =====
 let _keydownHandler = null;
@@ -201,6 +207,10 @@ function showQuickAddModal() {
     if (amountInput) amountInput.focus();
   }, 100);
 
+  // L'historique des catégories, une fois par session, sans bloquer
+  // l'ouverture : la ligne apparaît quand il arrive.
+  chargerHistoriqueFrequentes();
+
   // Lancer détection GPS en arrière-plan
   startGPSDetection();
 }
@@ -221,7 +231,8 @@ function closeQuickAddModal() {
   const descriptionInput = document.getElementById('quickAddDescription');
   if (descriptionInput) descriptionInput.value = '';
 
-  document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('selected'));
+  document.querySelectorAll('.category-btn, .category-frequente-btn')
+    .forEach(btn => btn.classList.remove('selected'));
   updateSplitMode('prorata');
   updatePayer('vous');
   hideLocationDetach();
@@ -262,6 +273,83 @@ function populateCategoryGrid() {
       selectCategory(catId);
     });
   });
+
+  peuplerFrequentes(categories);
+}
+
+/**
+ * Charges du mois précédent, lues une fois par session
+ *
+ * Sans elles, la ligne des fréquentes resterait vide les premiers jours du
+ * mois — précisément quand la grille est la plus longue à parcourir, puisque
+ * rien n'a encore été saisi. Une lecture, mise de côté ensuite : la rouvrir à
+ * chaque ouverture de la modale coûterait un aller-retour pour un confort.
+ */
+let _chargesMoisPrecedent = null;
+
+/**
+ * Dépouille les charges connues et remplit la ligne des fréquentes
+ *
+ * @param {Array} categories - Catégories du foyer
+ * @returns {void}
+ */
+function peuplerFrequentes(categories) {
+  const ligne = document.getElementById('categoryFrequentes');
+  const liste = document.getElementById('categoryFrequentesListe');
+  if (!ligne || !liste) return;
+
+  const charges = [
+    ...(getState('variableCharges') || []),
+    ...(_chargesMoisPrecedent || [])
+  ];
+
+  const frequentes = categoriesFrequentes(charges, categories);
+
+  if (!ligneFrequentesUtile(frequentes, categories)) {
+    ligne.hidden = true;
+    liste.innerHTML = '';
+    return;
+  }
+
+  liste.innerHTML = frequentes.map(cat => `
+    <button type="button" class="category-frequente-btn" data-category-id="${escapeHtml(cat.id)}">
+      <span aria-hidden="true">${escapeHtml(cat.icon)}</span>
+      <span>${escapeHtml(cat.label)}</span>
+    </button>
+  `).join('');
+
+  liste.querySelectorAll('.category-frequente-btn').forEach(bouton => {
+    bouton.addEventListener('click', () => selectCategory(bouton.dataset.categoryId));
+  });
+
+  ligne.hidden = false;
+}
+
+/**
+ * Va chercher les charges du mois précédent, une seule fois
+ *
+ * Son échec est sans conséquence visible : la ligne se contentera du mois en
+ * cours. C'est un confort, pas une donnée — un bandeau d'erreur pour cela
+ * apprendrait à ignorer les bandeaux d'erreur.
+ *
+ * @returns {Promise<void>}
+ */
+async function chargerHistoriqueFrequentes() {
+  if (_chargesMoisPrecedent !== null) return;
+
+  const precedente = periodePrecedente(getState('currentPeriod'));
+  if (!precedente) return;
+
+  try {
+    const { dbGet } = await import('../db.js');
+    const noeud = await dbGet(`periods/${precedente}/variableCharges`);
+    _chargesMoisPrecedent = noeud && typeof noeud === 'object' ? Object.values(noeud) : [];
+  } catch (error) {
+    warn('[Fréquentes] Historique indisponible, mois en cours seul :', error?.message || error);
+    _chargesMoisPrecedent = [];
+  }
+
+  peuplerFrequentes(getCategories());
 }
 
 /**
@@ -274,8 +362,9 @@ function selectCategory(categoryId) {
 
   quickAddState.selectedCategory = category;
 
-  // Update UI
-  document.querySelectorAll('.category-btn').forEach(btn => {
+  // Les deux surfaces désignent les mêmes catégories : n'en marquer qu'une
+  // laisserait croire à deux choix distincts, dont l'un serait resté vide.
+  document.querySelectorAll('.category-btn, .category-frequente-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
   });
 }
@@ -617,7 +706,7 @@ async function processGPSPosition(gpsData, locationEl) {
         locationEl.className = 'quick-add-location success';
 
         // Auto-détection catégorie
-        const detected = detectCategoryFromPlace(place);
+        const detected = categoriePourLieu(place, getCategories());
         if (detected && !quickAddState.selectedCategory) {
           selectCategory(detected.id);
           toast.info(`📍 ${detected.label} détecté`);
@@ -661,46 +750,6 @@ async function reverseGeocode(lat, lng) {
     logError('Reverse geocoding failed:', error);
     return null;
   }
-}
-
-/**
- * Détecte la catégorie depuis le type de lieu OSM
- */
-function detectCategoryFromPlace(place) {
-  if (!place) return null;
-
-  const categories = getCategories();
-  const findCat = (id) => categories.find(c => c.id === id);
-
-  // Mapping types OSM → catégories
-  const typeMapping = {
-    'supermarket': findCat('courses'),
-    'fuel': findCat('essence'),
-    'restaurant': findCat('restaurant'),
-    'pharmacy': findCat('sante')
-  };
-
-  if (place.type && typeMapping[place.type]) {
-    return typeMapping[place.type];
-  }
-
-  // Fallback : analyse du nom du lieu
-  const fullText = ((place.nom || '') + ' ' + (place.adresseComplete || '')).toLowerCase();
-
-  if (/leclerc|carrefour|intermarché|auchan|lidl|super u|picard/.test(fullText)) {
-    return findCat('courses');
-  }
-  if (/total|esso|shell|bp |engie|station/.test(fullText)) {
-    return findCat('essence');
-  }
-  if (/restaurant|pizzeria|brasserie|bistrot|kebab|mcdo|burger/.test(fullText)) {
-    return findCat('restaurant');
-  }
-  if (/pharmacie|clinique|hôpital|médecin/.test(fullText)) {
-    return findCat('sante');
-  }
-
-  return null;
 }
 
 // ===== API PROGRAMMATIQUE =====

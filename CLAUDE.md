@@ -37,9 +37,11 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 21 modules fonctionnels
-│       └── utils/              # 15 aides pures — dont montant (lecture d'une
-│                               # saisie), lieu (géocodage), calculations,
-│                               # format, validation, salaries, budgets
+│       └── utils/              # 18 aides pures — dont montant (lecture d'une
+│                               # saisie), lieu (géocodage), categorie-lieu
+│                               # (catégorie déduite du lieu),
+│                               # categories-frequentes, auth-errors,
+│                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generate-icons.ps1, enveloppe-sauvegarde.mjs,
 │                               # migration-repartition.mjs

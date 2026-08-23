@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -55,6 +55,7 @@ Element.prototype.scrollIntoView = vi.fn();
 
 const { initQuickAdd } = await import('../../public/js/modules/quick-add.js');
 const { toast } = await import('../../public/js/components/toast.js');
+const { getCategories } = await import('../../public/js/modules/custom-lists.js');
 const { setState, resetState } = await import('../../public/js/state.js');
 
 /** Balisage de la modale, réduit à ce que le module manipule */
@@ -64,6 +65,10 @@ const BALISAGE = `
       <div class="quick-add-location" id="quickAddLocation"></div>
       <button type="button" id="quickAddLocationDetach" hidden>Ce n'est pas ici</button>
       <input type="text" id="quickAddAmount" />
+      <div class="category-frequentes" id="categoryFrequentes" hidden>
+        <span class="category-frequentes-titre">Souvent</span>
+        <div class="category-frequentes-liste" id="categoryFrequentesListe"></div>
+      </div>
       <div class="category-grid" id="categoryGrid"></div>
       <input type="text" id="quickAddDescription" maxlength="100" />
       <div class="payer-toggle" id="quickAddPayer">
@@ -453,5 +458,164 @@ describe('Le balisage livré, et non celui des tests', () => {
     // ouvrait le clavier pour un champ qu'il fallait aller chercher.
     expect(modale.indexOf('id="quickAddAmount"'))
       .toBeLessThan(modale.indexOf('id="categoryGrid"'));
+  });
+});
+
+describe('La catégorie déduite du lieu', () => {
+  /**
+   * Signalé à l'usage : à la Brioche Dorée, aucune catégorie n'était proposée.
+   * La table n'en connaissait que quatre — supermarché, station-service,
+   * restaurant, pharmacie — et une boulangerie est taguée `bakery`.
+   */
+  it('une boulangerie sélectionne une catégorie, là où rien ne se passait', async () => {
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'Brioche Dorée',
+        type: 'bakery',
+        display_name: 'Brioche Dorée, Rue de Nantes, 35000 Rennes',
+        address: { shop: 'Brioche Dorée', road: 'Rue de Nantes', postcode: '35000', city: 'Rennes' }
+      })
+    }));
+
+    setState('cachedGpsPosition', { lat: 48.11, lng: -1.68, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.category-btn.selected')).not.toBeNull();
+    });
+
+    // « Boulangerie » n'existe pas dans les catégories de ce foyer : le repli
+    // sur « Courses » est ce qui évite de ne rien détecter du tout.
+    expect(document.querySelector('.category-btn.selected').dataset.categoryId)
+      .toBe('courses');
+  });
+
+  it('une rue sans commerce ne sélectionne rien', async () => {
+    // Le cas de la capture : « Quai Vasco de Gama ». Proposer une catégorie ici
+    // serait deviner, et une catégorie fausse part en base sans qu'on la relise.
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        type: 'residential',
+        display_name: 'Quai Vasco de Gama, 66700 Argelès-sur-Mer',
+        address: { road: 'Quai Vasco de Gama', postcode: '66700', city: 'Argelès-sur-Mer' }
+      })
+    }));
+
+    setState('cachedGpsPosition', { lat: 42.55, lng: 3.03, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    await vi.waitFor(() => {
+      expect(document.getElementById('quickAddLocation').textContent).toMatch(/Argelès/);
+    });
+
+    expect(document.querySelector('.category-btn.selected')).toBeNull();
+  });
+});
+
+describe('La ligne des catégories souvent employées', () => {
+  /**
+   * La grille présente toutes les catégories à poids égal. C'est juste tant
+   * qu'elles sont huit ; ça cesse de l'être dès qu'on en crée d'autres, car
+   * l'usage réel est très inégal.
+   */
+  const ORIGINE = getCategories();
+  afterEach(() => { getCategories.mockReturnValue(ORIGINE); });
+
+  const NEUF = [
+    { id: 'courses', icon: '🛒', label: 'Courses' },
+    { id: 'maison', icon: '🏠', label: 'Maison' },
+    { id: 'essence', icon: '🚗', label: 'Essence' },
+    { id: 'restaurant', icon: '🍕', label: 'Restaurant' },
+    { id: 'sante', icon: '💊', label: 'Santé' },
+    { id: 'loisirs', icon: '🎮', label: 'Loisirs' },
+    { id: 'transport', icon: '🚌', label: 'Transport' },
+    { id: 'autre', icon: '⚡', label: 'Autre' },
+    { id: 'bar', icon: '🍺', label: 'Bar' }
+  ];
+
+  /**
+   * Rouvre la modale avec une liste de catégories et un historique donnés
+   * @param {Array} categories
+   * @param {Array} charges
+   */
+  async function rouvrir(categories, charges) {
+    getCategories.mockReturnValue(categories);
+    setState('variableCharges', charges);
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+  }
+
+  it('reste masquée sur une grille courte : elle ne raccourcit aucun geste', async () => {
+    await rouvrir(NEUF.slice(0, 3), [
+      { category: 'Courses' }, { category: 'Courses' }, { category: 'Maison' }
+    ]);
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('reste masquée sans historique : rien à en tirer', async () => {
+    await rouvrir(NEUF, []);
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+  });
+
+  it('apparaît sur une longue grille, la plus employée en tête', async () => {
+    await rouvrir(NEUF, [
+      { category: 'Bar' }, { category: 'Bar' }, { category: 'Bar' },
+      { category: 'Courses' }, { category: 'Courses' },
+      { category: 'Restaurant' }
+    ]);
+
+    expect(document.getElementById('categoryFrequentes').hidden).toBe(false);
+
+    const libelles = [...document.querySelectorAll('.category-frequente-btn')]
+      .map(b => b.dataset.categoryId);
+    expect(libelles).toEqual(['bar', 'courses', 'restaurant']);
+  });
+
+  it('un raccourci sélectionne la catégorie, comme la tuile', async () => {
+    await rouvrir(NEUF, [
+      { category: 'Bar' }, { category: 'Bar' }, { category: 'Courses' }
+    ]);
+
+    document.querySelector('.category-frequente-btn[data-category-id="bar"]').click();
+    document.getElementById('quickAddAmount').value = '7,50';
+    await valider();
+
+    expect(derniereCharge().category).toBe('Bar');
+    expect(derniereCharge().categoryId).toBe('bar');
+  });
+
+  it('le choix se voit sur les deux surfaces, pas sur une seule', async () => {
+    // N'en marquer qu'une laisserait croire à deux choix distincts, dont l'un
+    // serait resté vide.
+    await rouvrir(NEUF, [
+      { category: 'Bar' }, { category: 'Bar' }, { category: 'Courses' }
+    ]);
+
+    document.querySelector('.category-btn[data-category-id="bar"]').click();
+
+    expect(document.querySelector('.category-frequente-btn[data-category-id="bar"]').className)
+      .toContain('selected');
+  });
+
+  it('ignore la corbeille : une charge retirée n\'est pas une habitude', async () => {
+    await rouvrir(NEUF, [
+      { category: 'Santé', deleted: true }, { category: 'Santé', deleted: true },
+      { category: 'Bar' }, { category: 'Courses' }
+    ]);
+
+    const libelles = [...document.querySelectorAll('.category-frequente-btn')]
+      .map(b => b.dataset.categoryId);
+    expect(libelles).not.toContain('sante');
   });
 });

@@ -141,6 +141,68 @@
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
+/* ===== CATÉGORIES SOUVENT EMPLOYÉES =====
+   Une ligne, au-dessus de la grille. Volontairement plus basse et plus discrète
+   que les tuiles : c'est un raccourci vers ce qui est déjà là, pas une seconde
+   liste concurrente. */
+.category-frequentes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.category-frequentes[hidden] {
+  display: none;
+}
+
+.category-frequentes-titre {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+/* Défile horizontalement plutôt que de comprimer les cibles : sous 44 px,
+   elles cesseraient d'être atteignables au pouce. */
+.category-frequentes-liste {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.category-frequente-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: var(--space-sm) 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--elevated-bg);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.category-frequente-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.category-frequente-btn.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  color: var(--primary-light);
+}
+
 /* Category Grid */
 .category-grid {
   display: grid;
