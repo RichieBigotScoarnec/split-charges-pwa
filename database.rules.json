@@ -334,6 +334,9 @@
               "note": {
                 ".validate": "newData.isString() && newData.val().length <= 1000"
               },
+              "date": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
+              },
               "timestamp": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
               },
@@ -685,6 +688,9 @@
               },
               "note": {
                 ".validate": "newData.isString() && newData.val().length <= 1000"
+              },
+              "date": {
+                ".validate": "newData.isString() && newData.val().length <= 20"
               },
               "timestamp": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"

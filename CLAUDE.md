@@ -167,6 +167,10 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Aucun moyen de regrouper les dépenses d'un séjour ou d'un chantier | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-23 — enveloppes transversales, sur charges fixes comme variables, sans effet sur le solde | Vue dédiée et enveloppe active à venir |
 | Aucune charge ne portait ni n'affichait la date de la dépense | `public/js/utils/date.js`, les deux formulaires | ✅ RÉSOLU 2026-08-23 — champ « Date de la dépense », affichage sur chaque ligne, exports corrigés | — |
 | Jour calculé en UTC : une dépense de 00h30 datée de la veille en hiver | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-23 — `dateDuJour()` lit le fuseau de l'appareil | — |
+| Aucune liste n'était triée : ordre des clés Firebase | `public/js/utils/tri.js` | ✅ RÉSOLU 2026-08-23 — plus récent d'abord, catégories par total décroissant | — |
+| Un remboursement n'avait ni date ni moyen d'être corrigé | `public/js/modules/reimbursements.js` | ✅ RÉSOLU 2026-08-23 — champ date, réouverture, tri | — |
+| Recherche aveugle au payeur, à l'enveloppe, à la date, au lieu et aux remboursements | `public/js/modules/search.js` | ✅ RÉSOLU 2026-08-23 — ce qu'on lit à l'écran se cherche | — |
+| Éditer une charge affichait « Ajouter » | les trois modales de saisie | ✅ RÉSOLU 2026-08-23 — titre et bouton accordés au geste | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

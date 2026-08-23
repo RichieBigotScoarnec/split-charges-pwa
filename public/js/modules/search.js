@@ -2,7 +2,9 @@
 // Fonctionnalités : recherche dans les charges avec debounce et highlighting
 
 import { getState } from '../state.js';
-import { escapeHtml } from '../utils/format.js';
+import { escapeHtml, formatPaidBy } from '../utils/format.js';
+import { formatDate, dateDeLaCharge } from '../utils/date.js';
+import { jourDeTri } from '../utils/tri.js';
 import { log } from '../utils/debug.js';
 
 let searchTimeout = null;
@@ -95,7 +97,7 @@ export function performSearch(query) {
  * @param {string} query - Texte recherché (lowercase)
  * @returns {Array} Résultats de recherche
  */
-function searchInCharges(query) {
+export function searchInCharges(query) {
   const fixedCharges = (getState('fixedCharges') || []).filter(c => !c.deleted);
   const variableCharges = (getState('variableCharges') || []).filter(c => !c.deleted);
 
@@ -123,6 +125,22 @@ function searchInCharges(query) {
     }
   });
 
+  // Recherche dans les remboursements
+  //
+  // Ils en étaient absents : chercher « courses » ne trouvait pas le
+  // remboursement dont la note dit « Remboursement courses ». La recherche
+  // affirmait donc balayer le mois alors qu'elle en ignorait un tiers.
+  const reimbursements = (getState('reimbursements') || []).filter(r => !r.deleted);
+  reimbursements.forEach(reimb => {
+    if (matchesQuery(reimb, query)) {
+      results.push({
+        ...reimb,
+        type: 'reimbursement',
+        typeLabel: 'Remboursement'
+      });
+    }
+  });
+
   return results;
 }
 
@@ -133,17 +151,48 @@ function searchInCharges(query) {
  * @returns {boolean}
  */
 function matchesQuery(charge, query) {
-  const description = (charge.description || '').toLowerCase();
-  const category = (charge.category || '').toLowerCase();
-  const note = (charge.note || '').toLowerCase();
+  // Chaque champ que l'écran affiche doit être atteignable par la recherche :
+  // ce qu'on lit, on le cherche. Il en manquait quatre — le payeur,
+  // l'enveloppe, la date et le lieu — de sorte que « Cindy », « vacances » ou
+  // « 15 août » ne trouvaient rien alors que l'écran les affiche.
+  //
+  // `note` ne concerne que les remboursements ; les charges n'ont jamais porté
+  // ce champ. Il reste ici parce que la recherche couvre désormais les deux.
+  const champs = [
+    charge.description,
+    charge.category,
+    charge.note,
+    formatPaidBy(charge.paidBy),
+    libelleEnveloppe(charge),
+    // La date sous les deux formes : « 2026-08-15 » pour qui tape le mois, et
+    // « 15 août 2026 » pour qui tape ce qu'il voit à l'écran.
+    jourDeTri(charge),
+    formatDate(dateDeLaCharge(charge)),
+    // Les deux séparément, et non l'un ou l'autre : une charge nommée « Le
+    // Bistrot » à Rennes doit se retrouver par l'enseigne comme par la ville.
+    charge.location && charge.location.name,
+    charge.location && charge.location.commune,
+    charge.location && charge.location.codePostal
+  ];
+
   // Une charge héritée peut ne pas porter de montant exploitable : appeler
   // toString() dessus interrompait la recherche entière sur une seule entrée.
-  const amount = String(charge.amount ?? '');
+  champs.push(String(charge.amount ?? ''));
 
-  return description.includes(query) ||
-         category.includes(query) ||
-         note.includes(query) ||
-         amount.includes(query);
+  return champs.some(
+    champ => typeof champ === 'string' && champ.toLowerCase().includes(query)
+  );
+}
+
+/**
+ * Libellé de l'enveloppe portée par une charge, s'il y en a une
+ * @param {Object} charge
+ * @returns {string}
+ */
+function libelleEnveloppe(charge) {
+  if (!charge || !charge.envelope) return '';
+  const enveloppe = (getState('envelopes') || []).find(e => e && e.id === charge.envelope);
+  return enveloppe ? enveloppe.label : '';
 }
 
 /**

@@ -207,6 +207,11 @@ function showQuickAddModal() {
   const descriptionInput = document.getElementById('quickAddDescription');
   if (descriptionInput) descriptionInput.value = '';
 
+  // Le jour courant, corrigeable : une dépense d'hier régularisée le lendemain
+  // ne doit plus obliger à rouvrir le formulaire complet.
+  const dateInput = document.getElementById('quickAddDate');
+  if (dateInput) dateInput.value = dateDuJour();
+
   updateSplitMode('prorata');
   updatePayer('vous');
   hideLocationDetach();
@@ -611,9 +616,12 @@ async function soumettre() {
     // `null` pour le prorata : c'est l'absence de dérogation, donc le mode du
     // foyer, exactement comme dans `variable-charges.js`.
     splitOverride: splitMode === '50-50' ? { mode: '50-50' } : null,
-    // `toISOString()` rend le jour UTC : en hiver, une course de 00h30
-    // était datée de la veille. `dateDuJour` lit le fuseau de l'appareil.
-    date: dateDuJour(),
+    // La date saisie si elle a été corrigée, le jour courant sinon.
+    //
+    // `toISOString()` rendait le jour UTC : en hiver comme en été, les
+    // premières heures de la nuit basculaient sur la veille. `dateDuJour` lit
+    // le fuseau de l'appareil.
+    date: document.getElementById('quickAddDate')?.value || dateDuJour(),
     timestamp: Date.now(),
     deleted: false
   };

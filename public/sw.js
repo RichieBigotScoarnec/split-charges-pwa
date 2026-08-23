@@ -68,6 +68,7 @@ const STATIC_ASSETS = [
   './js/utils/salaries.js',
   './js/utils/sandbox-banner.js',
   './js/utils/soft-delete.js',
+  './js/utils/tri.js',
   './js/utils/validation.js',
   // Composants
   './js/components/modal.js',
