@@ -142,7 +142,11 @@ const ENSEIGNES = [
   { motif: /total|totalenergies|esso|shell|\bbp\b|avia|elan\b|station[- ]service/, vise: ['essence'] },
   { motif: /boulangerie|p[âa]tisserie|brioche dor[ée]e|paul\b|marie blachère|ange\b|banette/, vise: ['boulangerie', 'courses'] },
   { motif: /restaurant|pizzeria|brasserie|bistrot|bistro|kebab|mcdo|mcdonald|burger|sushi|tacos|buffalo grill|flunch|courtepaille/, vise: ['restaurant'] },
-  { motif: /\bbar\b|\bpub\b|taverne|brewery|brasserie artisanale/, vise: ['bar', 'restaurant'] },
+  // Mêmes candidates que le type correspondant plus haut : reconnaître un bar
+  // par son nom ou par son tag ne doit pas ouvrir deux jeux de choix
+  // différents, sinon l'arbitrage par les habitudes dépend de la façon dont
+  // OpenStreetMap se trouve avoir décrit l'endroit.
+  { motif: /\bbar\b|\bpub\b|taverne|brewery|brasserie artisanale/, vise: ['bar', 'restaurant', 'loisirs'] },
   { motif: /caf[ée]|starbucks|columbus caf/, vise: ['cafe', 'bar', 'restaurant'] },
   { motif: /pharmacie|clinique|h[ôo]pital|m[ée]decin|laboratoire|dentiste|opticien|krys|afflelou/, vise: ['sante'] },
   { motif: /cin[ée]ma|pathé|gaumont|ugc|kinepolis|mus[ée]e|th[ée][âa]tre|bowling|piscine|patinoire/, vise: ['loisirs'] },
@@ -151,18 +155,49 @@ const ENSEIGNES = [
 ];
 
 /**
- * Première catégorie existante parmi celles visées
+ * Meilleure catégorie parmi celles que vise un type
  *
- * @param {string[]} vises - Identifiants de catégories, par préférence
+ * L'ordre de la table classe les candidates par précision : pour un bar,
+ * « Bar » dit exactement la chose, « Restaurant » l'approche, « Loisirs » la
+ * range. La règle en découle, en deux temps.
+ *
+ * La candidate exacte, si le foyer l'a créée, l'emporte toujours : elle ne se
+ * discute pas.
+ *
+ * À défaut, ce sont les habitudes qui tranchent, et non l'ordre écrit ici. Un
+ * foyer qui range invariablement ses sorties sous « Loisirs » a raison contre
+ * la table : c'est lui qui saisit. Le classement par précision ne sert plus
+ * alors qu'à départager ce que l'usage laisse à égalité.
+ *
+ * @param {string[]} vises - Identifiants de catégories, du plus précis au plus large
  * @param {Array} categories - Catégories réellement définies par le foyer
+ * @param {Array} habitudes - Catégories du foyer, de la plus employée à la moins
  * @returns {Object|null}
  */
-function premiereExistante(vises, categories) {
-  for (const id of vises) {
-    const trouvee = categories.find(categorie => categorie && categorie.id === id);
-    if (trouvee) return trouvee;
-  }
-  return null;
+function meilleureCandidate(vises, categories, habitudes) {
+  const existantes = vises
+    .map(id => categories.find(categorie => categorie && categorie.id === id))
+    .filter(Boolean);
+
+  if (existantes.length === 0) return null;
+
+  // La candidate exacte est le premier élément de la table : si elle existe,
+  // elle est en tête de `existantes`.
+  if (existantes[0].id === vises[0]) return existantes[0];
+
+  if (!Array.isArray(habitudes) || habitudes.length === 0) return existantes[0];
+
+  const employeeLe = new Map(habitudes.map((categorie, rang) => [categorie && categorie.id, rang]));
+
+  // Jamais employée : reléguée derrière toutes celles qui le sont, sans être
+  // écartée — c'est peut-être la première fois qu'on va dans ce genre d'endroit.
+  const rangDusage = categorie => (
+    employeeLe.has(categorie.id) ? employeeLe.get(categorie.id) : Number.MAX_SAFE_INTEGER
+  );
+
+  return existantes.reduce((meilleure, candidate) => (
+    rangDusage(candidate) < rangDusage(meilleure) ? candidate : meilleure
+  ));
 }
 
 /**
@@ -170,9 +205,12 @@ function premiereExistante(vises, categories) {
  *
  * @param {Object|null} lieu - Sortie de `decrireLieu`
  * @param {Array} categories - Catégories du foyer (`getCategories()`)
+ * @param {Array} [habitudes] - Catégories du foyer, de la plus employée à la
+ *        moins (`categoriesFrequentes`). Départage les replis quand la
+ *        catégorie exacte n'existe pas. Omise, la table décide seule.
  * @returns {Object|null} Catégorie choisie, null si aucune certitude
  */
-export function categoriePourLieu(lieu, categories) {
+export function categoriePourLieu(lieu, categories, habitudes = []) {
   if (!lieu || typeof lieu !== 'object') return null;
   if (!Array.isArray(categories) || categories.length === 0) return null;
 
@@ -180,7 +218,7 @@ export function categoriePourLieu(lieu, categories) {
   // que n'importe qui a pu saisir dans OpenStreetMap.
   const type = typeof lieu.type === 'string' ? lieu.type.toLowerCase() : '';
   if (TYPES[type]) {
-    const parLeType = premiereExistante(TYPES[type], categories);
+    const parLeType = meilleureCandidate(TYPES[type], categories, habitudes);
     if (parLeType) return parLeType;
   }
 
@@ -189,7 +227,7 @@ export function categoriePourLieu(lieu, categories) {
 
   for (const { motif, vise } of ENSEIGNES) {
     if (motif.test(texte)) {
-      const parLeNom = premiereExistante(vise, categories);
+      const parLeNom = meilleureCandidate(vise, categories, habitudes);
       if (parLeNom) return parLeNom;
     }
   }

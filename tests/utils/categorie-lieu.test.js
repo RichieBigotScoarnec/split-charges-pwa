@@ -119,3 +119,61 @@ describe('Le nom, quand le type ne dit rien', () => {
     expect(categoriePourLieu(lieu, ENRICHIES)).toBeNull();
   });
 });
+
+describe('Les habitudes du foyer arbitrent les replis', () => {
+  /**
+   * L'ordre de la table classe les candidates par précision. Il reste juste
+   * pour la candidate exacte, mais au-delà c'est un choix éditorial : rien ne
+   * dit qu'un foyer sans « Bar » range ses sorties sous « Restaurant » plutôt
+   * que sous « Loisirs ». Celui qui saisit le sait ; la table, non.
+   */
+  const SANS_BAR = CATEGORIES;   // ni « Bar », ni « Boulangerie »
+
+  /** Ce foyer range tout ce qui sort sous « Loisirs » */
+  const HABITUE_LOISIRS = [
+    { id: 'loisirs', label: 'Loisirs' },
+    { id: 'courses', label: 'Courses' },
+    { id: 'restaurant', label: 'Restaurant' }
+  ];
+
+  it('un bar tombe sur la catégorie que ce foyer emploie le plus', () => {
+    // Sans habitudes, la table imposerait « Restaurant ».
+    const lieu = { type: 'bar', nom: 'Le Zinc' };
+
+    expect(categoriePourLieu(lieu, SANS_BAR).id).toBe('restaurant');
+    expect(categoriePourLieu(lieu, SANS_BAR, HABITUE_LOISIRS).id).toBe('loisirs');
+  });
+
+  it('la catégorie exacte l\'emporte toujours sur les habitudes', () => {
+    // « Bar » existe : il n'y a rien à arbitrer, et un foyer qui l'a créé l'a
+    // fait pour qu'il serve.
+    const lieu = { type: 'bar', nom: 'Le Zinc' };
+
+    expect(categoriePourLieu(lieu, ENRICHIES, HABITUE_LOISIRS).id).toBe('bar');
+  });
+
+  it('une catégorie jamais employée passe derrière, sans être écartée', () => {
+    // C'est peut-être la première fois qu'on va dans ce genre d'endroit.
+    const jamaisLoisirs = [{ id: 'restaurant', label: 'Restaurant' }];
+
+    expect(categoriePourLieu({ type: 'bar' }, SANS_BAR, jamaisLoisirs).id).toBe('restaurant');
+  });
+
+  it('sans habitudes connues, la table décide comme avant', () => {
+    expect(categoriePourLieu({ type: 'bar' }, SANS_BAR, []).id).toBe('restaurant');
+    expect(categoriePourLieu({ type: 'bakery' }, SANS_BAR, []).id).toBe('courses');
+  });
+
+  it('arbitre aussi les replis venus du nom', () => {
+    const lieu = { type: 'yes', nom: 'Le Pub du Port', adresseComplete: 'Le Pub du Port, Brest' };
+
+    expect(categoriePourLieu(lieu, SANS_BAR).id).toBe('restaurant');
+    expect(categoriePourLieu(lieu, SANS_BAR, HABITUE_LOISIRS).id).toBe('loisirs');
+  });
+
+  it('ne lève pas sur des habitudes mal formées', () => {
+    expect(() => categoriePourLieu({ type: 'bar' }, SANS_BAR, null)).not.toThrow();
+    expect(() => categoriePourLieu({ type: 'bar' }, SANS_BAR, [null, undefined])).not.toThrow();
+    expect(categoriePourLieu({ type: 'bar' }, SANS_BAR, [null]).id).toBe('restaurant');
+  });
+});

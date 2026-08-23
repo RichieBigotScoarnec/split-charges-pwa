@@ -326,6 +326,24 @@ function peuplerFrequentes(categories) {
 }
 
 /**
+ * Les catégories du foyer, de la plus employée à la moins
+ *
+ * La ligne des fréquentes n'en montre que les premières ; l'arbitrage du GPS a
+ * besoin du classement entier, jusqu'aux catégories rarement employées — c'est
+ * précisément entre celles-là qu'il faut trancher quand la catégorie exacte
+ * n'existe pas.
+ *
+ * @returns {Array} Catégories ordonnées par usage décroissant
+ */
+function habitudesDuFoyer() {
+  const charges = [
+    ...(getState('variableCharges') || []),
+    ...(_chargesMoisPrecedent || [])
+  ];
+  return categoriesFrequentes(charges, getCategories(), { maximum: Number.MAX_SAFE_INTEGER });
+}
+
+/**
  * Va chercher les charges du mois précédent, une seule fois
  *
  * Son échec est sans conséquence visible : la ligne se contentera du mois en
@@ -706,7 +724,7 @@ async function processGPSPosition(gpsData, locationEl) {
         locationEl.className = 'quick-add-location success';
 
         // Auto-détection catégorie
-        const detected = categoriePourLieu(place, getCategories());
+        const detected = categoriePourLieu(place, getCategories(), habitudesDuFoyer());
         if (detected && !quickAddState.selectedCategory) {
           selectCategory(detected.id);
           toast.info(`📍 ${detected.label} détecté`);
