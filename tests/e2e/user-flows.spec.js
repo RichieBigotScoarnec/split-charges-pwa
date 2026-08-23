@@ -500,9 +500,16 @@ test.describe('FAB — Saisie rapide', () => {
     await expect(page.locator('#quickSplit5050')).toHaveClass(/selected/);
   });
 
-  test('bouton Ajouter désactivé sans saisie', async ({ page }) => {
+  // Ce bouton était désactivé tant que catégorie et montant n'étaient pas tous
+  // deux renseignés. Un bouton désactivé n'émet aucun événement au toucher :
+  // sur téléphone on tapait dessus, et il ne se passait rien — rien ne disait
+  // ce qui manquait. Il reste actif, et c'est la soumission qui explique.
+  test('Ajouter reste actif et nomme ce qui manque', async ({ page }) => {
     await page.locator('.fab').click();
-    await expect(page.locator('#btnQuickAdd')).toBeDisabled();
+    await expect(page.locator('#btnQuickAdd')).toBeEnabled();
+
+    await page.locator('#btnQuickAdd').click();
+    await expect(page.locator('.toast.error').last()).toContainText(/Montant/i, { timeout: 5000 });
   });
 
   test('fermer la modal quick-add', async ({ page }) => {

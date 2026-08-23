@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 /**
  * Saisie rapide : ce qu'on saisit, et ce qu'on ne saisissait pas
@@ -45,14 +47,14 @@ vi.mock('../../public/js/modules/custom-lists.js', () => ({
   ])
 }));
 
-// jsdom n'implémente pas `scrollIntoView`, que la modale appelle 400 ms après
-// son ouverture. Les tests qui attendent une réponse réseau laissent ce délai
-// s'écouler, et l'exception remontait hors de tout `try` — une lacune de
-// l'environnement de test, non de l'application, qui la comble ici plutôt que
-// d'ajouter une garde en production pour un navigateur qui n'existe pas.
+// jsdom ne l'implémente pas. La modale ne l'appelle plus, mais d'autres
+// modules chargés par cette suite peuvent le faire : le bouchon reste, ici
+// plutôt qu'en production, où ce serait une garde pour un navigateur qui
+// n'existe pas.
 Element.prototype.scrollIntoView = vi.fn();
 
 const { initQuickAdd } = await import('../../public/js/modules/quick-add.js');
+const { toast } = await import('../../public/js/components/toast.js');
 const { setState, resetState } = await import('../../public/js/state.js');
 
 /** Balisage de la modale, réduit à ce que le module manipule */
@@ -61,8 +63,8 @@ const BALISAGE = `
     <div class="modal">
       <div class="quick-add-location" id="quickAddLocation"></div>
       <button type="button" id="quickAddLocationDetach" hidden>Ce n'est pas ici</button>
-      <div class="category-grid" id="categoryGrid"></div>
       <input type="text" id="quickAddAmount" />
+      <div class="category-grid" id="categoryGrid"></div>
       <input type="text" id="quickAddDescription" maxlength="100" />
       <div class="payer-toggle" id="quickAddPayer">
         <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
@@ -71,7 +73,7 @@ const BALISAGE = `
       </div>
       <button type="button" id="quickSplitProrata" class="selected">Prorata</button>
       <button type="button" id="quickSplit5050">50-50</button>
-      <button type="button" id="btnQuickAdd" disabled>Ajouter</button>
+      <button type="button" id="btnQuickAdd">Ajouter</button>
     </div>
   </div>
 `;
@@ -223,15 +225,13 @@ describe('Le montant se saisit à la virgule comme au point', () => {
     expect(derniereCharge().amount).toBe(1234.56);
   });
 
-  it('un montant à la virgule active le bouton Ajouter', async () => {
+  it('un montant à la virgule sous 1 € est accepté', async () => {
     // La validation du formulaire lisait le champ elle aussi : sous 1 €, un
-    // « 0,80 » valait 0 et laissait le bouton désactivé.
-    document.querySelector('[data-category-id="restaurant"]').click();
-    const champ = document.getElementById('quickAddAmount');
-    champ.value = '0,80';
-    champ.dispatchEvent(new Event('input', { bubbles: true }));
+    // « 0,80 » valait 0 et bloquait la saisie.
+    saisir({ montant: '0,80' });
+    await valider();
 
-    expect(document.getElementById('btnQuickAdd').disabled).toBe(false);
+    expect(derniereCharge().amount).toBe(0.8);
   });
 
   it('une saisie qui n\'est pas un nombre est refusée, pas devinée', async () => {
@@ -348,5 +348,110 @@ describe('Le lieu enregistré dit où la dépense a eu lieu', () => {
     expect(derniereCharge().location.name).toBe('Position');
     expect(derniereCharge().location.commune).toBeUndefined();
     expect(derniereCharge().description).toBe('Restaurant');
+  });
+});
+
+describe('Un refus dit toujours ce qui manque', () => {
+  /**
+   * Le bouton « Ajouter » était désactivé tant que catégorie et montant
+   * n'étaient pas tous deux renseignés. Un bouton désactivé n'émet aucun
+   * événement au toucher : sur téléphone, on tapait dessus et il ne se passait
+   * rien — pas de message, pas d'indication de ce qui manquait.
+   *
+   * Les garde-fous de la soumission savaient pourtant nommer la cause depuis
+   * toujours. L'attribut les empêchait simplement de parler.
+   */
+  it('le bouton reste actif : c\'est la soumission qui explique', () => {
+    expect(document.getElementById('btnQuickAdd').disabled).toBe(false);
+  });
+
+  it('sans montant, le refus nomme le montant et n\'écrit rien', async () => {
+    document.querySelector('[data-category-id="restaurant"]').click();
+    await valider();
+
+    expect(dbPush).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Montant'));
+  });
+
+  it('sans catégorie, le refus nomme la catégorie et n\'écrit rien', async () => {
+    document.getElementById('quickAddAmount').value = '12,50';
+    await valider();
+
+    expect(dbPush).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('catégorie'));
+  });
+
+  it('un champ vide n\'est pas annoncé comme « pas un nombre »', async () => {
+    // Le montant partait déjà converti : `parseMontant('')` vaut NaN, et le
+    // champ auquel on n'avait pas touché se voyait reprocher sa syntaxe.
+    document.querySelector('[data-category-id="restaurant"]').click();
+    await valider();
+
+    expect(toast.error).toHaveBeenCalledWith('Montant est requis');
+  });
+
+  it('les deux manquants : c\'est le montant qui est signalé, il vient en premier', async () => {
+    // L'ordre des refus suit l'ordre de lecture. Renvoyer vers la grille alors
+    // qu'un champ plus haut est vide fait chercher au mauvais endroit.
+    await valider();
+
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Montant'));
+  });
+});
+
+describe('La répartition choisie est celle qui s\'applique', () => {
+  /**
+   * La saisie rapide écrivait `splitMode`. Le calcul du bilan ne lit que
+   * `splitOverride` — `calculateChargeShares` et `calculateJointPayment` n'ont
+   * jamais regardé ailleurs. Choisir « 50-50 » ici n'avait donc aucun effet sur
+   * le solde, et le toast de confirmation affichait pourtant « (50-50) ».
+   */
+  it('« 50-50 » écrit la dérogation que le calcul lit', async () => {
+    document.getElementById('quickSplit5050').click();
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().splitOverride).toEqual({ mode: '50-50' });
+  });
+
+  it('« Prorata » n\'écrit aucune dérogation : le mode du foyer s\'applique', async () => {
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().splitOverride).toBeNull();
+  });
+
+  it('n\'écrit plus le champ que personne ne lisait', async () => {
+    // Un champ écrit et jamais lu est précisément ce qui a produit ce défaut.
+    document.getElementById('quickSplit5050').click();
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().splitMode).toBeUndefined();
+  });
+});
+
+describe('Le balisage livré, et non celui des tests', () => {
+  /**
+   * Les cas ci-dessus posent leur propre balisage, réduit à ce que le module
+   * manipule. Ils ne diraient donc rien d'un retour en arrière dans
+   * `FairSplit.html` — or c'est ce fichier qui est servi.
+   */
+  const livre = readFileSync(resolve(process.cwd(), 'public/FairSplit.html'), 'utf8');
+  const modale = livre.slice(
+    livre.indexOf('<div id="modalQuickAdd"'),
+    livre.indexOf('<!-- Modal: Confirmation')
+  );
+
+  it('le bouton Ajouter n\'est pas livré désactivé', () => {
+    const bouton = modale.slice(modale.indexOf('id="btnQuickAdd"'));
+    expect(bouton.slice(0, bouton.indexOf('>'))).not.toContain('disabled');
+  });
+
+  it('le montant précède la grille des catégories', () => {
+    // Le champ reçoit le focus à l'ouverture : le placer sous huit tuiles
+    // ouvrait le clavier pour un champ qu'il fallait aller chercher.
+    expect(modale.indexOf('id="quickAddAmount"'))
+      .toBeLessThan(modale.indexOf('id="categoryGrid"'));
   });
 });

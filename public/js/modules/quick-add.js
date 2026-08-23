@@ -11,7 +11,7 @@ import { calculateSummary } from './summary.js';
 import { getCategories } from './custom-lists.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
-import { parseMontant, parseMontantOu } from '../utils/montant.js';
+import { parseMontant } from '../utils/montant.js';
 import { decrireLieu } from '../utils/lieu.js';
 
 // ===== STATE INTERNE =====
@@ -85,17 +85,13 @@ function setupEventListeners() {
   };
   document.addEventListener('keydown', _keydownHandler);
 
-  // Input montant : validation en temps réel + Enter pour soumettre
+  // Input montant : Enter pour soumettre
   const amountInput = document.getElementById('quickAddAmount');
   if (amountInput) {
-    amountInput.addEventListener('input', validateForm);
     amountInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        const btn = document.getElementById('btnQuickAdd');
-        if (btn && !btn.disabled) {
-          handleQuickAddSubmit();
-        }
+        handleQuickAddSubmit();
       }
     });
   }
@@ -126,10 +122,7 @@ function setupEventListeners() {
     descriptionInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        const btn = document.getElementById('btnQuickAdd');
-        if (btn && !btn.disabled) {
-          handleQuickAddSubmit();
-        }
+        handleQuickAddSubmit();
       }
     });
   }
@@ -175,9 +168,6 @@ function showQuickAddModal() {
   const descriptionInput = document.getElementById('quickAddDescription');
   if (descriptionInput) descriptionInput.value = '';
 
-  const btn = document.getElementById('btnQuickAdd');
-  if (btn) btn.disabled = true;
-
   updateSplitMode('prorata');
   updatePayer('vous');
   hideLocationDetach();
@@ -195,17 +185,21 @@ function showQuickAddModal() {
   // Ouvrir la modale
   showModal('modalQuickAdd');
 
-  // Focus montant + scroll pour mobile
+  // Le montant reçoit le focus : c'est par lui qu'on commence.
+  //
+  // Un second minuteur, à 400 ms, rappelait ensuite la modale en tête de
+  // fenêtre. Il datait de l'époque où le montant se trouvait sous huit tuiles
+  // et où l'ouverture du clavier faisait glisser la vue. Les deux gestes se
+  // contredisaient — l'un désigne un champ, l'autre remonte ailleurs — et le
+  // second ne portait même pas sur le bon élément : `.modal` est son propre
+  // conteneur défilant, `scrollIntoView` agit sur ses ancêtres, dont le seul
+  // qui défile est la page derrière la modale.
+  //
+  // Le montant étant désormais le premier champ, il n'y a plus rien à
+  // rattraper : le focus suffit.
   setTimeout(() => {
     if (amountInput) amountInput.focus();
   }, 100);
-  setTimeout(() => {
-    const modal = document.getElementById('modalQuickAdd');
-    if (modal) {
-      const inner = modal.querySelector('.modal');
-      if (inner) inner.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, 400);
 
   // Lancer détection GPS en arrière-plan
   startGPSDetection();
@@ -284,8 +278,6 @@ function selectCategory(categoryId) {
   document.querySelectorAll('.category-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
   });
-
-  validateForm();
 }
 
 // ===== SPLIT MODE =====
@@ -357,20 +349,6 @@ function hideLocationDetach() {
   if (bouton) bouton.hidden = true;
 }
 
-// ===== VALIDATION =====
-
-/**
- * Valide le formulaire (catégorie + montant)
- */
-function validateForm() {
-  const amount = parseMontantOu(document.getElementById('quickAddAmount')?.value);
-  const hasCategory = quickAddState.selectedCategory !== null;
-  const hasAmount = amount > 0;
-
-  const btn = document.getElementById('btnQuickAdd');
-  if (btn) btn.disabled = !(hasCategory && hasAmount);
-}
-
 // ===== SOUMISSION =====
 
 /**
@@ -383,19 +361,30 @@ async function handleQuickAddSubmit() {
     return;
   }
 
-  const category = quickAddState.selectedCategory;
-  if (!category) {
-    toast.error('Veuillez sélectionner une catégorie');
-    return;
-  }
-
+  // L'ordre des refus suit l'ordre de lecture du formulaire : le montant
+  // d'abord, la catégorie ensuite. Se faire renvoyer vers le bas de l'écran
+  // alors qu'un champ plus haut est vide fait chercher au mauvais endroit.
   const amountEl = document.getElementById('quickAddAmount');
-  const amount = parseMontant(amountEl?.value);
+  // La chaîne saisie, et non le nombre qu'on en tire : `validateChargeAmount`
+  // distingue « vide » de « pas un nombre », et le NaN d'un champ vide effaçait
+  // cette distinction — « Montant doit être un nombre » pour un champ auquel on
+  // n'avait pas touché.
+  const saisieMontant = amountEl ? amountEl.value : '';
   // Ce formulaire plafonnait à 50 000 € quand les trois autres acceptaient
   // 100 000 : la même charge passait ou non selon la porte empruntée.
-  const montantValide = validateChargeAmount(amount);
+  const montantValide = validateChargeAmount(saisieMontant);
   if (!montantValide.valid) {
     toast.error(montantValide.error);
+    // Le message nomme le champ ; le focus y conduit.
+    if (amountEl) amountEl.focus();
+    return;
+  }
+  const amount = parseMontant(saisieMontant);
+
+  const category = quickAddState.selectedCategory;
+  if (!category) {
+    toast.error('Choisissez une catégorie');
+    document.querySelector('.category-btn')?.focus();
     return;
   }
 
@@ -414,7 +403,18 @@ async function handleQuickAddSubmit() {
     categoryId: category.id,
     categoryIcon: category.icon,
     paidBy: quickAddState.paidBy,
-    splitMode,
+    // `splitOverride`, et non `splitMode` : c'est le champ que lit le calcul.
+    //
+    // La saisie rapide écrivait `splitMode: '50-50'`. Personne ne le lisait :
+    // `calculateChargeShares` et `calculateJointPayment` n'interrogent que
+    // `splitOverride`, que renseignent les deux formulaires complets. Choisir
+    // « 50-50 » ici n'avait donc aucun effet sur le bilan — la charge était
+    // répartie selon le mode du foyer — et le toast de confirmation affichait
+    // pourtant « (50-50) ». L'application annonçait ce qu'elle n'avait pas fait.
+    //
+    // `null` pour le prorata : c'est l'absence de dérogation, donc le mode du
+    // foyer, exactement comme dans `variable-charges.js`.
+    splitOverride: splitMode === '50-50' ? { mode: '50-50' } : null,
     date: new Date().toISOString().split('T')[0],
     timestamp: Date.now(),
     deleted: false
