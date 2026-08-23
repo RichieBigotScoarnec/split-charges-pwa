@@ -8,11 +8,34 @@ import { toast } from '../components/toast.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 
-// Emojis curatés pour sélection rapide (budget/finance)
+/**
+ * Emojis proposés à la création d'une catégorie ou d'une destination
+ *
+ * La liste en comptait vingt-quatre, sans bière, sans tasse de café, sans
+ * croissant. Or la détection par le lieu sait viser « Bar », « Café » et
+ * « Boulangerie » : elle restait inerte faute qu'on puisse créer ces
+ * catégories avec une image qui leur ressemble. Personne ne crée une catégorie
+ * qu'il ne peut pas se représenter.
+ *
+ * Rangés par familles, dans l'ordre où on les cherche. Assez pour couvrir ce
+ * que la détection propose, assez peu pour rester parcourable au pouce : une
+ * planche de deux cents emojis ne se lit pas, elle se subit.
+ */
 const EMOJI_PICKER = [
-  '🛒', '🏠', '🚗', '💊', '🎮', '🍕', '⚡', '📱',
-  '🏦', '🤝', '👤', '🗑️', '🏡', '📋', '💳', '🎓',
-  '✈️', '🐾', '👶', '🎁', '🏋️', '🧹', '🔧', '📦'
+  // Alimentation et sorties
+  '🛒', '🥐', '☕', '🍺', '🍷', '🍕', '🍔', '🍣', '🥖', '🧀', '🍎', '🍫',
+  // Maison
+  '🏠', '🏡', '🔧', '🧹', '🛋️', '💡', '🪴', '🛏️',
+  // Déplacements
+  '🚗', '⛽', '🚌', '🚆', '✈️', '🅿️', '🚲', '🛥️',
+  // Santé
+  '💊', '🩺', '🦷', '👓',
+  // Loisirs et vacances
+  '🎮', '🎬', '🎭', '🎵', '📚', '🏋️', '🏖️', '⚽',
+  // Vie courante
+  '📱', '💳', '🎓', '🐾', '👶', '🎁', '👕', '💇',
+  // Comptes et virements
+  '🏦', '🤝', '👤', '💰', '🧾', '🗑️', '📋', '📦', '⚡'
 ];
 
 /**
@@ -141,6 +164,14 @@ async function saveDestinations(destinations, base) {
 }
 
 // ===== GETTERS =====
+
+/**
+ * Emojis proposés, pour les tests et le diagnostic
+ * @returns {string[]}
+ */
+export function emojisProposes() {
+  return [...EMOJI_PICKER];
+}
 
 /**
  * Fabrique l'identifiant d'une entrée à partir de son libellé
