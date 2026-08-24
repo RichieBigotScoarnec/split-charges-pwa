@@ -11,7 +11,7 @@
  * deux fois ne sera pas partagé, et ne servira donc à rien.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 describe('Journal de diagnostic', () => {
   let noter, rapport, exigerElement, initDiagnostics;
@@ -108,5 +108,91 @@ describe('Journal de diagnostic', () => {
 
     expect(rechargé.rapport()).toContain('session précédente');
     expect(rechargé.rapport()).toContain('étape ÉCHOUÉE : sélecteur de période');
+  });
+
+  it('la nouvelle session n\'efface pas celle qui a échoué', async () => {
+    // Le contrôle précédent n'écrivait rien après le rechargement : il lisait
+    // donc un stockage encore intact. La vraie application, elle, note dès la
+    // cinquième milliseconde — et écrasait la seule trace de la panne avec le
+    // rechargement même qui servait à aller la lire.
+    noter('init', 'étape ÉCHOUÉE : charges variables', { motif: 'sans réponse' });
+    noter('liaison', 'base injoignable');
+
+    vi.resetModules();
+    const rechargé = await import('../../public/js/utils/diagnostics.js');
+
+    // Ce que fait l'application à l'ouverture, avant qu'on lise quoi que ce soit.
+    rechargé.noter('demarrage', 'journal ouvert');
+    rechargé.noter('demarrage', 'FairSplit 4.0.0');
+
+    const dit = rechargé.rapport();
+    expect(dit, 'la panne de la session précédente doit survivre')
+      .toContain('étape ÉCHOUÉE : charges variables');
+    expect(dit).toContain('session précédente (2 entrées)');
+    expect(dit).toContain('session courante (2 entrées)');
+  });
+
+  it('montre la session précédente même quand elle a autant d\'entrées que la courante', async () => {
+    // Elles étaient départagées en comparant leurs longueurs : à nombre égal,
+    // la session précédente disparaissait purement et simplement du rapport.
+    noter('init', 'étape ÉCHOUÉE : salaires');
+
+    vi.resetModules();
+    const rechargé = await import('../../public/js/utils/diagnostics.js');
+    rechargé.noter('demarrage', 'journal ouvert');
+
+    expect(rechargé.rapport()).toContain('étape ÉCHOUÉE : salaires');
+  });
+});
+
+describe('Le panneau de diagnostic', () => {
+  let noter, initDiagnostics;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
+    localStorage.clear();
+    document.body.innerHTML = '';
+    window.history.replaceState({}, '', '/?diag=1');
+    ({ noter, initDiagnostics } = await import('../../public/js/utils/diagnostics.js'));
+    initDiagnostics();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('se relit à la demande, sans quoi il s\'arrête avant les symptômes', () => {
+    // Le contenu était figé à la peinture, quatre secondes après l'ouverture.
+    // Or le bandeau hors ligne paraît à huit secondes, une lecture abandonne à
+    // dix, une écriture à quinze : le journal rapporté s'arrêtait avant le
+    // premier symptôme. Trois lignes, et rien de ce qu'on cherchait.
+    vi.advanceTimersByTime(4000);
+
+    const zone = document.getElementById('diagText');
+    expect(zone, 'le panneau doit être peint').not.toBeNull();
+    expect(zone.value).not.toContain('étape ÉCHOUÉE : charges variables');
+
+    // Ce qui arrive après la peinture — exactement le cas qu'on vient chercher.
+    noter('init', 'étape ÉCHOUÉE : charges variables', { motif: 'sans réponse' });
+
+    expect(zone.value, 'le contenu peint ne se met pas à jour tout seul')
+      .not.toContain('charges variables');
+
+    document.getElementById('diagRefresh').click();
+    expect(zone.value).toContain('étape ÉCHOUÉE : charges variables');
+  });
+
+  it('relit avant de copier, pour ne pas envoyer un instantané périmé', async () => {
+    vi.advanceTimersByTime(4000);
+    const zone = document.getElementById('diagText');
+
+    noter('liaison', 'base joignable');
+
+    const boutons = [...document.querySelectorAll('#diagPanel button')];
+    const copier = boutons.find(bouton => bouton.textContent === 'Copier');
+    copier.click();
+
+    expect(zone.value).toContain('base joignable');
   });
 });
