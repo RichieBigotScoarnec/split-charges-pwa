@@ -12,6 +12,7 @@ import {
   APP_CHECK_DESACTIVE
 } from './config.js';
 import { log, warn } from './utils/debug.js';
+import { attestationAEviter, noterEchecAttestation, noterSuccesAttestation, etatAttestation } from './utils/attestation.js';
 import { noter } from './utils/diagnostics.js';
 
 let app = null;
@@ -98,6 +99,26 @@ function activateAppCheck() {
     return false;
   }
 
+  // Une attestation qui a échoué hier est écartée aujourd'hui — pas au-delà.
+  //
+  // Mesuré sur l'appareil : l'authentification restait bloquée 6 621 ms avec
+  // l'attestation active, 1 146 ms sans, et repartait à la milliseconde où
+  // l'attestation rendait son échec. Six secondes à chaque ouverture, pour un
+  // jeton refusé en « 400 » et jamais validé une seule fois.
+  //
+  // Le repos ne dure qu'une journée : sans cette limite, une configuration
+  // réparée dans la console ne serait jamais reprise, et l'on aurait troqué une
+  // lenteur permanente contre un abandon permanent.
+  if (attestationAEviter()) {
+    const etat = etatAttestation();
+    log('⏭️ App Check écarté : la dernière attestation a échoué');
+    noter('appcheck', 'écarté après échec, sera retenté sous 24 h', {
+      essais: etat ? etat.essais : 1,
+      depuisMin: etat ? Math.round(etat.depuisMs / 60000) : 0
+    });
+    return false;
+  }
+
   try {
     const fournisseur = APP_CHECK_PROVIDER === 'recaptcha-enterprise'
       ? new firebase.appCheck.ReCaptchaEnterpriseProvider(APP_CHECK_SITE_KEY)
@@ -139,11 +160,13 @@ function verifierAttestation() {
     obtention = firebase.appCheck().getToken(false);
   } catch (error) {
     noter('appcheck', 'jeton refusé à la demande', { motif: error?.message || String(error) });
+    noterEchecAttestation();
     return;
   }
 
   if (!obtention || typeof obtention.then !== 'function') {
     noter('appcheck', 'jeton indisponible : getToken n\'a rien rendu');
+    noterEchecAttestation();
     return;
   }
 
@@ -151,14 +174,24 @@ function verifierAttestation() {
   obtention.then(
     // Le jeton lui-même n'est jamais journalisé : c'est un secret de courte
     // durée. Sa longueur suffit à prouver qu'il existe.
-    (jeton) => noter('appcheck', 'attestation obtenue', {
-      ms: Date.now() - debut,
-      taille: jeton && typeof jeton.token === 'string' ? jeton.token.length : 0
-    }),
-    (erreur) => noter('appcheck', 'attestation impossible', {
-      ms: Date.now() - debut,
-      motif: erreur?.message || String(erreur)
-    })
+    (jeton) => {
+      noter('appcheck', 'attestation obtenue', {
+        ms: Date.now() - debut,
+        taille: jeton && typeof jeton.token === 'string' ? jeton.token.length : 0
+      });
+      // Le premier succès efface la mémoire des échecs : la configuration est
+      // réparée, plus rien ne justifie d'écarter l'attestation.
+      noterSuccesAttestation();
+    },
+    (erreur) => {
+      noter('appcheck', 'attestation impossible', {
+        ms: Date.now() - debut,
+        motif: erreur?.message || String(erreur)
+      });
+      // C'est ici que se décide la lenteur des ouvertures suivantes : sans
+      // cette trace, on repaierait les six secondes indéfiniment.
+      noterEchecAttestation();
+    }
   );
 }
 
