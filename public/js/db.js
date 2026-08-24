@@ -526,7 +526,49 @@ export class SansReponse extends Error {
  * @returns {Promise<*>} La valeur, ou un rejet après expiration du délai
  */
 function borner(promise, path) {
-  return withTimeout(promise, path || '(racine)', WRITE_TIMEOUT_MS, 'Écriture');
+  return withTimeout(promise, path || '(racine)', delaiEcriture(), 'Écriture');
+}
+
+/**
+ * Délais du tout premier contact, en millisecondes
+ *
+ * Mesuré : sur un appareil dont la base ne répond pas, la toute première
+ * lecture paie l'intégralité du délai de garde avant que la coupure ne soit
+ * constatée — dix secondes d'écran figé, à chaque ouverture. Les onze
+ * suivantes sont instantanées, servies par le miroir. Ce n'est donc pas le
+ * stockage local qui coûte cher, c'est cette unique attente.
+ *
+ * Une liaison saine répond en ~130 ms : trois secondes lui laissent vingt fois
+ * la marge nécessaire. Et se tromper ne coûte rien — une reprise est
+ * programmée dans la foulée, et la première qui aboutit rend la liaison.
+ *
+ * Passé ce premier contact, les délais complets reprennent : une écriture
+ * perdue coûte une saisie, on ne l'abandonne pas au bout de trois secondes.
+ */
+const PREMIER_CONTACT_LECTURE_MS = 3000;
+const PREMIER_CONTACT_ECRITURE_MS = 5000;
+
+/**
+ * Le premier contact avec la base est-il encore à établir ?
+ *
+ * `dejaJointe` ne devient vrai qu'une fois la liaison réellement établie : tant
+ * qu'elle ne l'a jamais été, on ne sait pas si la base répond, et c'est
+ * précisément le cas où il faut le découvrir vite.
+ *
+ * @returns {boolean}
+ */
+function premierContact() {
+  return !dejaJointe;
+}
+
+/** Délai à accorder à une lecture, selon qu'on a déjà joint la base ou non */
+function delaiLecture() {
+  return premierContact() ? PREMIER_CONTACT_LECTURE_MS : READ_TIMEOUT_MS;
+}
+
+/** Délai à accorder à une écriture, même raisonnement */
+function delaiEcriture() {
+  return premierContact() ? PREMIER_CONTACT_ECRITURE_MS : WRITE_TIMEOUT_MS;
 }
 
 /**
@@ -546,7 +588,8 @@ export async function dbGet(path) {
   try {
     const snapshot = await withTimeout(
       database.ref(getDataPath(path)).once('value'),
-      chemin || '(racine)'
+      chemin || '(racine)',
+      delaiLecture()
     );
     const valeur = snapshot.val();
     memoriserLecture(dataRoot, chemin, valeur);
