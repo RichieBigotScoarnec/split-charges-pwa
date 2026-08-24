@@ -27,11 +27,14 @@ function traces(svg) {
 
 describe('La marque livrée', () => {
   it('la page ne montre plus d\'emoji en guise de logo', () => {
-    // Le commentaire qui explique ce changement cite l'emoji : on ne cherche
-    // donc pas son absence du fichier, mais son absence de ce qui s'affiche.
-    const balisage = page.replace(/<!--[\s\S]*?-->/g, '');
-
-    expect(balisage, 'un emoji sert encore de logo').not.toContain('💰');
+    // On cherchait d'abord son absence du seul balisage, en retirant les
+    // commentaires — celui qui explique ce changement citait l'emoji. Retirer
+    // les commentaires par une expression régulière est un procédé fragile :
+    // `<!-- <!-- -->` en laisse un derrière lui, et l'analyse statique le
+    // signale à juste titre. Le fichier n'a de toute façon aucune raison de
+    // porter cet emoji, fût-ce dans un commentaire : on l'y cherche en entier,
+    // ce qui est à la fois plus simple et plus strict.
+    expect(page, 'un emoji sert encore de logo').not.toContain('💰');
   });
 
   it('le cercle partagé figure aux deux endroits où la marque paraît', () => {
