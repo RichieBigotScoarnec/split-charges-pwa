@@ -77,7 +77,13 @@
   --primary-dark: #3730A3;
   --primary-light: #6366F1;
   --primary-glow: rgba(79, 70, 229, 0.12);
-  --secondary-color: #7C3AED;
+  /* Une seule couleur de marque, et c'est délibéré.
+     `--secondary-color` valait #7C3AED : trente degrés de teinte et la même
+     clarté que la primaire, autrement dit la même couleur à l'œil. Une
+     secondaire qu'on ne distingue pas de la primaire n'est pas une secondaire,
+     c'est un doublon — elle ne servait qu'à trois dégradés invisibles et à une
+     pastille. Le vert, le rouge, l'ambre et le bleu portent déjà du sens ;
+     ajouter une sixième teinte aurait encombré sans rien dire de plus. */
 
   /* Semantic */
   --success-color: #059669;
@@ -90,30 +96,41 @@
   --on-warning: #1E293B;
   --info-color: #2563EB;
 
-  /* Surfaces (thème clair) */
-  --dark-bg: #F8FAFC;
+  /* Surfaces (thème clair)
+     Des neutres chauds, et non les gris bleutés d'origine (#F8FAFC, #F1F5F9).
+     Ceux-là sont ceux de tous les tableaux de bord : corrects, et froids. Une
+     application où deux personnes règlent leurs comptes gagne à ressembler à
+     un carnet posé sur une table plutôt qu'à un outil de bureau. La clarté est
+     conservée à un point près, les rapports de contraste ne bougent donc pas. */
+  --dark-bg: #FAF8F5;
   --card-bg: #FFFFFF;
-  --elevated-bg: #F1F5F9;
+  --elevated-bg: #F3EFE9;
   --border-color: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.14);
 
   /* Text */
-  --text-primary: #1E293B;
+  --text-primary: #241E19;
   /* 4,34:1 sur --elevated-bg auparavant, sous le seuil AA de 4,5 — c'est la
      couleur des libellés de la grille de catégories. Assombri juste assez
      pour passer à 5,07:1 ; l'écart ne se voit pas, le manquement si.
      Le thème sombre redéfinit ce jeton plus bas et n'est pas concerné : il
      mesure déjà 4,98:1. */
-  --text-secondary: #5B6980;
-  --text-muted: #94A3B8;
+  --text-secondary: #6B5D50;
+  /* Reste volontairement sous le seuil AA : c'est un palier de mise en forme,
+     pas du texte courant. Le monter à 4,5 le rendrait indiscernable de
+     `--text-secondary` et supprimerait le palier. Consigné dans
+     tests/contraste.test.js, qui échouera le jour où la décision changera. */
+  --text-muted: #A8998A;
 
   /* Interactive */
   --hover-bg: rgba(0, 0, 0, 0.04);
 
   /* Shadows */
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+  /* Teintées chaud plutôt que noir pur : une ombre neutre sur un fond chaud
+     grise la surface au lieu de la creuser. */
+  --shadow: 0 1px 3px rgba(60, 42, 28, 0.07), 0 1px 2px rgba(60, 42, 28, 0.05);
+  --shadow-md: 0 4px 16px rgba(60, 42, 28, 0.09);
+  --shadow-lg: 0 8px 32px rgba(60, 42, 28, 0.13);
   --shadow-glow: 0 0 24px var(--primary-glow);
 
   /* Radii */
@@ -146,20 +163,19 @@
     --primary-dark: #4F46E5;
     --primary-light: #818CF8;
     --primary-glow: rgba(99, 102, 241, 0.15);
-    --secondary-color: #A78BFA;
     --success-color: #34D399;
     --danger-color: #F87171;
     --danger-dark: #EF4444;
     --warning-color: #FBBF24;
     --info-color: #60A5FA;
-    --dark-bg: #0F1117;
-    --card-bg: #181A24;
-    --elevated-bg: #1E2130;
+    --dark-bg: #12100E;
+    --card-bg: #1B1815;
+    --elevated-bg: #23201C;
     --border-color: rgba(255, 255, 255, 0.06);
     --border-strong: rgba(255, 255, 255, 0.10);
-    --text-primary: #F0F0F5;
-    --text-secondary: #8B8FA3;
-    --text-muted: #8B8FA3;
+    --text-primary: #F5F2ED;
+    --text-secondary: #A0968A;
+    --text-muted: #A0968A;
     --hover-bg: rgba(255, 255, 255, 0.06);
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);

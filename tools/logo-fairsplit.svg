@@ -1,0 +1,19 @@
+<!--
+  La marque de FairSplit — un cercle partagé, et pas en deux moitiés égales.
+
+  L'application ne partage pas en deux : elle partage au prorata des salaires.
+  La ligne de séparation est donc décalée — 55 % / 45 % — pour dire ce que fait
+  FairSplit, et non seulement « ça partage ». La différence de ton porte les
+  deux personnes ; le décalage porte la proportion.
+
+  Une seule couleur, déclinée en deux opacités : la marque hérite ainsi de
+  `currentColor` et suit le thème sans qu'aucune valeur ne soit écrite en dur.
+
+  Ce fichier est la source. `tools/generer-icones.mjs` en tire les PNG de
+  l'application, et `public/FairSplit.html` en porte une copie inline —
+  tests/logo-unifie.test.js vérifie que les deux ne divergent pas.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="FairSplit">
+  <path d="M26.5 6.174 A 18 18 0 1 0 26.5 41.826 Z" fill="currentColor"/>
+  <path d="M26.5 6.174 A 18 18 0 0 1 26.5 41.826 Z" fill="currentColor" opacity="0.42"/>
+</svg>

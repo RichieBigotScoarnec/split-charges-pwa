@@ -37,14 +37,21 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--primary-color));
   background-size: 200% 100%;
   animation: shimmer 4s linear infinite;
 }
 
 .auth-logo {
-  font-size: 44px;
   margin-bottom: var(--space-sm);
+  line-height: 0;
+}
+
+/* Plus grande qu'ailleurs : c'est le seul écran où la marque se présente,
+   sans rien d'autre à regarder pendant que la session se rétablit. */
+.auth-logo .marque {
+  width: 64px;
+  height: 64px;
 }
 
 .auth-title {

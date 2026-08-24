@@ -86,7 +86,7 @@ header::before {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--primary-color));
   background-size: 200% 100%;
   animation: shimmer 4s linear infinite;
 }
@@ -96,12 +96,32 @@ header::before {
   100% { background-position: -200% 0; }
 }
 
+/* ===== LA MARQUE ===== */
+/*
+   Le cercle partagé, inline dans la page (source : tools/logo-fairsplit.svg).
+
+   `color` est posée explicitement et non héritée : le titre du bandeau se
+   peint en dégradé par `background-clip: text` avec un remplissage transparent,
+   et une marque qui aurait hérité de ce contexte se serait effacée avec lui.
+
+   Dimensionnée en `em` pour suivre la taille du texte qu'elle accompagne, et
+   alignée sur la ligne de base plutôt que sur le milieu de la boîte : sans
+   cela, elle flotte au-dessus des lettres.
+*/
+.marque {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  vertical-align: -0.14em;
+  color: var(--primary-color);
+}
+
 header h1 {
   font-size: 26px;
   font-weight: 700;
   margin-bottom: var(--space-xs);
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--primary-light), var(--secondary-color));
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
