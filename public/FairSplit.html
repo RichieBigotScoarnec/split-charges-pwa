@@ -56,16 +56,22 @@
   <!--
     Affiché quand la base reste injoignable, par js/utils/connection-banner.js.
     Sans lui, un bouclier de navigateur produisait un écran vide parfaitement
-    crédible et des saisies perdues sans un mot. `role="alert"` : c'est une
-    condition qui invalide ce qu'on est en train de faire, pas une information
-    d'ambiance.
+    crédible et des saisies perdues sans un mot.
+
+    Le message a changé de nature le jour où les saisies ont cessé d'être
+    perdues : elles sont désormais gardées sur l'appareil et repartent à la
+    reconnexion. D'où `role="status"` et non `role="alert"` — la panne n'invalide
+    plus ce qu'on est en train de faire. Annoncer l'inverse apprendrait à ne
+    plus lire le bandeau.
   -->
-  <div id="offlineBanner" class="offline-banner" role="alert" hidden>
-    <span aria-hidden="true">⚠️</span>
+  <div id="offlineBanner" class="offline-banner" role="status" hidden>
+    <span aria-hidden="true">📴</span>
     <span>
-      <strong>Base de données injoignable</strong> — vos saisies ne sont pas enregistrées.
-      Un bloqueur de contenu (boucliers Brave, uBlock), une extension de confidentialité
-      ou un pare-feu peut en être la cause : essayez de désactiver la protection pour ce site.
+      <strong>Hors ligne</strong> — <span id="offlineBannerAttente">vos saisies sont conservées sur cet appareil</span>
+      et partiront dès que la base sera de nouveau joignable.
+      Si votre réseau fonctionne, un bloqueur de contenu (boucliers Brave, uBlock),
+      une extension de confidentialité ou un pare-feu peut en être la cause :
+      essayez de désactiver la protection pour ce site.
     </span>
   </div>
 

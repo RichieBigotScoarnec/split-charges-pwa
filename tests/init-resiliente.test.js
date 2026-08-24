@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { initDatabase, setAuthenticatedUser, dbGet } from '../public/js/db.js';
+import { initDatabase, setAuthenticatedUser, signalerLiaison, dbGet } from '../public/js/db.js';
 
 /**
  * Deux garanties contre un même symptôme : une application qui s'affiche vide,
@@ -20,6 +20,13 @@ describe('Une lecture sans réponse ne peut pas geler l\'initialisation', () => 
   beforeEach(() => {
     vi.useFakeTimers();
     setAuthenticatedUser('uid-test');
+
+    // `db.js` retient l'état de la liaison et le miroir des lectures pour la
+    // durée du module : sans remise à zéro, la coupure constatée par un
+    // contrôle décide du suivant, et celui-ci passe alors par le miroir sans
+    // jamais toucher la fausse base qu'il vient de poser.
+    window.localStorage.clear();
+    signalerLiaison(true);
   });
 
   afterEach(() => {
@@ -99,7 +106,15 @@ describe('Ordre d\'initialisation', () => {
   it('la confirmation de chargement n\'est émise qu\'une fois les données lues', () => {
     const entree = readFileSync(resolve(process.cwd(), 'public/js/app.js'), 'utf8');
 
-    expect(entree, 'initApp ne peut rien confirmer : Firebase n\'a pas répondu')
+    // Le contrôle portait sur le fichier entier, faute de quoi que ce soit
+    // d'autre à y confirmer. Il visait pourtant `initApp` seule : c'est elle
+    // qui s'exécute avant toute réponse de Firebase. Depuis que la même page
+    // annonce aussi le rejeu des saisies gardées hors ligne — un message émis,
+    // lui, après une écriture réelle —, le contrôle doit viser ce qu'il
+    // voulait dire, sinon il interdit un message vrai pour en empêcher un faux.
+    const corpsInitApp = extraireFonction(entree, 'async function initApp()');
+    expect(corpsInitApp, 'initApp introuvable dans app.js').not.toBe('');
+    expect(corpsInitApp, 'initApp ne peut rien confirmer : Firebase n\'a pas répondu')
       .not.toContain('toast.success(');
 
     const confirmation = source.indexOf("toast.success('FairSplit chargé')");
@@ -108,6 +123,31 @@ describe('Ordre d\'initialisation', () => {
       confirmation,
       'la confirmation doit suivre la fin des étapes de chargement'
     ).toBeGreaterThan(source.indexOf('appInitialized = true'));
+  });
+
+  it('le rejeu hors ligne ne confirme rien tant que rien n\'est parti', () => {
+    // Le pendant du contrôle précédent, pour le seul autre message de succès de
+    // la page : une reconnexion se produit à chaque sortie de veille, et
+    // annoncer « saisies enregistrées » à chacune ferait de la confirmation un
+    // bruit de fond.
+    const entree = readFileSync(resolve(process.cwd(), 'public/js/app.js'), 'utf8');
+    const corps = extraireFonction(entree, 'async function synchroniserLesSaisies()');
+
+    expect(corps, 'synchroniserLesSaisies introuvable dans app.js').not.toBe('');
+    expect(corps.indexOf('if (envoyees > 0)'), 'la confirmation doit être conditionnée')
+      .toBeLessThan(corps.indexOf('toast.success('));
+  });
+
+  it('les saisies gardées hors ligne partent une fois les données chargées', () => {
+    // Et pas avant : la liaison s'établit plusieurs secondes avant que la
+    // session ne soit rétablie. Un rejeu déclenché par le seul événement de
+    // connexion ne pourrait que lever.
+    // L'appel, pas la déclaration : chercher le seul nom de la fonction
+    // laissait ce contrôle passer alors que l'appel avait disparu.
+    const rejeu = source.indexOf('await ecoulerLesSaisiesGardees();');
+    expect(rejeu, 'appel au rejeu introuvable dans auth.js').toBeGreaterThan(-1);
+    expect(rejeu, 'le rejeu doit suivre la fin des étapes de chargement')
+      .toBeGreaterThan(source.indexOf('appInitialized = true'));
   });
 
   it('chaque étape est isolée par runStep, aucune n\'échappe au filet', () => {
@@ -120,3 +160,32 @@ describe('Ordre d\'initialisation', () => {
     expect(source).toContain('async function runStep(');
   });
 });
+
+/**
+ * Extrait le corps d'une fonction, accolades comptées
+ *
+ * Une expression régulière s'arrêterait à la première accolade fermante venue
+ * — celle d'un `try`, d'un objet littéral — et le contrôle porterait alors sur
+ * un fragment, en donnant l'air de porter sur la fonction.
+ *
+ * @param {string} source
+ * @param {string} signature - Début exact de la déclaration
+ * @returns {string} Corps de la fonction, chaîne vide si elle est introuvable
+ */
+function extraireFonction(source, signature) {
+  const debut = source.indexOf(signature);
+  if (debut === -1) return '';
+
+  const ouverture = source.indexOf('{', debut);
+  if (ouverture === -1) return '';
+
+  let profondeur = 0;
+  for (let rang = ouverture; rang < source.length; rang++) {
+    if (source[rang] === '{') profondeur++;
+    else if (source[rang] === '}') {
+      profondeur--;
+      if (profondeur === 0) return source.slice(ouverture, rang + 1);
+    }
+  }
+  return '';
+}

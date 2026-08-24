@@ -117,11 +117,15 @@ header p {
 /* Affiché uniquement avec ?sandbox=1 — repère permanent pour ne jamais
    confondre les données d'essai avec celles du foyer. */
 /*
-   Base injoignable — un bouclier de navigateur, un pare-feu, une coupure.
-   Rouge et non orange : ce n'est pas une information d'ambiance, c'est une
-   condition qui invalide la saisie en cours. Le bandeau se place sous celui du
-   bac à sable et reste visible au défilement, la panne ne cessant pas quand on
-   descend dans la page.
+   Hors ligne — un bouclier de navigateur, un pare-feu, une coupure.
+
+   Il a longtemps été rouge, et il devait l'être : les saisies se perdaient.
+   Elles sont maintenant gardées sur l'appareil et repartent à la reconnexion,
+   ce qui est un état de marche dégradé, pas une panne. L'ambre le dit ; le
+   rouge, lui, apprendrait à ignorer un bandeau qui n'annonce plus de perte.
+
+   Il reste posé sous celui du bac à sable et visible au défilement : la
+   coupure ne cesse pas quand on descend dans la page.
 */
 .offline-banner {
   position: sticky;
@@ -132,8 +136,8 @@ header p {
   justify-content: center;
   gap: var(--space-sm);
   padding: 10px var(--space-md);
-  background: var(--danger-color);
-  color: #fff;
+  background: var(--warning-color);
+  color: var(--on-warning);
   font-size: 13px;
   line-height: 1.45;
   text-align: left;

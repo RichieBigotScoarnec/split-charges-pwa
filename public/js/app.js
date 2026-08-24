@@ -5,9 +5,15 @@
 
 import { VERSION, IS_SANDBOX, DATA_ROOT } from './config.js';
 import { showSandboxBanner } from './utils/sandbox-banner.js';
-import { refreshConnectionBanner, initConnectionBanner } from './utils/connection-banner.js';
+import { refreshConnectionBanner, initConnectionBanner, majSaisiesEnAttente } from './utils/connection-banner.js';
 import { initFirebase, onConnectionChange } from './firebase-init.js';
-import { initDatabase } from './db.js';
+import {
+  initDatabase,
+  signalerLiaison,
+  saisiesEnAttente,
+  rejouerFileDAttente,
+  surFileModifiee
+} from './db.js';
 import { setState } from './state.js';
 import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
@@ -36,16 +42,28 @@ async function initApp() {
     const { database } = initFirebase();
     initDatabase(database);
 
+    // Le bandeau suit la file : une saisie de plus pendant la coupure doit se
+    // voir tout de suite, alors qu'aucun événement de connexion ne survient.
+    surFileModifiee(majSaisiesEnAttente);
+
     // 2. Surveillance de la liaison
     // Écoute maintenue pour la durée de vie de la page : l'application est
     // mono-page, il n'existe pas de point de démontage.
     onConnectionChange((isConnected) => {
       setState('isOnline', isConnected);
       log(isConnected ? '✅ Firebase: CONNECTÉ' : '⚠️ Firebase: DÉCONNECTÉ');
+
+      // `db.js` doit l'apprendre avant tout le reste : c'est ce qui lui permet
+      // de servir le miroir et de mettre les saisies en file sans attendre dix
+      // puis quinze secondes à chaque opération.
+      signalerLiaison(isConnected);
+
       // L'état n'était jusqu'ici que consigné : rien à l'écran ne distinguait
       // « ce mois est vide » de « je ne peux pas lire ce mois ». Une base
       // injoignable renvoyait un écran vide crédible et avalait les saisies.
-      refreshConnectionBanner(isConnected);
+      refreshConnectionBanner(isConnected, saisiesEnAttente());
+
+      if (isConnected) synchroniserLesSaisies();
     });
 
     // Au retour de veille, la reconnexion est normale : la temporisation du
@@ -76,6 +94,46 @@ async function initApp() {
     // l'écran resterait sur « Connexion… », sans commande ni explication.
     revelerFormulaireConnexion();
   }
+}
+
+/**
+ * Envoie les saisies gardées sur l'appareil, à la reconnexion
+ *
+ * Ne recharge pas la page et ne redemande rien : les modules affichent déjà
+ * ces saisies, `db.js` les leur ayant appliquées à la lecture. Le rejeu ne
+ * fait que rendre vrai côté serveur ce qui est vrai à l'écran depuis la
+ * coupure.
+ *
+ * Le silence est la règle quand la file est vide : une reconnexion se produit
+ * à chaque sortie de veille, et un message à chacune finirait par masquer le
+ * seul qui compte.
+ *
+ * @returns {Promise<void>}
+ */
+async function synchroniserLesSaisies() {
+  const { envoyees, restantes, erreur } = await rejouerFileDAttente();
+
+  if (envoyees > 0) {
+    toast.success(envoyees === 1
+      ? '1 saisie enregistrée'
+      : `${envoyees} saisies enregistrées`);
+    noter('hors-ligne', 'file rejouée', { envoyees, restantes });
+  }
+
+  // `erreur` distingue « on a essayé et ça a résisté » de « on n'a pas encore
+  // essayé » — la session n'est pas toujours rétablie quand la liaison
+  // s'établit. Sans cette nuance, chaque ouverture avec une file non vide
+  // annoncerait un échec inexistant.
+  if (restantes > 0 && erreur) {
+    // La file résiste : le dire, plutôt que laisser le bandeau disparaître
+    // avec la reconnexion en emportant le compte des saisies restées à quai.
+    toast.error(restantes === 1
+      ? '1 saisie n\'a pas pu être enregistrée'
+      : `${restantes} saisies n'ont pas pu être enregistrées`);
+    logError('❌ Rejeu incomplet :', erreur);
+  }
+
+  refreshConnectionBanner(true, restantes);
 }
 
 // Initialize when DOM is ready
