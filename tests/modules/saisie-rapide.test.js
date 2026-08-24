@@ -67,7 +67,7 @@ const BALISAGE = `
       <button type="button" id="quickAddLocationDetach" hidden>Ce n'est pas ici</button>
       <input type="text" id="quickAddAmount" />
       <div class="quick-add-phrase" id="quickAddPhrase" role="group"></div>
-      <div class="quick-add-panneau" id="quickAddPanneauCategorie" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauCategorie">
       <div class="category-frequentes" id="categoryFrequentes" hidden>
         <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
         <div class="category-frequentes-liste" id="categoryFrequentesListe"
@@ -75,18 +75,18 @@ const BALISAGE = `
       </div>
       <div class="category-grid" id="categoryGrid"></div>
       </div>
-      <div class="quick-add-panneau" id="quickAddPanneauDate" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauDate">
         <input type="date" id="quickAddDate" />
       </div>
       <input type="text" id="quickAddDescription" maxlength="100" />
-      <div class="quick-add-panneau" id="quickAddPanneauPayeur" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauPayeur">
       <div class="payer-toggle" id="quickAddPayer">
         <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
         <button type="button" data-payer="conjointe" data-member="conjointe">Conjointe</button>
         <button type="button" data-payer="partage">Partagé</button>
       </div>
       </div>
-      <div class="quick-add-panneau" id="quickAddPanneauRepartition" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauRepartition">
       <button type="button" id="quickSplitProrata" class="selected">Prorata</button>
       <button type="button" id="quickSplit5050">50-50</button>
       </div>
@@ -855,6 +855,8 @@ describe('La phrase, et les panneaux qu\'elle ouvre', () => {
   });
 
   it('les panneaux partent repliés : c\'est tout le gain', () => {
+    // Repliés par le module à l'ouverture, et non par le balisage — voir le
+    // contrôle « la page ne les replie pas elle-même » plus bas.
     for (const panneau of document.querySelectorAll('.quick-add-panneau')) {
       expect(panneau.hidden, `${panneau.id} déplié à l'ouverture`).toBe(true);
     }
@@ -962,6 +964,25 @@ describe('La page livre bien ce que le module manipule', () => {
       'quickAddPanneauDate'
     ]) {
       expect(page, `${id} absent de FairSplit.html`).toContain(`id="${id}"`);
+    }
+  });
+
+  it('ne replie pas les panneaux elle-même : le script s\'en charge', () => {
+    // Constaté en production, six minutes après un déploiement : le nouveau
+    // balisage était servi avec l'ancien script, encore en cache HTTP. Les
+    // panneaux pré-repliés restaient fermés, aucune phrase ne venait les
+    // ouvrir — plus de catégorie, plus de payeur, plus de répartition. Un
+    // formulaire inutilisable, là où chacune des deux versions seule
+    // fonctionnait.
+    //
+    // Le script les replie à l'ouverture de la modale, avant qu'elle
+    // n'apparaisse. Le pire des cas rend donc l'écran d'avant : long, mais
+    // entier.
+    const page = readFileSync(resolve(process.cwd(), 'public/FairSplit.html'), 'utf8');
+
+    for (const id of ['Payeur', 'Repartition', 'Categorie', 'Date']) {
+      expect(page, `quickAddPanneau${id} est pré-replié dans le balisage`)
+        .toContain(`<div class="quick-add-panneau" id="quickAddPanneau${id}">`);
     }
   });
 

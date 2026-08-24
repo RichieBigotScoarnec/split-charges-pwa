@@ -766,7 +766,15 @@ test.describe('Éléments masqués', () => {
     await page.locator('#variableChargePaidBy').selectOption('vous');
     await page.locator('#saveVariableCharge').click();
 
-    await expect(page.locator('#balanceBar')).toBeVisible({ timeout: 5000 });
+    // Le solde paraît — dans le bilan, qui est ce qu'on a sous les yeux en
+    // haut de page. La barre, elle, se tient prête sans se montrer : elle ne
+    // dirait rien que le bilan ne dise déjà, en plus gros et avec son
+    // explication. Elle paraîtra en faisant défiler vers les charges.
+    await expect(page.locator('.summary-balance')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#balanceBar')).toContainText('€', { timeout: 5000 });
+    await expect(page.locator('#balanceBar'), 'la barre répète le bilan au repos')
+      .toHaveClass(/balance-bar--redondante/);
+
     await expect(page.locator('#searchBarContainer')).toBeVisible({ timeout: 5000 });
   });
 });

@@ -270,6 +270,22 @@
   color: var(--text-primary);
 }
 
+/*
+   Repliée tant que le bilan dit déjà la même chose, juste en dessous.
+
+   Au repos, la barre se posait au-dessus du « Résumé du Mois », qui énonce le
+   même solde en plus gros et avec son explication. Sur un écran de 448 px, le
+   premier écran était presque entièrement consacré à dire une chose deux fois.
+   `js/utils/barre-solde.js` retire cette classe dès que le solde du bilan sort
+   de l'écran : la barre gagne sa place quand elle sert, et ne répète jamais.
+
+   `display: none` et non `visibility` : une barre invisible mais collante
+   réserverait sa hauteur en haut de page, et l'espace gagné serait perdu.
+*/
+.balance-bar--redondante {
+  display: none;
+}
+
 .balance-bar strong {
   font-variant-numeric: tabular-nums;
 }
@@ -279,9 +295,17 @@
    le bouton reste discret à côté du montant plutôt que de lui disputer
    l'attention. Il ne s'affiche que lorsqu'il y a effectivement à régler.
 */
+/*
+   Le bouton a quitté la barre pour le bilan, où le solde se lit en entier.
+   Il n'est donc plus un appoint serré dans une ligne : il se pose sous le
+   montant et son explication, avec la place qu'un geste engageant mérite —
+   et la cible tactile de 44 px que toute action de cette application respecte.
+*/
 .btn-settle {
-  flex: 0 0 auto;
-  padding: 4px 12px;
+  display: inline-block;
+  margin-top: var(--space-sm);
+  min-height: 44px;
+  padding: 10px 18px;
   border: 1px solid var(--primary-color);
   border-radius: var(--radius-sm);
   background: transparent;

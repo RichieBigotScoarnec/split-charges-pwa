@@ -4,6 +4,7 @@
 import { getState, setState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
@@ -176,9 +177,19 @@ function renderSummary(summary) {
     balanceExplanation = `<small>${escapeHtml(overpayer)} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
   }
 
-  // L'action n'a de sens que s'il reste quelque chose à régler. Elle vit dans
-  // la barre, qui reste visible au défilement : c'est là qu'on lit le solde,
-  // c'est donc là qu'on doit pouvoir le solder.
+  // L'action n'a de sens que s'il reste quelque chose à régler, et elle vit
+  // dans le bilan — pas dans la barre.
+  //
+  // Elle a été dans la barre tant que celle-ci restait visible en permanence :
+  // c'était là qu'on lisait le solde. Depuis que la barre s'efface tant que le
+  // bilan dit la même chose, l'y laisser rendait le bouton inatteignable
+  // précisément sur le premier écran, celui où l'on décide de solder. Sept
+  // contrôles de bout en bout l'ont dit avant qu'on ne s'en aperçoive à
+  // l'usage.
+  //
+  // Le bilan porte le montant, son explication et maintenant son geste. La
+  // barre redevient ce qu'elle prétend être : un rappel pendant qu'on parcourt
+  // les charges, qui invite à remonter.
   const settleButton = finalBalance !== 0
     ? '<button type="button" class="btn-settle" data-action="settleBalance">Régler ce solde</button>'
     : '';
@@ -187,7 +198,7 @@ function renderSummary(summary) {
   // scinderait « Conjointe vous doit » et le montant en deux éléments séparés
   // par un intervalle.
   // Même texte que le bilan : une seule source, pas de calcul dupliqué
-  updateBalanceBar(`<span>${balanceText}</span>${settleButton}`, balanceClass);
+  updateBalanceBar(`<span>${balanceText}</span>`, balanceClass);
 
   // Les budgets se lisent sur les mêmes charges que le bilan : ils se
   // rafraîchissent au même moment, sans hameçon supplémentaire dans chaque
@@ -199,6 +210,7 @@ function renderSummary(summary) {
       <div class="summary-balance ${balanceClass}">
         ${balanceText}
         ${balanceExplanation}
+        ${settleButton}
       </div>
 
       <details class="summary-details">
@@ -275,6 +287,11 @@ function renderSummary(summary) {
     </div>
     ` : ''}
   `;
+
+  // Le bilan vient d'être réécrit : l'élément que la barre observait n'existe
+  // plus. Sans ce rappel, l'observation resterait posée sur un nœud détaché —
+  // ce qui ne lève rien, mais fige la barre dans son dernier état.
+  suivreLeBilan();
 }
 
 /**
@@ -294,6 +311,10 @@ function updateBalanceBar(html, cssClass) {
   if (!html) {
     bar.hidden = true;
     bar.innerHTML = '';
+    // La classe s'en va avec le contenu : la garder ferait qu'un solde
+    // redevenu calculable ressusciterait la barre déjà repliée, sans que le
+    // bilan ait rien à voir avec cet état.
+    bar.classList.remove(CLASSE_REDONDANTE);
     return;
   }
 
