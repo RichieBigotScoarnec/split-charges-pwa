@@ -11,6 +11,7 @@ import {
   nombreEnAttente,
   retirerOperation,
   oublierTout,
+  integrerAuMiroir,
   appliquerOperations,
   cheminRelatif
 } from '../../public/js/utils/miroir.js';
@@ -339,5 +340,94 @@ describe('Quand le stockage est plein', () => {
 
     expect(empiler('household', { type: 'set', chemin: 'a', donnees: 1 }, 'op1')).toBeNull();
     expect(ecrireDossier('household', { chemins: {}, file: [] })).toBe(false);
+  });
+});
+
+describe('Une écriture qui vient de partir pour de bon', () => {
+  /**
+   * Question posée à l'usage : « une fois la donnée mise en base, elle doit
+   * être enlevée en local, non ? »
+   *
+   * La file, oui — elle se vide à chaque écriture réussie. Le miroir, lui,
+   * doit au contraire *recevoir* la valeur : il garde ce que le serveur a dit
+   * avant la saisie, et la file qui la compensait vient d'être vidée. Sans ce
+   * report, la charge est en base, correctement, et disparaît pourtant de
+   * l'écran dès qu'on repasse hors ligne.
+   */
+
+  const operation = {
+    id: 'op1', type: 'set',
+    chemin: 'periods/2026-08/variableCharges/neuve',
+    donnees: { description: 'Restaurant', amount: 5 }
+  };
+
+  it('se retrouve dans le miroir du chemin qui la contient', () => {
+    memoriserLecture('household', 'periods/2026-08/variableCharges', {
+      a1: { description: 'Café', amount: 3 }
+    });
+
+    expect(integrerAuMiroir('household', operation)).toBe(true);
+
+    const relu = lectureMemorisee('household', 'periods/2026-08/variableCharges');
+    expect(Object.keys(relu.valeur)).toHaveLength(2);
+    expect(relu.valeur.neuve.amount).toBe(5);
+  });
+
+  it('ne touche pas aux chemins qu\'elle ne concerne pas', () => {
+    memoriserLecture('household', 'salaries', { vous: 2500 });
+    memoriserLecture('household', 'periods/2026-07/variableCharges', { z: { amount: 1 } });
+
+    integrerAuMiroir('household', operation);
+
+    expect(lectureMemorisee('household', 'salaries').valeur).toEqual({ vous: 2500 });
+    expect(Object.keys(lectureMemorisee('household', 'periods/2026-07/variableCharges').valeur))
+      .toHaveLength(1);
+  });
+
+  it('ne change pas la date de mémorisation', () => {
+    // Elle dit quand le serveur a parlé pour la dernière fois, et ce n'est pas
+    // ce qui vient de se passer : c'est nous qui avons écrit.
+    memoriserLecture('household', 'periods/2026-08/variableCharges', { a1: {} }, 1000);
+
+    integrerAuMiroir('household', operation);
+
+    expect(lectureMemorisee('household', 'periods/2026-08/variableCharges').majLe).toBe(1000);
+  });
+
+  it('reporte aussi une correction', () => {
+    memoriserLecture('household', 'periods/2026-08/variableCharges', {
+      a1: { description: 'Café', amount: 3 }
+    });
+
+    integrerAuMiroir('household', {
+      id: 'op2', type: 'update',
+      chemin: 'periods/2026-08/variableCharges/a1',
+      donnees: { amount: 4.5 }
+    });
+
+    expect(lectureMemorisee('household', 'periods/2026-08/variableCharges').valeur.a1.amount)
+      .toBe(4.5);
+  });
+
+  it('ne fait rien, et le dit, quand rien n\'est mémorisé', () => {
+    expect(integrerAuMiroir('household', operation)).toBe(false);
+  });
+
+  it('n\'écrit pas le stockage pour rien quand aucun chemin n\'est concerné', () => {
+    // Réenregistrer tout le dossier à chaque écriture rejouée coûterait un
+    // `JSON.stringify` de l'ensemble du miroir par saisie — sur un téléphone,
+    // pour ne rien changer.
+    memoriserLecture('household', 'salaries', { vous: 2500 });
+    memoriserLecture('household', 'customCategories', { c1: { name: 'Bar' } });
+
+    let ecritures = 0;
+    const vrai = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function compte(cle, valeur) {
+      ecritures += 1;
+      return vrai.call(this, cle, valeur);
+    });
+
+    expect(integrerAuMiroir('household', operation)).toBe(false);
+    expect(ecritures, 'aucune écriture ne doit avoir lieu').toBe(0);
   });
 });

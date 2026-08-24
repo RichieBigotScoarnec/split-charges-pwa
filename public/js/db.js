@@ -30,7 +30,8 @@ import {
   retirerOperation,
   nombreEnAttente,
   oublierTout,
-  appliquerOperations
+  appliquerOperations,
+  integrerAuMiroir
 } from './utils/miroir.js';
 
 // Firebase database reference (set after initialization)
@@ -121,6 +122,50 @@ let rejeuEnCours = false;
 /** Prévenu à chaque mouvement de la file, pour que le bandeau reste exact */
 let temoinDeFile = null;
 
+/** Prévenu quand une reprise aboutit, pour refermer le bandeau et rejouer */
+let temoinDeReprise = null;
+
+/**
+ * Délais successifs entre deux tentatives de reprise, en millisecondes
+ *
+ * Le mode hors ligne ne savait en sortir que si Firebase annonçait de lui-même
+ * la reconnexion. Il ne retentait jamais rien. Un seul délai de garde dépassé —
+ * dix secondes sur un réseau mobile hésitant — et l'application se condamnait
+ * au miroir jusqu'à ce que le SDK veuille bien se reconnecter. Signalé à
+ * l'usage : des heures dans cet état, avec des chiffres justes à l'écran et
+ * rien d'autre qu'un bandeau pour le dire.
+ *
+ * Les délais s'espacent : une coupure de tunnel se rattrape en quinze
+ * secondes, une panne de plusieurs heures ne doit pas marteler le réseau ni
+ * vider la batterie.
+ */
+const REPRISES_MS = [15000, 30000, 60000, 120000, 300000];
+
+/** Rang dans le tableau des délais — remis à zéro dès qu'une reprise aboutit */
+let rangDeReprise = 0;
+
+/** Minuteur de la prochaine tentative, s'il y en a une en attente */
+let minuteurDeReprise = null;
+
+/**
+ * Délai d'une tentative de reprise, en millisecondes
+ *
+ * Bien plus court que celui d'une lecture ordinaire : on ne cherche pas à lire,
+ * on cherche à savoir si la base répond. Un test qui prend dix secondes pour
+ * conclure « toujours rien » ne vaut pas mieux que pas de test.
+ */
+const DELAI_REPRISE_MS = 5000;
+
+/**
+ * Fait suivre les reprises de liaison réussies
+ *
+ * @param {Function|null} rappel - Appelé sans argument quand la base répond de nouveau
+ * @returns {void}
+ */
+export function surLiaisonRetablie(rappel) {
+  temoinDeReprise = typeof rappel === 'function' ? rappel : null;
+}
+
 /**
  * Fait suivre les mouvements de la file d'attente
  *
@@ -159,6 +204,8 @@ export function signalerLiaison(connecte) {
   if (connecte) {
     dejaJointe = true;
     liaison = true;
+    rangDeReprise = 0;
+    annulerLaReprise();
     return;
   }
 
@@ -167,6 +214,84 @@ export function signalerLiaison(connecte) {
   // réseau. `navigator.onLine` ne vaut rien pour affirmer qu'on est en ligne ;
   // il vaut, lui, pour affirmer qu'on ne l'est pas.
   liaison = (dejaJointe || sansReseau()) ? false : null;
+  if (liaison === false) programmerReprise();
+}
+
+/**
+ * Annule la tentative de reprise en attente, s'il y en a une
+ * @returns {void}
+ */
+function annulerLaReprise() {
+  if (minuteurDeReprise === null) return;
+  clearTimeout(minuteurDeReprise);
+  minuteurDeReprise = null;
+}
+
+/**
+ * Programme la prochaine tentative de reprise
+ *
+ * Une seule à la fois : deux minuteurs en vol doubleraient les tentatives sans
+ * rien apprendre de plus.
+ *
+ * @returns {void}
+ */
+function programmerReprise() {
+  if (minuteurDeReprise !== null) return;
+
+  const delai = REPRISES_MS[Math.min(rangDeReprise, REPRISES_MS.length - 1)];
+  minuteurDeReprise = setTimeout(() => {
+    minuteurDeReprise = null;
+    rangDeReprise += 1;
+    retenterLaLiaison();
+  }, delai);
+}
+
+/**
+ * Demande à la base si elle répond de nouveau
+ *
+ * Une vraie lecture, sur un chemin minuscule : `.info/connected` peut rester
+ * faux alors que la base répond parfaitement — c'est même le cas qui a mis des
+ * heures à se résoudre. Seule une opération qui aboutit prouve quelque chose.
+ *
+ * Ne lève jamais : un échec reprogramme simplement la tentative suivante.
+ *
+ * @returns {Promise<boolean>} La liaison est-elle rétablie ?
+ */
+export async function retenterLaLiaison() {
+  if (!database || !isAuthenticated) {
+    programmerReprise();
+    return false;
+  }
+
+  try {
+    await withTimeout(
+      database.ref(getDataPath(DB_PATHS.SHARE_MODE)).once('value'),
+      'reprise', DELAI_REPRISE_MS, 'Reprise'
+    );
+  } catch (erreur) {
+    noter('hors-ligne', 'reprise sans succès', {
+      motif: erreur?.message || String(erreur),
+      prochaineDansMs: REPRISES_MS[Math.min(rangDeReprise, REPRISES_MS.length - 1)]
+    });
+    programmerReprise();
+    return false;
+  }
+
+  liaison = true;
+  dejaJointe = true;
+  rangDeReprise = 0;
+  annulerLaReprise();
+  noter('hors-ligne', 'liaison rétablie par une reprise');
+
+  if (temoinDeReprise) {
+    try {
+      temoinDeReprise();
+    } catch {
+      // Un abonné défaillant ne doit pas annuler une reprise réussie.
+    }
+  }
+
+  return true;
 }
 
 /**
@@ -188,6 +313,7 @@ function sansReseau() {
  */
 function constaterCoupure() {
   liaison = false;
+  programmerReprise();
 }
 
 /**
@@ -251,6 +377,14 @@ export async function rejouerFileDAttente() {
           : reference.set(operation.donnees),
         operation.chemin
       );
+      // Le miroir prend le relais de la file : elle va être vidée, et sans ce
+      // report la saisie ne serait plus portée par personne.
+      //
+      // L'ordre est le plus prudent des deux — reporter puis retirer — mais il
+      // ne garantit rien de plus : les deux écritures visent le même stockage,
+      // qui les refuse ou les accepte ensemble. Un sabotage les a interverties
+      // sans qu'aucun contrôle ne bronche, et c'est exact.
+      integrerAuMiroir(dataRoot, operation);
       retirerOperation(dataRoot, operation.id);
       envoyees++;
     }
@@ -303,6 +437,16 @@ function depuisMiroir(chemin) {
   if (!memoire && operations.length === 0) {
     throw new Error(`Hors ligne, et « ${chemin || '(racine)'} » n'a jamais été lu sur cet appareil`);
   }
+
+  // Sans cette trace, une application entièrement servie par le miroir est
+  // indiscernable d'une application qui lit la base : toutes les étapes
+  // réussissent, « FairSplit chargé » s'affiche, les chiffres sont justes — et
+  // rien ne dit qu'ils datent. Le bandeau seul ne suffit pas à trancher.
+  noter('hors-ligne', 'lecture servie par le miroir', {
+    chemin: chemin || '(racine)',
+    memoriseeLe: memoire ? new Date(memoire.majLe).toISOString() : 'jamais',
+    enAttente: operations.length
+  });
 
   return appliquerOperations(memoire ? memoire.valeur : null, chemin, operations);
 }

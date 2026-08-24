@@ -21,11 +21,20 @@ vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
 
+const noter = vi.fn();
+vi.mock('../../public/js/utils/diagnostics.js', () => ({
+  noter: (...arguments_) => noter(...arguments_),
+  exigerElement: (id) => document.getElementById(id),
+  initDiagnostics: vi.fn(),
+  rapport: vi.fn(() => '')
+}));
+
 const {
   initDatabase, setAuthenticatedUser, getDataRoot,
   signalerLiaison, liaisonRompue,
   dbGet, dbSet, dbUpdate, dbPush,
-  saisiesEnAttente, rejouerFileDAttente, oublierHorsLigne, surFileModifiee
+  saisiesEnAttente, rejouerFileDAttente, oublierHorsLigne, surFileModifiee,
+  retenterLaLiaison, surLiaisonRetablie
 } = await import('../../public/js/db.js');
 
 /**
@@ -119,6 +128,7 @@ beforeEach(() => {
   setAuthenticatedUser('uid-test', 'bigot.richard@gmail.com');
   signalerLiaison(true);
   surFileModifiee(null);
+  surLiaisonRetablie(null);
 });
 
 afterEach(() => {
@@ -212,6 +222,24 @@ describe('État de la liaison', () => {
 });
 
 describe('Lire hors réseau', () => {
+  it('journalise chaque lecture servie par l\'appareil', async () => {
+    // Sans cette trace, une application entièrement servie par le miroir est
+    // indiscernable d'une application qui lit la base : toutes les étapes
+    // réussissent, « FairSplit chargé » s'affiche, les chiffres sont justes —
+    // et rien ne dit qu'ils datent. Signalé à l'usage, précisément comme ça.
+    await amorcerLeMiroir();
+    noter.mockClear();
+    signalerLiaison(false);
+
+    await dbGet('salaries');
+
+    const trace = noter.mock.calls.find(([, message]) => message === 'lecture servie par le miroir');
+    expect(trace, 'la lecture depuis le miroir doit laisser une trace').toBeTruthy();
+    expect(trace[2].chemin).toBe('salaries');
+    expect(trace[2].memoriseeLe, 'la date du miroir dit si les chiffres datent')
+      .toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
   it('sert la dernière valeur connue plutôt qu\'un écran vide', async () => {
     await amorcerLeMiroir();
     signalerLiaison(false);
@@ -364,6 +392,32 @@ describe('Le retour du réseau', () => {
     expect(Object.keys(base.contenu.household.periods['2026-08'].variableCharges)).toHaveLength(3);
   });
 
+  it('la saisie rejouée ne disparaît pas si l\'on repasse hors ligne', async () => {
+    // Le cas soulevé à l'usage. La file se vide à l'écriture — c'est voulu.
+    // Mais le miroir, lui, garde ce que le serveur avait dit AVANT la saisie.
+    // Sans report, la charge est en base, correctement, et s'évapore de l'écran
+    // à la coupure suivante. Dans une application de comptes, c'est la pire des
+    // frayeurs, et elle serait parfaitement injustifiée.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    const cle = await dbPush('periods/2026-08/variableCharges', {
+      description: 'Restaurant', amount: 5
+    });
+
+    signalerLiaison(true);
+    expect((await rejouerFileDAttente()).envoyees).toBe(1);
+    expect(saisiesEnAttente(), 'la file doit bien s\'être vidée').toBe(0);
+
+    // On repart hors ligne sans qu'aucune lecture n'ait rafraîchi le miroir.
+    signalerLiaison(false);
+    const charges = await dbGet('periods/2026-08/variableCharges');
+
+    expect(Object.keys(charges)).toHaveLength(3);
+    expect(charges[cle], 'la charge rejouée doit rester visible').toBeTruthy();
+    expect(charges[cle].amount).toBe(5);
+  });
+
   it('respecte l\'ordre : la correction ne part pas avant la saisie', async () => {
     // Rejouer hors d'ordre écraserait une correction par la version qu'elle
     // corrigeait. La file est un ordre, pas un sac.
@@ -490,5 +544,128 @@ describe('Ce qui reste sur l\'appareil', () => {
 
     signalerLiaison(true);
     expect((await dbGet('periods/2026-08/variableCharges')).a1.amount).toBe(4.5);
+  });
+});
+
+describe('Sortir du hors ligne sans attendre Firebase', () => {
+  /**
+   * Signalé à l'usage, après des heures dans cet état : « le dernier
+   * changement avec une base en local a produit ce problème dès que l'on se met
+   * hors ligne ».
+   *
+   * Le diagnostic était juste sur un point décisif. Le mode hors ligne ne
+   * savait en sortir que si Firebase annonçait de lui-même la reconnexion — il
+   * ne retentait jamais rien. Un seul délai de garde dépassé, dix secondes sur
+   * un réseau hésitant, et l'application se condamnait au miroir : chiffres
+   * justes à l'écran, « FairSplit chargé », et rien d'autre qu'un bandeau pour
+   * dire que plus rien ne partait.
+   */
+
+  it('retente d\'elle-même, et se rétablit quand la base répond', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    expect(liaisonRompue()).toBe(true);
+
+    base.retablir();
+    expect(await retenterLaLiaison()).toBe(true);
+    expect(liaisonRompue(), 'la liaison doit être rendue sans passer par Firebase').toBe(false);
+  });
+
+  it('la reprise réussie prévient l\'écran, qui referme et rejoue', async () => {
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    await dbSet('salaries', { vous: 2600 });
+
+    let prevenu = 0;
+    surLiaisonRetablie(() => { prevenu += 1; });
+
+    base.retablir();
+    await retenterLaLiaison();
+
+    expect(prevenu, 'sans ce signal, le bandeau resterait affiché').toBe(1);
+  });
+
+  it('une reprise qui échoue laisse tout en l\'état', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const essai = retenterLaLiaison();
+    await vi.advanceTimersByTimeAsync(6000);
+
+    expect(await essai).toBe(false);
+    expect(liaisonRompue()).toBe(true);
+  });
+
+  it('n\'attend pas dix secondes pour conclure « toujours rien »', async () => {
+    // Un test de reprise aussi lent qu'une lecture ordinaire ne vaut pas mieux
+    // que pas de test : on veut savoir, pas lire.
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const essai = retenterLaLiaison();
+    await vi.advanceTimersByTimeAsync(5200);
+
+    expect(await essai).toBe(false);
+  });
+
+  it('ne retente rien tant que la session n\'est pas rétablie', async () => {
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    setAuthenticatedUser(null);
+
+    expect(await retenterLaLiaison()).toBe(false);
+  });
+
+  it('la reprise programmée finit par aboutir toute seule', async () => {
+    // Le cas réel : personne ne touche à rien, le réseau revient, et
+    // l'application doit s'en apercevoir.
+    await amorcerLeMiroir();
+    base.couper();
+    vi.useFakeTimers();
+    signalerLiaison(false);
+
+    base.retablir();
+    // Le premier délai programmé est de quinze secondes.
+    await vi.advanceTimersByTimeAsync(16000);
+
+    expect(liaisonRompue(), 'la reprise programmée doit rendre la liaison').toBe(false);
+  });
+
+  it('une lecture restée sans réponse programme elle aussi une reprise', async () => {
+    // Le chemin qui a piégé l'utilisateur : la liaison meurt pendant une
+    // lecture, Firebase n'annonce jamais « déconnecté », et c'est le délai de
+    // garde qui constate la coupure. Sans reprise programmée là aussi, rien ne
+    // retente jamais — et l'application reste au miroir indéfiniment.
+    await amorcerLeMiroir();
+    base.couper();
+    vi.useFakeTimers();
+
+    const lecture = dbGet('salaries');
+    await vi.advanceTimersByTimeAsync(11000);
+    await lecture;
+    expect(liaisonRompue()).toBe(true);
+
+    base.retablir();
+    await vi.advanceTimersByTimeAsync(16000);
+
+    expect(liaisonRompue(), 'la coupure constatée doit programmer une reprise').toBe(false);
+  });
+
+  it('une liaison annoncée par Firebase annule la reprise en attente', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    vi.useFakeTimers();
+    signalerLiaison(false);
+
+    signalerLiaison(true);
+    base.retablir();
+    await vi.advanceTimersByTimeAsync(400000);
+
+    expect(liaisonRompue()).toBe(false);
   });
 });

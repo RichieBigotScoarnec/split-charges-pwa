@@ -18,6 +18,14 @@ vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
 
+const noter = vi.fn();
+vi.mock('../../public/js/utils/diagnostics.js', () => ({
+  noter: (...arguments_) => noter(...arguments_),
+  exigerElement: (id) => document.getElementById(id),
+  initDiagnostics: vi.fn(),
+  rapport: vi.fn(() => '')
+}));
+
 /** Journal des activations demandées au SDK */
 let activations;
 
@@ -25,12 +33,15 @@ let activations;
  * Installe un SDK Firebase simulé
  * @param {Object} options - { avecAppCheck } présence du SDK App Check
  */
-function installerFirebase({ avecAppCheck = true } = {}) {
+function installerFirebase({ avecAppCheck = true, jeton = undefined } = {}) {
   activations = [];
 
   const appCheck = avecAppCheck
     ? Object.assign(
-      () => ({ activate: (fournisseur, autoRefresh) => activations.push({ fournisseur, autoRefresh }) }),
+      () => ({
+        activate: (fournisseur, autoRefresh) => activations.push({ fournisseur, autoRefresh }),
+        ...(jeton === undefined ? {} : { getToken: () => jeton() })
+      }),
       {
         ReCaptchaV3Provider: class { constructor(cle) { this.type = 'v3'; this.cle = cle; } },
         ReCaptchaEnterpriseProvider: class { constructor(cle) { this.type = 'enterprise'; this.cle = cle; } }
@@ -188,5 +199,72 @@ describe('Cohérence entre la page et le code', () => {
     // Le fournisseur doit correspondre au type de clé créé dans la console :
     // une clé v3 présentée comme Enterprise est refusée à l'exécution.
     expect(fournisseur).toBe('recaptcha-v3');
+  });
+});
+
+describe('L\'attestation aboutit-elle réellement ?', () => {
+  /**
+   * `activate()` ne dit rien de plus que « la configuration est acceptée ». La
+   * console Firebase, elle, comptait zéro requête validée sur cent
+   * cinquante-neuf en sept jours : l'attestation était configurée, enregistrée,
+   * et n'aboutissait jamais. Le jour où l'application forcée serait activée, ce
+   * serait cent pour cent de refus, immédiatement, pour tout le monde.
+   */
+
+  const CONFIG = { APP_CHECK_SITE_KEY: '6Lc-cle-de-site', APP_CHECK_PROVIDER: 'recaptcha-v3', USE_EMULATOR: false };
+
+  beforeEach(() => {
+    noter.mockClear();
+  });
+
+  /** Laisse la promesse d'attestation se dénouer */
+  const laisserSeDenouer = () => new Promise(suite => setTimeout(suite, 0));
+
+  it('consigne l\'attestation obtenue, sans jamais écrire le jeton', async () => {
+    // Le jeton est un secret de courte durée : sa taille suffit à prouver qu'il
+    // existe, et un journal qu'on ne peut pas coller ne sert à rien.
+    installerFirebase({ jeton: () => Promise.resolve({ token: 'j'.repeat(420) }) });
+    const { initFirebase } = await chargerAvec(CONFIG);
+    initFirebase();
+    await laisserSeDenouer();
+
+    const trace = noter.mock.calls.find(([, message]) => message === 'attestation obtenue');
+    expect(trace).toBeTruthy();
+    expect(trace[2].taille).toBe(420);
+    expect(JSON.stringify(noter.mock.calls)).not.toContain('jjjj');
+  });
+
+  it('consigne l\'attestation impossible, avec son motif', async () => {
+    // Le cas réel : rien ne le disait, et la console comptait 0 sur 159.
+    installerFirebase({ jeton: () => Promise.reject(new Error('reCAPTCHA error: timeout')) });
+    const { initFirebase } = await chargerAvec(CONFIG);
+    initFirebase();
+    await laisserSeDenouer();
+
+    const trace = noter.mock.calls.find(([, message]) => message === 'attestation impossible');
+    expect(trace).toBeTruthy();
+    expect(trace[2].motif).toContain('reCAPTCHA');
+  });
+
+  it('ne rompt pas l\'initialisation quand le SDK n\'offre pas getToken', async () => {
+    installerFirebase();
+    const { initFirebase } = await chargerAvec(CONFIG);
+
+    expect(() => initFirebase()).not.toThrow();
+    await laisserSeDenouer();
+
+    const trace = noter.mock.calls.find(([categorie]) => categorie === 'appcheck');
+    expect(trace, 'l\'abandon doit rester visible').toBeTruthy();
+  });
+
+  it('signale un SDK absent dans le journal, pas seulement en console', async () => {
+    // La console est hors d'atteinte sur un téléphone : c'est précisément là
+    // que l'attestation échoue sans que personne ne puisse le constater.
+    installerFirebase({ avecAppCheck: false });
+    const { initFirebase } = await chargerAvec(CONFIG);
+    initFirebase();
+
+    const trace = noter.mock.calls.find(([, message]) => message.includes('SDK non chargé'));
+    expect(trace).toBeTruthy();
   });
 });

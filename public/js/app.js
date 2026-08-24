@@ -12,7 +12,9 @@ import {
   signalerLiaison,
   saisiesEnAttente,
   rejouerFileDAttente,
-  surFileModifiee
+  surFileModifiee,
+  surLiaisonRetablie,
+  retenterLaLiaison
 } from './db.js';
 import { setState } from './state.js';
 import { initModals } from './components/modal.js';
@@ -46,6 +48,15 @@ async function initApp() {
     // voir tout de suite, alors qu'aucun événement de connexion ne survient.
     surFileModifiee(majSaisiesEnAttente);
 
+    // Une reprise réussie referme le bandeau et vide la file, exactement comme
+    // le ferait une reconnexion annoncée par Firebase. C'est le seul moyen de
+    // sortir du hors-ligne quand `.info/connected` reste faux alors que la base
+    // répond — le cas qui a duré des heures.
+    surLiaisonRetablie(() => {
+      refreshConnectionBanner(true, saisiesEnAttente());
+      synchroniserLesSaisies();
+    });
+
     // 2. Surveillance de la liaison
     // Écoute maintenue pour la durée de vie de la page : l'application est
     // mono-page, il n'existe pas de point de démontage.
@@ -68,7 +79,7 @@ async function initApp() {
 
     // Au retour de veille, la reconnexion est normale : la temporisation du
     // bandeau repart, au lieu de se conclure sur du temps passé en veille.
-    initConnectionBanner();
+    initConnectionBanner(retenterLaLiaison);
 
     // 3. Initialize UI components
     initModals();

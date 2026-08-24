@@ -21,8 +21,43 @@ const CAPACITE = 300;
 /** Clé de persistance : le journal doit survivre au rechargement qui suit une panne */
 const STOCKAGE = 'fairsplit.diagnostic';
 
+/**
+ * Clé où la session précédente est mise à l'abri
+ *
+ * Il n'y en avait qu'une, et `persister()` l'écrasait dès la première entrée
+ * de la nouvelle session — c'est-à-dire cinq millisecondes après l'ouverture.
+ * Le journal de la session qui avait échoué était donc détruit par le
+ * rechargement même qui servait à aller le lire. Pour une panne qu'on
+ * n'observe qu'après avoir rouvert l'application, c'était fatal.
+ */
+const STOCKAGE_PRECEDENT = 'fairsplit.diagnostic.precedent';
+
 /** Journal en mémoire, source de vérité de la session courante */
 let entrees = [];
+
+/**
+ * Journal de la session précédente, mis à l'abri avant toute écriture
+ *
+ * Évalué à l'import du module, donc avant que quoi que ce soit ait pu noter :
+ * c'est la seule fenêtre où le stockage contient encore la session d'avant.
+ */
+const precedent = archiverSessionPrecedente();
+
+/**
+ * Recopie le journal de la session précédente sous sa propre clé
+ * @returns {Array<Object>} Entrées de la session précédente, vide si aucune
+ */
+function archiverSessionPrecedente() {
+  try {
+    const brut = localStorage.getItem(STOCKAGE);
+    if (!brut) return [];
+    localStorage.setItem(STOCKAGE_PRECEDENT, brut);
+    const lu = JSON.parse(brut);
+    return Array.isArray(lu) ? lu : [];
+  } catch {
+    return [];
+  }
+}
 
 /** Instant de départ, pour horodater en millisecondes écoulées */
 const depart = Date.now();
@@ -64,23 +99,6 @@ function persister() {
 }
 
 /**
- * Relit le journal de la session précédente
- *
- * Une panne suivie d'un rechargement effacerait sinon la seule trace de ce
- * qui s'est passé.
- *
- * @returns {Array<Object>} Entrées de la session précédente, vide si aucune
- */
-function relirePrecedent() {
-  try {
-    const brut = localStorage.getItem(STOCKAGE);
-    return brut ? JSON.parse(brut) : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
  * Décrit l'appareil et le contexte d'exécution
  *
  * Ce sont les différences entre un vrai téléphone et un navigateur de bureau
@@ -117,7 +135,6 @@ function contexte() {
  * @returns {string} Rapport en texte brut
  */
 export function rapport() {
-  const precedent = relirePrecedent();
   const lignes = [];
 
   lignes.push('=== DIAGNOSTIC FAIRSPLIT ===');
@@ -128,9 +145,12 @@ export function rapport() {
   lignes.push('', `--- session courante (${entrees.length} entrées) ---`);
   for (const e of entrees) lignes.push(formater(e));
 
-  // Le journal persisté contient la session courante dès la première écriture ;
-  // ne le répéter que s'il porte réellement autre chose.
-  if (precedent.length && precedent.length !== entrees.length) {
+  // La session précédente est celle mise à l'abri à l'ouverture, plus celle que
+  // le stockage contient — le stockage, lui, porte déjà la session courante.
+  // Comparer les longueurs pour les distinguer, comme on le faisait, revenait à
+  // masquer la session précédente dès qu'elle avait autant d'entrées que la
+  // courante, et à la montrer en double le reste du temps.
+  if (precedent.length) {
     lignes.push('', `--- session précédente (${precedent.length} entrées) ---`);
     for (const e of precedent) lignes.push(formater(e));
   }
@@ -182,6 +202,20 @@ export function initDiagnostics() {
     });
   });
 
+  // Une violation de la politique de sécurité ne lève rien et n'apparaît que
+  // dans la console — hors d'atteinte sur un téléphone. Or c'est une cause
+  // parfaitement plausible d'échec silencieux : une origine oubliée dans une
+  // directive, et la ressource est refusée sans qu'aucun code ne s'en aperçoive.
+  // L'événement, lui, nomme la directive et l'adresse bloquée.
+  document.addEventListener('securitypolicyviolation', (evenement) => {
+    noter('csp', `bloqué par ${evenement.violatedDirective || 'une directive inconnue'}`, {
+      // L'adresse bloquée est celle d'une ressource, jamais une donnée du
+      // foyer. Tronquée : une URL entière encombrerait le rapport sans rien
+      // apprendre de plus que son origine et son chemin.
+      cible: String(evenement.blockedURI || '(inconnue)').slice(0, 120)
+    });
+  });
+
   window.addEventListener('unhandledrejection', (evenement) => {
     const raison = evenement.reason;
     noter('rejet', raison?.message || String(raison || 'rejet sans motif'), {
@@ -229,12 +263,21 @@ function exposerPanneau() {
   if (params.get('diag') !== '1') return;
 
   // Le panneau se peint après le reste : ce qui l'intéresse s'est produit
-  // pendant l'initialisation.
+  // pendant l'initialisation. Mais il ne s'y arrête pas — voir `peindrePanneau`.
   window.setTimeout(peindrePanneau, 4000);
 }
 
 /**
  * Affiche le journal à l'écran, avec de quoi le copier
+ *
+ * Le contenu était figé à l'instant de la peinture, quatre secondes après
+ * l'ouverture. Or tout ce qu'on vient y chercher arrive plus tard : le bandeau
+ * hors ligne paraît à huit secondes, une lecture abandonne à dix, une écriture
+ * à quinze. Le journal rapporté s'arrêtait donc systématiquement avant le
+ * premier symptôme — trois lignes, et rien de ce qu'on cherchait.
+ *
+ * D'où le bouton « Rafraîchir » : on attend, on relit, on copie.
+ *
  * @returns {void}
  */
 function peindrePanneau() {
@@ -252,11 +295,24 @@ function peindrePanneau() {
   zone.readOnly = true;
   zone.value = rapport();
 
+  const rafraichir = document.createElement('button');
+  rafraichir.type = 'button';
+  rafraichir.id = 'diagRefresh';
+  rafraichir.className = 'btn btn-secondary';
+  rafraichir.textContent = 'Rafraîchir';
+  rafraichir.addEventListener('click', () => {
+    zone.value = rapport();
+  });
+
   const copier = document.createElement('button');
   copier.type = 'button';
   copier.className = 'btn btn-primary';
   copier.textContent = 'Copier';
   copier.addEventListener('click', async () => {
+    // Toujours relire avant de copier : sans cela, on copie l'instantané de la
+    // peinture, et l'utilisateur croit envoyer ce qu'il vient d'attendre.
+    zone.value = rapport();
+
     // `select()` couvre le cas où l'API presse-papiers est refusée : sur
     // iOS elle exige un contexte sécurisé et un geste direct.
     zone.select();
@@ -276,7 +332,7 @@ function peindrePanneau() {
 
   const actions = document.createElement('div');
   actions.className = 'diag-actions';
-  actions.append(copier, fermer);
+  actions.append(rafraichir, copier, fermer);
 
   panneau.append(titre, zone, actions);
   document.body.appendChild(panneau);

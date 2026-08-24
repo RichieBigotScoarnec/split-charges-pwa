@@ -253,6 +253,43 @@ function identifiantDOperation() {
   return `op-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * Reporte dans le miroir une écriture qui vient de partir pour de bon
+ *
+ * Sans cela, le miroir garde la valeur lue **avant** la saisie, et la file qui
+ * la compensait vient d'être vidée. La charge est alors en base, correctement,
+ * et disparaît pourtant de l'écran dès qu'on repasse hors ligne — jusqu'à la
+ * prochaine lecture en ligne du chemin concerné. Dans une application de
+ * comptes, une dépense qui s'évapore est la pire des frayeurs, et elle serait
+ * ici parfaitement injustifiée.
+ *
+ * L'horodatage de chaque entrée n'est pas touché : il dit quand le serveur a
+ * parlé pour la dernière fois, et ce n'est pas ce qui vient de se passer.
+ *
+ * @param {string} racine
+ * @param {Object} operation - Opération telle qu'elle a été rejouée
+ * @returns {boolean} Le miroir a-t-il été modifié et réenregistré ?
+ */
+export function integrerAuMiroir(racine, operation) {
+  const dossier = lireDossier(racine);
+  let touche = false;
+
+  for (const chemin of Object.keys(dossier.chemins)) {
+    const entree = dossier.chemins[chemin];
+    const avant = entree.v === undefined ? null : entree.v;
+    const apres = appliquerOperations(avant, chemin, [operation]);
+
+    // `appliquerOperations` rend la valeur d'origine, à l'identique, quand
+    // l'écriture ne la concerne pas : comparer les références suffit.
+    if (apres === avant) continue;
+
+    dossier.chemins[chemin] = { v: apres, t: entree.t };
+    touche = true;
+  }
+
+  return touche ? ecrireDossier(racine, dossier) : false;
+}
+
 // ===== CŒUR : CE QUE VOIT UNE LECTURE =====
 
 /**
