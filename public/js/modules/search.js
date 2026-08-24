@@ -5,6 +5,7 @@ import { getState } from '../state.js';
 import { escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate, dateDeLaCharge } from '../utils/date.js';
 import { jourDeTri } from '../utils/tri.js';
+import { contient } from '../utils/recherche-texte.js';
 import { log } from '../utils/debug.js';
 
 let searchTimeout = null;
@@ -88,13 +89,15 @@ function handleSearchInput(query) {
  * @param {string} query - Texte recherché
  */
 export function performSearch(query) {
-  const results = searchInCharges(query.toLowerCase());
+  // Le pliage — minuscules et accents — appartient à la comparaison, qui le
+  // fait des deux côtés. Abaisser la casse ici ne servait qu'à moitié.
+  const results = searchInCharges(query);
   displaySearchResults(results, query);
 }
 
 /**
  * Recherche dans toutes les charges
- * @param {string} query - Texte recherché (lowercase)
+ * @param {string} query - Texte recherché, tel que saisi
  * @returns {Array} Résultats de recherche
  */
 export function searchInCharges(query) {
@@ -147,7 +150,7 @@ export function searchInCharges(query) {
 /**
  * Vérifie si une charge correspond à la requête
  * @param {Object} charge - Charge à vérifier
- * @param {string} query - Requête (lowercase)
+ * @param {string} query - Requête, telle que saisie
  * @returns {boolean}
  */
 function matchesQuery(charge, query) {
@@ -179,9 +182,11 @@ function matchesQuery(charge, query) {
   // toString() dessus interrompait la recherche entière sur une seule entrée.
   champs.push(String(charge.amount ?? ''));
 
-  return champs.some(
-    champ => typeof champ === 'string' && champ.toLowerCase().includes(query)
-  );
+  // La comparaison ignore désormais les accents : sur un clavier de téléphone
+  // ils demandent un appui long, que personne ne fait pour chercher. Sans cela,
+  // « intermarche » ne trouvait pas « Intermarché » et l'application répondait
+  // « 0 résultat » sur une charge bien présente.
+  return champs.some(champ => contient(champ, query));
 }
 
 /**

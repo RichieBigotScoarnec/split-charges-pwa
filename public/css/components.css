@@ -401,7 +401,7 @@
 }
 
 .btn-delete:hover {
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--danger-soft);
   border-color: var(--danger-color);
   color: var(--danger-color);
 }
@@ -823,14 +823,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 16px var(--primary-glow);
   z-index: 9998;
   transition: all var(--duration) var(--ease);
 }
 
 .fab:hover {
   background: var(--primary-dark);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6px 24px var(--primary-glow);
   transform: translateY(-2px);
 }
 
@@ -839,8 +839,8 @@
 }
 
 @keyframes fabPulse {
-  0%, 100% { box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 4px 24px rgba(99, 102, 241, 0.6), 0 0 0 8px rgba(99, 102, 241, 0.1); }
+  0%, 100% { box-shadow: 0 4px 16px var(--primary-glow); }
+  50% { box-shadow: 0 4px 24px var(--primary-glow), 0 0 0 8px var(--primary-soft); }
 }
 
 .fab {

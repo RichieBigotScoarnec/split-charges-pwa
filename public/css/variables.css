@@ -96,6 +96,36 @@
   --on-warning: #1E293B;
   --info-color: #2563EB;
 
+  /* Lavis et liserés sémantiques
+     ---------------------------------------------------------------
+     Le bilan, les jauges de budget, le récapitulatif de virements et deux
+     étiquettes de charge posent un fond très dilué de la couleur qui les
+     désigne, et un liseré un peu plus soutenu.
+
+     Ces valeurs étaient écrites en dur dans summary.css — et c'étaient les
+     teintes du thème SOMBRE : rgba(52, 211, 153, …) est le vert #34D399, celui
+     du bloc `prefers-color-scheme: dark`. Sur le thème clair, le lavis d'un
+     solde positif venait donc d'une palette et le texte qu'il encadre d'une
+     autre, sur un fond crème qui n'existait ni pour l'une ni pour l'autre.
+
+     Deux niveaux suffisent partout : un fond et un bord. Les huit valeurs
+     d'opacité qui traînaient (0,08 · 0,1 · 0,12 · 0,15 · 0,2 · 0,25) ne se
+     distinguaient pas à l'œil. */
+  --success-soft: rgba(5, 150, 105, 0.10);
+  --success-edge: rgba(5, 150, 105, 0.22);
+  --danger-soft: rgba(220, 38, 38, 0.10);
+  --danger-edge: rgba(220, 38, 38, 0.22);
+  --warning-soft: rgba(217, 119, 6, 0.10);
+  --warning-edge: rgba(217, 119, 6, 0.22);
+  --info-soft: rgba(37, 99, 235, 0.10);
+  --info-edge: rgba(37, 99, 235, 0.22);
+  --primary-soft: rgba(79, 70, 229, 0.10);
+  --primary-edge: rgba(79, 70, 229, 0.20);
+
+  /* Le voile d'une modale. Noir dans les deux thèmes : il assombrit ce qu'il
+     recouvre, ce qui est vrai d'un fond clair comme d'un fond sombre. */
+  --scrim: rgba(0, 0, 0, 0.6);
+
   /* Surfaces (thème clair)
      Des neutres chauds, et non les gris bleutés d'origine (#F8FAFC, #F1F5F9).
      Ceux-là sont ceux de tous les tableaux de bord : corrects, et froids. Une
@@ -168,6 +198,18 @@
     --danger-dark: #EF4444;
     --warning-color: #FBBF24;
     --info-color: #60A5FA;
+    /* Les mêmes lavis, tirés des teintes du thème sombre. Sur un fond
+       #12100E, un lavis dilué doit être plus soutenu pour se voir du tout. */
+    --success-soft: rgba(52, 211, 153, 0.12);
+    --success-edge: rgba(52, 211, 153, 0.28);
+    --danger-soft: rgba(248, 113, 113, 0.12);
+    --danger-edge: rgba(248, 113, 113, 0.28);
+    --warning-soft: rgba(251, 191, 36, 0.12);
+    --warning-edge: rgba(251, 191, 36, 0.28);
+    --info-soft: rgba(96, 165, 250, 0.12);
+    --info-edge: rgba(96, 165, 250, 0.28);
+    --primary-soft: rgba(99, 102, 241, 0.14);
+    --primary-edge: rgba(99, 102, 241, 0.28);
     --dark-bg: #12100E;
     --card-bg: #1B1815;
     --elevated-bg: #23201C;
