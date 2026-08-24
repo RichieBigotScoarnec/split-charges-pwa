@@ -70,17 +70,41 @@ describe('La page livre bien ce que le module écrit', () => {
 describe('Le compte des saisies en attente', () => {
   it('reste général quand rien n\'attend', () => {
     majSaisiesEnAttente(0);
-    expect(texte()).toContain('vos saisies sont conservées sur cet appareil');
+    expect(texte()).toContain('vos saisies sont conservées sur cet appareil et partiront');
   });
 
-  it('s\'accorde au singulier', () => {
+  it('s\'accorde au singulier, verbe de fin compris', () => {
+    // Signalé à l'usage, capture à l'appui : « 1 saisie est conservée sur cet
+    // appareil et partiront ». La phrase était coupée en deux entre le balisage
+    // et le module, et la fin restait au pluriel. Une phrase à cheval sur deux
+    // fichiers finit toujours par se désaccorder.
     majSaisiesEnAttente(1);
-    expect(texte()).toContain('1 saisie est conservée sur cet appareil');
+    expect(texte()).toContain('1 saisie est conservée sur cet appareil et partira');
+    expect(texte(), 'la fin de phrase doit s\'accorder elle aussi')
+      .not.toMatch(/1 saisie est conservée[^.]*partiront/);
   });
 
   it('s\'accorde au pluriel', () => {
     majSaisiesEnAttente(3);
-    expect(texte()).toContain('3 saisies sont conservées sur cet appareil');
+    expect(texte()).toContain('3 saisies sont conservées sur cet appareil et partiront');
+  });
+
+  it('accorde le verbe de fin à chaque nombre, sans exception', () => {
+    // Le contrôle de fond : tout ce qui s'accorde avec le nombre doit être
+    // écrit par le module, verbe de fin compris. Compter les verbes ne suffit
+    // pas — il y en a un dans les deux cas, y compris quand il est faux. C'est
+    // l'accord qu'il faut lire.
+    const attendu = { 0: 'partiront', 1: 'partira', 2: 'partiront', 17: 'partiront' };
+
+    for (const [nombre, verbe] of Object.entries(attendu)) {
+      majSaisiesEnAttente(Number(nombre));
+      const dit = texte();
+
+      expect(dit, `« ${verbe} » attendu pour ${nombre}`).toContain(`${verbe} dès que`);
+
+      const faux = verbe === 'partira' ? 'partiront' : 'partira ';
+      expect(dit, `« ${faux.trim()} » ne doit pas apparaître pour ${nombre}`).not.toContain(faux);
+    }
   });
 
   it('ne se laisse pas écrire n\'importe quoi', () => {
@@ -99,7 +123,7 @@ describe('Le compte des saisies en attente', () => {
     expect(document.getElementById('offlineBanner').hidden).toBe(false);
 
     majSaisiesEnAttente(3);
-    expect(texte()).toContain('3 saisies');
+    expect(texte()).toContain('3 saisies sont conservées');
     expect(document.getElementById('offlineBanner').hidden, 'le bandeau ne doit pas se refermer')
       .toBe(false);
   });

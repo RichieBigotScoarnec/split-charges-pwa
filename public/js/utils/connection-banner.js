@@ -110,14 +110,21 @@ function ecrireAttente(enAttente) {
 
   const nombre = Number.isFinite(enAttente) ? Math.max(0, Math.trunc(enAttente)) : 0;
 
+  // La phrase est écrite en entier ici, verbe de fin compris. Le balisage n'en
+  // portait que le début, et la suite — « et partiront dès que… » — restait au
+  // pluriel : « 1 saisie est conservée sur cet appareil et partiront ». Une
+  // phrase coupée en deux entre deux fichiers finit toujours par se
+  // désaccorder ; celle-ci l'a fait dès la première mise en service.
+  const fin = 'dès que la base sera de nouveau joignable.';
+
   if (nombre === 0) {
-    zone.textContent = 'vos saisies sont conservées sur cet appareil';
+    zone.textContent = `vos saisies sont conservées sur cet appareil et partiront ${fin}`;
     return;
   }
 
   zone.textContent = nombre === 1
-    ? '1 saisie est conservée sur cet appareil'
-    : `${nombre} saisies sont conservées sur cet appareil`;
+    ? `1 saisie est conservée sur cet appareil et partira ${fin}`
+    : `${nombre} saisies sont conservées sur cet appareil et partiront ${fin}`;
 }
 
 /**
