@@ -792,36 +792,69 @@
         <span class="currency-symbol">€</span>
       </div>
 
-      <!-- Discrète et préremplie au jour courant : la saisie rapide doit rester
-           rapide, et le montant garde le focus. Elle sert à régulariser une
-           dépense d'hier sans passer par le formulaire complet. -->
-      <div class="quick-add-date">
-        <label for="quickAddDate">Date</label>
-        <input type="date" id="quickAddDate" />
+      <!--
+        Ce qui sera enregistré, dit en une phrase — et chaque partie ouvre son
+        choix. Les quatre blocs empilés qui la remplacent obligeaient à
+        reconstituer de tête l'état de quatre contrôles, et reléguaient le
+        payeur sous neuf tuiles de catégories. Or c'est lui qui décide qui doit
+        combien : atteint par défilement, il n'était pas vérifié.
+        Remplie par js/modules/quick-add.js à chaque changement.
+      -->
+      <div class="quick-add-phrase" id="quickAddPhrase" role="group" aria-label="Ce qui sera enregistré"></div>
+
+      <!-- Les quatre panneaux, repliés. Chacun porte le contrôle qu'il portait
+           avant, inchangé : rien n'est retiré, tout devient atteignable en un
+           geste au lieu d'un défilement. -->
+      <div class="quick-add-panneau" id="quickAddPanneauPayeur" hidden>
+        <div class="quick-add-header"><strong>Payé par</strong></div>
+        <!-- data-member : members.js y reporte les prénoms du foyer, comme sur
+             les listes de payeur du formulaire complet. -->
+        <div class="payer-toggle" id="quickAddPayer">
+          <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
+          <button type="button" data-payer="conjointe" data-member="conjointe">Conjointe</button>
+          <button type="button" data-payer="partage"><span aria-hidden="true">🤝</span> Partagé</button>
+        </div>
       </div>
 
-      <div class="quick-add-header">
-        <strong>Catégorie</strong>
+      <div class="quick-add-panneau" id="quickAddPanneauRepartition" hidden>
+        <div class="quick-add-header"><strong>Répartition</strong></div>
+        <div class="payer-toggle">
+          <button type="button" id="quickSplitProrata" class="selected"><span aria-hidden="true">📊</span> Prorata</button>
+          <button type="button" id="quickSplit5050"><span aria-hidden="true">⚖️</span> 50-50</button>
+        </div>
       </div>
-      <!-- Les catégories que ce foyer emploie le plus, comptées sur ses propres
-           charges. Rempli par quick-add.js, et masqué tant que la grille est
-           courte ou l'historique trop mince : une ligne qui répète des tuiles
-           déjà visibles fait hésiter au lieu d'aider. -->
-      <div class="category-frequentes" id="categoryFrequentes" hidden>
-        <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
-        <!-- Ces boutons portent les mêmes libellés que des tuiles de la grille
-             juste en dessous. Sans groupe nommé, la synthèse vocale annonce
-             deux fois « Courses » sans rien qui distingue le raccourci de la
-             tuile — le doublon devient une hésitation au lieu d'un gain. -->
-        <div
-          class="category-frequentes-liste"
-          id="categoryFrequentesListe"
-          role="group"
-          aria-labelledby="categoryFrequentesTitre"
-        ></div>
+
+      <div class="quick-add-panneau" id="quickAddPanneauCategorie" hidden>
+        <!-- Les catégories que ce foyer emploie le plus, comptées sur ses propres
+             charges. Rempli par quick-add.js, et masqué tant que la grille est
+             courte ou l'historique trop mince : une ligne qui répète des tuiles
+             déjà visibles fait hésiter au lieu d'aider. -->
+        <div class="category-frequentes" id="categoryFrequentes" hidden>
+          <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
+          <!-- Ces boutons portent les mêmes libellés que des tuiles de la grille
+               juste en dessous. Sans groupe nommé, la synthèse vocale annonce
+               deux fois « Courses » sans rien qui distingue le raccourci de la
+               tuile — le doublon devient une hésitation au lieu d'un gain. -->
+          <div
+            class="category-frequentes-liste"
+            id="categoryFrequentesListe"
+            role="group"
+            aria-labelledby="categoryFrequentesTitre"
+          ></div>
+        </div>
+        <div class="category-grid" id="categoryGrid">
+          <!-- Categories will be populated by JavaScript -->
+        </div>
       </div>
-      <div class="category-grid" id="categoryGrid">
-        <!-- Categories will be populated by JavaScript -->
+
+      <!-- Préremplie au jour courant : la saisie rapide doit rester rapide, et
+           le montant garde le focus. Sert à régulariser une dépense d'hier sans
+           passer par le formulaire complet. -->
+      <div class="quick-add-panneau" id="quickAddPanneauDate" hidden>
+        <div class="quick-add-date">
+          <label for="quickAddDate">Date de la dépense</label>
+          <input type="date" id="quickAddDate" />
+        </div>
       </div>
 
       <!-- Facultatif : sans saisie, la description reste déduite du lieu ou de
@@ -836,25 +869,6 @@
         maxlength="100"
         autocomplete="off"
       />
-
-      <div class="quick-add-header">
-        <strong>Payé par</strong>
-      </div>
-      <!-- data-member : members.js y reporte les prénoms du foyer, comme sur
-           les listes de payeur du formulaire complet. -->
-      <div class="payer-toggle" id="quickAddPayer">
-        <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
-        <button type="button" data-payer="conjointe" data-member="conjointe">Conjointe</button>
-        <button type="button" data-payer="partage"><span aria-hidden="true">🤝</span> Partagé</button>
-      </div>
-
-      <div class="quick-add-header">
-        <strong>Répartition</strong>
-      </div>
-      <div class="payer-toggle">
-        <button type="button" id="quickSplitProrata" class="selected"><span aria-hidden="true">📊</span> Prorata</button>
-        <button type="button" id="quickSplit5050"><span aria-hidden="true">⚖️</span> 50-50</button>
-      </div>
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" data-action="closeQuickAddModal">Annuler</button>

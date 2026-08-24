@@ -839,3 +839,74 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+
+/* ===== LA PHRASE DE LA SAISIE RAPIDE ===== */
+/*
+   Ce qui sera enregistré, dit en une ligne — et chaque partie ouvre son choix.
+
+   Elle remplace quatre blocs empilés : une grille de neuf catégories, une ligne
+   de raccourcis qui en répétait certaines, un choix de payeur, un choix de
+   répartition. Le bloc catégorie occupait à lui seul la majeure partie de la
+   modale, et le payeur — celui qui décide qui doit combien — se trouvait en
+   dessous. On y arrivait en faisant défiler neuf tuiles, donc en pratique on ne
+   le vérifiait pas.
+
+   Splitwise, Tricount et Settle Up procèdent tous ainsi : le chemin rapide ne
+   demande que le montant, le reste est un défaut énoncé et rectifiable d'un
+   geste.
+*/
+.quick-add-phrase {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-content: center;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.quick-add-segment {
+  /* 44 px de haut : la cible tactile minimale, que les anciens boutons de la
+     grille respectaient déjà et qu'un segment de phrase n'a aucune raison de
+     perdre sous prétexte qu'il ressemble à du texte. */
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+/* Le trait pointillé dit « ceci se change » sans ajouter d'icône à chaque
+   segment : quatre crayons alignés pèseraient plus que la phrase elle-même. */
+.quick-add-segment:hover,
+.quick-add-segment:focus-visible {
+  border-style: solid;
+  border-color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
+.quick-add-segment[aria-expanded="true"] {
+  border-style: solid;
+  border-color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
+/* La catégorie est le seul champ que la soumission exige. Le segment invite au
+   lieu d'attendre : un bouton d'enregistrement désactivé n'émet rien au
+   toucher, et laisse croire à une panne. */
+.quick-add-segment--manquant {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* Un seul panneau déplié à la fois — deux reproduiraient l'empilement qu'on
+   vient de défaire et repousseraient le bouton d'enregistrement hors de
+   l'écran. C'est `quick-add.js` qui le garantit ; cette règle ne fait que
+   ménager la place. */
+.quick-add-panneau {
+  margin-bottom: var(--space-md);
+}
