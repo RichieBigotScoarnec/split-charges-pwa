@@ -176,23 +176,36 @@ export async function lireEnHttps({ base, chemin, jeton, delaiMs = DELAI_MS, rec
  * @returns {string}
  */
 export function conclusion(jeton, lecture) {
-  if (!jeton || !jeton.ok) {
-    return 'session expirée : le jeton ne se renouvelle plus, se reconnecter';
-  }
+  return PHRASES[causeDeLaPanne(jeton, lecture)]
+    || `réponse inattendue de la base (${lecture && lecture.statut})`;
+}
 
-  if (!lecture || lecture.statut === null) {
-    return 'jeton obtenu, mais l\'hôte n\'a pas répondu en HTTPS';
-  }
+/**
+ * Ce que chaque cause se dit, pour le journal
+ *
+ * Le code sert au programme, la phrase à qui lit le journal. Les séparer évite
+ * qu'une reformulation ne casse une comparaison de chaînes ailleurs.
+ */
+const PHRASES = {
+  'session-expiree': 'session expirée : le jeton ne se renouvelle plus, se reconnecter',
+  'hote-muet': 'jeton obtenu, mais l\'hôte n\'a pas répondu en HTTPS',
+  'refus': 'jeton obtenu mais refusé par la base : règles ou compte',
+  'transport': 'jeton et règles bons, la base répond en HTTPS : seul le transport est bloqué'
+};
 
-  if (lecture.statut === 401 || lecture.statut === 403) {
-    return 'jeton obtenu mais refusé par la base : règles ou compte';
-  }
-
-  if (lecture.statut >= 200 && lecture.statut < 300) {
-    return 'jeton et règles bons, la base répond en HTTPS : seul le transport est bloqué';
-  }
-
-  return `réponse inattendue de la base (${lecture.statut})`;
+/**
+ * La cause, sous une forme stable dont le programme peut décider
+ *
+ * @param {{ok: boolean}} jeton
+ * @param {{statut: number|null}|null} lecture
+ * @returns {'session-expiree'|'hote-muet'|'refus'|'transport'|'inattendu'}
+ */
+export function causeDeLaPanne(jeton, lecture) {
+  if (!jeton || !jeton.ok) return 'session-expiree';
+  if (!lecture || lecture.statut === null) return 'hote-muet';
+  if (lecture.statut === 401 || lecture.statut === 403) return 'refus';
+  if (lecture.statut >= 200 && lecture.statut < 300) return 'transport';
+  return 'inattendu';
 }
 
 /**
@@ -206,7 +219,7 @@ export function conclusion(jeton, lecture) {
  * @param {string} options.base - `databaseURL`
  * @param {string} options.chemin - Chemin absolu à lire, racine comprise
  * @param {Function} [options.recuperer]
- * @returns {Promise<void>}
+ * @returns {Promise<string>} Le code de la cause, pour qui sait quoi en faire
  */
 export async function diagnostiquerLaLiaison({ utilisateur, base, chemin, recuperer }) {
   const jeton = await renouvelerLeJeton(utilisateur);
@@ -218,7 +231,7 @@ export async function diagnostiquerLaLiaison({ utilisateur, base, chemin, recupe
 
   if (!jeton.ok) {
     noter('liaison', 'diagnostic', { cause: conclusion(jeton, null) });
-    return;
+    return causeDeLaPanne(jeton, null);
   }
 
   const lecture = await lireEnHttps({ base, chemin, jeton: jeton.jeton, recuperer });
@@ -230,4 +243,5 @@ export async function diagnostiquerLaLiaison({ utilisateur, base, chemin, recupe
   });
 
   noter('liaison', 'diagnostic', { cause: conclusion(jeton, lecture) });
+  return causeDeLaPanne(jeton, lecture);
 }

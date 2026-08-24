@@ -78,8 +78,16 @@
     <span>
       <strong>Hors ligne</strong> — <span id="offlineBannerAttente">vos saisies sont conservées sur cet appareil et partiront dès que la base sera de nouveau joignable.</span>
       <strong>Elles ne vivent que sur cet appareil</strong> : effacer les données du site les
-      perdrait. Si votre réseau fonctionne, un bloqueur de contenu (boucliers Brave, uBlock),
-      une extension de confidentialité ou un pare-feu peut en être la cause.
+      perdrait.
+      <!--
+        La cause est remplacée dès que la sonde la connaît (js/utils/sonde-liaison.js).
+        Ce texte est ce qu'on peut dire tant qu'on ne sait rien — une hypothèse,
+        et elle s'est révélée fausse le jour où la vraie cause était une session
+        expirée. Envoyer chercher un bloqueur de contenu qui n'existe pas coûte
+        des heures ; le dire au conditionnel ne suffit pas à l'excuser.
+      -->
+      <span id="offlineBannerCause">Si votre réseau fonctionne, un bloqueur de contenu (boucliers
+      Brave, uBlock), une extension de confidentialité ou un pare-feu peut en être la cause.</span>
       <span class="offline-actions">
         <button type="button" id="offlineBannerReessayer" class="btn-lien-bandeau">Réessayer</button>
         <button type="button" class="btn-lien-bandeau" data-action="signOut">Se reconnecter</button>

@@ -392,3 +392,49 @@ describe('Les deux issues du bandeau', () => {
     expect(noter).toHaveBeenCalledWith('liaison', 'bandeau hors ligne affiché', { enAttente: 1 });
   });
 });
+
+describe('Ce que le bandeau dit de la cause', () => {
+  /**
+   * Tant qu'on ne sait rien, le bandeau propose une hypothèse : un bloqueur de
+   * contenu. Elle est raisonnable, et elle s'est révélée fausse — la vraie
+   * cause était une session expirée, que rien ne distinguait d'une panne
+   * réseau. Chercher un bouclier de navigateur qui n'existe pas a coûté des
+   * heures, et le conditionnel de la phrase n'y a rien changé : une hypothèse
+   * affichée se lit comme un diagnostic.
+   */
+  it('la page porte bien l\'emplacement que le module remplace', () => {
+    // Sans cet identifiant, la phrase resterait celle de l'hypothèse et rien
+    // ne le signalerait : le bandeau dirait toujours la mauvaise cause.
+    expect(document.getElementById('offlineBannerCause')).toBeTruthy();
+  });
+
+  it('remplace l\'hypothèse par la session expirée, et nomme le geste qui répare', async () => {
+    const { annoncerLaCause } = await import('../public/js/utils/connection-banner.js');
+
+    expect(texte()).toContain('bloqueur de contenu');
+    expect(annoncerLaCause('session-expiree')).toBe(true);
+
+    expect(texte()).toContain('session a expiré');
+    expect(texte(), 'le bouton qui répare doit être nommé').toContain('Se reconnecter');
+    expect(texte(), 'l\'hypothèse fausse doit avoir disparu').not.toContain('bloqueur de contenu');
+  });
+
+  it('n\'envoie pas se reconnecter quand seul le transport est bloqué', async () => {
+    // Le cas où l'on se trompe de remède : tout est valide, et se déconnecter
+    // ne répare rien. Le bandeau ne doit pas y pousser.
+    const { annoncerLaCause } = await import('../public/js/utils/connection-banner.js');
+
+    annoncerLaCause('transport');
+
+    const cause = document.getElementById('offlineBannerCause').textContent;
+    expect(cause).toContain('réseau');
+    expect(cause).not.toContain('Se reconnecter');
+  });
+
+  it('ignore une cause qu\'elle ne sait pas dire, plutôt que d\'effacer la phrase', async () => {
+    const { annoncerLaCause } = await import('../public/js/utils/connection-banner.js');
+
+    expect(annoncerLaCause('inattendu')).toBe(false);
+    expect(texte()).toContain('bloqueur de contenu');
+  });
+});
