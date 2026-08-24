@@ -12,6 +12,7 @@
     "test:all": "vitest run && npm run test:e2e",
     "emulators": "npx firebase emulators:start",
     "emulators:test": "npx firebase emulators:exec \"npx playwright test tests/e2e/firebase-integration.spec.js\"",
+    "icones": "node tools/generer-icones.mjs",
     "serve": "npx http-server public -p 3333 -c-1",
     "deploy:rules": "npx firebase deploy --only database --project fairsplit-foyer",
     "lint": "eslint .",
@@ -42,6 +43,7 @@
     "http-server": "^14.1.1",
     "jsdom": "^30.0.1",
     "serve": "^14.2.6",
+    "sharp": "0.35.3",
     "vitest": "^4.1.0"
   },
   "private": true,

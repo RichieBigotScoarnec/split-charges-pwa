@@ -625,10 +625,17 @@
   font-weight: 500;
 }
 
+/*
+   « 50/50 » classe une charge, il n'en dit pas l'état. La pastille était
+   violette — indiscernable de la couleur d'interface, et donc lue comme une
+   action possible. En neutre, elle se lit pour ce qu'elle est : une étiquette.
+   Le vert, le rouge et l'ambre restent réservés à ce qui porte du sens.
+*/
 .charge-split-tag {
   display: inline-block;
-  background: rgba(167, 139, 250, 0.1);
-  color: var(--secondary-color);
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
   font-size: 10px;
   padding: 1px 6px;
   border-radius: var(--radius-full);
