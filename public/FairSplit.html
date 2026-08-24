@@ -247,6 +247,11 @@
           <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
         </button>
         <div class="reminders-body" id="remindersBody">
+          <!-- Ce que ces trois bascules peuvent réellement faire est énoncé par
+               `notificationsStatus`, en bas du panneau : les rappels ne partent
+               que si l'application est ouverte. Une page web ne peut pas
+               prévenir quand elle est fermée sans un serveur d'envoi, que ce
+               projet n'a pas. Le laisser sous-entendre revenait à promettre. -->
           <div class="reminder-toggle-row">
             <div>
               <div class="reminder-toggle-label">Fin de mois</div>

@@ -112,7 +112,16 @@ export function renderNotificationStatus() {
   }
 
   if (Notification.permission === 'granted') {
-    bloc.textContent = '🔔 Notifications activées.';
+    // Ce que l'application peut réellement tenir, énoncé plutôt que sous-entendu.
+    //
+    // Les rappels reposent sur un `setInterval` et un `setTimeout` posés dans la
+    // page. Un téléphone suspend l'onglet quelques minutes après qu'on l'a
+    // quitté : ils ne partent donc que si l'application est ouverte. Le dire
+    // vaut mieux que de laisser croire à des rappels de fond, qui exigeraient un
+    // serveur d'envoi que ce projet n'a pas.
+    bloc.textContent = _dernierEchec
+      ? '🔕 Les rappels ne partent pas sur cet appareil — le navigateur a refusé le dernier envoi.'
+      : '🔔 Rappels activés. Ils vous parviennent tant que FairSplit est ouvert : sans serveur d\'envoi, une application web ne peut pas vous prévenir quand elle est fermée.';
     return;
   }
 
@@ -155,13 +164,21 @@ export async function requestNotificationPermission() {
     if (permission === 'granted') {
       toast.success('Notifications activées');
 
-      // Envoyer notification de test
-      new Notification('FairSplit - Notifications activées', {
-        body: 'Vous recevrez des rappels pour les échéances importantes',
-        icon: './icon-192.png',
-        badge: './icon-192.png'
-      });
+      // L'envoi de confirmation passe par le même chemin que les rappels : il
+      // n'a d'intérêt que s'il éprouve ce qui servira ensuite. Écrit en direct
+      // avec `new Notification`, il levait sur Android sans que rien ne le
+      // dise, et le panneau annonçait des rappels activés qui ne partaient pas.
+      const parti = await sendNotification(
+        'FairSplit — rappels activés',
+        'Vous recevrez les rappels tant que FairSplit est ouvert.',
+        { type: 'confirmation' }
+      );
 
+      if (!parti) {
+        toast.warning('Ce navigateur a refusé la notification de test');
+      }
+
+      renderNotificationStatus();
       return true;
     } else {
       toast.warning('Notifications refusées');
@@ -248,6 +265,8 @@ export function checkUpcomingDeadlines() {
     }
 
     // Envoyer les notifications
+    // `sendNotification` est asynchrone depuis qu'elle passe par le service
+    // worker : sans attendre, un échec ne serait jamais rattaché à son envoi.
     notifications.forEach(notif => {
       sendNotification(notif.title, notif.body, notif.data);
     });
@@ -330,38 +349,88 @@ function checkSoldeNonRegle() {
  * @param {string} body - Corps de la notification
  * @param {Object} data - Données additionnelles
  */
-function sendNotification(title, body, data = {}) {
+async function sendNotification(title, body, data = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') {
-    return;
+    return false;
   }
 
-  try {
-    const notification = new Notification(title, {
-      body: body,
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      tag: data.type || 'fairsplit-notification',
-      requireInteraction: false,
-      data: data
-    });
+  const options = {
+    body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: data.type || 'fairsplit-notification',
+    requireInteraction: false,
+    data
+  };
 
-    // Ouvrir l'app au clic sur la notification
+  // Le service worker d'abord.
+  //
+  // `new Notification()` est refusé par Chrome sur Android pour une
+  // application installée : le constructeur lève « Illegal constructor », et
+  // l'exception était avalée par un `catch` qui se contentait de journaliser.
+  // Trois bascules de réglage, une demande d'autorisation et un panneau
+  // d'état, pour une fonctionnalité qui ne faisait rien sur le téléphone visé,
+  // sans jamais le dire.
+  try {
+    const inscription = await navigator.serviceWorker?.ready;
+    if (inscription && typeof inscription.showNotification === 'function') {
+      await inscription.showNotification(title, options);
+      noterEnvoi(null);
+      log('📬 Notification envoyée par le service worker :', title);
+      return true;
+    }
+  } catch (error) {
+    warn('⚠️ Notification par le service worker impossible :', error);
+  }
+
+  // Repli pour un navigateur de bureau sans service worker actif.
+  try {
+    const notification = new Notification(title, options);
+
     notification.onclick = function(event) {
       event.preventDefault();
       window.focus();
       notification.close();
     };
 
-    // Auto-fermer après 10 secondes
-    setTimeout(() => {
-      notification.close();
-    }, 10000);
-
+    setTimeout(() => notification.close(), 10000);
+    noterEnvoi(null);
     log('📬 Notification envoyée :', title);
-
+    return true;
   } catch (error) {
+    // Journaliser ne suffit pas : personne ne lit le journal. L'écran des
+    // réglages dira que les rappels ne partent pas.
+    noterEnvoi(error);
     logError('❌ Erreur envoi notification :', error);
+    return false;
   }
+}
+
+/**
+ * Dernier échec d'envoi, pour que l'écran des réglages puisse le dire
+ *
+ * `null` tant que rien n'a échoué depuis le dernier succès.
+ */
+let _dernierEchec = null;
+
+/**
+ * Retient l'issue du dernier envoi
+ *
+ * @param {Error|null} erreur - L'échec, ou null en cas de succès
+ * @returns {void}
+ */
+function noterEnvoi(erreur) {
+  const changement = Boolean(_dernierEchec) !== Boolean(erreur);
+  _dernierEchec = erreur;
+  if (changement) renderNotificationStatus();
+}
+
+/**
+ * Le dernier envoi a-t-il échoué ?
+ * @returns {boolean}
+ */
+export function envoiEnEchec() {
+  return Boolean(_dernierEchec);
 }
 
 /**
