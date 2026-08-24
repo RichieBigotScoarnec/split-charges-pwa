@@ -203,12 +203,18 @@ function showManageEnvelopesModal() {
 
         <div id="manageEnvelopeItems" class="manage-list-items">${lignes}</div>
 
+        <!--
+          Le bouton vient après tous les champs qu'il envoie.
+
+          Il était placé juste après le nom, avant le budget et les deux dates :
+          qui remplissait le nom et appuyait sur « Ajouter » — le geste que la
+          disposition appelle — perdait les trois champs suivants sans rien voir.
+        -->
         <div class="manage-list-add">
           <div class="manage-add-row">
             <button type="button" id="envelopeEmojiBtn" class="manage-emoji-btn" title="Choisir une image">🧳</button>
             <label class="sr-only" for="envelopeNewLabel">Nom de l'enveloppe</label>
             <input type="text" id="envelopeNewLabel" placeholder="Ex : Vacances été" maxlength="30" />
-            <button type="button" id="envelopeAddBtn" class="btn btn-primary btn-sm">Ajouter</button>
           </div>
           <div id="envelopeEmojiPicker" class="manage-emoji-picker" style="display:none;">
             ${emojisProposes().map(emoji => `
@@ -229,6 +235,7 @@ function showManageEnvelopesModal() {
               <input type="date" id="envelopeNewFin" />
             </div>
           </div>
+          <button type="button" id="envelopeAddBtn" class="btn btn-primary">Ajouter l'enveloppe</button>
         </div>
       </div>
 
@@ -364,7 +371,20 @@ function brancherEcran(modal) {
   };
 
   modal.querySelector('#envelopeAddBtn').addEventListener('click', ajouter);
+
+  // Entrée depuis le nom avance au champ suivant, elle ne valide pas.
+  //
+  // Elle validait — ce qui, avec le bouton placé juste après le nom, formait le
+  // même piège au clavier qu'à l'écran : le budget et les deux dates étaient
+  // perdus sans un mot. Depuis le budget, en revanche, il ne reste que deux
+  // champs facultatifs : Entrée y garde son sens de « c'est fini ».
   champLibelle.addEventListener('keydown', evenement => {
+    if (evenement.key !== 'Enter') return;
+    evenement.preventDefault();
+    modal.querySelector('#envelopeNewBudget').focus();
+  });
+
+  modal.querySelector('#envelopeNewBudget').addEventListener('keydown', evenement => {
     if (evenement.key !== 'Enter') return;
     evenement.preventDefault();
     ajouter();

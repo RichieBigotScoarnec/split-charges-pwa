@@ -643,6 +643,18 @@
   margin-top: var(--space-sm);
 }
 
+/*
+   Le bouton clôt le formulaire, sous les champs qu'il envoie.
+
+   Il tenait auparavant dans la ligne du nom, avant le budget et les deux
+   dates : la disposition invitait à valider aux deux tiers de la saisie, et
+   les trois derniers champs partaient à la corbeille sans un mot.
+*/
+#envelopeAddBtn {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
 .envelope-field {
   display: flex;
   flex-direction: column;

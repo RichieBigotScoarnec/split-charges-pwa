@@ -67,7 +67,9 @@ async function showMapModal() {
   }
 
   const modal = document.getElementById('mapModal');
-  modal.style.display = 'block';
+  // `active` plutôt que `display: block` : c'est la convention de toutes les
+  // autres modales, et la feuille de style pose désormais le voile dessus.
+  modal.classList.add('active');
 
   if (map) {
     loadChargesOnMap();
@@ -94,7 +96,7 @@ async function showMapModal() {
 function hideMapModal() {
   const modal = document.getElementById('mapModal');
   if (modal) {
-    modal.style.display = 'none';
+    modal.classList.remove('active');
   }
 }
 
@@ -105,7 +107,6 @@ function createMapModal() {
   const modal = document.createElement('div');
   modal.id = 'mapModal';
   modal.className = 'map-modal';
-  modal.style.display = 'none';
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-modal', 'true');
   modal.setAttribute('aria-labelledby', 'mapModalTitle');
@@ -146,6 +147,22 @@ function createMapModal() {
   if (closeBtn) {
     closeBtn.addEventListener('click', hideMapModal);
   }
+
+  // Les deux sorties qu'offre n'importe quelle modale, et que celle-ci n'avait
+  // pas : un clic sur le voile, et la touche Échap. La carte occupe tout
+  // l'écran d'un téléphone — sans elles, la seule issue est une croix de
+  // 44 px dans un coin.
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) hideMapModal();
+  });
+
+  // Posé sur `document`, il survit au balisage : `cleanupMap` le retire.
+  _echapHandler = (e) => {
+    if (e.key !== 'Escape') return;
+    if (!modal.classList.contains('active')) return;
+    hideMapModal();
+  };
+  document.addEventListener('keydown', _echapHandler);
 
   // Délégation : les cases sont reconstruites à chaque ouverture, un écouteur
   // posé sur chacune serait perdu au rendu suivant.
@@ -201,6 +218,9 @@ const LEAFLET = {
 };
 
 let leafletPromise = null;
+
+/** Écouteur d'Échap, posé sur `document` — retiré à la déconnexion */
+let _echapHandler = null;
 
 /**
  * Charge Leaflet au premier usage
@@ -489,6 +509,14 @@ export function centerMap(lat, lng, zoom = 13) {
  */
 export function cleanupMap() {
   clearMarkers();
+
+  // L'écouteur d'Échap vit sur `document` : sans ce retrait, une seconde
+  // connexion en poserait un de plus, sur une modale qui n'existe plus.
+  if (_echapHandler) {
+    document.removeEventListener('keydown', _echapHandler);
+    _echapHandler = null;
+  }
+
   if (map) {
     map.remove();
     map = null;

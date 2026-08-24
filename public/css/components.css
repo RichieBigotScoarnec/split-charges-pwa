@@ -734,11 +734,24 @@
 }
 
 /* ===== TOAST NOTIFICATIONS ===== */
+/*
+   Le positionnement appartient au conteneur, pas au message.
+
+   `.toast` portait `position: fixed; bottom: 20px; right: 20px`, alors que
+   `toast.js` crée un conteneur empilable — précisément pour que deux messages
+   se suivent. Chaque message sortait donc du flux de ce conteneur et atterrissait
+   au même point : deux messages simultanés formaient un tas illisible. Mesuré,
+   et non supposé : les deux se posaient à trois pixels l'un de l'autre.
+
+   Le cas n'est pas rare — ouvrir la carte sans réseau et créer une enveloppe
+   dans la foulée suffit à le produire.
+*/
 .toast {
-  position: fixed;
-  bottom: env(safe-area-inset-bottom, 20px);
-  bottom: 20px;
-  right: 20px;
+  position: relative;
+  /* Le conteneur ne capte pas le doigt, pour ne pas voler un appui destiné à
+     ce qu'il recouvre ; le message, lui, doit rester touchable — il porte le
+     bouton « Annuler ». */
+  pointer-events: auto;
   background: var(--card-bg);
   color: var(--text-primary);
   padding: 14px 20px;
