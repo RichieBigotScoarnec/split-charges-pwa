@@ -68,9 +68,13 @@
     <span aria-hidden="true">📴</span>
     <span>
       <strong>Hors ligne</strong> — <span id="offlineBannerAttente">vos saisies sont conservées sur cet appareil et partiront dès que la base sera de nouveau joignable.</span>
-      Si votre réseau fonctionne, un bloqueur de contenu (boucliers Brave, uBlock),
-      une extension de confidentialité ou un pare-feu peut en être la cause :
-      essayez de désactiver la protection pour ce site.
+      <strong>Elles ne vivent que sur cet appareil</strong> : effacer les données du site les
+      perdrait. Si votre réseau fonctionne, un bloqueur de contenu (boucliers Brave, uBlock),
+      une extension de confidentialité ou un pare-feu peut en être la cause.
+      <span class="offline-actions">
+        <button type="button" id="offlineBannerReessayer" class="btn-lien-bandeau">Réessayer</button>
+        <button type="button" class="btn-lien-bandeau" data-action="signOut">Se reconnecter</button>
+      </span>
     </span>
   </div>
 

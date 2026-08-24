@@ -33,7 +33,8 @@ const {
   initDatabase, setAuthenticatedUser, getDataRoot,
   signalerLiaison, liaisonRompue,
   dbGet, dbSet, dbUpdate, dbPush,
-  saisiesEnAttente, rejouerFileDAttente, oublierHorsLigne, surFileModifiee
+  saisiesEnAttente, rejouerFileDAttente, oublierHorsLigne, surFileModifiee,
+  retenterLaLiaison, surLiaisonRetablie
 } = await import('../../public/js/db.js');
 
 /**
@@ -127,6 +128,7 @@ beforeEach(() => {
   setAuthenticatedUser('uid-test', 'bigot.richard@gmail.com');
   signalerLiaison(true);
   surFileModifiee(null);
+  surLiaisonRetablie(null);
 });
 
 afterEach(() => {
@@ -516,5 +518,128 @@ describe('Ce qui reste sur l\'appareil', () => {
 
     signalerLiaison(true);
     expect((await dbGet('periods/2026-08/variableCharges')).a1.amount).toBe(4.5);
+  });
+});
+
+describe('Sortir du hors ligne sans attendre Firebase', () => {
+  /**
+   * Signalé à l'usage, après des heures dans cet état : « le dernier
+   * changement avec une base en local a produit ce problème dès que l'on se met
+   * hors ligne ».
+   *
+   * Le diagnostic était juste sur un point décisif. Le mode hors ligne ne
+   * savait en sortir que si Firebase annonçait de lui-même la reconnexion — il
+   * ne retentait jamais rien. Un seul délai de garde dépassé, dix secondes sur
+   * un réseau hésitant, et l'application se condamnait au miroir : chiffres
+   * justes à l'écran, « FairSplit chargé », et rien d'autre qu'un bandeau pour
+   * dire que plus rien ne partait.
+   */
+
+  it('retente d\'elle-même, et se rétablit quand la base répond', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    expect(liaisonRompue()).toBe(true);
+
+    base.retablir();
+    expect(await retenterLaLiaison()).toBe(true);
+    expect(liaisonRompue(), 'la liaison doit être rendue sans passer par Firebase').toBe(false);
+  });
+
+  it('la reprise réussie prévient l\'écran, qui referme et rejoue', async () => {
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    await dbSet('salaries', { vous: 2600 });
+
+    let prevenu = 0;
+    surLiaisonRetablie(() => { prevenu += 1; });
+
+    base.retablir();
+    await retenterLaLiaison();
+
+    expect(prevenu, 'sans ce signal, le bandeau resterait affiché').toBe(1);
+  });
+
+  it('une reprise qui échoue laisse tout en l\'état', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const essai = retenterLaLiaison();
+    await vi.advanceTimersByTimeAsync(6000);
+
+    expect(await essai).toBe(false);
+    expect(liaisonRompue()).toBe(true);
+  });
+
+  it('n\'attend pas dix secondes pour conclure « toujours rien »', async () => {
+    // Un test de reprise aussi lent qu'une lecture ordinaire ne vaut pas mieux
+    // que pas de test : on veut savoir, pas lire.
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const essai = retenterLaLiaison();
+    await vi.advanceTimersByTimeAsync(5200);
+
+    expect(await essai).toBe(false);
+  });
+
+  it('ne retente rien tant que la session n\'est pas rétablie', async () => {
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    setAuthenticatedUser(null);
+
+    expect(await retenterLaLiaison()).toBe(false);
+  });
+
+  it('la reprise programmée finit par aboutir toute seule', async () => {
+    // Le cas réel : personne ne touche à rien, le réseau revient, et
+    // l'application doit s'en apercevoir.
+    await amorcerLeMiroir();
+    base.couper();
+    vi.useFakeTimers();
+    signalerLiaison(false);
+
+    base.retablir();
+    // Le premier délai programmé est de quinze secondes.
+    await vi.advanceTimersByTimeAsync(16000);
+
+    expect(liaisonRompue(), 'la reprise programmée doit rendre la liaison').toBe(false);
+  });
+
+  it('une lecture restée sans réponse programme elle aussi une reprise', async () => {
+    // Le chemin qui a piégé l'utilisateur : la liaison meurt pendant une
+    // lecture, Firebase n'annonce jamais « déconnecté », et c'est le délai de
+    // garde qui constate la coupure. Sans reprise programmée là aussi, rien ne
+    // retente jamais — et l'application reste au miroir indéfiniment.
+    await amorcerLeMiroir();
+    base.couper();
+    vi.useFakeTimers();
+
+    const lecture = dbGet('salaries');
+    await vi.advanceTimersByTimeAsync(11000);
+    await lecture;
+    expect(liaisonRompue()).toBe(true);
+
+    base.retablir();
+    await vi.advanceTimersByTimeAsync(16000);
+
+    expect(liaisonRompue(), 'la coupure constatée doit programmer une reprise').toBe(false);
+  });
+
+  it('une liaison annoncée par Firebase annule la reprise en attente', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    vi.useFakeTimers();
+    signalerLiaison(false);
+
+    signalerLiaison(true);
+    base.retablir();
+    await vi.advanceTimersByTimeAsync(400000);
+
+    expect(liaisonRompue()).toBe(false);
   });
 });

@@ -11,7 +11,7 @@ vi.mock('../public/js/utils/diagnostics.js', () => ({
   rapport: vi.fn(() => '')
 }));
 
-const { refreshConnectionBanner, majSaisiesEnAttente } =
+const { refreshConnectionBanner, majSaisiesEnAttente, initConnectionBanner } =
   await import('../public/js/utils/connection-banner.js');
 
 /**
@@ -238,5 +238,82 @@ describe('Le sondage de la base, quand la liaison ne revient pas', () => {
     const sondage = noter.mock.calls.find(([, message]) => message.includes('aucune réponse'));
     expect(sondage).toBeTruthy();
     expect(sondage[2].motif).toContain('abandon après 8 s');
+  });
+});
+
+describe('Les deux issues du bandeau', () => {
+  /**
+   * Le mode hors ligne se soigne tout seul, mais ses délais s'espacent jusqu'à
+   * cinq minutes. Quelqu'un qui vient de rétablir son réseau n'a aucune raison
+   * d'attendre — et quelqu'un dont la session a expiré n'en sortira jamais sans
+   * se reconnecter, ce qui fut exactement le cas signalé.
+   */
+
+  it('la page porte les deux boutons, et « Se reconnecter » passe par la délégation', () => {
+    // `data-action` est le mécanisme que `init.js` sait router : un bouton
+    // câblé autrement resterait muet, comme l'a été celui des destinations.
+    expect(document.getElementById('offlineBannerReessayer')).not.toBeNull();
+
+    const reconnexion = document.querySelector('.offline-banner [data-action="signOut"]');
+    expect(reconnexion, '« Se reconnecter » doit exister').not.toBeNull();
+    expect(reconnexion.textContent).toContain('Se reconnecter');
+  });
+
+  it('dit franchement que les saisies ne vivent que là', () => {
+    // L'avertissement manquait, et une saisie a été perdue par un effacement
+    // des données du site.
+    expect(texte()).toContain('ne vivent que sur cet appareil');
+    expect(texte()).toMatch(/effacer les données du site/i);
+  });
+
+  it('« Réessayer » redemande la liaison et le montre', async () => {
+    let demandes = 0;
+    initConnectionBanner(async () => { demandes += 1; return false; });
+
+    const bouton = document.getElementById('offlineBannerReessayer');
+    bouton.click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(demandes).toBe(1);
+    expect(bouton.textContent, 'un bouton muet est indiscernable d\'un bouton mort')
+      .toBe('Toujours rien');
+    expect(bouton.disabled).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(bouton.disabled, 'il doit redevenir utilisable').toBe(false);
+    expect(bouton.textContent).toBe('Réessayer');
+  });
+
+  it('ne se remet pas à « Toujours rien » quand la liaison revient', async () => {
+    initConnectionBanner(async () => true);
+
+    const bouton = document.getElementById('offlineBannerReessayer');
+    bouton.click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(bouton.textContent).not.toBe('Toujours rien');
+  });
+
+  it('ne se rompt pas si la reprise lève', async () => {
+    initConnectionBanner(async () => { throw new Error('réseau'); });
+
+    const bouton = document.getElementById('offlineBannerReessayer');
+    expect(() => bouton.click()).not.toThrow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(bouton.textContent).toBe('Toujours rien');
+  });
+
+  it('revenir sur l\'application redemande la liaison', async () => {
+    // Le réseau a pu redevenir joignable pendant que l'écran était éteint.
+    let demandes = 0;
+    initConnectionBanner(async () => { demandes += 1; return false; });
+
+    refreshConnectionBanner(false, 1);
+    await vi.advanceTimersByTimeAsync(9000);
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(demandes).toBe(1);
   });
 });

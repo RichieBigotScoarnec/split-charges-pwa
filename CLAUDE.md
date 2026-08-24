@@ -179,6 +179,9 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Le lieu ne s'écrivait que par le GPS, au moment de la saisie | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — recherche par nom, rattachable après coup | Charges variables seules |
 | Recherche de lieu à l'échelle de la planète : « Caffe Mamma » à Argelès rendait New York | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — cadrée sur 60 km autour de la position connue, classée par distance, élargie et annoncée si rien | — |
 | Hors réseau, l'application se chargeait et ne servait à rien : dix secondes par lecture, quinze par écriture, puis rien | `public/js/utils/miroir.js`, `public/js/db.js` | ✅ RÉSOLU 2026-08-24 — miroir des lectures et file d'attente durables, rejeu à la reconnexion | `localStorage` ; effacé à la déconnexion |
+| Le mode hors ligne ne savait en sortir que si Firebase annonçait la reconnexion — jamais de lui-même | `public/js/db.js`, `public/js/utils/connection-banner.js` | ✅ RÉSOLU 2026-08-24 — reprises espacées, au retour au premier plan, et deux issues sur le bandeau | Signalé après des heures bloquées |
+| Journal de diagnostic figé à 4 s, et effacé par le rechargement qui servait à le lire | `public/js/utils/diagnostics.js` | ✅ RÉSOLU 2026-08-24 — bouton « Rafraîchir », session précédente mise à l'abri à l'import | — |
+| App Check : `activate()` ne prouve rien, 0 requête validée sur 159 en 7 jours | `public/js/firebase-init.js` | ⚠️ INSTRUMENTÉ 2026-08-24 — `getToken()` et violations CSP journalisés ; cause encore inconnue | NE PAS passer en « Appliqué » avant d'avoir des requêtes validées |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

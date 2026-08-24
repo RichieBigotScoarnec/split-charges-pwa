@@ -183,7 +183,7 @@ function ecrireAttente(enAttente) {
 }
 
 /**
- * Repart sur un délai neuf au retour de l'application au premier plan
+ * Branche le bandeau, et repart sur un délai neuf au retour au premier plan
  *
  * Un téléphone qui se met en veille gèle la page et coupe la liaison. Au
  * réveil, Firebase se reconnecte — c'est normal, et ça prend un instant. Or la
@@ -193,22 +193,105 @@ function ecrireAttente(enAttente) {
  * Un bandeau qui crie au loup finit par ne plus être lu, ce qui lui retire
  * exactement ce pour quoi il existe.
  *
+ * @param {Function|null} [retenter] - Sait redemander une liaison ; rend une promesse de booléen
  * @returns {void}
  */
-export function initConnectionBanner() {
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
+export function initConnectionBanner(retenter = null) {
+  reprise = typeof retenter === 'function' ? retenter : null;
 
-    if (minuterie) {
-      window.clearTimeout(minuterie);
-      minuterie = null;
-    }
-    basculer(false);
+  // Le gestionnaire est une fonction nommée du module, jamais une fermeture
+  // fabriquée à l'appel : le DOM ignore un enregistrement identique, si bien
+  // qu'appeler cette fonction deux fois ne pose qu'un seul écouteur. C'est ce
+  // qui évite ici le travers qui avait fini par produire trois soumissions pour
+  // une pression dans la saisie rapide — et non un `removeEventListener`, qui
+  // serait sans effet et donnerait à croire qu'il protège de quelque chose.
+  document.addEventListener('visibilitychange', surRetourAuPremierPlan);
 
-    // Toujours coupée selon Firebase : la temporisation recommence, au lieu de
-    // se conclure sur du temps passé en veille.
-    if (dernierEtat === false) refreshConnectionBanner(false);
-  });
+  // « Réessayer » : le mode hors ligne se soigne tout seul, mais ses délais
+  // s'espacent jusqu'à cinq minutes. Quelqu'un qui vient de rétablir son réseau
+  // n'a aucune raison d'attendre, et un bouton qui rend la main tout de suite
+  // vaut mieux qu'une explication sur la patience.
+  const bouton = document.getElementById('offlineBannerReessayer');
+  if (bouton) bouton.addEventListener('click', surClicReessayer);
+}
+
+/**
+ * Le retour de l'application au premier plan
+ *
+ * Un téléphone en veille gèle la page et coupe la liaison ; au réveil, la
+ * reconnexion est normale et prend un instant. La temporisation, elle, a couru
+ * pendant la veille : sans cette remise à zéro, le bandeau s'affichait au
+ * retour, annonçant une panne là où il n'y avait qu'une reconnexion.
+ *
+ * Et l'on retente pour de bon : revenir sur l'application est précisément le
+ * moment où l'on veut savoir, le réseau ayant pu redevenir joignable pendant
+ * que l'écran était éteint.
+ *
+ * @returns {void}
+ */
+function surRetourAuPremierPlan() {
+  if (document.visibilityState !== 'visible') return;
+
+  if (minuterie) {
+    window.clearTimeout(minuterie);
+    minuterie = null;
+  }
+  basculer(false);
+
+  if (dernierEtat === false) {
+    refreshConnectionBanner(false);
+    if (reprise) reprise();
+  }
+}
+
+/** Le clic sur « Réessayer », nommé pour ne jamais s'empiler */
+function surClicReessayer(evenement) {
+  surReessayer(evenement.currentTarget);
+}
+
+/**
+ * La fonction qui sait retenter une liaison, fournie par l'appelant
+ *
+ * Ce module ne connaît pas la base et n'a pas à la connaître : il est chargé
+ * par des bancs d'essai qui n'ont ni Firebase ni stockage. L'appelant, lui, a
+ * les deux.
+ */
+let reprise = null;
+
+/**
+ * Le geste « Réessayer », avec ce qu'il faut de retour à l'écran
+ *
+ * Un bouton qui ne dit rien pendant cinq secondes est indiscernable d'un bouton
+ * mort — la panne exacte signalée sur le bouton de recherche de lieu, en son
+ * temps.
+ *
+ * @param {HTMLElement} bouton
+ * @returns {Promise<void>}
+ */
+async function surReessayer(bouton) {
+  if (!reprise || bouton.disabled) return;
+
+  const origine = bouton.textContent;
+  bouton.disabled = true;
+  bouton.textContent = 'Essai…';
+
+  let rétablie;
+  try {
+    rétablie = await reprise();
+  } catch {
+    // Une reprise qui lève n'est pas une reprise : elle vaut un échec, et le
+    // bouton doit le dire plutôt que rester figé sur « Essai… ».
+    rétablie = false;
+  }
+
+  // Rétablie, le bandeau disparaît de lui-même : rien à réafficher.
+  if (rétablie) return;
+
+  bouton.textContent = 'Toujours rien';
+  window.setTimeout(() => {
+    bouton.disabled = false;
+    bouton.textContent = origine;
+  }, 2500);
 }
 
 /**

@@ -149,6 +149,36 @@ header p {
   max-width: 70ch;
 }
 
+/* Les deux issues, au bas du message. Le mode hors ligne se soigne tout seul,
+   mais ses délais s'espacent jusqu'à cinq minutes : quelqu'un qui vient de
+   rétablir son réseau n'a aucune raison d'attendre. */
+.offline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: 6px;
+}
+
+.btn-lien-bandeau {
+  /* Cible tactile de 44 px comme partout, sans donner à un lien l'aspect d'un
+     bouton plein : le bandeau porte déjà tout le poids visuel qu'il lui faut. */
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-lien-bandeau:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .sandbox-banner {
   position: sticky;
   top: 0;
