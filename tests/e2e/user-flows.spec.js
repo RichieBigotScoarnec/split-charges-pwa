@@ -552,6 +552,10 @@ test.describe('FAB — Saisie rapide', () => {
     // C'est tout le gain : le bloc catégorie occupait la majeure partie de
     // l'écran, et le payeur — celui qui décide qui doit combien — se trouvait
     // dessous, atteint en faisant défiler neuf tuiles.
+    //
+    // Repliés par le script, pas par le balisage : pré-repliés, ils
+    // laisseraient un formulaire inutilisable le jour où ce script manque ou
+    // tarde. Ce contrôle vaut donc aussi pour ce câblage-là.
     await page.locator('.fab').click();
 
     for (const id of ['Payeur', 'Repartition', 'Categorie', 'Date']) {

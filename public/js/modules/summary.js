@@ -4,6 +4,7 @@
 import { getState, setState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
 import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
@@ -275,6 +276,11 @@ function renderSummary(summary) {
     </div>
     ` : ''}
   `;
+
+  // Le bilan vient d'être réécrit : l'élément que la barre observait n'existe
+  // plus. Sans ce rappel, l'observation resterait posée sur un nœud détaché —
+  // ce qui ne lève rien, mais fige la barre dans son dernier état.
+  suivreLeBilan();
 }
 
 /**
@@ -294,6 +300,10 @@ function updateBalanceBar(html, cssClass) {
   if (!html) {
     bar.hidden = true;
     bar.innerHTML = '';
+    // La classe s'en va avec le contenu : la garder ferait qu'un solde
+    // redevenu calculable ressusciterait la barre déjà repliée, sans que le
+    // bilan ait rien à voir avec cet état.
+    bar.classList.remove(CLASSE_REDONDANTE);
     return;
   }
 

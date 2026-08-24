@@ -270,6 +270,22 @@
   color: var(--text-primary);
 }
 
+/*
+   Repliée tant que le bilan dit déjà la même chose, juste en dessous.
+
+   Au repos, la barre se posait au-dessus du « Résumé du Mois », qui énonce le
+   même solde en plus gros et avec son explication. Sur un écran de 448 px, le
+   premier écran était presque entièrement consacré à dire une chose deux fois.
+   `js/utils/barre-solde.js` retire cette classe dès que le solde du bilan sort
+   de l'écran : la barre gagne sa place quand elle sert, et ne répète jamais.
+
+   `display: none` et non `visibility` : une barre invisible mais collante
+   réserverait sa hauteur en haut de page, et l'espace gagné serait perdu.
+*/
+.balance-bar--redondante {
+  display: none;
+}
+
 .balance-bar strong {
   font-variant-numeric: tabular-nums;
 }

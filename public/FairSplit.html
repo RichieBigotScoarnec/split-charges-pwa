@@ -802,10 +802,21 @@
       -->
       <div class="quick-add-phrase" id="quickAddPhrase" role="group" aria-label="Ce qui sera enregistré"></div>
 
-      <!-- Les quatre panneaux, repliés. Chacun porte le contrôle qu'il portait
-           avant, inchangé : rien n'est retiré, tout devient atteignable en un
-           geste au lieu d'un défilement. -->
-      <div class="quick-add-panneau" id="quickAddPanneauPayeur" hidden>
+      <!-- Les quatre panneaux. Chacun porte le contrôle qu'il portait avant,
+           inchangé : rien n'est retiré, tout devient atteignable en un geste au
+           lieu d'un défilement.
+
+           Ils ne sont **pas** repliés dans le balisage, et c'est délibéré.
+           `quick-add.js` les replie à l'ouverture de la modale, avant qu'elle
+           ne s'affiche. Les pré-replier ici rendrait le formulaire inutilisable
+           le jour où ce script manque ou tarde — nouveau balisage servi avec un
+           ancien script encore en cache, module refusé, erreur en amont : plus
+           de catégorie, plus de payeur, plus de répartition, et aucune phrase
+           pour les atteindre. Constaté en production, à six minutes d'un
+           déploiement.
+
+           Ainsi, le pire des cas rend l'écran d'avant : long, mais entier. -->
+      <div class="quick-add-panneau" id="quickAddPanneauPayeur">
         <div class="quick-add-header"><strong>Payé par</strong></div>
         <!-- data-member : members.js y reporte les prénoms du foyer, comme sur
              les listes de payeur du formulaire complet. -->
@@ -816,7 +827,7 @@
         </div>
       </div>
 
-      <div class="quick-add-panneau" id="quickAddPanneauRepartition" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauRepartition">
         <div class="quick-add-header"><strong>Répartition</strong></div>
         <div class="payer-toggle">
           <button type="button" id="quickSplitProrata" class="selected"><span aria-hidden="true">📊</span> Prorata</button>
@@ -824,7 +835,7 @@
         </div>
       </div>
 
-      <div class="quick-add-panneau" id="quickAddPanneauCategorie" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauCategorie">
         <!-- Les catégories que ce foyer emploie le plus, comptées sur ses propres
              charges. Rempli par quick-add.js, et masqué tant que la grille est
              courte ou l'historique trop mince : une ligne qui répète des tuiles
@@ -850,7 +861,7 @@
       <!-- Préremplie au jour courant : la saisie rapide doit rester rapide, et
            le montant garde le focus. Sert à régulariser une dépense d'hier sans
            passer par le formulaire complet. -->
-      <div class="quick-add-panneau" id="quickAddPanneauDate" hidden>
+      <div class="quick-add-panneau" id="quickAddPanneauDate">
         <div class="quick-add-date">
           <label for="quickAddDate">Date de la dépense</label>
           <input type="date" id="quickAddDate" />
