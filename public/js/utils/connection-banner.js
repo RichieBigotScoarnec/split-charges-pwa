@@ -58,6 +58,24 @@ let dernierEtat = null;
 let dernierCompte = 0;
 
 /**
+ * Le bandeau a-t-il paru pendant que l'écran était éteint ?
+ *
+ * Deux exigences se contredisaient jusqu'ici, et chacune défendait un vrai
+ * défaut. Un téléphone en veille gèle la page et coupe la liaison : au réveil,
+ * la temporisation ayant couru pour rien, le bandeau paraissait en annonçant
+ * une panne là où il n'y avait qu'une reconnexion. Mais la remise à zéro qui
+ * corrigeait cela masquait aussi les bandeaux légitimes, qui revenaient huit
+ * secondes plus tard — une panne apparemment résolue, puis apparemment
+ * revenue, alors que rien n'avait bougé.
+ *
+ * Ce qui départage les deux cas n'est pas le bandeau, c'est son témoin :
+ * quelqu'un l'a-t-il vu paraître ? Paru sous les yeux de l'utilisateur, il
+ * dit une coupure constatée et reste. Paru sur un écran éteint, il ne dit que
+ * du temps écoulé, et repart sur un délai neuf.
+ */
+let paruSansTemoin = false;
+
+/**
  * Réagit à un changement d'état de la liaison
  *
  * @param {boolean} connecte - La base est-elle joignable ?
@@ -87,6 +105,7 @@ export function refreshConnectionBanner(connecte, enAttente = 0) {
   if (minuterie) return;
   minuterie = window.setTimeout(() => {
     minuterie = null;
+    paruSansTemoin = document.visibilityState !== 'visible';
     basculer(true);
     noter('liaison', 'bandeau hors ligne affiché', { enAttente });
     sonderLaBase();
@@ -248,21 +267,24 @@ export function initConnectionBanner(retenter = null) {
 function surRetourAuPremierPlan() {
   if (document.visibilityState !== 'visible') return;
 
-  // Un bandeau déjà affiché reste affiché. La remise à zéro le masquait puis
-  // le laissait revenir huit secondes plus tard : à l'écran, cela se lit comme
-  // une reconnexion suivie d'une rechute — deux événements qui n'ont pas eu
-  // lieu. Signalé à l'usage, mot pour mot : « le bandeau jaune n'y était plus
-  // mais est revenu tout seul au bout de quelques secondes ».
+  // Un bandeau paru sous les yeux de l'utilisateur reste affiché. La remise à
+  // zéro le masquait puis le laissait revenir huit secondes plus tard : à
+  // l'écran, cela se lit comme une reconnexion suivie d'une rechute — deux
+  // événements qui n'ont pas eu lieu. Signalé à l'usage, mot pour mot : « le
+  // bandeau jaune n'y était plus mais est revenu tout seul au bout de quelques
+  // secondes ».
   //
   // La coupure n'a pas cessé d'exister pendant que l'écran était éteint, et
   // rien ici ne l'a vérifiée : tout ce qu'on sait à cet instant, c'est qu'on
-  // revient. La temporisation ne protège que du bandeau pas encore paru —
-  // c'est le seul cas où elle a couru pour rien.
-  if (!banniereAffichee()) {
+  // revient. Restent les deux cas où la temporisation a bel et bien couru pour
+  // rien — le bandeau pas encore paru, et celui qui a paru sur un écran
+  // éteint.
+  if (!banniereAffichee() || paruSansTemoin) {
     if (minuterie) {
       window.clearTimeout(minuterie);
       minuterie = null;
     }
+    paruSansTemoin = false;
     basculer(false);
 
     // Le compte est redit tel quel. Sans lui, ce départ de temporisation
