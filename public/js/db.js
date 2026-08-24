@@ -30,7 +30,8 @@ import {
   retirerOperation,
   nombreEnAttente,
   oublierTout,
-  appliquerOperations
+  appliquerOperations,
+  integrerAuMiroir
 } from './utils/miroir.js';
 
 // Firebase database reference (set after initialization)
@@ -376,6 +377,14 @@ export async function rejouerFileDAttente() {
           : reference.set(operation.donnees),
         operation.chemin
       );
+      // Le miroir prend le relais de la file : elle va être vidée, et sans ce
+      // report la saisie ne serait plus portée par personne.
+      //
+      // L'ordre est le plus prudent des deux — reporter puis retirer — mais il
+      // ne garantit rien de plus : les deux écritures visent le même stockage,
+      // qui les refuse ou les accepte ensemble. Un sabotage les a interverties
+      // sans qu'aucun contrôle ne bronche, et c'est exact.
+      integrerAuMiroir(dataRoot, operation);
       retirerOperation(dataRoot, operation.id);
       envoyees++;
     }

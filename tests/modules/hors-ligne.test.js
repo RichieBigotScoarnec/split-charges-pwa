@@ -392,6 +392,32 @@ describe('Le retour du réseau', () => {
     expect(Object.keys(base.contenu.household.periods['2026-08'].variableCharges)).toHaveLength(3);
   });
 
+  it('la saisie rejouée ne disparaît pas si l\'on repasse hors ligne', async () => {
+    // Le cas soulevé à l'usage. La file se vide à l'écriture — c'est voulu.
+    // Mais le miroir, lui, garde ce que le serveur avait dit AVANT la saisie.
+    // Sans report, la charge est en base, correctement, et s'évapore de l'écran
+    // à la coupure suivante. Dans une application de comptes, c'est la pire des
+    // frayeurs, et elle serait parfaitement injustifiée.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    const cle = await dbPush('periods/2026-08/variableCharges', {
+      description: 'Restaurant', amount: 5
+    });
+
+    signalerLiaison(true);
+    expect((await rejouerFileDAttente()).envoyees).toBe(1);
+    expect(saisiesEnAttente(), 'la file doit bien s\'être vidée').toBe(0);
+
+    // On repart hors ligne sans qu'aucune lecture n'ait rafraîchi le miroir.
+    signalerLiaison(false);
+    const charges = await dbGet('periods/2026-08/variableCharges');
+
+    expect(Object.keys(charges)).toHaveLength(3);
+    expect(charges[cle], 'la charge rejouée doit rester visible').toBeTruthy();
+    expect(charges[cle].amount).toBe(5);
+  });
+
   it('respecte l\'ordre : la correction ne part pas avant la saisie', async () => {
     // Rejouer hors d'ordre écraserait une correction par la version qu'elle
     // corrigeait. La file est un ordre, pas un sac.
