@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
-> **Version** : 4.0.0 | **Mise à jour** : 2026-08-22 | **Branche unique** : main
+> **Version** : 4.0.0 | **Mise à jour** : 2026-08-24 | **Branche unique** : main
 
 ## Stack
 
@@ -37,7 +37,7 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 21 aides pures — dont miroir (ce que l'appareil
+│       └── utils/              # 24 aides pures — dont miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
 │                               # montant (lecture d'une
@@ -181,8 +181,12 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Hors réseau, l'application se chargeait et ne servait à rien : dix secondes par lecture, quinze par écriture, puis rien | `public/js/utils/miroir.js`, `public/js/db.js` | ✅ RÉSOLU 2026-08-24 — miroir des lectures et file d'attente durables, rejeu à la reconnexion | `localStorage` ; effacé à la déconnexion |
 | Le mode hors ligne ne savait en sortir que si Firebase annonçait la reconnexion — jamais de lui-même | `public/js/db.js`, `public/js/utils/connection-banner.js` | ✅ RÉSOLU 2026-08-24 — reprises espacées, au retour au premier plan, et deux issues sur le bandeau | Signalé après des heures bloquées |
 | Journal de diagnostic figé à 4 s, et effacé par le rechargement qui servait à le lire | `public/js/utils/diagnostics.js` | ✅ RÉSOLU 2026-08-24 — bouton « Rafraîchir », session précédente mise à l'abri à l'import | — |
-| App Check : `activate()` ne prouve rien, 0 requête validée sur 159 en 7 jours | `public/js/firebase-init.js` | ✅ RÉSOLU 2026-08-24 — cause trouvée : `connect-src` n'autorisait pas `www.google.com`, reCAPTCHA ne pouvait pas joindre son service | NE PAS passer en « Appliqué » avant de voir des requêtes validées dans la console |
-| `connect-src` interdisait à reCAPTCHA ses propres requêtes : App Check en « 400 », base injoignable sur un réseau valide | `public/FairSplit.html`, `firebase.json` | ✅ RÉSOLU 2026-08-24 — origine ajoutée des deux côtés, les deux politiques comparées par test | `?appcheck=0` pour ouvrir sans attestation |
+| App Check : `activate()` ne prouve rien, 0 requête validée sur 159 | `public/js/firebase-init.js` | ⚠️ INSTRUMENTÉ, NON RÉSOLU — `connect-src` corrigé, mais l'échange rend toujours « 400 ». Reste à vérifier dans la console : clé de site et fournisseur déclarés | NE PAS passer en « Appliqué » avant de voir des requêtes validées |
+| `connect-src` interdisait à reCAPTCHA ses propres requêtes | `public/FairSplit.html`, `firebase.json` | ✅ RÉSOLU 2026-08-24 — origine ajoutée des deux côtés | `?appcheck=0` ouvre sans attestation |
+| **Base injoignable pour toujours sur un réseau sain.** Un mode avion pose `previous_websocket_failure` dans `localStorage` ; le SDK bascule alors sur le long-polling, qui injecte des `<script>` vers l'hôte de la base — ce que `script-src` refusait. Bascule sans retour : le drapeau ne s'efface que sur une liaison réussie, devenue impossible. Effacer les données du site était le seul remède | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-24 — hôte autorisé dans `script-src` et `frame-src` | Le refus a lieu dans l'iframe du SDK : aucune violation n'était journalisée |
+| Les deux politiques n'étaient comparées que dans un sens : ce que la page autorise doit être dans `firebase.json`. L'inverse, non — et c'est par là que la panne est passée | `tests/chargement-initial.test.js` | ✅ RÉSOLU 2026-08-24 — comparaison bidirectionnelle, `script-src-elem` résolu selon la spécification | A trouvé `frame-src` dès sa première exécution |
+| Rien ne distinguait quatre causes de base injoignable, aux remèdes opposés — se déconnecter ne répare pas un WebSocket coupé | `public/js/utils/sonde-liaison.js` | ✅ RÉSOLU 2026-08-24 — jeton renouvelé de force puis lecture HTTPS authentifiée ; le bandeau annonce la cause établie | Le jeton n'est jamais journalisé, seulement sa longueur |
+| Six secondes par ouverture pour une attestation qui échoue : auth bloquée 6 621 ms avec, 1 146 ms sans | `public/js/utils/attestation.js` | ✅ RÉSOLU 2026-08-24 — écartée pour 24 h après un échec, retentée ensuite | Le repos est borné : sinon une console réparée ne serait jamais reprise |
 | Le compte des saisies retombait à zéro au retour au premier plan | `public/js/utils/connection-banner.js` | ✅ RÉSOLU 2026-08-24 — le bandeau retient le dernier compte annoncé | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
