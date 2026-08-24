@@ -37,7 +37,7 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 24 aides pures — dont miroir (ce que l'appareil
+│       └── utils/              # 30 aides pures — dont miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
 │                               # montant (lecture d'une
@@ -49,9 +49,12 @@ FairSplit/
 │                               # tri (ordre d'affichage des listes),
 │                               # identifiant (fabrique d'identifiants, partagée
 │                               # par catégories, destinations et enveloppes),
+│                               # recherche-texte (chercher sans les accents),
+│                               # periodes (les mois que le sélecteur propose),
+│                               # renommage (renommer sans détacher les charges),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # generate-icons.ps1, enveloppe-sauvegarde.mjs,
+├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
 │                               # migration-repartition.mjs
 │                               # (hors `public/`, donc jamais publié)
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
@@ -188,6 +191,20 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Rien ne distinguait quatre causes de base injoignable, aux remèdes opposés — se déconnecter ne répare pas un WebSocket coupé | `public/js/utils/sonde-liaison.js` | ✅ RÉSOLU 2026-08-24 — jeton renouvelé de force puis lecture HTTPS authentifiée ; le bandeau annonce la cause établie | Le jeton n'est jamais journalisé, seulement sa longueur |
 | Six secondes par ouverture pour une attestation qui échoue : auth bloquée 6 621 ms avec, 1 146 ms sans | `public/js/utils/attestation.js` | ✅ RÉSOLU 2026-08-24 — écartée pour 24 h après un échec, retentée ensuite | Le repos est borné : sinon une console réparée ne serait jamais reprise |
 | Le compte des saisies retombait à zéro au retour au premier plan | `public/js/utils/connection-banner.js` | ✅ RÉSOLU 2026-08-24 — le bandeau retient le dernier compte annoncé | — |
+
+| Le compte connecté n'était rattaché à aucun emplacement : la saisie rapide proposait `vous` en dur, sur les deux téléphones | `public/js/config.js`, `public/js/utils/members.js` | ✅ RÉSOLU 2026-08-24 — `EMPLACEMENTS_PAR_COMPTE`, le payeur proposé est celui qui tient l'appareil | Repli sur `vous` pour un compte non déclaré |
+| Deux messages simultanés se posaient au même point : `.toast` sortait du flux de son conteneur | `public/css/components.css` | ✅ RÉSOLU 2026-08-24 — mesuré à 3 px d'écart avant, 59 après | La garde du bas d'écran est rétablie |
+| Le bouton « Ajouter » d'une enveloppe précédait le budget et les deux dates qu'il envoie | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-24 — bouton sous ses champs, Entrée avance au lieu de valider | — |
+| La carte n'avait de modale que le balisage : `position: static`, posée au dernier pixel de la page | `public/css/map.css` | ✅ RÉSOLU 2026-08-24 — voile fixe, Échap et clic extérieur, défilement interne | — |
+| La recherche exigeait les accents : « intermarche » ne trouvait pas « Intermarché » | `public/js/utils/recherche-texte.js` | ✅ RÉSOLU 2026-08-24 — pliage Unicode des deux côtés | La requête vide ne filtre toujours rien |
+| Les lavis sémantiques étaient écrits en dur, avec les teintes du thème sombre | `public/css/variables.css` | ✅ RÉSOLU 2026-08-24 — dix jetons, déclinés dans les deux thèmes | Le bouton Google reste en dur, sa charte l'impose |
+| Trois bascules de rappel que Chrome sur Android refusait en silence | `public/js/modules/notifications.js` | ✅ RÉSOLU 2026-08-24 — envoi par le service worker, échec annoncé | Les rappels ne partent que si l'application est ouverte : le panneau le dit |
+| Au-delà de douze mois, l'historique restait en base sans qu'aucun chemin ne l'affiche | `public/js/utils/periodes.js` | ✅ RÉSOLU 2026-08-24 — tous les mois connus, plus un mois d'avance | — |
+| « Renommer » promis par deux info-bulles, absent partout | `public/js/utils/renommage.js` | ✅ RÉSOLU 2026-08-24 — renommage des trois listes, report sur les charges | Une charge porte le libellé, pas l'identifiant |
+| Une enveloppe ne se lisait que mois par mois, et ne s'éditait pas | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-24 — vue tous mois confondus, édition sur place | La vue lit `periods` une fois, à l'ouverture |
+| Le 50-50 exigeait des salaires dont il n'a pas besoin | `public/js/utils/calculations.js` | ✅ RÉSOLU 2026-08-24 — `exigeLesSalaires` | Le prorata les réclame toujours |
+| Une charge sans montant rendait tout le bilan égal à NaN | `public/js/utils/calculations.js` | ✅ RÉSOLU 2026-08-24 — un montant inexploitable vaut zéro | — |
+| Le graphe de tendances était étiré 1,56× sur un écran fin | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-24 — canevas accordé à `devicePixelRatio` | Remesuré à 1,00 |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
