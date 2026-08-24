@@ -141,11 +141,48 @@ describe('La politique de securite', () => {
     expect(csp['connect-src']).toContain('https://*.googleapis.com');
   });
 
-  it('dit la même chose dans la page et dans firebase.json', () => {
+  it('laisse le long-polling de la base injecter ses scripts', () => {
+    // La panne que ce contrôle ferme, et elle a coûté cher.
+    //
+    // Realtime Database parle par WebSocket. Le SDK écrit
+    // `previous_websocket_failure` dans localStorage *avant* chaque tentative
+    // — « assume failure until proven otherwise » — et ne l'efface qu'une fois
+    // la liaison établie. Une seconde de réseau perdue, un mode avion, un
+    // tunnel : le drapeau reste.
+    //
+    // Au chargement suivant, `initTransports_` lit ce drapeau et bascule sur le
+    // long-polling. Or ce transport n'est pas du `fetch` : il injecte des
+    // balises `<script>` vers l'hôte de la base, dans une iframe qu'il
+    // fabrique. Sans cette origine dans `script-src`, il est refusé.
+    //
+    // Et la bascule est sans retour : le drapeau ne s'efface que sur une
+    // liaison réussie, qui ne peut plus arriver. Rechargement après
+    // rechargement, la base restait injoignable sur un réseau parfaitement
+    // sain — seul l'effacement des données du site la ramenait, en effaçant le
+    // drapeau. Le refus, lui, était invisible : il a lieu dans l'iframe, dont
+    // le document n'est pas celui qu'écoute le journal de diagnostic.
+    const csp = politique(html);
+
+    expect(csp['script-src'], 'le long-polling de Realtime Database injecte des <script> vers son hôte')
+      .toContain('https://*.firebasedatabase.app');
+    expect(csp['connect-src'], 'le WebSocket et les lectures REST visent le même hôte')
+      .toContain('https://*.firebasedatabase.app');
+    expect(csp['connect-src']).toContain('wss://*.firebasedatabase.app');
+  });
+
+  it('dit la même chose dans la page et dans firebase.json, dans les deux sens', () => {
     // Deux copies d'une même règle divergent toujours : celle de firebase.json
     // ne s'applique qu'à l'hébergement Firebase, celle de la page à GitHub
     // Pages — d'où la production est servie. Corriger l'une en oubliant
     // l'autre laisserait la panne intacte partout où l'oubli porte.
+    //
+    // La comparaison ne portait que dans un sens : tout ce que la page
+    // autorisait devait figurer dans firebase.json. L'inverse n'était pas
+    // contrôlé — et c'est exactement par là que la panne est passée.
+    // `https://*.firebasedatabase.app` figurait dans le `script-src` de
+    // firebase.json, où il ne s'applique jamais, et manquait dans celui de la
+    // page, la seule qui compte. Un test à sens unique ne protège que d'une
+    // moitié des oublis, et rien ne dit laquelle.
     const entetes = JSON.parse(readFileSync(resolve(RACINE, 'firebase.json'), 'utf8'));
     const entete = entetes.hosting.headers
       .flatMap((regle) => regle.headers)
@@ -157,18 +194,49 @@ describe('La politique de securite', () => {
     const hebergement = politique(entete.value);
 
     // Les origines localhost n'appartiennent qu'à la page : `?emulator=1` ne
-    // s'utilise pas depuis l'hébergement. Le reste doit coïncider.
-    for (const directive of ['script-src', 'connect-src', 'frame-src', 'img-src']) {
-      const attendues = (page[directive] || [])
-        .filter((origine) => !origine.includes('localhost') && !origine.includes('127.0.0.1'));
+    // s'utilise pas depuis l'hébergement, et n'a donc pas à figurer là-bas.
+    const propre = (origines) => (origines || [])
+      .filter((origine) => !origine.includes('localhost') && !origine.includes('127.0.0.1'));
 
-      for (const origine of attendues) {
-        expect(hebergement[directive] || [], `${directive} : ${origine} absent de firebase.json`)
+    for (const directive of ['script-src', 'connect-src', 'frame-src', 'img-src']) {
+      // `script-src-elem` n'est déclaré que dans firebase.json. La
+      // spécification dit qu'à défaut il hérite de `script-src` : comparer
+      // l'un à l'autre est donc juste, et ne pas le faire laisserait une
+      // divergence réelle passer pour une différence de forme.
+      const cotePage = propre(resoudre(page, directive));
+      const coteHebergement = propre(resoudre(hebergement, directive));
+
+      for (const origine of cotePage) {
+        expect(coteHebergement, `${directive} : ${origine} est dans la page, absent de firebase.json`)
+          .toContain(origine);
+      }
+
+      for (const origine of coteHebergement) {
+        expect(cotePage, `${directive} : ${origine} est dans firebase.json, absent de la page — c'est la page qui s'applique`)
           .toContain(origine);
       }
     }
   });
 });
+
+/**
+ * Les origines d'une directive, repli de la spécification compris
+ *
+ * `script-src-elem` hérite de `script-src` quand il n'est pas déclaré, et
+ * réciproquement il le remplace pour les balises quand il l'est. Comparer
+ * naïvement deux politiques dont l'une déclare les deux ferait passer une
+ * divergence réelle pour une différence de forme.
+ *
+ * @param {Object<string, string[]>} directives
+ * @param {string} directive
+ * @returns {string[]}
+ */
+function resoudre(directives, directive) {
+  const propres = directives[directive] || [];
+  if (directive !== 'script-src') return propres;
+
+  return [...new Set([...propres, ...(directives['script-src-elem'] || [])])];
+}
 
 /**
  * Découpe une politique de sécurité en directives

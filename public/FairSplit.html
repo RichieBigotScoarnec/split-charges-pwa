@@ -14,10 +14,22 @@
        restait injoignable sur un téléphone dont le réseau marchait très bien.
        Une politique trop serrée ne se voit pas : elle se lit dans la console,
        ou dans le journal de diagnostic, jamais à l'écran. -->
-  <!-- Ces origines sont contrôlées par tests/chargement-initial.test.js, qui
-       compare aussi cette politique à celle de firebase.json : deux copies
-       d'une même règle finissent toujours par diverger. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://www.google.com" />
+  <!-- L'hôte de la base figure dans `script-src`, et ce n'est pas une erreur.
+       Realtime Database parle par WebSocket ; quand celui-ci échoue une fois —
+       un tunnel, un mode avion, une seconde de réseau perdue — le SDK écrit
+       `previous_websocket_failure` dans `localStorage` et bascule au tour
+       suivant sur le long-polling. Ce transport-là n'est pas du `fetch` : il
+       injecte des balises `<script>` vers l'hôte de la base, dans une iframe
+       qu'il fabrique. Sans cette origine, il est refusé — et la bascule est
+       sans retour, le drapeau survivant à tous les rechargements. La base
+       devenait injoignable pour toujours sur un réseau parfaitement sain, et
+       seul l'effacement des données du site la ramenait.
+       Le refus, lui, ne se voyait pas : il a lieu dans l'iframe, dont le
+       document n'est pas celui qu'écoute le journal de diagnostic.
+       Ces origines sont contrôlées par tests/chargement-initial.test.js, qui
+       compare cette politique à celle de firebase.json **dans les deux sens** :
+       l'origine manquait ici et figurait là-bas, où elle ne s'applique pas. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com https://apis.google.com https://*.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app https://accounts.google.com https://www.google.com" />
   <!-- Le géocodage inversé interroge Nominatim : sans politique explicite, les
        navigateurs anciens joignaient l'adresse complète de la page à la
        requête. L'origine seule suffit à ce que le service attend, et reste
