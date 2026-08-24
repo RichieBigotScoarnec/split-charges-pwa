@@ -29,7 +29,7 @@ import {
   operationsEnAttente,
   retirerOperation,
   nombreEnAttente,
-  oublierTout,
+  oublierLesLectures,
   appliquerOperations,
   integrerAuMiroir
 } from './utils/miroir.js';
@@ -333,15 +333,22 @@ export function saisiesEnAttente() {
 }
 
 /**
- * Efface le miroir et la file de l'espace courant
+ * Efface le miroir de l'espace courant, et lui seul
  *
  * Appelé à la déconnexion : les montants d'un foyer n'ont rien à faire sur
- * l'appareil d'un compte qui n'y a plus accès.
+ * l'appareil d'un compte qui n'y a plus accès. Le miroir n'étant qu'une copie
+ * de ce qui est en base, l'effacer ne perd rien.
+ *
+ * La file d'attente, elle, survit. Elle porte des saisies dont aucune autre
+ * copie n'existe, et la déconnexion est justement le geste qu'on demande à
+ * quelqu'un dont la base reste injoignable : lui faire payer ce remède du prix
+ * de ses saisies revenait à n'en offrir aucun. Elle repart à la connexion
+ * suivante, comme après un rechargement.
  *
  * @returns {void}
  */
 export function oublierHorsLigne() {
-  oublierTout(dataRoot);
+  oublierLesLectures(dataRoot);
 }
 
 /**

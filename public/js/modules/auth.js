@@ -154,14 +154,21 @@ export async function createAccount() {
 export async function signOut() {
   try {
     // Une saisie faite hors réseau vit sur cet appareil, et nulle part
-    // ailleurs. La déconnexion efface le miroir : elle l'emporterait sans un
-    // mot, et personne ne saurait jamais quelle dépense a disparu.
+    // ailleurs. La déconnexion l'emportait, et le piège se refermait : la base
+    // injoignable, se reconnecter était le seul remède connu, et l'appliquer
+    // coûtait précisément la saisie qu'on voulait sauver.
+    //
+    // Elle survit désormais à la déconnexion, et repart à la connexion
+    // suivante. Il reste à le dire — quelqu'un qui vient de lire « perdra
+    // définitivement » n'essaiera pas une seconde fois — sans pour autant
+    // laisser croire que la saisie est enregistrée : elle ne l'est pas, et
+    // effacer les données du site l'emporterait toujours.
     const enAttente = saisiesEnAttente();
     if (enAttente > 0) {
       const { showConfirmModal } = await import('../components/modal.js');
       const accepte = await showConfirmModal(enAttente === 1
-        ? '1 saisie n\'est encore que sur cet appareil et n\'a pas pu être enregistrée. Se déconnecter la perdra définitivement. Continuer ?'
-        : `${enAttente} saisies ne sont encore que sur cet appareil et n'ont pas pu être enregistrées. Se déconnecter les perdra définitivement. Continuer ?`);
+        ? '1 saisie n\'est encore que sur cet appareil. Elle est conservée et repartira à la prochaine connexion. Se déconnecter maintenant ?'
+        : `${enAttente} saisies ne sont encore que sur cet appareil. Elles sont conservées et repartiront à la prochaine connexion. Se déconnecter maintenant ?`);
       if (!accepte) return;
     }
 
