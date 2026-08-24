@@ -13,6 +13,7 @@ import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
 import { dateDuJour } from '../utils/date.js';
+import { segmentsDeLaPhrase } from '../utils/phrase-saisie.js';
 import { decrireLieu } from '../utils/lieu.js';
 import { categoriePourLieu } from '../utils/categorie-lieu.js';
 import {
@@ -171,6 +172,8 @@ function setupEventListeners() {
   poserUnique(document.getElementById('quickSplit5050'), 'click', surCinquanteCinquante);
   poserUnique(document.getElementById('quickAddPayer'), 'click', surPayeur);
   poserUnique(document.getElementById('quickAddLocationDetach'), 'click', detachLocation);
+  poserUnique(document.getElementById('quickAddPhrase'), 'click', surSegment);
+  poserUnique(document.getElementById('quickAddDate'), 'change', surDate);
   poserUnique(document.getElementById('modalQuickAdd'), 'click', surFondDeModale);
 }
 
@@ -215,6 +218,11 @@ function showQuickAddModal() {
   updateSplitMode('prorata');
   updatePayer('vous');
   hideLocationDetach();
+
+  // La phrase se dessine avant tout : elle est le seul repère de ce qui sera
+  // enregistré, et une modale qui s'ouvre sur une ligne vide donnerait à croire
+  // qu'aucun défaut n'est posé.
+  dessinerLaPhrase();
 
   // Peupler la grille catégories avec les catégories dynamiques
   populateCategoryGrid();
@@ -284,6 +292,10 @@ function resetState() {
   quickAddState.splitMode = 'prorata';
   quickAddState.paidBy = 'vous';
   quickAddState.gpsLocation = null;
+
+  // Les panneaux se referment avec l'état qu'ils servaient à choisir : rouvrir
+  // la modale sur la grille de catégories dépliée annulerait tout le gain.
+  ouvrirLePanneau(null);
 }
 
 // ===== GRILLE CATÉGORIES =====
@@ -456,6 +468,97 @@ function selectCategory(categoryId) {
   document.querySelectorAll('.category-btn, .category-frequente-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
   });
+
+  // Le choix fait, le panneau n'a plus rien à montrer : le refermer ramène le
+  // bouton d'enregistrement sous le pouce, qui est là où va le geste suivant.
+  if (panneauOuvert === 'quickAddPanneauCategorie') ouvrirLePanneau(null);
+  else dessinerLaPhrase();
+}
+
+// ===== LA PHRASE =====
+
+/**
+ * Redessine la ligne qui dit ce qui sera enregistré
+ *
+ * Elle remplace quatre blocs empilés — catégories, payeur, répartition, date —
+ * qui obligeaient à reconstituer de tête l'état de quatre contrôles, et
+ * reléguaient le payeur sous neuf tuiles. C'est lui qui décide qui doit combien :
+ * atteint par défilement, il n'était pas vérifié.
+ *
+ * `textContent`, jamais `innerHTML` : les prénoms du foyer sont saisis par les
+ * personnes qui l'habitent, et ils passent par ici.
+ *
+ * @returns {void}
+ */
+function dessinerLaPhrase() {
+  const zone = document.getElementById('quickAddPhrase');
+  if (!zone) return;
+
+  const champDate = document.getElementById('quickAddDate');
+  const segments = segmentsDeLaPhrase(quickAddState, {
+    members: getState('members'),
+    date: champDate ? champDate.value : null
+  });
+
+  zone.textContent = '';
+
+  for (const segment of segments) {
+    const bouton = document.createElement('button');
+    bouton.type = 'button';
+    bouton.className = 'quick-add-segment';
+    bouton.dataset.panneau = segment.panneau;
+    bouton.textContent = segment.texte;
+    bouton.setAttribute('aria-controls', segment.panneau);
+    bouton.setAttribute('aria-expanded', String(panneauOuvert === segment.panneau));
+
+    // La catégorie manquante est le seul obstacle à l'enregistrement : le
+    // segment le dit plutôt que de laisser chercher.
+    if (segment.cle === 'categorie' && !quickAddState.selectedCategory) {
+      bouton.classList.add('quick-add-segment--manquant');
+    }
+
+    zone.appendChild(bouton);
+  }
+}
+
+/** Panneau actuellement déplié, ou null */
+let panneauOuvert = null;
+
+/**
+ * Ouvre un panneau, referme les autres
+ *
+ * Un seul à la fois : deux dépliés reproduiraient l'empilement qu'on vient de
+ * défaire, et repousseraient le bouton d'enregistrement hors de l'écran.
+ *
+ * @param {string|null} id - Identifiant du panneau, ou null pour tout refermer
+ * @returns {void}
+ */
+function ouvrirLePanneau(id) {
+  panneauOuvert = panneauOuvert === id ? null : id;
+
+  for (const panneau of document.querySelectorAll('.quick-add-panneau')) {
+    panneau.hidden = panneau.id !== panneauOuvert;
+  }
+
+  dessinerLaPhrase();
+
+  // Le champ date s'ouvre pour être rempli : lui donner le focus évite un
+  // second geste, et ne coûte rien quand on referme.
+  if (panneauOuvert === 'quickAddPanneauDate') {
+    const champ = document.getElementById('quickAddDate');
+    if (champ) champ.focus();
+  }
+}
+
+/** Délégation sur la phrase : chaque segment ouvre son panneau */
+function surSegment(e) {
+  const bouton = e.target.closest('button[data-panneau]');
+  if (bouton) ouvrirLePanneau(bouton.dataset.panneau);
+}
+
+/** Une date changée se relit dans la phrase, sans refermer le panneau */
+function surDate() {
+  dessinerLaPhrase();
 }
 
 // ===== SPLIT MODE =====
@@ -470,6 +573,9 @@ function updateSplitMode(mode) {
   const fiftyBtn = document.getElementById('quickSplit5050');
   if (prorataBtn) prorataBtn.classList.toggle('selected', mode === 'prorata');
   if (fiftyBtn) fiftyBtn.classList.toggle('selected', mode === '50-50');
+
+  if (panneauOuvert === 'quickAddPanneauRepartition') ouvrirLePanneau(null);
+  else dessinerLaPhrase();
 }
 
 // ===== PAYEUR =====
@@ -490,6 +596,9 @@ function updatePayer(payeur) {
   document.querySelectorAll('#quickAddPayer button').forEach(bouton => {
     bouton.classList.toggle('selected', bouton.dataset.payer === payeur);
   });
+
+  if (panneauOuvert === 'quickAddPanneauPayeur') ouvrirLePanneau(null);
+  else dessinerLaPhrase();
 }
 
 // ===== LIEU =====
@@ -585,6 +694,10 @@ async function soumettre() {
   const category = quickAddState.selectedCategory;
   if (!category) {
     toast.error('Choisissez une catégorie');
+    // Le panneau s'ouvre avant le focus : la grille est repliée par défaut, et
+    // le focus sur un élément masqué ne fait rien — on aurait nommé le champ
+    // manquant tout en le laissant hors de vue, ce qui est pire que se taire.
+    if (panneauOuvert !== 'quickAddPanneauCategorie') ouvrirLePanneau('quickAddPanneauCategorie');
     document.querySelector('.category-btn')?.focus();
     return;
   }

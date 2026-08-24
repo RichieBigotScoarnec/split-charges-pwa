@@ -473,6 +473,8 @@ test.describe('FAB — Saisie rapide', () => {
     await page.locator('.fab').click();
 
     await expect(page.locator('#quickAddPayer [data-payer="vous"]')).toHaveClass(/selected/);
+    // Le choix vit derrière son segment de phrase : c'est le geste réel.
+    await ouvrirSegment(page, 0);
     await page.locator('#quickAddPayer [data-payer="conjointe"]').click();
     await expect(page.locator('#quickAddPayer [data-payer="conjointe"]')).toHaveClass(/selected/);
     await expect(page.locator('#quickAddPayer [data-payer="vous"]')).not.toHaveClass(/selected/);
@@ -485,6 +487,12 @@ test.describe('FAB — Saisie rapide', () => {
 
   test('les boutons prorata et 50-50 sont présents', async ({ page }) => {
     await page.locator('.fab').click();
+    // Repliés à l'ouverture — c'est tout l'objet de la ligne-phrase — mais
+    // livrés par la page, et atteignables en un geste.
+    await expect(page.locator('#quickSplitProrata')).toBeAttached();
+    await expect(page.locator('#quickSplit5050')).toBeAttached();
+
+    await ouvrirSegment(page, 1);
     await expect(page.locator('#quickSplitProrata')).toBeVisible();
     await expect(page.locator('#quickSplit5050')).toBeVisible();
   });
@@ -494,8 +502,17 @@ test.describe('FAB — Saisie rapide', () => {
     await expect(page.locator('#quickSplitProrata')).toHaveClass(/selected/);
   });
 
+  /**
+   * Touche un segment de la ligne-phrase, dans l'ordre où elle se lit :
+   * payeur, répartition, catégorie, date.
+   */
+  async function ouvrirSegment(page, index) {
+    await page.locator('#quickAddPhrase button').nth(index).click();
+  }
+
   test('basculer en 50-50', async ({ page }) => {
     await page.locator('.fab').click();
+    await ouvrirSegment(page, 1);
     await page.locator('#quickSplit5050').click();
     await expect(page.locator('#quickSplit5050')).toHaveClass(/selected/);
   });
@@ -510,6 +527,57 @@ test.describe('FAB — Saisie rapide', () => {
 
     await page.locator('#btnQuickAdd').click();
     await expect(page.locator('.toast.error').last()).toContainText(/Montant/i, { timeout: 5000 });
+  });
+
+  /**
+   * La ligne-phrase : ce qui sera enregistré, dit en une ligne
+   *
+   * Ces contrôles-ci sont les seuls à prouver le câblage dans un vrai
+   * navigateur. Les bancs d'essai unitaires appellent `initQuickAdd()`
+   * eux-mêmes ; ici, c'est l'application qui l'a fait, et un écouteur oublié se
+   * verrait — la phrase s'afficherait sans que rien ne réponde au doigt.
+   */
+  test('la phrase dit l\'état par défaut', async ({ page }) => {
+    await page.locator('.fab').click();
+
+    const segments = page.locator('#quickAddPhrase button');
+    await expect(segments).toHaveCount(4);
+    await expect(segments.nth(0)).toContainText('Payé par');
+    await expect(segments.nth(1)).toContainText('prorata');
+    await expect(segments.nth(2)).toContainText('catégorie');
+    await expect(segments.nth(3)).toContainText("Aujourd'hui");
+  });
+
+  test('les quatre choix partent repliés', async ({ page }) => {
+    // C'est tout le gain : le bloc catégorie occupait la majeure partie de
+    // l'écran, et le payeur — celui qui décide qui doit combien — se trouvait
+    // dessous, atteint en faisant défiler neuf tuiles.
+    await page.locator('.fab').click();
+
+    for (const id of ['Payeur', 'Repartition', 'Categorie', 'Date']) {
+      await expect(page.locator(`#quickAddPanneau${id}`)).toBeHidden();
+    }
+  });
+
+  test('toucher un segment ouvre son panneau, et lui seul', async ({ page }) => {
+    await page.locator('.fab').click();
+    await ouvrirSegment(page, 2);
+
+    await expect(page.locator('#quickAddPanneauCategorie')).toBeVisible();
+    await expect(page.locator('#categoryGrid')).toBeVisible();
+    await expect(page.locator('#quickAddPanneauPayeur')).toBeHidden();
+    await expect(page.locator('#quickAddPanneauDate')).toBeHidden();
+  });
+
+  test('le choix fait, le panneau se referme et la phrase suit', async ({ page }) => {
+    // Le geste suivant est « Ajouter » : laisser le panneau ouvert oblige à
+    // faire défiler pour retrouver le bouton.
+    await page.locator('.fab').click();
+    await ouvrirSegment(page, 0);
+    await page.locator('#quickAddPayer [data-payer="partage"]').click();
+
+    await expect(page.locator('#quickAddPanneauPayeur')).toBeHidden();
+    await expect(page.locator('#quickAddPhrase button').nth(0)).toContainText('à deux');
   });
 
   test('fermer la modal quick-add', async ({ page }) => {

@@ -66,20 +66,30 @@ const BALISAGE = `
       <div class="quick-add-location" id="quickAddLocation"></div>
       <button type="button" id="quickAddLocationDetach" hidden>Ce n'est pas ici</button>
       <input type="text" id="quickAddAmount" />
+      <div class="quick-add-phrase" id="quickAddPhrase" role="group"></div>
+      <div class="quick-add-panneau" id="quickAddPanneauCategorie" hidden>
       <div class="category-frequentes" id="categoryFrequentes" hidden>
         <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
         <div class="category-frequentes-liste" id="categoryFrequentesListe"
              role="group" aria-labelledby="categoryFrequentesTitre"></div>
       </div>
       <div class="category-grid" id="categoryGrid"></div>
+      </div>
+      <div class="quick-add-panneau" id="quickAddPanneauDate" hidden>
+        <input type="date" id="quickAddDate" />
+      </div>
       <input type="text" id="quickAddDescription" maxlength="100" />
+      <div class="quick-add-panneau" id="quickAddPanneauPayeur" hidden>
       <div class="payer-toggle" id="quickAddPayer">
         <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
         <button type="button" data-payer="conjointe" data-member="conjointe">Conjointe</button>
         <button type="button" data-payer="partage">Partagé</button>
       </div>
+      </div>
+      <div class="quick-add-panneau" id="quickAddPanneauRepartition" hidden>
       <button type="button" id="quickSplitProrata" class="selected">Prorata</button>
       <button type="button" id="quickSplit5050">50-50</button>
+      </div>
       <button type="button" id="btnQuickAdd">Ajouter</button>
     </div>
   </div>
@@ -90,10 +100,26 @@ const derniereCharge = () => dbPush.mock.calls.at(-1)[1];
 
 /** Simule la saisie : catégorie, montant, et options */
 function saisir({ categorie = 'restaurant', montant = '12.50', description, payeur } = {}) {
+  // Les panneaux sont repliés : le segment de phrase les ouvre, comme au doigt.
+  ouvrirSegment('categorie');
   document.querySelector(`[data-category-id="${categorie}"]`).click();
   document.getElementById('quickAddAmount').value = montant;
   if (description !== undefined) document.getElementById('quickAddDescription').value = description;
-  if (payeur) document.querySelector(`#quickAddPayer [data-payer="${payeur}"]`).click();
+  if (payeur) {
+    ouvrirSegment('payeur');
+    document.querySelector(`#quickAddPayer [data-payer="${payeur}"]`).click();
+  }
+}
+
+/** Touche le segment de phrase qui ouvre un choix */
+function ouvrirSegment(cle) {
+  const index = ['payeur', 'repartition', 'categorie', 'date'].indexOf(cle);
+  document.querySelectorAll('#quickAddPhrase button')[index].click();
+}
+
+/** Les libellés de la phrase, dans l'ordre */
+function phrase() {
+  return [...document.querySelectorAll('#quickAddPhrase button')].map(b => b.textContent);
 }
 
 /** Déclenche la soumission via le bouton, comme l'utilisateur */
@@ -806,5 +832,152 @@ describe('Les écouteurs ne s\'empilent pas au fil des connexions', () => {
 
     const empiles = Object.entries(poses).filter(([, n]) => n > 1);
     expect(empiles, `écouteurs empilés : ${JSON.stringify(empiles)}`).toEqual([]);
+  });
+});
+
+describe('La phrase, et les panneaux qu\'elle ouvre', () => {
+  /**
+   * Quatre blocs empilés — catégories, payeur, répartition, date — obligeaient
+   * à reconstituer de tête l'état de quatre contrôles, et reléguaient le payeur
+   * sous neuf tuiles de catégories. C'est lui qui décide qui doit combien :
+   * atteint par défilement, il n'était pas vérifié.
+   */
+
+  it('dit l\'état par défaut dès l\'ouverture', () => {
+    // Une phrase vide à l'ouverture laisserait croire qu'aucun défaut n'est
+    // posé — alors qu'il y en a quatre, et qu'ils vont partir en base.
+    expect(phrase()).toEqual([
+      'Payé par Vous',
+      'Au prorata',
+      'Choisir une catégorie',
+      "Aujourd'hui"
+    ]);
+  });
+
+  it('les panneaux partent repliés : c\'est tout le gain', () => {
+    for (const panneau of document.querySelectorAll('.quick-add-panneau')) {
+      expect(panneau.hidden, `${panneau.id} déplié à l'ouverture`).toBe(true);
+    }
+  });
+
+  it('un segment ouvre son panneau, et lui seul', () => {
+    ouvrirSegment('payeur');
+
+    expect(document.getElementById('quickAddPanneauPayeur').hidden).toBe(false);
+    expect(document.getElementById('quickAddPanneauCategorie').hidden).toBe(true);
+    expect(document.getElementById('quickAddPanneauDate').hidden).toBe(true);
+  });
+
+  it('n\'en laisse jamais deux ouverts', () => {
+    // Deux dépliés reproduiraient l'empilement qu'on vient de défaire, et
+    // repousseraient le bouton d'enregistrement hors de l'écran.
+    ouvrirSegment('payeur');
+    ouvrirSegment('categorie');
+
+    const ouverts = [...document.querySelectorAll('.quick-add-panneau')].filter(p => !p.hidden);
+    expect(ouverts.map(p => p.id)).toEqual(['quickAddPanneauCategorie']);
+  });
+
+  it('le choix fait, le panneau se referme', () => {
+    // Le geste suivant est « Ajouter » : le laisser ouvert oblige à faire
+    // défiler pour retrouver le bouton.
+    ouvrirSegment('payeur');
+    document.querySelector('#quickAddPayer [data-payer="conjointe"]').click();
+
+    expect(document.getElementById('quickAddPanneauPayeur').hidden).toBe(true);
+    expect(phrase()[0]).toBe('Payé par Conjointe');
+  });
+
+  it('la phrase suit chaque choix', () => {
+    saisir({ categorie: 'restaurant', payeur: 'partage' });
+    ouvrirSegment('repartition');
+    document.getElementById('quickSplit5050').click();
+
+    expect(phrase()).toEqual([
+      'Payé à deux',
+      'Partagé 50-50',
+      '🍕 Restaurant',
+      "Aujourd'hui"
+    ]);
+  });
+
+  it('le segment de catégorie signale ce qui manque, sans désactiver le bouton', () => {
+    // Un bouton désactivé n'émet aucun événement au toucher : on tape dessus
+    // et il ne se passe rien, sans que rien ne dise ce qui manque.
+    const segment = document.querySelectorAll('#quickAddPhrase button')[2];
+    expect(segment.classList.contains('quick-add-segment--manquant')).toBe(true);
+    expect(document.getElementById('btnQuickAdd').disabled).toBe(false);
+
+    saisir({ categorie: 'courses' });
+    const apres = document.querySelectorAll('#quickAddPhrase button')[2];
+    expect(apres.classList.contains('quick-add-segment--manquant')).toBe(false);
+  });
+
+  it('un refus faute de catégorie ouvre le panneau avant d\'y renvoyer', () => {
+    // Le défaut que ce contrôle ferme : la grille est repliée, et le focus sur
+    // un élément masqué ne fait rien. On aurait nommé le champ manquant tout en
+    // le laissant hors de vue — pire que se taire.
+    document.getElementById('quickAddAmount').value = '12.50';
+
+    return valider().then(() => {
+      expect(toast.error).toHaveBeenCalledWith('Choisissez une catégorie');
+      expect(document.getElementById('quickAddPanneauCategorie').hidden,
+        'la grille est restée masquée').toBe(false);
+    });
+  });
+
+  it('rouvrir la modale referme les panneaux', () => {
+    ouvrirSegment('categorie');
+    window.showQuickAddModal();
+
+    for (const panneau of document.querySelectorAll('.quick-add-panneau')) {
+      expect(panneau.hidden, `${panneau.id} rouvert déplié`).toBe(true);
+    }
+  });
+
+  it('chaque segment annonce l\'état de son panneau', () => {
+    // `aria-expanded` est ce qui distingue, à la synthèse vocale, un bouton qui
+    // déplie d'un bouton qui agit.
+    ouvrirSegment('date');
+
+    const segments = [...document.querySelectorAll('#quickAddPhrase button')];
+    expect(segments.map(b => b.getAttribute('aria-expanded')))
+      .toEqual(['false', 'false', 'false', 'true']);
+    expect(segments[3].getAttribute('aria-controls')).toBe('quickAddPanneauDate');
+  });
+});
+
+describe('La page livre bien ce que le module manipule', () => {
+  it('porte la phrase et les quatre panneaux', () => {
+    // Le balisage de ce banc d'essai est écrit à la main : il peut diverger de
+    // la page livrée sans que rien ne le signale, et le module écrirait alors
+    // dans des identifiants que la page ne porte plus.
+    const page = readFileSync(resolve(process.cwd(), 'public/FairSplit.html'), 'utf8');
+
+    for (const id of [
+      'quickAddPhrase',
+      'quickAddPanneauPayeur',
+      'quickAddPanneauRepartition',
+      'quickAddPanneauCategorie',
+      'quickAddPanneauDate'
+    ]) {
+      expect(page, `${id} absent de FairSplit.html`).toContain(`id="${id}"`);
+    }
+  });
+
+  it('garde les contrôles à l\'intérieur des panneaux, non à côté', () => {
+    // Un contrôle resté hors de son panneau ne se replierait jamais : la
+    // modale retrouverait sa hauteur d'avant sans que rien ne le dise.
+    const page = readFileSync(resolve(process.cwd(), 'public/FairSplit.html'), 'utf8');
+    const modale = page.slice(page.indexOf('id="modalQuickAdd"'));
+
+    for (const id of ['quickAddPayer', 'categoryGrid', 'quickSplitProrata', 'quickAddDate']) {
+      const avant = modale.slice(0, modale.indexOf(`id="${id}"`));
+      const dernierPanneau = avant.lastIndexOf('quick-add-panneau');
+      const dernieresFermetures = avant.lastIndexOf('</div>\n\n');
+
+      expect(dernierPanneau, `${id} n'est dans aucun panneau`).toBeGreaterThan(-1);
+      expect(dernierPanneau, `${id} est hors de son panneau`).toBeGreaterThan(dernieresFermetures);
+    }
   });
 });
