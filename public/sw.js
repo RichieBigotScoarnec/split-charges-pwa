@@ -63,6 +63,7 @@ const STATIC_ASSETS = [
   './js/utils/identifiant.js',
   './js/utils/lieu.js',
   './js/utils/members.js',
+  './js/utils/miroir.js',
   './js/utils/montant.js',
   './js/utils/recherche-lieu.js',
   './js/utils/recurrence.js',

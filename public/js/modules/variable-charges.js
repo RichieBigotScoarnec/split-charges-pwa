@@ -96,10 +96,15 @@ export function initVariableCharges() {
     saveBtn.addEventListener('click', saveVariableCharge);
   }
 
+  // Avant tout remplissage, comme les deux écouteurs ci-dessus : si
+  // `populateCategorySelect` lève, `runStep` rattrape l'étape entière et le
+  // champ « Lieu » resterait sans écouteur — visible, et inerte. C'est
+  // exactement la panne que ce fichier documente depuis le bouton « Ajouter »,
+  // et je l'avais réintroduite en plaçant cet appel après.
+  initChoixLieu();
+
   // Peupler le select catégorie dynamiquement
   populateCategorySelect('variableChargeCategory');
-
-  initChoixLieu();
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.editVariableCharge = editVariableCharge;

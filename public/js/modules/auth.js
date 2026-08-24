@@ -22,6 +22,7 @@ import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
 import { initMap, cleanupMap } from './map.js';
 import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
+import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
@@ -152,8 +153,24 @@ export async function createAccount() {
  */
 export async function signOut() {
   try {
+    // Une saisie faite hors réseau vit sur cet appareil, et nulle part
+    // ailleurs. La déconnexion efface le miroir : elle l'emporterait sans un
+    // mot, et personne ne saurait jamais quelle dépense a disparu.
+    const enAttente = saisiesEnAttente();
+    if (enAttente > 0) {
+      const { showConfirmModal } = await import('../components/modal.js');
+      const accepte = await showConfirmModal(enAttente === 1
+        ? '1 saisie n\'est encore que sur cet appareil et n\'a pas pu être enregistrée. Se déconnecter la perdra définitivement. Continuer ?'
+        : `${enAttente} saisies ne sont encore que sur cet appareil et n'ont pas pu être enregistrées. Se déconnecter les perdra définitivement. Continuer ?`);
+      if (!accepte) return;
+    }
+
     const auth = getFirebaseAuth();
     await auth.signOut();
+
+    // Après, jamais avant : une déconnexion qui échoue ne doit pas avoir
+    // effacé les données du foyer de l'appareil au passage.
+    oublierHorsLigne();
     toast.info('Déconnecté');
   } catch (error) {
     const message = `Erreur déconnexion : ${error.message}`;
@@ -430,6 +447,39 @@ async function initializeAppData() {
     // par `initApp`, juste après la pose de l'écouteur d'authentification —
     // avant toute réponse de Firebase, donc par-dessus « Connexion… ».
     toast.success('FairSplit chargé');
+  }
+
+  // Les saisies gardées hors réseau partent maintenant, et pas avant : la
+  // liaison s'établit plusieurs secondes avant que la session ne soit
+  // rétablie, et un rejeu émis à ce moment-là ne pourrait que lever.
+  await ecoulerLesSaisiesGardees();
+}
+
+/**
+ * Envoie ce qui a été saisi pendant une coupure
+ *
+ * Muette quand il n'y a rien à envoyer : l'immense majorité des ouvertures.
+ * Une confirmation systématique ferait de ce message un bruit de fond, et
+ * c'est justement le cas où il compte qu'on cesserait de voir.
+ *
+ * @returns {Promise<void>}
+ */
+async function ecoulerLesSaisiesGardees() {
+  if (saisiesEnAttente() === 0) return;
+
+  const { envoyees, restantes, erreur } = await rejouerFileDAttente();
+
+  if (envoyees > 0) {
+    toast.success(envoyees === 1
+      ? '1 saisie hors ligne enregistrée'
+      : `${envoyees} saisies hors ligne enregistrées`);
+  }
+
+  if (restantes > 0 && erreur) {
+    toast.error(restantes === 1
+      ? '1 saisie reste sur cet appareil'
+      : `${restantes} saisies restent sur cet appareil`);
+    warn('⚠️ Rejeu incomplet :', erreur);
   }
 }
 

@@ -69,6 +69,7 @@ const formulaire = `
   <select id="variableChargeEnvelope"><option value="" selected></option></select>
   <div class="lieu-recherche">
     <input type="text" id="variableChargeLieuRecherche" />
+    <button type="button" id="variableChargeLieuChercher">🔍</button>
     <button type="button" id="variableChargeLieuIci">📍</button>
   </div>
   <div id="variableChargeLieuResultats" hidden></div>
@@ -110,12 +111,17 @@ async function chercher(saisie, reponse = REPONSE) {
   // Entrée court-circuite l'attente de fin de frappe.
   champ.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
-  // Laisse la promesse du fetch se dénouer.
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  // Laisse les promesses du réseau se dénouer. Compter les microtâches une à
+  // une rendait ce banc d'essai solidaire du nombre d'`await` dans le module :
+  // en ajouter un cassait dix tests sans qu'aucun défaut n'existe.
+  await laisserSeDenouer();
 
   return [...document.querySelectorAll('.lieu-resultat')];
+}
+
+/** Rend la main assez longtemps pour que les promesses en vol se règlent */
+async function laisserSeDenouer() {
+  for (let tour = 0; tour < 6; tour++) await new Promise(suite => setTimeout(suite, 0));
 }
 
 describe('Chercher un lieu par son nom', () => {
@@ -159,9 +165,7 @@ describe('Chercher un lieu par son nom', () => {
     const champ = document.getElementById('variableChargeLieuRecherche');
     champ.value = 'Le Bistrot';
     champ.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await laisserSeDenouer();
 
     expect(document.getElementById('variableChargeLieuResultats').textContent)
       .toContain('indisponible');
@@ -305,5 +309,243 @@ describe('Le lieu reste une étiquette', () => {
 
     poserLieu({ lat: 'x', lng: -1.6, name: 'Abîmée' });
     expect(lieuChoisi()).toBeNull();
+  });
+});
+
+/**
+ * Chercher d'abord dans le coin
+ *
+ * Signalé à l'usage : « je lui mets le Caffe Mamma qui se situe à
+ * Argelès-sur-Mer mais il ne trouve et me met des villes lointaines comme à New
+ * York ». La recherche marchait — elle cherchait simplement sur toute la
+ * planète, et Nominatim classe par notoriété.
+ */
+
+const ARGELES = { lat: 42.5450, lng: 3.0244 };
+
+/** Un café à Collioure, à cinq kilomètres d'Argelès */
+const PRES = [{
+  lat: '42.5250', lon: '3.0830',
+  name: 'Caffe Mamma', type: 'cafe',
+  address: { amenity: 'Caffe Mamma', postcode: '66190', city: 'Collioure' }
+}];
+
+/** Son homonyme new-yorkais, que Nominatim rendait en premier */
+const LOIN = [{
+  lat: '40.7128', lon: '-74.0060',
+  name: 'Caffe Mamma', type: 'cafe',
+  address: { amenity: 'Caffe Mamma', postcode: '10007', city: 'New York' }
+}];
+
+/**
+ * Lance une recherche en enregistrant chaque appel réseau
+ * @param {string} saisie
+ * @param {Array<Array<Object>>} reponses - Une par appel attendu, dans l'ordre
+ * @returns {Promise<{urls: Array<string>, propositions: Array<Element>}>}
+ */
+async function chercherEnObservant(saisie, reponses) {
+  const urls = [];
+  let rang = 0;
+
+  globalThis.fetch = vi.fn((url) => {
+    urls.push(String(url));
+    const corps = reponses[Math.min(rang++, reponses.length - 1)];
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(corps) });
+  });
+
+  const champ = document.getElementById('variableChargeLieuRecherche');
+  champ.value = saisie;
+  champ.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+  // Deux appels peuvent s'enchaîner : on laisse les promesses se dénouer.
+  await laisserSeDenouer();
+
+  return { urls, propositions: [...document.querySelectorAll('.lieu-resultat')] };
+}
+
+/** Lit le paramètre `viewbox` d'une URL, sous forme de nombres */
+function viewbox(url) {
+  const valeur = new URL(url).searchParams.get('viewbox');
+  if (!valeur) return null;
+  const [ouest, sud, est, nord] = valeur.split(',').map(Number);
+  return { ouest, sud, est, nord };
+}
+
+describe('La recherche commence autour de l\'utilisateur', () => {
+  it('cadre la requête sur la position connue du téléphone', async () => {
+    setState('cachedGpsPosition', { ...ARGELES, accuracy: 30, timestamp: 1_700_000_000_000 });
+
+    const { urls } = await chercherEnObservant('Caffe Mamma', [PRES]);
+
+    expect(urls).toHaveLength(1);
+    expect(new URL(urls[0]).searchParams.get('bounded')).toBe('1');
+
+    // Le cadre doit entourer Argelès. Deux nombres intervertis, et il
+    // désignerait la Somalie.
+    const cadre = viewbox(urls[0]);
+    expect(cadre.ouest).toBeLessThan(ARGELES.lng);
+    expect(cadre.est).toBeGreaterThan(ARGELES.lng);
+    expect(cadre.sud).toBeLessThan(ARGELES.lat);
+    expect(cadre.nord).toBeGreaterThan(ARGELES.lat);
+  });
+
+  it('n\'interroge qu\'une fois quand les environs répondent', async () => {
+    // Nominatim est gratuit et plafonné : un second appel inutile se paie sur
+    // un service que personne ne facture.
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    const { urls, propositions } = await chercherEnObservant('Caffe Mamma', [PRES]);
+
+    expect(urls).toHaveLength(1);
+    expect(propositions).toHaveLength(1);
+    expect(propositions[0].textContent).toContain('Collioure');
+  });
+
+  it('affiche la distance sous chaque proposition', async () => {
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    const { propositions } = await chercherEnObservant('Caffe Mamma', [PRES]);
+
+    expect(propositions[0].querySelector('.lieu-resultat-distance').textContent.trim())
+      .toBe('5,3 km');
+  });
+
+  it('élargit au monde entier, et le dit, quand les environs ne rendent rien', async () => {
+    // Le cas où le lieu n'est pas dans OpenStreetMap près d'ici. On ne peut pas
+    // ne rien montrer ; on peut dire pourquoi ce qui est montré est loin.
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    const { urls, propositions } = await chercherEnObservant('Caffe Mamma', [[], LOIN]);
+
+    expect(urls).toHaveLength(2);
+    expect(new URL(urls[0]).searchParams.get('bounded')).toBe('1');
+    expect(new URL(urls[1]).searchParams.get('bounded')).toBeNull();
+    expect(new URL(urls[1]).searchParams.get('viewbox')).toBeNull();
+
+    expect(document.getElementById('variableChargeLieuResultats').textContent)
+      .toContain('près de vous');
+    expect(propositions[0].textContent).toContain('New York');
+    // La distance rend le problème lisible d'un coup d'œil.
+    expect(propositions[0].textContent).toMatch(/6\d{3} km/);
+  });
+
+  it('cherche partout, sans cadre, quand on ignore où se trouve l\'utilisateur', async () => {
+    // Sur un ordinateur, sans GPS et sans dépense localisée : un cadre inventé
+    // masquerait le bon résultat au lieu de le remonter.
+    const { urls, propositions } = await chercherEnObservant('Caffe Mamma', [LOIN]);
+
+    expect(urls).toHaveLength(1);
+    expect(new URL(urls[0]).searchParams.get('viewbox')).toBeNull();
+    expect(propositions[0].querySelector('.lieu-resultat-distance')).toBeNull();
+    expect(document.getElementById('variableChargeLieuResultats').textContent)
+      .not.toContain('près de vous');
+  });
+
+  it('à défaut de GPS, se rabat sur la dernière dépense localisée', async () => {
+    setState('variableCharges', [
+      {
+        id: 'vieille', description: 'Un café', amount: 3, category: 'Bar',
+        paidBy: 'vous', timestamp: 1_600_000_000_000,
+        location: { lat: 48.8566, lng: 2.3522, name: 'Paris' }
+      },
+      {
+        id: 'recente', description: 'Une bière', amount: 6, category: 'Bar',
+        paidBy: 'vous', timestamp: 1_700_000_000_000,
+        location: { lat: ARGELES.lat, lng: ARGELES.lng, name: 'Argelès-sur-Mer' }
+      }
+    ]);
+
+    const { urls } = await chercherEnObservant('Caffe Mamma', [PRES]);
+
+    const cadre = viewbox(urls[0]);
+    expect(cadre.sud).toBeLessThan(ARGELES.lat);
+    expect(cadre.nord).toBeGreaterThan(ARGELES.lat);
+    // Paris est plus ancienne : son cadre ne contiendrait pas Argelès.
+    expect(cadre.nord).toBeLessThan(48);
+  });
+
+  it('ignore une charge supprimée pour choisir le centre', async () => {
+    setState('variableCharges', [{
+      id: 'jetee', description: 'Erreur', amount: 3, category: 'Bar', paidBy: 'vous',
+      deleted: true, timestamp: 1_800_000_000_000,
+      location: { lat: 48.8566, lng: 2.3522, name: 'Paris' }
+    }]);
+
+    const { urls } = await chercherEnObservant('Caffe Mamma', [LOIN]);
+    expect(new URL(urls[0]).searchParams.get('viewbox')).toBeNull();
+  });
+
+  it('rouvrir une charge localisée cherche autour de ce lieu', async () => {
+    // On corrige le nom d'un bar noté pendant les vacances : c'est là-bas qu'il
+    // faut chercher, pas là où l'on se trouve maintenant.
+    setState('variableCharges', [{
+      id: 'b1', description: 'Une bière', amount: 6.5, category: 'Bar',
+      paidBy: 'vous', date: '2026-08-22',
+      location: { lat: ARGELES.lat, lng: ARGELES.lng, name: 'Un bar, 66700 Argelès-sur-Mer' }
+    }]);
+
+    editVariableCharge('b1');
+
+    const { urls } = await chercherEnObservant('Caffe Mamma', [PRES]);
+    const cadre = viewbox(urls[0]);
+
+    expect(cadre.sud).toBeLessThan(ARGELES.lat);
+    expect(cadre.nord).toBeGreaterThan(ARGELES.lat);
+  });
+});
+
+describe('Quand le bon lieu est ailleurs', () => {
+  it('propose de chercher plus loin même si les environs ont répondu', async () => {
+    // Le bar des vacances, à deux cents kilomètres, quand une enseigne du même
+    // nom existe près de chez soi : le repli automatique ne se déclenche pas,
+    // puisque les environs ont rendu quelque chose. Sans cette sortie, la bonne
+    // réponse n'est jamais demandée.
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    await chercherEnObservant('Caffe Mamma', [PRES]);
+
+    const sortie = document.querySelector('.lieu-elargir');
+    expect(sortie).not.toBeNull();
+  });
+
+  it('la sortie relance une recherche sans cadre', async () => {
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    const { urls } = await chercherEnObservant('Caffe Mamma', [PRES, LOIN]);
+    expect(urls).toHaveLength(1);
+
+    document.querySelector('.lieu-elargir').click();
+    await laisserSeDenouer();
+
+    expect(urls).toHaveLength(2);
+    expect(new URL(urls[1]).searchParams.get('viewbox')).toBeNull();
+    expect([...document.querySelectorAll('.lieu-resultat')][0].textContent)
+      .toContain('New York');
+  });
+
+  it('ne propose plus d\'élargir une recherche déjà élargie', async () => {
+    // Un bouton qui ne peut plus rien changer est un bouton qui ment.
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    await chercherEnObservant('Caffe Mamma', [[], LOIN]);
+
+    expect(document.querySelector('.lieu-elargir')).toBeNull();
+  });
+
+  it('ne propose pas d\'élargir ce qui n\'a jamais été cadré', async () => {
+    await chercherEnObservant('Caffe Mamma', [LOIN]);
+    expect(document.querySelector('.lieu-elargir')).toBeNull();
+  });
+
+  it('la distance reste affichée après élargissement', async () => {
+    // C'est elle qui dit pourquoi la proposition est loin.
+    setState('cachedGpsPosition', { ...ARGELES, timestamp: 1_700_000_000_000 });
+
+    await chercherEnObservant('Caffe Mamma', [PRES, LOIN]);
+    document.querySelector('.lieu-elargir').click();
+    await laisserSeDenouer();
+
+    expect(document.querySelector('.lieu-resultat-distance').textContent)
+      .toMatch(/6\d{3} km/);
   });
 });

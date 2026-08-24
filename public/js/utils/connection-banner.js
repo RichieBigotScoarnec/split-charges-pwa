@@ -19,6 +19,12 @@
  * un cas exotique, et personne ne fera spontanément le lien entre « mes
  * salaires ne s'enregistrent pas » et « mon navigateur protège ma vie
  * privée ».
+ *
+ * Depuis que les saisies sont gardées sur l'appareil et rejouées à la
+ * reconnexion, le bandeau annonce autre chose : non plus une perte, mais une
+ * attente, avec son compte. « 3 saisies conservées sur cet appareil » se
+ * vérifie d'un coup d'œil ; « vos saisies ne sont pas enregistrées », qui
+ * serait devenu faux, aurait appris à ne plus lire le bandeau.
  */
 
 import { noter } from './diagnostics.js';
@@ -42,13 +48,19 @@ let dernierEtat = null;
  * Réagit à un changement d'état de la liaison
  *
  * @param {boolean} connecte - La base est-elle joignable ?
+ * @param {number} [enAttente] - Saisies gardées sur l'appareil, non encore parties
  * @returns {void}
  */
-export function refreshConnectionBanner(connecte) {
+export function refreshConnectionBanner(connecte, enAttente = 0) {
   if (connecte !== dernierEtat) {
     noter('liaison', connecte ? 'base joignable' : 'base injoignable');
     dernierEtat = connecte;
   }
+
+  // Le compte se rafraîchit même quand le bandeau est déjà affiché : une
+  // saisie de plus pendant la coupure doit se voir sans attendre la
+  // reconnexion, sinon le bandeau dit « 3 » alors qu'il y en a cinq.
+  ecrireAttente(enAttente);
 
   if (connecte) {
     if (minuterie) {
@@ -63,8 +75,49 @@ export function refreshConnectionBanner(connecte) {
   minuterie = window.setTimeout(() => {
     minuterie = null;
     basculer(true);
-    noter('liaison', 'bandeau « base injoignable » affiché');
+    noter('liaison', 'bandeau hors ligne affiché', { enAttente });
   }, DELAI_AVANT_ALERTE_MS);
+}
+
+/**
+ * Met à jour le seul compte, sans toucher à l'affichage du bandeau
+ *
+ * Une saisie faite pendant la coupure ne change pas l'état de la liaison : il
+ * n'y a donc aucun événement de connexion pour rafraîchir le bandeau, et il
+ * annoncerait « 3 saisies » alors qu'il y en a cinq. Un compte faux dans un
+ * bandeau censé rassurer vaut moins que pas de compte du tout.
+ *
+ * @param {number} enAttente
+ * @returns {void}
+ */
+export function majSaisiesEnAttente(enAttente) {
+  ecrireAttente(enAttente);
+}
+
+/**
+ * Écrit ce que le bandeau dit des saisies en attente
+ *
+ * `textContent`, jamais `innerHTML` : le nombre vient du code, mais la règle
+ * ne souffre pas d'exception — c'est ainsi qu'on finit par y injecter autre
+ * chose.
+ *
+ * @param {number} enAttente
+ * @returns {void}
+ */
+function ecrireAttente(enAttente) {
+  const zone = document.getElementById('offlineBannerAttente');
+  if (!zone) return;
+
+  const nombre = Number.isFinite(enAttente) ? Math.max(0, Math.trunc(enAttente)) : 0;
+
+  if (nombre === 0) {
+    zone.textContent = 'vos saisies sont conservées sur cet appareil';
+    return;
+  }
+
+  zone.textContent = nombre === 1
+    ? '1 saisie est conservée sur cet appareil'
+    : `${nombre} saisies sont conservées sur cet appareil`;
 }
 
 /**

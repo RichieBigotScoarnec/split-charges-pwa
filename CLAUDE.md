@@ -37,7 +37,10 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 20 aides pures — dont montant (lecture d'une
+│       └── utils/              # 21 aides pures — dont miroir (ce que l'appareil
+│                               # garde hors réseau : dernière valeur lue de
+│                               # chaque chemin, file des écritures à rejouer),
+│                               # montant (lecture d'une
 │                               # saisie), lieu (géocodage), categorie-lieu
 │                               # (catégorie déduite du lieu),
 │                               # categories-frequentes, auth-errors,
@@ -174,6 +177,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Recherche aveugle au payeur, à l'enveloppe, à la date, au lieu et aux remboursements | `public/js/modules/search.js` | ✅ RÉSOLU 2026-08-23 — ce qu'on lit à l'écran se cherche | — |
 | Éditer une charge affichait « Ajouter » | les trois modales de saisie | ✅ RÉSOLU 2026-08-23 — titre et bouton accordés au geste | — |
 | Le lieu ne s'écrivait que par le GPS, au moment de la saisie | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — recherche par nom, rattachable après coup | Charges variables seules |
+| Recherche de lieu à l'échelle de la planète : « Caffe Mamma » à Argelès rendait New York | `public/js/utils/recherche-lieu.js`, `public/js/modules/choix-lieu.js` | ✅ RÉSOLU 2026-08-23 — cadrée sur 60 km autour de la position connue, classée par distance, élargie et annoncée si rien | — |
+| Hors réseau, l'application se chargeait et ne servait à rien : dix secondes par lecture, quinze par écriture, puis rien | `public/js/utils/miroir.js`, `public/js/db.js` | ✅ RÉSOLU 2026-08-24 — miroir des lectures et file d'attente durables, rejeu à la reconnexion | `localStorage` ; effacé à la déconnexion |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

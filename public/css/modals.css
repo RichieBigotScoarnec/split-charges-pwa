@@ -725,7 +725,11 @@
   justify-content: center;
 }
 
-.lieu-resultats {
+/* `:not([hidden])` est indispensable : `hidden` ne pose `display: none` que
+   par la feuille du navigateur, et n'importe quelle règle d'auteur portant
+   `display` la bat. Sans cette précaution, la boîte de propositions resterait
+   affichée en permanence, vide. */
+.lieu-resultats:not([hidden]) {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -742,6 +746,10 @@
 .lieu-resultat {
   /* Une proposition se lit en entier : le nom d'un lieu tient rarement sur une
      ligne une fois la commune ajoutée. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   text-align: left;
   padding: 10px 12px;
   min-height: 44px;
@@ -752,6 +760,12 @@
   font-family: var(--font);
   cursor: pointer;
   border-bottom: 1px solid var(--border-color);
+}
+
+/* La distance appuie le nom, elle ne le concurrence pas. */
+.lieu-resultat-distance {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .lieu-resultat:last-child {
@@ -771,7 +785,29 @@
   color: var(--text-secondary);
 }
 
-.lieu-retenu {
+/* La sortie de secours quand le bon lieu est ailleurs — au bas de la liste,
+   après les propositions, parce qu'on n'y vient qu'après les avoir lues. */
+.lieu-elargir {
+  text-align: left;
+  padding: 10px 12px;
+  min-height: 44px;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.lieu-elargir:hover,
+.lieu-elargir:focus-visible {
+  background: var(--primary-glow);
+  outline: none;
+}
+
+.lieu-retenu:not([hidden]) {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
@@ -796,4 +832,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.lieu-aide {
+  margin: var(--space-xs) 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
