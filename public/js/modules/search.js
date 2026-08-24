@@ -5,7 +5,7 @@ import { getState } from '../state.js';
 import { escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate, dateDeLaCharge } from '../utils/date.js';
 import { jourDeTri } from '../utils/tri.js';
-import { contient } from '../utils/recherche-texte.js';
+import { contient, plier } from '../utils/recherche-texte.js';
 import { log } from '../utils/debug.js';
 
 let searchTimeout = null;
@@ -181,6 +181,12 @@ function matchesQuery(charge, query) {
   // Une charge héritée peut ne pas porter de montant exploitable : appeler
   // toString() dessus interrompait la recherche entière sur une seule entrée.
   champs.push(String(charge.amount ?? ''));
+
+  // Une requête vide ne filtre rien : c'est l'état d'un champ effacé, et
+  // masquer toutes les charges y ferait croire à une perte de données.
+  // `contient` répond faux à une requête vide — sans quoi n'importe quel champ
+  // « correspondrait » —, la question se tranche donc ici.
+  if (!plier(query)) return true;
 
   // La comparaison ignore désormais les accents : sur un clavier de téléphone
   // ils demandent un appui long, que personne ne fait pour chercher. Sans cela,
