@@ -49,6 +49,7 @@ const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
   splitMode: 'prorata',    // 'prorata' | '50-50'
   paidBy: 'vous',          // 'vous' | 'conjointe' | 'partage'
+  envelope: '',            // identifiant d'enveloppe, ou '' pour aucune
   gpsLocation: null        // { lat, lng, accuracy, timestamp, name? }
 };
 
@@ -142,6 +143,13 @@ function surPayeur(e) {
   if (bouton) updatePayer(bouton.dataset.payer);
 }
 
+/** Choix d'une enveloppe : referme le panneau et redessine la phrase */
+function surEnveloppe(e) {
+  quickAddState.envelope = e.target.value || '';
+  ouvrirLePanneau(null);
+  dessinerLaPhrase();
+}
+
 /** Clic hors de la carte : ferme et réinitialise */
 function surFondDeModale(e) {
   const overlay = document.getElementById('modalQuickAdd');
@@ -175,6 +183,7 @@ function setupEventListeners() {
   poserUnique(document.getElementById('quickAddLocationDetach'), 'click', detachLocation);
   poserUnique(document.getElementById('quickAddPhrase'), 'click', surSegment);
   poserUnique(document.getElementById('quickAddDate'), 'change', surDate);
+  poserUnique(document.getElementById('quickAddEnvelope'), 'change', surEnveloppe);
   poserUnique(document.getElementById('modalQuickAdd'), 'click', surFondDeModale);
 }
 
@@ -198,11 +207,52 @@ export function cleanupQuickAdd() {
 // ===== MODALE : OUVERTURE / FERMETURE =====
 
 /**
+ * Les enveloppes qu'on peut rattacher à une saisie
+ *
+ * Les closes sont écartées : elles restent consultables — les vacances de l'an
+ * dernier ont eu lieu — mais n'ont plus à encombrer une saisie expresse.
+ *
+ * @returns {Array<Object>}
+ */
+function enveloppesProposables() {
+  return (getState('envelopes') || []).filter(e => e && !e.cloturee);
+}
+
+/**
+ * Remplit le sélecteur d'enveloppe de la saisie rapide
+ * @returns {void}
+ */
+function remplirLesEnveloppes() {
+  const select = document.getElementById('quickAddEnvelope');
+  if (!select) return;
+
+  select.textContent = '';
+
+  const aucune = document.createElement('option');
+  aucune.value = '';
+  aucune.textContent = 'Sans enveloppe';
+  select.appendChild(aucune);
+
+  for (const enveloppe of enveloppesProposables()) {
+    const option = document.createElement('option');
+    option.value = enveloppe.id;
+    option.textContent = `${enveloppe.icon} ${enveloppe.label}`;
+    select.appendChild(option);
+  }
+
+  select.value = quickAddState.envelope || '';
+}
+
+/**
  * Ouvre la modale quick-add
  */
 function showQuickAddModal() {
   // Reset state
   resetState();
+
+  // Repeuplé à l'ouverture : une enveloppe créée depuis le début de la session
+  // doit être proposée sans avoir à recharger l'application.
+  remplirLesEnveloppes();
 
   // Reset UI
   const amountInput = document.getElementById('quickAddAmount');
@@ -306,6 +356,7 @@ function resetState() {
   quickAddState.selectedCategory = null;
   quickAddState.splitMode = 'prorata';
   quickAddState.paidBy = payeurParDefaut();
+  quickAddState.envelope = '';
   quickAddState.gpsLocation = null;
 
   // Les panneaux se referment avec l'état qu'ils servaient à choisir : rouvrir
@@ -512,7 +563,11 @@ function dessinerLaPhrase() {
   const champDate = document.getElementById('quickAddDate');
   const segments = segmentsDeLaPhrase(quickAddState, {
     members: getState('members'),
-    date: champDate ? champDate.value : null
+    date: champDate ? champDate.value : null,
+    // Le segment ne paraît que si le foyer a des enveloppes ouvertes : un
+    // cinquième bouton permanent encombrerait la phrase de tous ceux qui ne
+    // s'en servent pas, et n'en avoir aucune est l'état de départ.
+    enveloppes: enveloppesProposables()
   });
 
   zone.textContent = '';
@@ -744,6 +799,9 @@ async function soumettre() {
     // `null` pour le prorata : c'est l'absence de dérogation, donc le mode du
     // foyer, exactement comme dans `variable-charges.js`.
     splitOverride: splitMode === '50-50' ? { mode: '50-50' } : null,
+    // `null` plutôt que la chaîne vide : Firebase refuse `undefined`, et une
+    // chaîne vide se lirait comme un identifiant d'enveloppe introuvable.
+    envelope: quickAddState.envelope || null,
     // La date saisie si elle a été corrigée, le jour courant sinon.
     //
     // `toISOString()` rendait le jour UTC : en hiver comme en été, les

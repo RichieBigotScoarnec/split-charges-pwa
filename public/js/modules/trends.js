@@ -185,12 +185,58 @@ export async function generateTrendsChart(months = 6) {
 }
 
 /**
+ * Accorde la mémoire du canevas à la finesse réelle de l'écran
+ *
+ * Sans cela, un canevas de 600 × 240 étiré sur la largeur d'un téléphone est
+ * agrandi par le navigateur : sur un appareil à trois pixels par point, la
+ * mémoire fournie vaut moins de la moitié de ce qui s'affiche, et le texte
+ * dessiné devient mou.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @returns {void}
+ */
+function ajusterALaFinesse(canvas) {
+  const finesse = window.devicePixelRatio || 1;
+  const largeur = canvas.clientWidth;
+  const hauteur = canvas.clientHeight;
+
+  // Sans mise en page — banc d'essai sans DOM complet, canevas masqué — on
+  // laisse les dimensions déclarées : les redéfinir à zéro effacerait tout.
+  if (!largeur || !hauteur) return;
+
+  const memoireLargeur = Math.round(largeur * finesse);
+  const memoireHauteur = Math.round(hauteur * finesse);
+
+  // Écrire `width` réinitialise le contexte : ne le faire qu'au besoin évite
+  // d'effacer le tracé à chaque rendu.
+  if (canvas.width !== memoireLargeur || canvas.height !== memoireHauteur) {
+    canvas.width = memoireLargeur;
+    canvas.height = memoireHauteur;
+  }
+
+  // Le tracé continue de raisonner en points CSS.
+  canvas.getContext('2d').setTransform(finesse, 0, 0, finesse, 0, 0);
+}
+
+/**
  * Dessine le graphique de tendances sur canvas
  * @param {HTMLCanvasElement} canvas - Element canvas
  * @param {Object} data - Données historiques
  */
 function renderTrendsChart(canvas, data) {
   const ctx = canvas.getContext('2d');
+
+  // Le canevas se dessine à la finesse de l'écran.
+  //
+  // Il portait `width="600" height="240"` et s'étirait à 100 % de sa carte.
+  // Mesuré sur un Pixel : une mémoire de 600 px rendue sur 936 pixels
+  // physiques, soit un étirement de 1,56×. Les quatre libellés dessinés dessus
+  // étaient donc mous, à côté du texte net qui les entoure.
+  //
+  // La taille d'affichage vient de la feuille de style ; on n'ajuste ici que la
+  // mémoire, puis on remet le repère à l'échelle pour que le tracé continue de
+  // raisonner en points CSS.
+  ajusterALaFinesse(canvas);
   // Les couleurs venaient en dur : fond clair et texte sombre, illisibles et
   // étrangers au thème sombre. Elles sont lues sur les jetons de la page, comme
   // le veut le reste du projet.
@@ -202,8 +248,9 @@ function renderTrendsChart(canvas, data) {
     texte: jeton('--text-secondary', '#666'),
     axes: jeton('--text-primary', '#333')
   };
-  const width = canvas.width;
-  const height = canvas.height;
+  // Dimensions en points CSS : le repère est déjà mis à l'échelle.
+  const width = canvas.clientWidth || canvas.width;
+  const height = canvas.clientHeight || canvas.height;
 
   // Effacer le canvas
   ctx.clearRect(0, 0, width, height);

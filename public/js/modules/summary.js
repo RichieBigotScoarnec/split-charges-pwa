@@ -5,7 +5,7 @@ import { getState, setState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
-import { computeSummary, computeVirementsByDestination } from '../utils/calculations.js';
+import { computeSummary, exigeLesSalaires, computeVirementsByDestination } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { renderCategoryBudgets } from './category-budgets.js';
@@ -40,8 +40,15 @@ export function calculateSummary() {
   const incomeBase = resolveIncomeBase(salaries);
   const totalSalaries = incomeBase.total;
 
-  // Si pas de salaires, impossible de calculer
-  if (totalSalaries === 0) {
+  // Si pas de salaires, impossible de calculer — mais seulement au prorata.
+  //
+  // La condition était inconditionnelle : choisir le 50-50 et laisser les
+  // salaires vides affichait « Renseignez vos deux salaires pour obtenir le
+  // bilan du mois », un conseil faux puisque ce mode n'en regarde aucun.
+  // L'application obligeait donc deux personnes à se divulguer leurs revenus
+  // pour se servir d'un partage à parts égales — souvent la raison même du
+  // choix.
+  if (exigeLesSalaires(shareMode) && totalSalaries === 0) {
     // Le solde publié dans l'état sert aux rappels, qui ne peuvent pas
     // importer ce module sans créer un cycle.
     setState('dernierSolde', 0);

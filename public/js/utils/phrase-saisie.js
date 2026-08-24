@@ -42,12 +42,44 @@ export function segmentsDeLaPhrase(etat = {}, options = {}) {
   const members = options.members || null;
   const aujourdhui = options.aujourdhui || dateDuJour();
 
-  return [
+  const segments = [
     { cle: 'payeur', texte: libellePayeur(etat.paidBy, members), panneau: 'quickAddPanneauPayeur' },
     { cle: 'repartition', texte: libelleRepartition(etat.splitMode), panneau: 'quickAddPanneauRepartition' },
     { cle: 'categorie', texte: libelleCategorie(etat.selectedCategory), panneau: 'quickAddPanneauCategorie' },
     { cle: 'date', texte: libelleDate(options.date, aujourdhui), panneau: 'quickAddPanneauDate' }
   ];
+
+  // L'enveloppe, seulement si le foyer en a.
+  //
+  // Les deux formulaires complets proposaient un rattachement, la saisie rapide
+  // non — c'est-à-dire pas au moment où l'on en a le plus besoin : en vacances,
+  // en trois gestes. Mais un cinquième segment permanent encombrerait la phrase
+  // de tous ceux qui ne s'en servent pas, et l'absence d'enveloppe est l'état
+  // de départ du foyer.
+  const enveloppes = Array.isArray(options.enveloppes) ? options.enveloppes : [];
+  if (enveloppes.length > 0) {
+    segments.push({
+      cle: 'enveloppe',
+      texte: libelleEnveloppe(etat.envelope, enveloppes),
+      panneau: 'quickAddPanneauEnveloppe'
+    });
+  }
+
+  return segments;
+}
+
+/**
+ * À quelle enveloppe la dépense se rattache
+ *
+ * @param {string|null} id - Enveloppe choisie
+ * @param {Array<Object>} enveloppes - Enveloppes proposables
+ * @returns {string}
+ */
+export function libelleEnveloppe(id, enveloppes) {
+  const trouvee = (Array.isArray(enveloppes) ? enveloppes : []).find(e => e && e.id === id);
+  // « Sans enveloppe » plutôt qu'un segment vide : le bouton doit dire ce qu'il
+  // ouvre, y compris à la synthèse vocale, où il n'a pas la phrase autour.
+  return trouvee ? `${trouvee.icon} ${trouvee.label}` : 'Sans enveloppe';
 }
 
 /**

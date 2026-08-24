@@ -3,7 +3,8 @@ import {
   calculateChargeShares,
   calculateJointPayment,
   computeSummary,
-  computeVirementsByDestination
+  computeVirementsByDestination,
+  exigeLesSalaires
 } from '../../public/js/utils/calculations.js';
 
 // ===== Helpers =====
@@ -445,5 +446,105 @@ describe('Edge Cases', () => {
     });
     // Seul le remboursement de 50 non supprimé est comptabilisé
     expect(result.reimbursementAdjustment).toBe(50);
+  });
+});
+
+/**
+ * Le 50-50 n'a pas besoin des salaires
+ *
+ * La garde `totalSalaires === 0` était inconditionnelle : un couple qui
+ * choisissait explicitement le partage à parts égales et ne renseignait aucun
+ * salaire voyait « Renseignez vos deux salaires pour obtenir le bilan du
+ * mois » — un conseil faux, puisque ce mode ne regarde aucun salaire.
+ *
+ * L'application exigeait donc que les deux se divulguent leurs revenus pour se
+ * servir d'un partage qui les ignore, ce qui est souvent la raison même du
+ * choix.
+ */
+describe('Quels modes ont besoin des salaires', () => {
+  it('le prorata, seul', () => {
+    expect(exigeLesSalaires('prorata')).toBe(true);
+    expect(exigeLesSalaires('50-50')).toBe(false);
+    expect(exigeLesSalaires('custom')).toBe(false);
+  });
+
+  it('un mode inconnu est traité comme le prorata', () => {
+    // Le défaut sûr : mieux vaut réclamer les salaires que rendre un solde
+    // calculé sur une règle qu'on ne connaît pas.
+    expect(exigeLesSalaires(undefined)).toBe(true);
+  });
+});
+
+describe('Un bilan sans salaire renseigné', () => {
+  const charges = [{ amount: 1000, paidBy: 'vous', description: 'Loyer' }];
+  const sansSalaire = {
+    salaries: { vous: 0, conjointe: 0 },
+    fixedCharges: charges, variableCharges: [], reimbursements: [],
+    customPercents: { vous: 70, conjointe: 30 }
+  };
+
+  it('se calcule en 50-50', () => {
+    // Mesuré avant correction : total 0 €, solde 0 €, alors qu'une personne
+    // avait avancé 1 000 €.
+    const bilan = computeSummary({ ...sansSalaire, shareMode: '50-50' });
+
+    expect(bilan.total).toBe(1000);
+    expect(bilan.balance).toBe(500);
+  });
+
+  it('se calcule avec des pourcentages choisis', () => {
+    const bilan = computeSummary({ ...sansSalaire, shareMode: 'custom' });
+
+    expect(bilan.total).toBe(1000);
+    expect(bilan.balance).toBe(300);
+  });
+
+  it('reste impossible au prorata, comme avant', () => {
+    // Là, les salaires manquent vraiment : rendre un solde calculé en 50-50
+    // sans le dire serait pire que de le refuser.
+    const bilan = computeSummary({ ...sansSalaire, shareMode: 'prorata' });
+
+    expect(bilan.total).toBe(0);
+    expect(bilan.balance).toBe(0);
+  });
+});
+
+/**
+ * Une donnée abîmée ne doit pas emporter tout le bilan
+ *
+ * `sum + undefined` donne NaN, et NaN se propage. Mesuré avant correction :
+ * une seule charge sans montant rendait le bilan entier — total, parts, solde
+ * — égal à NaN, soit « NaN € » à l'écran. Les charges variables étaient
+ * filtrées au chargement, mais ni les charges fixes ni les remboursements.
+ */
+describe('Une charge sans montant exploitable', () => {
+  const base = {
+    salaries: { vous: 2000, conjointe: 1000 },
+    shareMode: 'prorata', customPercents: { vous: 50, conjointe: 50 },
+    fixedCharges: [], variableCharges: [], reimbursements: []
+  };
+
+  it('vaut zéro, et le reste du bilan tient', () => {
+    const bilan = computeSummary({
+      ...base,
+      fixedCharges: [
+        { description: 'Loyer', amount: 900, paidBy: 'vous' },
+        { description: 'Abîmée', paidBy: 'vous' }
+      ]
+    });
+
+    expect(Number.isFinite(bilan.total), 'le total est NaN').toBe(true);
+    expect(bilan.total).toBe(900);
+    expect(Number.isFinite(bilan.balance)).toBe(true);
+  });
+
+  it('vaut aussi pour un remboursement', () => {
+    const bilan = computeSummary({
+      ...base,
+      fixedCharges: [{ description: 'Loyer', amount: 900, paidBy: 'vous' }],
+      reimbursements: [{ direction: 'conjointe-to-vous' }]
+    });
+
+    expect(Number.isFinite(bilan.balance), 'le solde est NaN').toBe(true);
   });
 });

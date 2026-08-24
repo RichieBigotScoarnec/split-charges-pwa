@@ -78,6 +78,19 @@ export function calculateJointPayment(charge, shareMode, salaries, totalSalaries
  * @param {Object} params
  * @returns {Object} Résumé du bilan
  */
+/**
+ * Le mode de partage a-t-il besoin des salaires ?
+ *
+ * @param {string} shareMode - 'prorata' | '50-50' | 'custom'
+ * @returns {boolean}
+ */
+export function exigeLesSalaires(shareMode) {
+  // Le prorata seul en a besoin : c'est lui qui divise par le total des
+  // revenus. Le 50-50 partage en deux, le mode personnalisé applique des
+  // pourcentages saisis à la main — ni l'un ni l'autre ne regarde un salaire.
+  return shareMode !== '50-50' && shareMode !== 'custom';
+}
+
 export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver = 0 }) {
   // Le prorata porte sur l'ensemble des revenus, pas sur le seul salaire :
   // allocations, loyers perçus et activité annexe font partie de ce dont
@@ -86,7 +99,14 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   const base = resolveIncomeBase(salaries);
   const totalSalaries = base.total;
 
-  if (totalSalaries === 0) {
+  // La garde ne vaut que pour le prorata.
+  //
+  // Elle était inconditionnelle : un couple qui choisissait explicitement le
+  // 50-50 et ne renseignait aucun salaire voyait « Renseignez vos deux
+  // salaires pour obtenir le bilan du mois » — un conseil faux, puisque le
+  // 50-50 ne regarde aucun salaire. L'application exigeait donc que les deux
+  // se divulguent leurs revenus, ce qui est souvent la raison même du choix.
+  if (exigeLesSalaires(shareMode) && totalSalaries === 0) {
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0, carryOver: 0 };
   }
 
@@ -94,7 +114,17 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   const activeVariable = variableCharges.filter(c => !c.deleted);
   const activeReimbs = reimbursements.filter(r => !r.deleted);
 
-  const allCharges = [...activeFixed, ...activeVariable];
+  // Un montant inexploitable vaut zéro, jamais NaN.
+  //
+  // `sum + undefined` donne NaN, et NaN se propage : mesuré, une seule charge
+  // sans montant rendait le bilan entier — total, parts, solde — égal à NaN,
+  // c'est-à-dire « NaN € » à l'écran. Les charges variables étaient déjà
+  // filtrées au chargement, mais ni les charges fixes ni les remboursements :
+  // la garde appartient donc au calcul, qu'ils traversent tous.
+  const allCharges = [...activeFixed, ...activeVariable].map(charge => ({
+    ...charge,
+    amount: Number.isFinite(charge.amount) ? charge.amount : 0
+  }));
   const totalCharges = allCharges.reduce((sum, c) => sum + c.amount, 0);
 
   // Parts théoriques
@@ -136,10 +166,11 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   // ait remboursé ces 500 €, le solde affichait 1 000 € au lieu de zéro.
   let reimbursementAdjustment = 0;
   activeReimbs.forEach(reimb => {
+    const montant = Number.isFinite(reimb.amount) ? reimb.amount : 0;
     if (reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) {
-      reimbursementAdjustment += reimb.amount;
+      reimbursementAdjustment += montant;
     } else {
-      reimbursementAdjustment -= reimb.amount;
+      reimbursementAdjustment -= montant;
     }
   });
 

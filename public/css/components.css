@@ -808,9 +808,15 @@
 }
 
 /* ===== FLOATING ACTION BUTTON (FAB) ===== */
+/* `.container` réserve déjà 100 px en bas pour que la fin de la page ne passe
+   pas dessous. Ce qu'il manquait : la garde du bas d'écran, sans laquelle le
+   bouton se pose sur la barre de navigation d'un téléphone récent.
+
+   Qu'il recouvre le contenu au milieu du défilement est, lui, inhérent à un
+   bouton flottant — et c'est le prix de l'avoir toujours sous le pouce. */
 .fab {
   position: fixed;
-  bottom: var(--space-lg);
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
   right: var(--space-lg);
   width: 56px;
   height: 56px;
@@ -843,8 +849,15 @@
   50% { box-shadow: 0 4px 24px var(--primary-glow), 0 0 0 8px var(--primary-soft); }
 }
 
+/*
+   Le bouton pulsait sans fin : `fabPulse … infinite`. Dans une application de
+   finances de couple, dont tout le dessin cherche le calme, un élément qui
+   bouge en permanence tire l'œil sans jamais rien annoncer de nouveau. Trois
+   battements suffisent à signaler le raccourci à qui ne l'a pas vu, puis il se
+   tient tranquille.
+*/
 .fab {
-  animation: fabPulse 3s ease-in-out 2s infinite;
+  animation: fabPulse 3s ease-in-out 2s 3;
 }
 
 /* ===== REVENUS COMPLÉMENTAIRES ===== */
