@@ -46,6 +46,18 @@ let minuterie = null;
 let dernierEtat = null;
 
 /**
+ * Dernier compte de saisies en attente qu'on ait écrit
+ *
+ * Ce module ne sait pas compter la file : elle vit dans `db.js`, qui la lui
+ * annonce. Il doit pourtant la redire quand rien ne la lui répète — au retour
+ * au premier plan, notamment, où la temporisation repart à zéro. Sans mémoire,
+ * ce départ écrivait « vos saisies sont conservées », sans nombre, sur un
+ * bandeau qui annonçait « 1 saisie » une minute plus tôt. Le compte semblait
+ * retombé à rien : exactement ce qu'on redoute d'une saisie faite hors réseau.
+ */
+let dernierCompte = 0;
+
+/**
  * Réagit à un changement d'état de la liaison
  *
  * @param {boolean} connecte - La base est-elle joignable ?
@@ -160,10 +172,14 @@ export function majSaisiesEnAttente(enAttente) {
  * @returns {void}
  */
 function ecrireAttente(enAttente) {
+  // Le compte se retient avant d'écrire, et non après : la zone de texte
+  // n'existe pas dans tous les bancs d'essai, et un compte oublié faute
+  // d'élément à peindre serait redit faux au premier rafraîchissement.
+  const nombre = Number.isFinite(enAttente) ? Math.max(0, Math.trunc(enAttente)) : 0;
+  dernierCompte = nombre;
+
   const zone = document.getElementById('offlineBannerAttente');
   if (!zone) return;
-
-  const nombre = Number.isFinite(enAttente) ? Math.max(0, Math.trunc(enAttente)) : 0;
 
   // La phrase est écrite en entier ici, verbe de fin compris. Le balisage n'en
   // portait que le début, et la suite — « et partiront dès que… » — restait au
@@ -239,7 +255,13 @@ function surRetourAuPremierPlan() {
   basculer(false);
 
   if (dernierEtat === false) {
-    refreshConnectionBanner(false);
+    // Le compte est redit tel quel. Sans lui, ce départ de temporisation
+    // repeignait le bandeau sans nombre — « vos saisies sont conservées » là
+    // où il annonçait « 1 saisie » — et le journal notait « enAttente: 0 »
+    // alors que la file en gardait une. Un compte qui retombe à zéro sous les
+    // yeux de celui qui vient de saisir dit précisément le contraire de ce que
+    // ce bandeau existe pour dire.
+    refreshConnectionBanner(false, dernierCompte);
     if (reprise) reprise();
   }
 }

@@ -316,4 +316,30 @@ describe('Les deux issues du bandeau', () => {
 
     expect(demandes).toBe(1);
   });
+
+  it('revenir sur l\'application ne fait pas retomber le compte à zéro', async () => {
+    // Le journal du téléphone l'a montré : le bandeau annonçait « 1 saisie »,
+    // puis, au retour au premier plan, « vos saisies sont conservées » — sans
+    // nombre — et notait « enAttente: 0 » alors que la file en gardait bien
+    // une. Le départ de temporisation repeignait le bandeau sans le compte,
+    // que ce module est le seul à ne pas savoir recalculer.
+    //
+    // Un compte qui retombe à zéro sous les yeux de celui qui vient de saisir
+    // hors réseau dit exactement le contraire de ce que ce bandeau existe pour
+    // dire. C'est ce qui a fait croire à une saisie perdue.
+    initConnectionBanner(async () => false);
+
+    refreshConnectionBanner(false, 1);
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(texte()).toContain('1 saisie est conservée');
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(texte(), 'le compte a disparu au retour au premier plan').toContain('1 saisie est conservée');
+
+    // Et il tient jusqu'au bout de la nouvelle temporisation, qui repeint.
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(texte()).toContain('1 saisie est conservée');
+    expect(noter).toHaveBeenCalledWith('liaison', 'bandeau hors ligne affiché', { enAttente: 1 });
+  });
 });

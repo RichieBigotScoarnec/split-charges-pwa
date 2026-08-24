@@ -63,6 +63,31 @@ export const APP_CHECK_SITE_KEY = '6Lf5EJMtAAAAAHpw5l7IBNpWnug5K8yaahIYPRDT';
  */
 export const APP_CHECK_PROVIDER = 'recaptcha-v3';
 
+/**
+ * `?appcheck=0` — ouvrir l'application sans attestation, le temps d'un essai
+ *
+ * L'attestation est passée par une panne qu'on ne pouvait ni voir ni écarter :
+ * la politique de sécurité de la page interdisait à reCAPTCHA ses propres
+ * requêtes, il ne rendait donc aucun jeton, et App Check répondait « 400 » puis
+ * se mettait en attente. Pendant ce temps la base restait injoignable, sur un
+ * téléphone dont le réseau fonctionnait parfaitement — deux faits qu'aucune
+ * observation ne reliait.
+ *
+ * Ce commutateur est le fil qui les relie : si l'application va bien avec
+ * `?appcheck=0` et mal sans, l'attestation est en cause ; si elle va mal des
+ * deux côtés, elle est hors de cause. Une réponse en un rechargement, contre
+ * une supposition de plus.
+ *
+ * Il n'ouvre aucun accès : App Check ne protège rien côté client, il *prouve*
+ * quelque chose côté serveur. Ne pas le présenter, c'est refuser de s'attester
+ * — précisément ce que fait n'importe quel script qui viserait la base. Le
+ * jour où l'application forcée sera activée dans la console, une page ouverte
+ * ainsi se verra refuser ses requêtes, comme il se doit.
+ */
+export const APP_CHECK_DESACTIVE =
+  typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).get('appcheck') === '0';
+
 // ===== ESPACE DE DONNÉES =====
 // `?sandbox=1` bascule l'application sur un espace isolé, dans le même projet
 // Firebase et sous la même liste blanche. Il remplace l'ancienne base de test
