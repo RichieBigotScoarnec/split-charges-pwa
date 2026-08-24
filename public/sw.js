@@ -49,6 +49,7 @@ const STATIC_ASSETS = [
   './js/state.js',
   './js/db.js',
   // Utilitaires — dont le moteur de calcul du solde
+  './js/utils/attestation.js',
   './js/utils/auth-errors.js',
   './js/utils/budgets.js',
   './js/utils/calculations.js',

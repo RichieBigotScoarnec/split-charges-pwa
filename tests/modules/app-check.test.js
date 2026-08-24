@@ -72,6 +72,10 @@ async function chargerAvec(config) {
 
 beforeEach(() => {
   installerFirebase();
+  // La mémoire des échecs vit dans `localStorage` et traverse les cas : un
+  // test qui laisse une attestation en échec ferait écarter l'attestation de
+  // tous les suivants, qui échoueraient pour une raison qui n'est pas la leur.
+  window.localStorage.clear();
 });
 
 describe('Activation d\'App Check', () => {
@@ -135,6 +139,43 @@ describe('Activation d\'App Check', () => {
     initFirebase();
 
     expect(activations).toHaveLength(1);
+  });
+
+  it('un échec de la veille écarte l\'attestation, sans la condamner', async () => {
+    // Mesuré sur l'appareil : l'authentification restait bloquée 6 621 ms avec
+    // l'attestation active, 1 146 ms sans, et repartait à la milliseconde où
+    // l'attestation rendait son échec. Six secondes à chaque ouverture, pour un
+    // jeton refusé en « 400 » et jamais validé une seule fois.
+    const { noterEchecAttestation } = await import('../../public/js/utils/attestation.js');
+    noterEchecAttestation(Date.now());
+
+    const { initFirebase } = await chargerAvec({
+      APP_CHECK_SITE_KEY: '6Lc-cle-de-site',
+      USE_EMULATOR: false
+    });
+
+    initFirebase();
+
+    expect(activations, 'les six secondes ont été repayées').toHaveLength(0);
+    expect(noter).toHaveBeenCalledWith('appcheck',
+      expect.stringContaining('retenté'), expect.any(Object));
+  });
+
+  it('un échec d\'avant-hier ne l\'écarte plus : elle est retentée', async () => {
+    // L'autre côté, et le plus facile à perdre de vue : sans cette limite, une
+    // configuration réparée dans la console ne serait jamais reprise. On aurait
+    // troqué une lenteur permanente contre un abandon permanent.
+    const { noterEchecAttestation } = await import('../../public/js/utils/attestation.js');
+    noterEchecAttestation(Date.now() - 48 * 60 * 60 * 1000);
+
+    const { initFirebase } = await chargerAvec({
+      APP_CHECK_SITE_KEY: '6Lc-cle-de-site',
+      USE_EMULATOR: false
+    });
+
+    initFirebase();
+
+    expect(activations, 'l\'attestation n\'est plus jamais retentée').toHaveLength(1);
   });
 
   it('sans clé, rien n\'est activé et l\'abandon est signalé', async () => {
