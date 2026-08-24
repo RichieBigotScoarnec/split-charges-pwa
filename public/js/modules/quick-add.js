@@ -15,6 +15,7 @@ import { parseMontant } from '../utils/montant.js';
 import { dateDuJour } from '../utils/date.js';
 import { segmentsDeLaPhrase } from '../utils/phrase-saisie.js';
 import { decrireLieu } from '../utils/lieu.js';
+import { normaliserEmplacement } from '../utils/members.js';
 import { categoriePourLieu } from '../utils/categorie-lieu.js';
 import {
   categoriesFrequentes,
@@ -285,12 +286,26 @@ function closeQuickAddModal() {
 }
 
 /**
+ * Le payeur que propose la saisie rapide à l'ouverture
+ *
+ * Celui qui tient le téléphone, et non `vous` en dur. Sur le second appareil,
+ * l'ancien défaut attribuait à l'autre chaque dépense expédiée sans y penser —
+ * et le solde, la seule chose que cette application calcule, s'en trouvait
+ * faussé sans aucun signal.
+ *
+ * @returns {string} 'vous' ou 'conjointe'
+ */
+function payeurParDefaut() {
+  return normaliserEmplacement(getState('emplacementCourant'));
+}
+
+/**
  * Reset le state interne
  */
 function resetState() {
   quickAddState.selectedCategory = null;
   quickAddState.splitMode = 'prorata';
-  quickAddState.paidBy = 'vous';
+  quickAddState.paidBy = payeurParDefaut();
   quickAddState.gpsLocation = null;
 
   // Les panneaux se referment avec l'état qu'ils servaient à choisir : rouvrir

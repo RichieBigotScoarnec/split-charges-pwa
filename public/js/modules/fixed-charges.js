@@ -20,6 +20,7 @@ import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
+import { normaliserEmplacement } from '../utils/members.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -37,6 +38,11 @@ export function showAddFixedChargeModal() {
   // Repeuplée à l'ouverture : une enveloppe créée depuis le début de la session
   // doit être proposée sans avoir à recharger l'application.
   populateEnvelopeSelect('fixedChargeEnvelope', '');
+
+  // Le payeur proposé est celui qui tient le téléphone. `form.reset()` rendait
+  // le select à sa première option, `vous`, quel que soit l'appareil.
+  const payeurEl = document.getElementById('fixedChargePaidBy');
+  if (payeurEl) payeurEl.value = payeurParDefaut();
 
   // Le jour courant par défaut, modifiable : une charge fixe se règle rarement
   // le jour où on la saisit.
@@ -471,3 +477,15 @@ function getCategoryIcon(category) {
   return getCategoryEmoji(category);
 }
 
+/**
+ * Le payeur proposé à l'ouverture : celui qui tient le téléphone
+ *
+ * `form.reset()` rend le select à sa première option — `vous` — quel que soit
+ * l'appareil. Sur le second téléphone, chaque charge saisie sans y penser était
+ * donc attribuée à l'autre.
+ *
+ * @returns {string} 'vous' ou 'conjointe'
+ */
+function payeurParDefaut() {
+  return normaliserEmplacement(getState('emplacementCourant'));
+}

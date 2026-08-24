@@ -141,6 +141,56 @@ export function directionLabel(direction, members, versPartenaire) {
 }
 
 /**
+ * Ramène une valeur d'emplacement à l'une des deux clés de stockage
+ *
+ * Trois modules doivent proposer « celui qui tient le téléphone » comme payeur.
+ * Recopier le test dans chacun les ferait diverger le jour où un troisième
+ * emplacement apparaîtrait ; et une valeur inattendue — état non encore
+ * renseigné, lecture ratée — doit retomber sur le comportement d'avant plutôt
+ * que d'atteindre un `<select>` qui l'ignorera en silence.
+ *
+ * @param {*} valeur - Emplacement supposé
+ * @returns {string} 'vous' ou 'conjointe'
+ */
+export function normaliserEmplacement(valeur) {
+  return valeur === 'conjointe' ? 'conjointe' : 'vous';
+}
+
+/**
+ * Emplacement du foyer qu'occupe un compte
+ *
+ * L'application connaissait l'adresse du compte connecté et ne s'en servait
+ * jamais pour cela : la saisie rapide proposait `vous` en dur, quel que soit le
+ * téléphone. Sur celui de la conjointe, chaque dépense expédiée en trois gestes
+ * était donc attribuée à l'autre.
+ *
+ * La comparaison ignore la casse et les espaces : une adresse saisie
+ * « Bigot.Richard@gmail.com » désigne le même compte, et la table serait sinon
+ * silencieusement inopérante.
+ *
+ * Le repli est `vous` — le comportement d'avant. Un compte absent de la table
+ * garde donc une application utilisable, simplement sans cette amélioration.
+ *
+ * @param {string|null} email - Adresse du compte authentifié
+ * @param {Object} [table] - Table `adresse → emplacement`
+ * @returns {string} 'vous' ou 'conjointe'
+ */
+export function emplacementDuCompte(email, table) {
+  if (typeof email !== 'string' || !table || typeof table !== 'object') return 'vous';
+
+  const recherchee = email.trim().toLowerCase();
+  if (!recherchee) return 'vous';
+
+  for (const [adresse, emplacement] of Object.entries(table)) {
+    if (typeof adresse !== 'string') continue;
+    if (adresse.trim().toLowerCase() !== recherchee) continue;
+    return emplacement === 'conjointe' ? 'conjointe' : 'vous';
+  }
+
+  return 'vous';
+}
+
+/**
  * Valide un prénom saisi
  *
  * Un prénom vide est accepté : il rétablit le libellé par défaut plutôt que

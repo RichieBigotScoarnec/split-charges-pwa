@@ -6,7 +6,8 @@
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS } from '../config.js';
+import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS, EMPLACEMENTS_PAR_COMPTE } from '../config.js';
+import { emplacementDuCompte } from '../utils/members.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -612,6 +613,13 @@ export function initAuth() {
     // Set current user ID for multi-user database structure
     const { setAuthenticatedUser, getDataRoot } = await import('../db.js');
     setAuthenticatedUser(user ? user.uid : null, user ? user.email : null);
+
+    // Qui tient le téléphone. Sans cela, la saisie rapide partait sur `vous` en
+    // dur : sur le second appareil, chaque dépense expédiée sans y penser était
+    // attribuée à l'autre, et le solde s'en trouvait faussé en silence.
+    // L'adresse elle-même n'est pas conservée dans l'état — seul l'emplacement,
+    // qui ne dit rien de plus que « l'un des deux ».
+    setState('emplacementCourant', user ? emplacementDuCompte(user.email, EMPLACEMENTS_PAR_COMPTE) : 'vous');
 
     // Un compte cantonné au bac à sable doit le voir à l'écran : l'URL ne le
     // dit pas, et rien d'autre ne distingue un essai des vraies données.
