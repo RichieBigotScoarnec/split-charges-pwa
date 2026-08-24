@@ -16,8 +16,11 @@ import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
+import { formatDate } from '../utils/date.js';
 import {
   normaliserEnveloppes,
+  chargesDeLEnveloppeTousMois,
+  bilanEnveloppe,
   enveloppesOuvertes,
   enveloppeParId,
   budgetLisible,
@@ -334,7 +337,10 @@ function ligneEnveloppe(enveloppe, index, charges) {
       <span class="manage-item-label">
         ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>
+        <small class="envelope-detail envelope-detail--indice">🔍 pour le total sur toute sa durée</small>
       </span>
+      <button type="button" class="btn-icon envelope-ouvrir" data-index="${index}"
+              aria-label="Voir le détail de ${escapeHtml(enveloppe.label)}">🔍</button>
       <button type="button" class="btn-icon envelope-editer" data-index="${index}"
               aria-label="Modifier ${escapeHtml(enveloppe.label)}">✏️</button>
       <button type="button" class="btn-icon envelope-toggle" data-index="${index}"
@@ -354,12 +360,18 @@ function ligneEnveloppe(enveloppe, index, charges) {
  */
 function decrireFenetre(enveloppe) {
   if (!enveloppe.debut && !enveloppe.fin) return '';
-  if (enveloppe.debut && enveloppe.fin) {
-    return ` · ${escapeHtml(enveloppe.debut)} → ${escapeHtml(enveloppe.fin)}`;
-  }
-  return enveloppe.debut
-    ? ` · à partir du ${escapeHtml(enveloppe.debut)}`
-    : ` · jusqu'au ${escapeHtml(enveloppe.fin)}`;
+
+  // En toutes lettres, comme partout ailleurs dans l'application. La ligne
+  // affichait « 2026-08-01 → 2026-08-15 » en chasse fixe, au milieu d'un écran
+  // qui écrit « 15 août 2026 » : de la donnée brute, là où l'on cherche une
+  // date.
+  const debut = enveloppe.debut ? formatDate(enveloppe.debut) : '';
+  const fin = enveloppe.fin ? formatDate(enveloppe.fin) : '';
+
+  if (debut && fin) return ` · ${escapeHtml(debut)} → ${escapeHtml(fin)}`;
+  return debut
+    ? ` · à partir du ${escapeHtml(debut)}`
+    : ` · jusqu'au ${escapeHtml(fin)}`;
 }
 
 /**
@@ -452,6 +464,14 @@ function brancherEcran(modal) {
     if (evenement.key !== 'Enter') return;
     evenement.preventDefault();
     ajouter();
+  });
+
+  // Ouvrir le détail d'une enveloppe
+  modal.querySelectorAll('.envelope-ouvrir').forEach(bouton => {
+    bouton.addEventListener('click', () => {
+      const cible = getEnveloppes()[Number(bouton.dataset.index)];
+      if (cible) ouvrirLaVueEnveloppe(cible.id);
+    });
   });
 
   // Ouvrir l'édition d'une enveloppe
@@ -583,6 +603,159 @@ function brancherEcran(modal) {
     modal.classList.remove('active');
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   });
+}
+
+// ===== VUE D'UNE ENVELOPPE, TOUS MOIS CONFONDUS =====
+
+/**
+ * Ouvre le détail d'une enveloppe
+ *
+ * L'écran de gestion ne comptait que le mois consulté — « 320 € ce mois-ci » —
+ * ce qui est l'inverse du besoin : une enveloppe existe pour traverser les
+ * mois, et le seul chiffre qu'on lui demande, ce qu'ont coûté les vacances en
+ * tout, était le seul qu'on ne pouvait pas obtenir. Son budget se mesurait donc
+ * au mauvais nombre, et rien ne permettait de voir ce qu'elle contient.
+ *
+ * La lecture du nœud complet ne se fait qu'à l'ouverture de cette vue, jamais
+ * au fil de l'écran de gestion : c'est la seule requête coûteuse du module.
+ *
+ * @param {string} id - Identifiant de l'enveloppe
+ * @returns {Promise<void>}
+ */
+async function ouvrirLaVueEnveloppe(id) {
+  const enveloppe = enveloppeParId(getEnveloppes(), id);
+  if (!enveloppe) return;
+
+  let charges;
+  try {
+    const { dbGet } = await import('../db.js');
+    charges = chargesDeLEnveloppeTousMois(await dbGet('periods'), id);
+  } catch (erreur) {
+    logError('❌ Lecture des dépenses de l\'enveloppe impossible :', erreur);
+    toast.error('Dépenses illisibles — réessayez');
+    return;
+  }
+
+  const bilan = bilanEnveloppe(charges, enveloppe.budget);
+
+  let modal = document.getElementById('modalVueEnveloppe');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalVueEnveloppe';
+    modal.className = 'modal-overlay';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'vueEnveloppeTitre');
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div class="modal enveloppe-vue">
+      <h2 class="modal-header" id="vueEnveloppeTitre">
+        ${escapeHtml(enveloppe.icon)} ${escapeHtml(enveloppe.label)}
+      </h2>
+
+      <div class="enveloppe-total">
+        <div class="enveloppe-total-montant">${formatCurrency(bilan.total)}</div>
+        <div class="enveloppe-total-detail">${resumeDuBilan(bilan)}</div>
+        ${jaugeBudget(bilan, enveloppe.budget)}
+      </div>
+
+      <div class="enveloppe-depenses">
+        ${charges.length === 0
+          ? '<p class="empty-state">Aucune dépense rattachée pour l\'instant. Choisissez cette enveloppe au moment de saisir une charge.</p>'
+          : charges.map(ligneDepense).join('')}
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="vueEnveloppeFermer">Fermer</button>
+      </div>
+    </div>
+  `;
+
+  modal.querySelector('#vueEnveloppeFermer').addEventListener('click', () => {
+    modal.classList.remove('active');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+  });
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('active'));
+}
+
+/**
+ * La phrase qui accompagne le total
+ *
+ * @param {Object} bilan - Rendu par `bilanEnveloppe`
+ * @returns {string} Fragment échappé
+ */
+function resumeDuBilan(bilan) {
+  const depenses = `${bilan.nombre} dépense${bilan.nombre > 1 ? 's' : ''}`;
+  const mois = bilan.mois > 1 ? ` sur ${bilan.mois} mois` : '';
+  return escapeHtml(`${depenses}${mois}`);
+}
+
+/**
+ * La jauge de budget, quand l'enveloppe en porte un
+ *
+ * @param {Object} bilan
+ * @param {number|null} budget
+ * @returns {string} Fragment échappé, ou chaîne vide
+ */
+function jaugeBudget(bilan, budget) {
+  if (bilan.part === null) return '';
+
+  const etat = bilan.depasse ? 'depasse' : (bilan.part >= 80 ? 'proche' : 'ok');
+  const reste = bilan.depasse
+    ? `${formatCurrency(Math.abs(bilan.reste))} de plus que prévu`
+    : `${formatCurrency(bilan.reste)} restants`;
+
+  return `
+    <div class="enveloppe-jauge enveloppe-jauge--${etat}">
+      <div class="enveloppe-jauge-barre" style="width: ${bilan.part}%"></div>
+    </div>
+    <div class="enveloppe-jauge-legende">
+      ${escapeHtml(reste)} sur ${formatCurrency(budget)}
+    </div>
+  `;
+}
+
+/**
+ * Une dépense de la liste
+ *
+ * @param {Object} charge - Charge portant sa période
+ * @returns {string} Fragment échappé
+ */
+function ligneDepense(charge) {
+  const quand = charge.date ? formatDate(charge.date) : moisLisible(charge.periode);
+
+  return `
+    <div class="enveloppe-depense">
+      <div class="enveloppe-depense-titre">
+        ${escapeHtml(charge.description || 'Sans description')}
+        ${charge.fixe ? '<span class="charge-split-tag">fixe</span>' : ''}
+      </div>
+      <div class="enveloppe-depense-detail">
+        ${escapeHtml(quand)}${charge.category ? ` · ${escapeHtml(charge.category)}` : ''}
+      </div>
+      <div class="enveloppe-depense-montant">${formatCurrency(charge.amount || 0)}</div>
+    </div>
+  `;
+}
+
+/**
+ * Un mois écrit en toutes lettres
+ *
+ * Les dates d'enveloppe s'affichaient en ISO brut — « 2026-08-01 → 2026-08-15 »
+ * — au milieu d'une application qui écrit partout ailleurs « 15 août 2026 ».
+ *
+ * @param {string} periode - Clé AAAA-MM
+ * @returns {string}
+ */
+export function moisLisible(periode) {
+  if (typeof periode !== 'string' || !/^\d{4}-\d{2}$/.test(periode)) return '';
+  const [annee, mois] = periode.split('-');
+  return new Date(Number(annee), Number(mois) - 1, 1)
+    .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
 // Joignable depuis le balisage, par la délégation `data-action` de init.js.

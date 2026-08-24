@@ -140,3 +140,41 @@ test.describe('Modifier une enveloppe', () => {
     expect(apres.id, 'l\'identifiant a changé, les charges sont détachées').toBe(idAvant);
   });
 });
+
+test.describe('Voir une enveloppe', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  test('le total porte sur toute sa durée, pas sur le mois consulté', async ({ page }) => {
+    await page.evaluate(() => window.showManageEnvelopesModal());
+    await page.locator('#envelopeNewLabel').fill('Vacances été');
+    await page.locator('#envelopeNewBudget').fill('1000');
+    await page.locator('#envelopeAddBtn').click();
+    await page.waitForTimeout(400);
+
+    // Trois dépenses, sur deux mois, fixes et variables mêlées.
+    await page.evaluate(async () => {
+      const { dbGet, dbUpdate } = await import('/js/db.js');
+      const id = (await dbGet('envelopes'))[0].id;
+      await dbUpdate(undefined, {
+        'periods/2026-07/variableCharges/x1': { description: 'Péage', amount: 42, envelope: id, date: '2026-07-28', category: 'Transport', paidBy: 'vous' },
+        'periods/2026-08/variableCharges/x2': { description: 'Restaurant du port', amount: 58, envelope: id, date: '2026-08-03', category: 'Restaurant', paidBy: 'vous' },
+        'periods/2026-08/fixedCharges/x3': { description: 'Location gîte', amount: 600, envelope: id, date: '2026-08-01', category: 'Maison', paidBy: 'conjointe' }
+      });
+    });
+
+    await page.locator('.envelope-ouvrir').first().click();
+
+    // C'est le chiffre qui manquait : l'écran de gestion ne comptait que le
+    // mois consulté, et une enveloppe existe pour traverser les mois.
+    await expect(page.locator('.enveloppe-total-montant')).toContainText('700');
+    await expect(page.locator('.enveloppe-total-detail')).toContainText('3 dépenses sur 2 mois');
+    await expect(page.locator('.enveloppe-jauge-legende')).toContainText('restants');
+
+    // Les trois dépenses, du plus récent au plus ancien.
+    expect(await page.locator('.enveloppe-depense-titre').allInnerTexts())
+      .toEqual(['Restaurant du port', 'Location gîte fixe', 'Péage']);
+  });
+});

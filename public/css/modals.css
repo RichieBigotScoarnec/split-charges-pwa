@@ -986,3 +986,93 @@
 .envelope-edition-actions .btn {
   flex: 1;
 }
+
+/* ===== VUE D'UNE ENVELOPPE =====
+   L'écran de gestion ne comptait que le mois consulté, ce qui est l'inverse du
+   besoin : une enveloppe existe pour traverser les mois. Cette vue donne le
+   seul chiffre qu'on lui demande — ce qu'elle a coûté en tout — et la liste de
+   ce qu'elle contient. */
+.enveloppe-total {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+}
+
+.enveloppe-total-montant {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.enveloppe-total-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.enveloppe-jauge {
+  height: 8px;
+  margin-top: var(--space-md);
+  border-radius: var(--radius-full);
+  background: var(--border-color);
+  overflow: hidden;
+}
+
+.enveloppe-jauge-barre {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--success-color);
+}
+
+.enveloppe-jauge--proche .enveloppe-jauge-barre { background: var(--warning-color); }
+.enveloppe-jauge--depasse .enveloppe-jauge-barre { background: var(--danger-color); }
+
+.enveloppe-jauge-legende {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.enveloppe-depenses {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.enveloppe-depense {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.enveloppe-depense-titre {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.enveloppe-depense-detail {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.enveloppe-depense-montant {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Le total de la ligne ne porte que sur le mois consulté : dire où trouver
+   l'autre évite de prendre celui-ci pour le total de l'enveloppe. */
+.envelope-detail--indice {
+  display: block;
+  color: var(--text-muted);
+}
