@@ -8,6 +8,7 @@ import { toast } from '../components/toast.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
+import { planRenommage, libelleAcceptable } from '../utils/renommage.js';
 
 // Réexporté : la fabrication d'identifiant vit désormais dans `utils/`, mais
 // elle est appelée d'ici depuis toujours et testée sous ce nom.
@@ -354,7 +355,53 @@ export function populateAllSelects() {
   populateDestinationSelect('fixedChargeDestination');
 }
 
+/**
+ * Reporte un renommage sur les charges qui portaient l'ancien libellé
+ *
+ * Une charge ne porte pas l'identifiant de sa catégorie, elle en porte le
+ * libellé : `charge.category` vaut « Courses ». Renommer la seule liste
+ * reviendrait donc exactement à la suppression-recréation qu'on veut éviter —
+ * le récapitulatif par catégorie, les budgets et les filtres de la carte
+ * cesseraient tous de reconnaître l'ancien nom.
+ *
+ * L'écriture est unique : `update` sur la racine applique tous les chemins ou
+ * aucun. Un renommage à moitié appliqué laisserait deux catégories là où
+ * l'utilisateur en voit une.
+ *
+ * @param {'category'|'destination'} champ
+ * @param {string} ancien - Libellé d'avant
+ * @param {string} nouveau - Libellé voulu
+ * @returns {Promise<number>} Nombre de charges suivies
+ */
+async function reporterSurLesCharges(champ, ancien, nouveau) {
+  try {
+    const { dbGet, dbUpdate } = await import('../db.js');
+    const periods = await dbGet('periods');
+
+    const { chemins, nombre } = planRenommage({ periods, champ, ancien, nouveau });
+    if (nombre === 0) return 0;
+
+    await dbUpdate(undefined, chemins);
+    log(`✏️ ${nombre} charge(s) suivies vers « ${nouveau} »`);
+    return nombre;
+  } catch (erreur) {
+    // La liste porte déjà le nouveau nom, mais les charges gardent l'ancien :
+    // le dire plutôt que de laisser découvrir un récapitulatif à deux entrées.
+    logError('❌ Report du renommage impossible :', erreur);
+    toast.error('Nom changé, mais les charges gardent l\'ancien — réessayez');
+    return 0;
+  }
+}
+
 // ===== MODAL DE GESTION =====
+
+/**
+ * Rang de l'entrée en cours d'édition, ou null
+ *
+ * Une seule à la fois : deux lignes ouvertes simultanément laisseraient croire
+ * qu'un seul « ✓ » enregistre les deux.
+ */
+let _enEdition = null;
 
 /**
  * Affiche le modal de gestion (catégories ou destinations)
@@ -382,15 +429,36 @@ function showManageModal(listType) {
       <h2 class="modal-header" id="manageListsTitle">${title}</h2>
       <div class="manage-lists-content">
         <div id="manageListItems" class="manage-list-items">
-          ${items.map((item, index) => `
+          ${items.map((item, index) => (index === _enEdition ? `
+            <!-- Édition sur place : ouvrir une seconde modale pour deux champs
+                 ferait perdre de vue la liste dans laquelle on se repère. -->
+            <div class="manage-list-item manage-list-item--edition" data-index="${index}">
+              <button type="button" class="manage-emoji-btn manage-item-emoji" data-index="${index}"
+                      aria-label="Changer l'image de ${escapeHtml(item.label || '')}">${escapeHtml(item.icon)}</button>
+              <label class="sr-only" for="manageEditLabel">Nouveau nom</label>
+              <input type="text" id="manageEditLabel" value="${escapeHtml(item.label)}" maxlength="30" />
+              <button type="button" class="btn-icon manage-item-valider" data-index="${index}"
+                      aria-label="Enregistrer">✓</button>
+              <button type="button" class="btn-icon manage-item-annuler"
+                      aria-label="Annuler">✕</button>
+            </div>
+            <div id="manageEditEmojiPicker" class="manage-emoji-picker" style="display:none;">
+              ${EMOJI_PICKER.map(emoji => `
+                <button type="button" class="emoji-pick emoji-pick--edition" data-emoji="${escapeHtml(emoji)}">${escapeHtml(emoji)}</button>
+              `).join('')}
+            </div>
+          ` : `
             <div class="manage-list-item" data-index="${index}">
               <span class="manage-item-icon">${escapeHtml(item.icon)}</span>
               <span class="manage-item-label">${escapeHtml(item.label)}</span>
+              <button type="button" class="btn-icon manage-item-editer" data-index="${index}" aria-label="Renommer ${escapeHtml(item.label || '')}">
+                ✏️
+              </button>
               <button type="button" class="btn-icon btn-delete manage-item-delete" data-index="${index}" aria-label="Supprimer ${escapeHtml(item.label || '')}">
                 ✕
               </button>
             </div>
-          `).join('')}
+          `)).join('')}
         </div>
 
         <div class="manage-list-add">
@@ -486,6 +554,90 @@ function showManageModal(listType) {
     }
   });
 
+  // Ouvrir l'édition d'une ligne
+  modal.querySelectorAll('.manage-item-editer').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _enEdition = parseInt(btn.dataset.index);
+      showManageModal(listType);
+      modal.querySelector('#manageEditLabel')?.focus();
+    });
+  });
+
+  modal.querySelector('.manage-item-annuler')?.addEventListener('click', () => {
+    _enEdition = null;
+    showManageModal(listType);
+  });
+
+  // Changer l'image sans quitter l'édition
+  const emojiEdition = modal.querySelector('.manage-item-emoji');
+  const plancheEdition = modal.querySelector('#manageEditEmojiPicker');
+  if (emojiEdition && plancheEdition) {
+    emojiEdition.addEventListener('click', () => {
+      plancheEdition.style.display = plancheEdition.style.display === 'none' ? 'flex' : 'none';
+    });
+    modal.querySelectorAll('.emoji-pick--edition').forEach(pastille => {
+      pastille.addEventListener('click', () => {
+        emojiEdition.textContent = pastille.dataset.emoji;
+        plancheEdition.style.display = 'none';
+      });
+    });
+  }
+
+  const enregistrerEdition = async () => {
+    const index = _enEdition;
+    const champ = modal.querySelector('#manageEditLabel');
+    if (index === null || !champ) return;
+
+    const avant = isCategories ? getCategories() : getDestinations();
+    const cible = avant[index];
+    if (!cible) return;
+
+    const verdict = libelleAcceptable(champ.value, avant, index);
+    if (!verdict.valide) {
+      toast.error(verdict.erreur);
+      champ.focus();
+      return;
+    }
+
+    const nouveau = champ.value.trim();
+    const icone = emojiEdition ? emojiEdition.textContent.trim() : cible.icon;
+    const renomme = nouveau !== cible.label;
+
+    const apres = avant.map((item, rang) => (
+      rang === index ? { ...item, label: nouveau, icon: icone } : item
+    ));
+
+    // La liste d'abord : si la migration des charges échoue, l'ancien libellé
+    // reste celui des charges — et il figure encore dans la liste, donc rien
+    // n'est détaché. L'ordre inverse laisserait des charges orphelines.
+    if (isCategories) {
+      await saveCategories(apres, avant);
+    } else {
+      await saveDestinations(apres, avant);
+    }
+
+    let reportees = 0;
+    if (renomme) {
+      reportees = await reporterSurLesCharges(
+        isCategories ? 'category' : 'destination', cible.label, nouveau
+      );
+    }
+
+    _enEdition = null;
+    toast.success(reportees > 0
+      ? `« ${nouveau} » — ${reportees} charge${reportees > 1 ? 's' : ''} suivi${reportees > 1 ? 'es' : 'e'}`
+      : `« ${nouveau} » enregistré`);
+    populateAllSelects();
+    showManageModal(listType);
+  };
+
+  modal.querySelector('.manage-item-valider')?.addEventListener('click', enregistrerEdition);
+  modal.querySelector('#manageEditLabel')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    enregistrerEdition();
+  });
+
   // Delete items
   modal.querySelectorAll('.manage-item-delete').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -508,6 +660,9 @@ function showManageModal(listType) {
 
   // Close
   closeBtn.addEventListener('click', () => {
+    // Sans cela, rouvrir l'écran retrouverait une ligne en édition dont plus
+    // personne ne se souvient.
+    _enEdition = null;
     modal.classList.remove('active');
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   });

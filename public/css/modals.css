@@ -458,9 +458,15 @@
   border-radius: var(--radius);
 }
 
+/*
+   44 px, et non 36 : c'est le seuil des WCAG 2.5.5, et la seule cible de
+   l'application qui restait en dessous. Une planche de cinquante-sept
+   pastilles serrées à 36 px se rate au doigt, et l'on repart avec une image
+   qu'on n'a pas choisie.
+*/
 .emoji-pick {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   background: transparent;
@@ -921,4 +927,62 @@
    ménager la place. */
 .quick-add-panneau {
   margin-bottom: var(--space-md);
+}
+
+/* ===== ÉDITION SUR PLACE D'UNE ENTRÉE =====
+   Renommer était promis par les deux info-bulles — « Ajouter, renommer ou
+   retirer » — et n'existait nulle part : corriger « Restaurent » imposait de
+   supprimer et recréer, ce qui détachait toutes les charges passées.
+
+   L'édition se fait dans la ligne : ouvrir une seconde modale pour deux champs
+   ferait perdre de vue la liste dans laquelle on se repère. */
+.manage-list-item--edition {
+  gap: var(--space-sm);
+  border: 1px solid var(--primary-color);
+  background: var(--primary-soft);
+}
+
+.manage-list-item--edition input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.manage-list-item--edition input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.manage-item-emoji {
+  flex-shrink: 0;
+}
+
+.manage-item-editer {
+  flex-shrink: 0;
+}
+
+/* Le formulaire d'enveloppe édité occupe la ligne entière : quatre champs ne
+   tiennent pas côte à côte sur un téléphone. */
+.envelope-edition {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.envelope-edition-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.envelope-edition-actions .btn {
+  flex: 1;
 }

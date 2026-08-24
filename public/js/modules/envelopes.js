@@ -153,6 +153,14 @@ export function populateAllEnvelopeSelects() {
 // ===== ÉCRAN DE GESTION =====
 
 /**
+ * Rang de l'enveloppe en cours d'édition, ou null
+ *
+ * Une seule à la fois : deux formulaires ouverts laisseraient croire qu'un seul
+ * « Enregistrer » vaut pour les deux.
+ */
+let _enEdition = null;
+
+/**
  * Charges du mois consulté, fixes et variables confondues
  *
  * Le total affiché à côté de chaque enveloppe ne porte donc que sur ce mois-ci,
@@ -190,7 +198,11 @@ function showManageEnvelopesModal() {
 
   const lignes = enveloppes.length === 0
     ? '<p class="empty-state">Aucune enveloppe. Créez-en une pour regrouper des dépenses qui vont ensemble — des vacances, un déménagement.</p>'
-    : enveloppes.map((enveloppe, index) => ligneEnveloppe(enveloppe, index, charges)).join('');
+    : enveloppes.map((enveloppe, index) => (
+      index === _enEdition
+        ? formulaireEdition(enveloppe, index)
+        : ligneEnveloppe(enveloppe, index, charges)
+    )).join('');
 
   modal.innerHTML = `
     <div class="modal manage-lists-modal">
@@ -252,6 +264,56 @@ function showManageEnvelopesModal() {
 }
 
 /**
+ * Le formulaire d'édition d'une enveloppe, à la place de sa ligne
+ *
+ * Une enveloppe se créait, se clôturait, se rouvrait et se supprimait — jamais
+ * elle ne se modifiait. Une faute de frappe dans « Vacanes été » ne se réparait
+ * donc qu'en supprimant, ce qui détachait toutes les charges rattachées.
+ *
+ * Contrairement aux catégories, rien n'a besoin d'être reporté : une charge
+ * renvoie à son enveloppe par identifiant, que le renommage ne touche pas.
+ *
+ * @param {Object} enveloppe
+ * @param {number} index
+ * @returns {string} Fragment HTML échappé
+ */
+function formulaireEdition(enveloppe, index) {
+  return `
+    <div class="manage-list-item manage-list-item--edition envelope-edition" data-index="${index}">
+      <div class="manage-add-row">
+        <button type="button" id="envelopeEditEmojiBtn" class="manage-emoji-btn"
+                aria-label="Changer l'image">${escapeHtml(enveloppe.icon)}</button>
+        <label class="sr-only" for="envelopeEditLabel">Nom de l'enveloppe</label>
+        <input type="text" id="envelopeEditLabel" value="${escapeHtml(enveloppe.label)}" maxlength="30" />
+      </div>
+      <div id="envelopeEditEmojiPicker" class="manage-emoji-picker" style="display:none;">
+        ${emojisProposes().map(emoji => `
+          <button type="button" class="emoji-pick emoji-pick--edition" data-emoji="${escapeHtml(emoji)}">${escapeHtml(emoji)}</button>
+        `).join('')}
+      </div>
+      <div class="envelope-add-details">
+        <div class="envelope-field">
+          <label for="envelopeEditBudget">Budget (€, facultatif)</label>
+          <input type="text" id="envelopeEditBudget" value="${enveloppe.budget ?? ''}" inputmode="decimal" maxlength="10" />
+        </div>
+        <div class="envelope-field">
+          <label for="envelopeEditDebut">Du (facultatif)</label>
+          <input type="date" id="envelopeEditDebut" value="${escapeHtml(enveloppe.debut || '')}" />
+        </div>
+        <div class="envelope-field">
+          <label for="envelopeEditFin">Au (facultatif)</label>
+          <input type="date" id="envelopeEditFin" value="${escapeHtml(enveloppe.fin || '')}" />
+        </div>
+      </div>
+      <div class="envelope-edition-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="envelopeEditAnnuler">Annuler</button>
+        <button type="button" class="btn btn-primary btn-sm" id="envelopeEditValider">Enregistrer</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Une ligne de la liste de gestion
  *
  * @param {Object} enveloppe
@@ -273,6 +335,8 @@ function ligneEnveloppe(enveloppe, index, charges) {
         ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>
       </span>
+      <button type="button" class="btn-icon envelope-editer" data-index="${index}"
+              aria-label="Modifier ${escapeHtml(enveloppe.label)}">✏️</button>
       <button type="button" class="btn-icon envelope-toggle" data-index="${index}"
               aria-label="${enveloppe.cloturee ? 'Rouvrir' : 'Clore'} ${escapeHtml(enveloppe.label)}">
         ${enveloppe.cloturee ? '♻️' : '📥'}
@@ -390,6 +454,81 @@ function brancherEcran(modal) {
     ajouter();
   });
 
+  // Ouvrir l'édition d'une enveloppe
+  modal.querySelectorAll('.envelope-editer').forEach(bouton => {
+    bouton.addEventListener('click', () => {
+      _enEdition = Number(bouton.dataset.index);
+      showManageEnvelopesModal();
+      document.getElementById('envelopeEditLabel')?.focus();
+    });
+  });
+
+  modal.querySelector('#envelopeEditAnnuler')?.addEventListener('click', () => {
+    _enEdition = null;
+    showManageEnvelopesModal();
+  });
+
+  const emojiEdition = modal.querySelector('#envelopeEditEmojiBtn');
+  const plancheEdition = modal.querySelector('#envelopeEditEmojiPicker');
+  if (emojiEdition && plancheEdition) {
+    emojiEdition.addEventListener('click', () => {
+      plancheEdition.style.display = plancheEdition.style.display === 'none' ? 'flex' : 'none';
+    });
+    modal.querySelectorAll('.emoji-pick--edition').forEach(pastille => {
+      pastille.addEventListener('click', () => {
+        emojiEdition.textContent = pastille.dataset.emoji;
+        plancheEdition.style.display = 'none';
+      });
+    });
+  }
+
+  modal.querySelector('#envelopeEditValider')?.addEventListener('click', async () => {
+    const index = _enEdition;
+    const avant = getEnveloppes();
+    const cible = avant[index];
+    if (!cible) return;
+
+    const libelle = modal.querySelector('#envelopeEditLabel').value.trim();
+    if (!libelle) {
+      toast.error('Nom requis');
+      return;
+    }
+
+    // La comparaison exclut l'enveloppe éditée : garder son propre nom parce
+    // qu'on ne change que le budget ne doit pas se heurter à soi-même.
+    const doublon = avant.some((e, rang) =>
+      rang !== index && e.label.toLowerCase() === libelle.toLowerCase());
+    if (doublon) {
+      toast.error('Ce nom existe déjà');
+      return;
+    }
+
+    const debut = dateLisible(modal.querySelector('#envelopeEditDebut').value);
+    const fin = dateLisible(modal.querySelector('#envelopeEditFin').value);
+    if (!fenetreCoherente(debut, fin)) {
+      toast.error('La date de fin précède celle de début');
+      return;
+    }
+
+    const apres = avant.map((enveloppe, rang) => (rang === index ? {
+      ...enveloppe,
+      label: libelle,
+      icon: emojiEdition ? emojiEdition.textContent.trim() : enveloppe.icon,
+      budget: budgetLisible(modal.querySelector('#envelopeEditBudget').value),
+      debut,
+      fin
+    } : enveloppe));
+
+    if (!await enregistrer(apres, avant)) return;
+
+    // L'identifiant ne bouge pas : les charges rattachées le restent, sans
+    // qu'aucune écriture ne les touche.
+    _enEdition = null;
+    toast.success(`« ${libelle} » enregistrée`);
+    populateAllEnvelopeSelects();
+    showManageEnvelopesModal();
+  });
+
   modal.querySelectorAll('.envelope-toggle').forEach(bouton => {
     bouton.addEventListener('click', async () => {
       const index = Number(bouton.dataset.index);
@@ -438,6 +577,9 @@ function brancherEcran(modal) {
   });
 
   modal.querySelector('#envelopeManageClose').addEventListener('click', () => {
+    // Sans cela, rouvrir l'écran retrouverait un formulaire ouvert dont plus
+    // personne ne se souvient.
+    _enEdition = null;
     modal.classList.remove('active');
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   });

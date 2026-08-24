@@ -68,7 +68,9 @@ export const REACTIVE_FIREBASE_MOCK = `
     initializeApp: function() { return {}; },
     database: function() {
       return {
-        ref: function(path) {
+        // Expression de fonction nommee : elle se rappelle par son nom pour
+        // appliquer les chemins relatifs d'un update, comme le fait la base.
+        ref: function ref(path) {
           return {
             on: function(event, cb) {
               if (path === '.info/connected') {
@@ -122,6 +124,28 @@ export const REACTIVE_FIREBASE_MOCK = `
                   _notify(chemin);
                   _notify(parent);
                 });
+                return Promise.resolve();
+              }
+
+              // Une cle contenant une barre oblique est un chemin relatif, y
+              // compris depuis un noeud intermediaire -- pas seulement depuis
+              // la racine, comme ce double le supposait. Sur la vraie base,
+              // ref('household').update({'periods/2026-08/x/category': 'Restos'})
+              // ecrit bien la categorie de cette charge, et non une cle nommee
+              // 'periods/2026-08/x/category' sous household.
+              //
+              // L'infidelite a echappe au renommage des categories : la liste
+              // changeait de nom, les charges gardaient l'ancien, et le test de
+              // bout en bout donnait raison au defaut.
+              var relatifs = Object.keys(data).filter(function(cle) { return cle.indexOf('/') !== -1; });
+              if (relatifs.length) {
+                relatifs.forEach(function(relatif) {
+                  ref(path + '/' + relatif).set(data[relatif]);
+                });
+                Object.keys(data).forEach(function(cle) {
+                  if (cle.indexOf('/') === -1) ref(path + '/' + cle).set(data[cle]);
+                });
+                _notify(path);
                 return Promise.resolve();
               }
 
