@@ -221,6 +221,57 @@ describe('État de la liaison', () => {
   });
 });
 
+describe('Le tout premier contact avec la base', () => {
+  /**
+   * Signale a l'usage : « l'acces est lent », « un Quick add qui met 20 ans a
+   * s'ouvrir ». Mesure : ce n'est ni le journal (0,10 ms par entree) ni le
+   * miroir (0,22 ms la lecture, a leur volume de donnees). C'est cette unique
+   * attente — la premiere lecture paie l'integralite du delai de garde avant
+   * que la coupure ne soit constatee, et les onze suivantes sont instantanees.
+   */
+
+  it('la première lecture n\'attend pas dix secondes pour conclure', async () => {
+    const { initDatabase: poserNeuf, setAuthenticatedUser: authNeuf, dbGet: lireNeuf } =
+      await import('../../public/js/db.js?premier=1');
+
+    poserNeuf(base);
+    authNeuf('uid-test', 'bigot.richard@gmail.com');
+    base.couper();
+    vi.useFakeTimers();
+
+    const lecture = lireNeuf('salaries');
+    const verdict = expect(lecture).rejects.toThrow(/sans réponse/);
+
+    // Trois secondes doivent suffire : une liaison saine répond en ~130 ms.
+    await vi.advanceTimersByTimeAsync(3200);
+    await verdict;
+  });
+
+  it('une fois la base jointe, le délai complet reprend', async () => {
+    // Une écriture perdue coûte une saisie : on ne l'abandonne pas au bout de
+    // trois secondes sous prétexte que le réseau a hoqueté.
+    const { initDatabase: poserNeuf, setAuthenticatedUser: authNeuf,
+      signalerLiaison: signalerNeuf, dbGet: lireNeuf } =
+      await import('../../public/js/db.js?complet=1');
+
+    poserNeuf(base);
+    authNeuf('uid-test', 'bigot.richard@gmail.com');
+    signalerNeuf(true);
+    base.couper();
+    vi.useFakeTimers();
+
+    const lecture = lireNeuf('salaries');
+    let reglee = false;
+    lecture.catch(() => { reglee = true; });
+
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(reglee, 'à quatre secondes, une lecture ordinaire attend encore').toBe(false);
+
+    await vi.advanceTimersByTimeAsync(7000);
+    await expect(lecture).rejects.toThrow(/sans réponse/);
+  });
+});
+
 describe('Lire hors réseau', () => {
   it('journalise chaque lecture servie par l\'appareil', async () => {
     // Sans cette trace, une application entièrement servie par le miroir est

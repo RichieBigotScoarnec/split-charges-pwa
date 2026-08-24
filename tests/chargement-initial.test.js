@@ -117,4 +117,78 @@ describe('La politique de securite', () => {
     expect(csp).not.toContain('fonts.googleapis.com');
     expect(csp).not.toContain('fonts.gstatic.com');
   });
+
+  it('laisse reCAPTCHA joindre son service, sans quoi App Check ne peut rien attester', () => {
+    // La panne que ce contrôle ferme : `script-src` et `frame-src` citaient
+    // www.google.com, `connect-src` non. Le script de reCAPTCHA se chargeait
+    // donc, son cadre s'affichait, et ses propres requêtes étaient refusées par
+    // la page elle-même. Le journal du téléphone montrait quatre violations
+    // « bloqué par connect-src » puis « attestation impossible : 400 », et la
+    // base restait injoignable sur un réseau parfaitement valide.
+    //
+    // Rien de tout cela ne se voit à l'écran : une origine oubliée dans une
+    // ligne de deux mille caractères ne se relit pas, elle se teste.
+    const csp = politique(html);
+
+    expect(csp['script-src'], 'reCAPTCHA charge son script depuis www.google.com')
+      .toContain('https://www.google.com');
+    expect(csp['frame-src'], 'reCAPTCHA affiche son épreuve dans un cadre')
+      .toContain('https://www.google.com');
+    expect(csp['connect-src'], 'reCAPTCHA fait ses propres requêtes vers www.google.com')
+      .toContain('https://www.google.com');
+
+    // L'échange du jeton d'attestation vise content-firebaseappcheck.googleapis.com
+    expect(csp['connect-src']).toContain('https://*.googleapis.com');
+  });
+
+  it('dit la même chose dans la page et dans firebase.json', () => {
+    // Deux copies d'une même règle divergent toujours : celle de firebase.json
+    // ne s'applique qu'à l'hébergement Firebase, celle de la page à GitHub
+    // Pages — d'où la production est servie. Corriger l'une en oubliant
+    // l'autre laisserait la panne intacte partout où l'oubli porte.
+    const entetes = JSON.parse(readFileSync(resolve(RACINE, 'firebase.json'), 'utf8'));
+    const entete = entetes.hosting.headers
+      .flatMap((regle) => regle.headers)
+      .find((en) => en.key === 'Content-Security-Policy');
+
+    expect(entete, 'firebase.json ne déclare plus de politique de sécurité').toBeTruthy();
+
+    const page = politique(html);
+    const hebergement = politique(entete.value);
+
+    // Les origines localhost n'appartiennent qu'à la page : `?emulator=1` ne
+    // s'utilise pas depuis l'hébergement. Le reste doit coïncider.
+    for (const directive of ['script-src', 'connect-src', 'frame-src', 'img-src']) {
+      const attendues = (page[directive] || [])
+        .filter((origine) => !origine.includes('localhost') && !origine.includes('127.0.0.1'));
+
+      for (const origine of attendues) {
+        expect(hebergement[directive] || [], `${directive} : ${origine} absent de firebase.json`)
+          .toContain(origine);
+      }
+    }
+  });
 });
+
+/**
+ * Découpe une politique de sécurité en directives
+ *
+ * @param {string} texte - Ligne de la balise meta, ou valeur de l'en-tête
+ * @returns {Object<string, string[]>} Origines autorisées, par directive
+ */
+function politique(texte) {
+  // Le balisage complet est accepté : on y isole la balise, plutôt que
+  // d'obliger chaque appelant à la retrouver — et à s'y tromper.
+  const balise = texte.split('\n').find((ligne) => ligne.includes('http-equiv="Content-Security-Policy"'));
+  const contenu = balise ? (balise.match(/content="([^"]+)"/) || [])[1] || '' : texte;
+
+  const directives = {};
+
+  for (const morceau of contenu.split(';')) {
+    const jetons = morceau.trim().split(/\s+/).filter(Boolean);
+    if (jetons.length === 0) continue;
+    directives[jetons[0]] = jetons.slice(1);
+  }
+
+  return directives;
+}

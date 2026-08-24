@@ -104,6 +104,39 @@ describe('Activation d\'App Check', () => {
     expect(activations[0].fournisseur.type).toBe('enterprise');
   });
 
+  it('`?appcheck=0` écarte l\'attestation, et le journal le dit', async () => {
+    // Ce commutateur existe pour trancher une question qu'on ne savait pas
+    // poser autrement : l'attestation empêche-t-elle la base d'être jointe ?
+    // Elle a passé deux jours à échouer sans que rien ne relie les deux faits.
+    // Ouvrir l'application des deux façons répond en un rechargement.
+    //
+    // Il doit se voir dans le journal, sinon il ferait pire que la panne :
+    // une session sans attestation qu'on prendrait pour une session normale.
+    const { initFirebase } = await chargerAvec({
+      APP_CHECK_SITE_KEY: '6Lc-cle-de-site',
+      APP_CHECK_DESACTIVE: true,
+      USE_EMULATOR: false
+    });
+
+    initFirebase();
+
+    expect(activations).toHaveLength(0);
+    expect(noter).toHaveBeenCalledWith('appcheck', expect.stringContaining('?appcheck=0'));
+  });
+
+  it('sans le commutateur, une clé configurée reste attestée', async () => {
+    // Le contraire du test précédent : le défaut ne doit pas basculer.
+    const { initFirebase } = await chargerAvec({
+      APP_CHECK_SITE_KEY: '6Lc-cle-de-site',
+      APP_CHECK_DESACTIVE: false,
+      USE_EMULATOR: false
+    });
+
+    initFirebase();
+
+    expect(activations).toHaveLength(1);
+  });
+
   it('sans clé, rien n\'est activé et l\'abandon est signalé', async () => {
     const { initFirebase } = await chargerAvec({ APP_CHECK_SITE_KEY: '', USE_EMULATOR: false });
     const { warn } = await import('../../public/js/utils/debug.js');

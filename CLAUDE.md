@@ -181,7 +181,9 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Hors réseau, l'application se chargeait et ne servait à rien : dix secondes par lecture, quinze par écriture, puis rien | `public/js/utils/miroir.js`, `public/js/db.js` | ✅ RÉSOLU 2026-08-24 — miroir des lectures et file d'attente durables, rejeu à la reconnexion | `localStorage` ; effacé à la déconnexion |
 | Le mode hors ligne ne savait en sortir que si Firebase annonçait la reconnexion — jamais de lui-même | `public/js/db.js`, `public/js/utils/connection-banner.js` | ✅ RÉSOLU 2026-08-24 — reprises espacées, au retour au premier plan, et deux issues sur le bandeau | Signalé après des heures bloquées |
 | Journal de diagnostic figé à 4 s, et effacé par le rechargement qui servait à le lire | `public/js/utils/diagnostics.js` | ✅ RÉSOLU 2026-08-24 — bouton « Rafraîchir », session précédente mise à l'abri à l'import | — |
-| App Check : `activate()` ne prouve rien, 0 requête validée sur 159 en 7 jours | `public/js/firebase-init.js` | ⚠️ INSTRUMENTÉ 2026-08-24 — `getToken()` et violations CSP journalisés ; cause encore inconnue | NE PAS passer en « Appliqué » avant d'avoir des requêtes validées |
+| App Check : `activate()` ne prouve rien, 0 requête validée sur 159 en 7 jours | `public/js/firebase-init.js` | ✅ RÉSOLU 2026-08-24 — cause trouvée : `connect-src` n'autorisait pas `www.google.com`, reCAPTCHA ne pouvait pas joindre son service | NE PAS passer en « Appliqué » avant de voir des requêtes validées dans la console |
+| `connect-src` interdisait à reCAPTCHA ses propres requêtes : App Check en « 400 », base injoignable sur un réseau valide | `public/FairSplit.html`, `firebase.json` | ✅ RÉSOLU 2026-08-24 — origine ajoutée des deux côtés, les deux politiques comparées par test | `?appcheck=0` pour ouvrir sans attestation |
+| Le compte des saisies retombait à zéro au retour au premier plan | `public/js/utils/connection-banner.js` | ✅ RÉSOLU 2026-08-24 — le bandeau retient le dernier compte annoncé | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

@@ -8,7 +8,8 @@ import {
   USE_EMULATOR,
   EMULATOR_PORTS,
   APP_CHECK_SITE_KEY,
-  APP_CHECK_PROVIDER
+  APP_CHECK_PROVIDER,
+  APP_CHECK_DESACTIVE
 } from './config.js';
 import { log, warn } from './utils/debug.js';
 import { noter } from './utils/diagnostics.js';
@@ -75,6 +76,12 @@ export function initFirebase() {
 function activateAppCheck() {
   if (USE_EMULATOR) {
     log('🧪 App Check ignoré : les émulateurs n\'exigent aucune attestation');
+    return false;
+  }
+
+  if (APP_CHECK_DESACTIVE) {
+    log('🧪 App Check écarté : ?appcheck=0');
+    noter('appcheck', 'écarté à la demande (?appcheck=0)');
     return false;
   }
 
