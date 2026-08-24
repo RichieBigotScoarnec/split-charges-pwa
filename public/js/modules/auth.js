@@ -8,7 +8,7 @@ import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS, EMPLACEMENTS_PAR_COMPTE } from '../config.js';
 import { emplacementDuCompte } from '../utils/members.js';
-import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
+import { initPeriod, loadPeriodData, backfillPeriodSalaries, chargerLesPeriodesConnues } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
@@ -405,6 +405,14 @@ async function initializeAppData() {
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.
     await backfillPeriodSalaries();
     await loadPeriodData();
+  }, failures);
+
+  await runStep('mois disponibles', async () => {
+    // Le sélecteur ne proposait que douze mois glissants, et c'est le seul
+    // moyen de naviguer : au-delà d'un an, les données restaient en base sans
+    // qu'aucun chemin ne puisse les afficher. Cette étape lui apprend ce que
+    // la base contient réellement.
+    await chargerLesPeriodesConnues();
   }, failures);
 
   await runStep('charges variables', async () => {
