@@ -11,6 +11,7 @@ import {
   nombreEnAttente,
   retirerOperation,
   oublierTout,
+  oublierLesLectures,
   integrerAuMiroir,
   appliquerOperations,
   cheminRelatif
@@ -296,7 +297,7 @@ describe('La file d\'attente des écritures', () => {
     expect(operationsEnAttente('household')[0].donnees).toBe(1);
   });
 
-  it('la déconnexion efface tout d\'un espace, et de lui seul', () => {
+  it('`oublierTout` efface tout d\'un espace, et de lui seul', () => {
     memoriserLecture('household', 'salaries', { vous: 2500 });
     empiler('household', { type: 'set', chemin: 'a', donnees: 1 }, 'op1');
     memoriserLecture('sandbox', 'salaries', { vous: 1 });
@@ -305,6 +306,46 @@ describe('La file d\'attente des écritures', () => {
 
     expect(nombreEnAttente('household')).toBe(0);
     expect(lectureMemorisee('household', 'salaries')).toBeNull();
+    expect(lectureMemorisee('sandbox', 'salaries').valeur).toEqual({ vous: 1 });
+  });
+});
+
+describe('Ce que la déconnexion emporte, et ce qu\'elle laisse', () => {
+  it('efface les lectures, garde les saisies qui ne sont encore que là', () => {
+    // Les deux moitiés du dossier n'ont pas la même nature. Le miroir est une
+    // copie : ce qu'il contient est en base, l'effacer ne perd rien. La file
+    // est un original — personne d'autre ne détient ce qu'elle porte.
+    //
+    // La déconnexion effaçait les deux, et le piège se refermait : la base
+    // injoignable, se reconnecter était le seul remède connu, et l'appliquer
+    // coûtait précisément la saisie qu'on cherchait à sauver.
+    memoriserLecture('household', 'salaries', { vous: 2500 });
+    empiler('household', { type: 'set', chemin: 'periods/2026-08/x', donnees: 5 }, 'op1');
+
+    oublierLesLectures('household');
+
+    expect(lectureMemorisee('household', 'salaries'), 'un montant du foyer est resté sur l\'appareil').toBeNull();
+    expect(nombreEnAttente('household'), 'la saisie a été emportée avec le miroir').toBe(1);
+    expect(operationsEnAttente('household')[0].donnees).toBe(5);
+  });
+
+  it('n\'écrit rien du tout quand il n\'y a rien à garder', () => {
+    // Sans file, le dossier entier part : laisser une coquille vide dans le
+    // stockage d'un appareil qu'on quitte n'a aucun objet.
+    memoriserLecture('household', 'salaries', { vous: 2500 });
+
+    oublierLesLectures('household');
+
+    expect(window.localStorage.getItem(cleDe('household'))).toBeNull();
+  });
+
+  it('ne touche pas à l\'autre espace de données', () => {
+    memoriserLecture('household', 'salaries', { vous: 2500 });
+    empiler('household', { type: 'set', chemin: 'a', donnees: 1 }, 'op1');
+    memoriserLecture('sandbox', 'salaries', { vous: 1 });
+
+    oublierLesLectures('household');
+
     expect(lectureMemorisee('sandbox', 'salaries').valeur).toEqual({ vous: 1 });
   });
 });

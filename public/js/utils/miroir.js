@@ -234,8 +234,11 @@ export function retirerOperation(racine, id) {
 /**
  * Efface tout d'un espace de données
  *
- * Appelé à la déconnexion : les montants d'un foyer n'ont rien à faire sur
- * l'appareil d'un compte qui n'y a plus accès.
+ * Les montants d'un foyer n'ont rien à faire sur l'appareil d'un compte qui
+ * n'y a plus accès. Cette fonction emporte donc aussi la file : ne l'employer
+ * que là où l'on veut réellement tout perdre.
+ *
+ * À la déconnexion, c'est `oublierLesLectures` qu'il faut — voir plus bas.
  *
  * @param {string} racine
  * @returns {void}
@@ -246,6 +249,42 @@ export function oublierTout(racine) {
   } catch {
     // Rien à faire de plus : le stockage est déjà hors d'atteinte.
   }
+}
+
+/**
+ * Efface ce qui a été lu, garde ce qui n'est pas encore parti
+ *
+ * La déconnexion effaçait les deux, et le piège s'est refermé pour de bon :
+ * la base restait injoignable, se reconnecter était le seul remède connu — il
+ * avait déjà fonctionné une fois — et l'application demandait, pour
+ * l'appliquer, de renoncer à la saisie qu'on cherchait précisément à sauver.
+ * Une porte de sortie qui exige de jeter ce qu'on emporte n'en est pas une.
+ *
+ * Les deux moitiés du dossier n'ont pourtant pas la même nature. Le miroir est
+ * une copie : ce qu'il contient est en base, l'effacer ne perd rien, et le
+ * garder laisserait les montants du foyer sur l'appareil d'un compte qui vient
+ * d'en sortir. La file, elle, est un original : personne d'autre ne détient ce
+ * qu'elle porte.
+ *
+ * Ce qui reste vaut donc pour le foyer, non pour le compte : la racine est la
+ * même pour tous les comptes autorisés, et les règles de sécurité refusent de
+ * toute façon d'écrire à qui ne l'est pas. Une file qui survit à la
+ * déconnexion repart à la connexion suivante, sans rien exposer de plus qu'une
+ * dépense saisie sur cet appareil et pas encore enregistrée.
+ *
+ * @param {string} racine
+ * @returns {boolean} true si quelque chose a été écrit
+ */
+export function oublierLesLectures(racine) {
+  const dossier = lireDossier(racine);
+
+  if (dossier.file.length === 0) {
+    oublierTout(racine);
+    return true;
+  }
+
+  dossier.chemins = {};
+  return ecrireDossier(racine, dossier);
 }
 
 /** Un identifiant d'opération, unique sans dépendre du réseau */

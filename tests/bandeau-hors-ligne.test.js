@@ -317,6 +317,55 @@ describe('Les deux issues du bandeau', () => {
     expect(demandes).toBe(1);
   });
 
+  it('ne fait pas clignoter un bandeau déjà affiché', async () => {
+    // Signalé à l'usage, mot pour mot : « le bandeau jaune n'y était plus mais
+    // est revenu tout seul au bout de quelques secondes ». Ce n'était pas une
+    // reconnexion suivie d'une rechute — c'était cette fonction, qui masquait
+    // le bandeau puis relançait sa temporisation de huit secondes.
+    //
+    // Une panne qu'on croit résolue puis revenue coûte plus qu'une panne
+    // franche : elle envoie chercher la cause là où il n'y en a pas.
+    initConnectionBanner(async () => false);
+
+    refreshConnectionBanner(false, 1);
+    await vi.advanceTimersByTimeAsync(9000);
+    const bandeau = document.getElementById('offlineBanner');
+    expect(bandeau.hidden).toBe(false);
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(bandeau.hidden, 'le bandeau a disparu au retour au premier plan').toBe(false);
+
+    // Et il ne repart pas non plus dans une seconde temporisation.
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(bandeau.hidden).toBe(false);
+  });
+
+  it('laisse la temporisation intacte pour un bandeau pas encore paru', async () => {
+    // L'autre moitié, qui reste vraie : un téléphone en veille gèle la page et
+    // coupe la liaison. Au réveil, la reconnexion est normale et prend un
+    // instant — mais la temporisation, elle, a couru pendant la veille. Sans
+    // remise à zéro, le bandeau paraissait au retour, annonçant une panne là où
+    // il n'y avait qu'une reconnexion.
+    initConnectionBanner(async () => false);
+
+    refreshConnectionBanner(false, 0);
+    await vi.advanceTimersByTimeAsync(7000);
+    const bandeau = document.getElementById('offlineBanner');
+    expect(bandeau.hidden, 'le bandeau a paru avant son terme').toBe(true);
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    // La temporisation est repartie de zéro : à 7 s de plus, toujours rien.
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(bandeau.hidden, 'la temporisation n\'est pas repartie de zéro').toBe(true);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(bandeau.hidden).toBe(false);
+  });
+
   it('revenir sur l\'application ne fait pas retomber le compte à zéro', async () => {
     // Le journal du téléphone l'a montré : le bandeau annonçait « 1 saisie »,
     // puis, au retour au premier plan, « vos saisies sont conservées » — sans

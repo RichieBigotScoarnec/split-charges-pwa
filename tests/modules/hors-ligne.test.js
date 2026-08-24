@@ -562,6 +562,35 @@ describe('Ce qui reste sur l\'appareil', () => {
     await expect(dbGet('salaries')).rejects.toThrow(/jamais été lu/);
   });
 
+  it('la déconnexion ne prend pas les saisies qui ne sont encore que là', async () => {
+    // Le geste exact qui a piégé : base injoignable, une saisie de 5 € faite
+    // en mode avion, et « Se reconnecter » — le seul remède connu — qui
+    // exigeait de l'abandonner. On demandait de jeter ce qu'on emportait.
+    //
+    // Le miroir part, la file reste : elle repartira à la connexion suivante,
+    // exactement comme après un rechargement.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    await dbSet('periods/2026-08/variableCharges/-abc', { amount: 5 });
+    expect(saisiesEnAttente()).toBe(1);
+
+    oublierHorsLigne();
+
+    expect(saisiesEnAttente(), 'la saisie est partie avec le miroir').toBe(1);
+
+    // `salaries` avait été lu et mémorisé par `amorcerLeMiroir` ; il ne rend
+    // plus rien. La lecture ne lève pas ici — la file n'étant pas vide, le
+    // miroir reste consultable — mais elle a perdu sa valeur, ce qui est
+    // exactement ce qu'on veut : plus un montant du foyer sur l'appareil.
+    expect(await dbGet('salaries'), 'un montant du foyer est resté sur l\'appareil').toBeNull();
+
+    // Et elle repart pour de bon dès que la liaison revient.
+    signalerLiaison(true);
+    const { envoyees, restantes } = await rejouerFileDAttente();
+    expect({ envoyees, restantes }).toEqual({ envoyees: 1, restantes: 0 });
+    expect(base.journal.at(-1).donnees).toEqual({ amount: 5 });
+  });
+
   it('le bac à sable ne partage rien avec le foyer', async () => {
     // Deux espaces de données, deux dossiers : une charge d'essai ne doit pas
     // pouvoir remonter dans les comptes du foyer.
