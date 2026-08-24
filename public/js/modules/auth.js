@@ -6,7 +6,7 @@
 import { getFirebaseAuth, getGoogleAuthProvider } from '../firebase-init.js';
 import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
-import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot } from '../config.js';
+import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS } from '../config.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -22,7 +22,8 @@ import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
 import { initMap, cleanupMap } from './map.js';
 import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
-import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente } from '../db.js';
+import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente, liaisonRompue, getDataPath } from '../db.js';
+import { diagnostiquerLaLiaison } from '../utils/sonde-liaison.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
@@ -460,6 +461,46 @@ async function initializeAppData() {
   // liaison s'établit plusieurs secondes avant que la session ne soit
   // rétablie, et un rejeu émis à ce moment-là ne pourrait que lever.
   await ecoulerLesSaisiesGardees();
+
+  // Une liaison encore rompue à ce stade n'a plus rien d'une reconnexion en
+  // cours : les données sont chargées, la session est ouverte, et la base
+  // n'est toujours pas là. C'est le moment d'en chercher la cause — pas de
+  // supposer. Rien n'attend ce diagnostic, il ne bloque donc rien.
+  diagnostiquerSiLaBaseManque();
+}
+
+/**
+ * Cherche la cause quand la base est restée injoignable
+ *
+ * Trois causes très différentes produisent le même écran — session expirée,
+ * jeton refusé, transport bloqué — et chacune appelle un remède différent.
+ * Deux d'entre eux sont inutiles pour les autres cas, et l'un est franchement
+ * nuisible : se déconnecter n'a jamais réparé un WebSocket coupé.
+ *
+ * Ne lève jamais : un diagnostic qui casse l'application qu'il diagnostique
+ * serait pire que pas de diagnostic.
+ *
+ * @returns {void}
+ */
+function diagnostiquerSiLaBaseManque() {
+  try {
+    if (!liaisonRompue()) return;
+
+    const auth = getFirebaseAuth();
+    const utilisateur = auth && auth.currentUser;
+    if (!utilisateur) return;
+
+    diagnostiquerLaLiaison({
+      utilisateur,
+      base: FIREBASE_CONFIG.databaseURL,
+      chemin: getDataPath(DB_PATHS.SHARE_MODE)
+    }).catch(() => {
+      // `diagnostiquerLaLiaison` ne lève pas ; cette garde couvre le cas où
+      // elle ne serait pas seule à changer.
+    });
+  } catch (erreur) {
+    warn('[Auth] Diagnostic de liaison impossible :', erreur?.message || erreur);
+  }
 }
 
 /**
