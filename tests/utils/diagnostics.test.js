@@ -87,6 +87,35 @@ describe('Journal de diagnostic', () => {
     expect(document.getElementById('diagPanel')).toBeNull();
   });
 
+  it('consigne ce que la politique de sécurité bloque', () => {
+    // Une violation de CSP ne lève rien et ne paraît qu'en console — hors
+    // d'atteinte sur un téléphone. C'est pourtant une cause parfaitement
+    // plausible d'échec silencieux : une origine oubliée dans une directive, et
+    // la ressource est refusée sans qu'aucun code ne s'en aperçoive.
+    initDiagnostics();
+
+    const violation = new Event('securitypolicyviolation');
+    violation.violatedDirective = 'connect-src';
+    violation.blockedURI = 'https://www.google.com/recaptcha/api2/reload';
+    document.dispatchEvent(violation);
+
+    const dit = rapport();
+    expect(dit).toContain('[csp] bloqué par connect-src');
+    expect(dit).toContain('recaptcha');
+  });
+
+  it('tronque une adresse bloquée démesurée', () => {
+    initDiagnostics();
+
+    const violation = new Event('securitypolicyviolation');
+    violation.violatedDirective = 'img-src';
+    violation.blockedURI = `https://exemple.test/${'x'.repeat(500)}`;
+    document.dispatchEvent(violation);
+
+    const ligne = rapport().split('\n').find(l => l.includes('[csp]'));
+    expect(ligne.length).toBeLessThan(300);
+  });
+
   it('ne consigne aucune donnée personnelle même si on lui en passe', () => {
     // Le journal ne filtre pas : la règle tient à ce que les appelants ne lui
     // transmettent que des identifiants techniques. Ce test garde la règle

@@ -202,6 +202,20 @@ export function initDiagnostics() {
     });
   });
 
+  // Une violation de la politique de sécurité ne lève rien et n'apparaît que
+  // dans la console — hors d'atteinte sur un téléphone. Or c'est une cause
+  // parfaitement plausible d'échec silencieux : une origine oubliée dans une
+  // directive, et la ressource est refusée sans qu'aucun code ne s'en aperçoive.
+  // L'événement, lui, nomme la directive et l'adresse bloquée.
+  document.addEventListener('securitypolicyviolation', (evenement) => {
+    noter('csp', `bloqué par ${evenement.violatedDirective || 'une directive inconnue'}`, {
+      // L'adresse bloquée est celle d'une ressource, jamais une donnée du
+      // foyer. Tronquée : une URL entière encombrerait le rapport sans rien
+      // apprendre de plus que son origine et son chemin.
+      cible: String(evenement.blockedURI || '(inconnue)').slice(0, 120)
+    });
+  });
+
   window.addEventListener('unhandledrejection', (evenement) => {
     const raison = evenement.reason;
     noter('rejet', raison?.message || String(raison || 'rejet sans motif'), {

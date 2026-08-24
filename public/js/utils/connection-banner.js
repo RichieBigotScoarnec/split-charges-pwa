@@ -28,6 +28,7 @@
  */
 
 import { noter } from './diagnostics.js';
+import { FIREBASE_CONFIG } from '../config.js';
 
 /**
  * Délai avant affichage, en millisecondes
@@ -76,7 +77,61 @@ export function refreshConnectionBanner(connecte, enAttente = 0) {
     minuterie = null;
     basculer(true);
     noter('liaison', 'bandeau hors ligne affiché', { enAttente });
+    sonderLaBase();
   }, DELAI_AVANT_ALERTE_MS);
+}
+
+/**
+ * Délai du sondage, en millisecondes — au-delà, l'hôte est tenu pour muet
+ */
+const DELAI_SONDAGE_MS = 8000;
+
+/**
+ * Demande à la base si elle est joignable en HTTPS ordinaire
+ *
+ * Realtime Database parle d'abord par WebSocket. Quand `.info/connected` reste
+ * faux, on ne sait pas distinguer deux causes qui n'ont rien à voir : l'hôte
+ * est hors d'atteinte, ou bien il répond très bien en HTTPS et c'est le seul
+ * WebSocket qui est bloqué — ce que font couramment un réseau d'entreprise, un
+ * pare-feu, ou certains opérateurs mobiles.
+ *
+ * Une requête sans jeton doit être refusée : un `401` est donc une **bonne**
+ * nouvelle, il prouve que l'hôte répond. Une erreur réseau, elle, prouve qu'il
+ * ne répond pas du tout. Aucune donnée ne transite : `shallow=true` sur la
+ * racine, sans authentification, ne peut rien rendre.
+ *
+ * @returns {Promise<void>} Ne lève jamais, ne bloque rien
+ */
+async function sonderLaBase() {
+  const base = FIREBASE_CONFIG && FIREBASE_CONFIG.databaseURL;
+  if (!base || typeof fetch !== 'function') return;
+
+  const debut = Date.now();
+  const abandon = typeof AbortController === 'function' ? new AbortController() : null;
+  const minuteurSondage = abandon
+    ? window.setTimeout(() => abandon.abort(), DELAI_SONDAGE_MS)
+    : null;
+
+  try {
+    const reponse = await fetch(`${base}/.json?shallow=true`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: abandon ? abandon.signal : undefined
+    });
+
+    noter('liaison', 'sondage HTTPS : la base répond', {
+      statut: reponse.status,
+      ms: Date.now() - debut,
+      lecture: 'un 401 est attendu et prouve que l\'hôte est joignable'
+    });
+  } catch (erreur) {
+    noter('liaison', 'sondage HTTPS : aucune réponse', {
+      motif: erreur?.name === 'AbortError' ? `abandon après ${DELAI_SONDAGE_MS / 1000} s` : (erreur?.message || String(erreur)),
+      ms: Date.now() - debut
+    });
+  } finally {
+    if (minuteurSondage) window.clearTimeout(minuteurSondage);
+  }
 }
 
 /**

@@ -304,6 +304,16 @@ function depuisMiroir(chemin) {
     throw new Error(`Hors ligne, et « ${chemin || '(racine)'} » n'a jamais été lu sur cet appareil`);
   }
 
+  // Sans cette trace, une application entièrement servie par le miroir est
+  // indiscernable d'une application qui lit la base : toutes les étapes
+  // réussissent, « FairSplit chargé » s'affiche, les chiffres sont justes — et
+  // rien ne dit qu'ils datent. Le bandeau seul ne suffit pas à trancher.
+  noter('hors-ligne', 'lecture servie par le miroir', {
+    chemin: chemin || '(racine)',
+    memoriseeLe: memoire ? new Date(memoire.majLe).toISOString() : 'jamais',
+    enAttente: operations.length
+  });
+
   return appliquerOperations(memoire ? memoire.valeur : null, chemin, operations);
 }
 

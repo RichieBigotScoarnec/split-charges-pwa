@@ -2,7 +2,17 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { refreshConnectionBanner, majSaisiesEnAttente } from '../public/js/utils/connection-banner.js';
+
+const noter = vi.fn();
+vi.mock('../public/js/utils/diagnostics.js', () => ({
+  noter: (...arguments_) => noter(...arguments_),
+  exigerElement: (id) => document.getElementById(id),
+  initDiagnostics: vi.fn(),
+  rapport: vi.fn(() => '')
+}));
+
+const { refreshConnectionBanner, majSaisiesEnAttente } =
+  await import('../public/js/utils/connection-banner.js');
 
 /**
  * Ce que le bandeau annonce pendant la coupure
@@ -155,5 +165,78 @@ describe('L\'affichage du bandeau', () => {
     refreshConnectionBanner(true, 0);
 
     expect(document.getElementById('offlineBanner').hidden).toBe(true);
+  });
+});
+
+describe('Le sondage de la base, quand la liaison ne revient pas', () => {
+  /**
+   * Realtime Database parle d'abord par WebSocket. Quand `.info/connected`
+   * reste faux, deux causes sans rapport se ressemblent : l'hôte est hors
+   * d'atteinte, ou il répond très bien en HTTPS et seul le WebSocket est
+   * bloqué — ce que font couramment un pare-feu ou un opérateur mobile.
+   *
+   * Le sondage les départage, et l'écrit dans le journal. Sans lui, on en est
+   * réduit à des hypothèses sur un téléphone qu'on n'a pas sous la main.
+   */
+
+  beforeEach(() => {
+    noter.mockClear();
+  });
+
+  it('ne sonde rien tant que la liaison tient', async () => {
+    globalThis.fetch = vi.fn();
+
+    refreshConnectionBanner(true, 0);
+    await vi.advanceTimersByTimeAsync(20000);
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('sonde quand le bandeau s\'affiche, et note que l\'hôte répond', async () => {
+    // Un 401 est une bonne nouvelle : la requête n'est pas authentifiée, elle
+    // doit être refusée — et ce refus prouve que l'hôte est joignable.
+    globalThis.fetch = vi.fn(() => Promise.resolve({ status: 401 }));
+
+    refreshConnectionBanner(false, 1);
+    await vi.advanceTimersByTimeAsync(9000);
+
+    const [url, options] = globalThis.fetch.mock.calls[0];
+    expect(url).toContain('firebasedatabase.app');
+    expect(url, 'shallow : la requête ne peut rien rapporter').toContain('shallow=true');
+    expect(options.cache, 'une réponse en cache ne dirait rien de l\'instant').toBe('no-store');
+
+    const sondage = noter.mock.calls.find(([, message]) => message.includes('la base répond'));
+    expect(sondage, 'le sondage doit être journalisé').toBeTruthy();
+    expect(sondage[2].statut).toBe(401);
+  });
+
+  it('note l\'absence de réponse, qui ne se confond pas avec un refus', async () => {
+    globalThis.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+
+    refreshConnectionBanner(false, 1);
+    await vi.advanceTimersByTimeAsync(9000);
+
+    const sondage = noter.mock.calls.find(([, message]) => message.includes('aucune réponse'));
+    expect(sondage).toBeTruthy();
+    expect(sondage[2].motif).toContain('Failed to fetch');
+  });
+
+  it('abandonne un sondage qui traîne, plutôt que d\'attendre sans fin', async () => {
+    // C'est exactement le travers que tout ce fichier combat : une opération
+    // réseau qui ne rend jamais la main n'apprend rien à personne.
+    globalThis.fetch = vi.fn((_, options) => new Promise((_resolve, rejeter) => {
+      options.signal.addEventListener('abort', () => {
+        const echec = new Error('abandon');
+        echec.name = 'AbortError';
+        rejeter(echec);
+      });
+    }));
+
+    refreshConnectionBanner(false, 1);
+    await vi.advanceTimersByTimeAsync(9000 + 9000);
+
+    const sondage = noter.mock.calls.find(([, message]) => message.includes('aucune réponse'));
+    expect(sondage).toBeTruthy();
+    expect(sondage[2].motif).toContain('abandon après 8 s');
   });
 });

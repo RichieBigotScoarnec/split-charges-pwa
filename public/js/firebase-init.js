@@ -11,6 +11,7 @@ import {
   APP_CHECK_PROVIDER
 } from './config.js';
 import { log, warn } from './utils/debug.js';
+import { noter } from './utils/diagnostics.js';
 
 let app = null;
 let database = null;
@@ -80,11 +81,13 @@ function activateAppCheck() {
   if (!APP_CHECK_SITE_KEY) {
     warn('⚠️ App Check inactif : APP_CHECK_SITE_KEY est vide (cf. js/config.js). '
       + 'N\'activez pas l\'application forcée dans la console Firebase.');
+    noter('appcheck', 'inactif : clé de site absente');
     return false;
   }
 
   if (typeof firebase.appCheck !== 'function') {
     warn('⚠️ App Check inactif : le SDK n\'est pas chargé (firebase-app-check-compat.js)');
+    noter('appcheck', 'inactif : SDK non chargé');
     return false;
   }
 
@@ -98,11 +101,58 @@ function activateAppCheck() {
     firebase.appCheck().activate(fournisseur, true);
 
     log('🛡️ App Check activé');
+    noter('appcheck', 'activé', { fournisseur: APP_CHECK_PROVIDER });
+    verifierAttestation();
     return true;
   } catch (error) {
     warn('⚠️ App Check non activé :', error.message);
+    noter('appcheck', 'activation refusée', { motif: error?.message || String(error) });
     return false;
   }
+}
+
+/**
+ * Vérifie qu'une attestation s'obtient réellement
+ *
+ * `activate()` ne dit rien de plus que « la configuration est acceptée ». La
+ * console Firebase, elle, comptait zéro requête validée sur cent cinquante-neuf
+ * en sept jours : l'attestation était configurée, enregistrée, et n'aboutissait
+ * jamais. Rien à l'écran, rien dans le code, ne le disait — et le jour où
+ * l'application forcée serait activée, ce serait cent pour cent de refus,
+ * immédiatement, pour tout le monde.
+ *
+ * Ce contrôle demande un jeton et consigne l'issue. Il ne bloque rien et ne
+ * lève jamais : son seul objet est de rendre visible un échec silencieux.
+ *
+ * @returns {void}
+ */
+function verifierAttestation() {
+  let obtention;
+  try {
+    obtention = firebase.appCheck().getToken(false);
+  } catch (error) {
+    noter('appcheck', 'jeton refusé à la demande', { motif: error?.message || String(error) });
+    return;
+  }
+
+  if (!obtention || typeof obtention.then !== 'function') {
+    noter('appcheck', 'jeton indisponible : getToken n\'a rien rendu');
+    return;
+  }
+
+  const debut = Date.now();
+  obtention.then(
+    // Le jeton lui-même n'est jamais journalisé : c'est un secret de courte
+    // durée. Sa longueur suffit à prouver qu'il existe.
+    (jeton) => noter('appcheck', 'attestation obtenue', {
+      ms: Date.now() - debut,
+      taille: jeton && typeof jeton.token === 'string' ? jeton.token.length : 0
+    }),
+    (erreur) => noter('appcheck', 'attestation impossible', {
+      ms: Date.now() - debut,
+      motif: erreur?.message || String(erreur)
+    })
+  );
 }
 
 /**

@@ -21,6 +21,14 @@ vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
 
+const noter = vi.fn();
+vi.mock('../../public/js/utils/diagnostics.js', () => ({
+  noter: (...arguments_) => noter(...arguments_),
+  exigerElement: (id) => document.getElementById(id),
+  initDiagnostics: vi.fn(),
+  rapport: vi.fn(() => '')
+}));
+
 const {
   initDatabase, setAuthenticatedUser, getDataRoot,
   signalerLiaison, liaisonRompue,
@@ -212,6 +220,24 @@ describe('État de la liaison', () => {
 });
 
 describe('Lire hors réseau', () => {
+  it('journalise chaque lecture servie par l\'appareil', async () => {
+    // Sans cette trace, une application entièrement servie par le miroir est
+    // indiscernable d'une application qui lit la base : toutes les étapes
+    // réussissent, « FairSplit chargé » s'affiche, les chiffres sont justes —
+    // et rien ne dit qu'ils datent. Signalé à l'usage, précisément comme ça.
+    await amorcerLeMiroir();
+    noter.mockClear();
+    signalerLiaison(false);
+
+    await dbGet('salaries');
+
+    const trace = noter.mock.calls.find(([, message]) => message === 'lecture servie par le miroir');
+    expect(trace, 'la lecture depuis le miroir doit laisser une trace').toBeTruthy();
+    expect(trace[2].chemin).toBe('salaries');
+    expect(trace[2].memoriseeLe, 'la date du miroir dit si les chiffres datent')
+      .toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
   it('sert la dernière valeur connue plutôt qu\'un écran vide', async () => {
     await amorcerLeMiroir();
     signalerLiaison(false);
