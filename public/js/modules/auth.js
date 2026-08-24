@@ -24,6 +24,7 @@ import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
 import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente, liaisonRompue, getDataPath } from '../db.js';
 import { diagnostiquerLaLiaison } from '../utils/sonde-liaison.js';
+import { annoncerLaCause } from '../utils/connection-banner.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
@@ -494,6 +495,12 @@ function diagnostiquerSiLaBaseManque() {
       utilisateur,
       base: FIREBASE_CONFIG.databaseURL,
       chemin: getDataPath(DB_PATHS.SHARE_MODE)
+    }).then((cause) => {
+      // Le bandeau cesse alors de supposer. Il proposait un bloqueur de
+      // contenu — hypothèse raisonnable, et fausse : la cause était une
+      // session expirée. Chercher un bouclier de navigateur qui n'existe pas
+      // a coûté des heures.
+      annoncerLaCause(cause);
     }).catch(() => {
       // `diagnostiquerLaLiaison` ne lève pas ; cette garde couvre le cas où
       // elle ne serait pas seule à changer.

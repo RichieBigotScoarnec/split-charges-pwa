@@ -181,6 +181,52 @@ export function majSaisiesEnAttente(enAttente) {
 }
 
 /**
+ * Ce que le bandeau dit de la cause, une fois qu'on la connaît
+ *
+ * Tant qu'on ne sait rien, il propose une hypothèse : un bloqueur de contenu.
+ * Elle est raisonnable et elle s'est révélée fausse — la vraie cause était une
+ * session expirée, que rien ne distinguait d'une panne réseau. Envoyer
+ * chercher un bouclier de navigateur qui n'existe pas a coûté des heures, et
+ * le conditionnel de la phrase n'y a rien changé : une hypothèse affichée se
+ * lit comme un diagnostic.
+ *
+ * Dès que la sonde a tranché, la phrase est remplacée par ce qu'on sait. Et
+ * quand la cause est la session, elle nomme le geste qui répare — le bouton
+ * est déjà là, à côté, sans que rien ne dise que c'est celui-là qu'il faut.
+ */
+const CAUSES = {
+  'session-expiree': 'Votre session a expiré : l\'application ne peut plus prouver qui vous êtes. '
+    + 'Utilisez « Se reconnecter » ci-dessous — vos saisies sont conservées et repartiront ensuite.',
+  'refus': 'La base refuse ce compte. Ce n\'est pas un problème de réseau : reconnectez-vous, '
+    + 'et si cela persiste, le compte n\'a peut-être plus accès à l\'espace du foyer.',
+  'transport': 'Votre réseau bloque le canal permanent qu\'utilise la base — un pare-feu, '
+    + 'un réseau d\'entreprise ou certains opérateurs le font. La base répond pourtant : '
+    + 'essayez un autre réseau, ou le partage de connexion.',
+  'hote-muet': 'La base ne répond pas du tout. Si votre réseau fonctionne par ailleurs, '
+    + 'un bloqueur de contenu, une extension de confidentialité ou un pare-feu peut en être la cause.'
+};
+
+/**
+ * Remplace l'hypothèse par la cause établie
+ *
+ * @param {string} cause - Code rendu par la sonde de liaison
+ * @returns {boolean} true si la phrase a été remplacée
+ */
+export function annoncerLaCause(cause) {
+  const phrase = CAUSES[cause];
+  if (!phrase) return false;
+
+  const zone = document.getElementById('offlineBannerCause');
+  if (!zone) return false;
+
+  // `textContent`, comme partout ailleurs ici : la phrase vient du code, mais
+  // la règle ne souffre pas d'exception.
+  zone.textContent = phrase;
+  noter('liaison', 'cause annoncée', { cause });
+  return true;
+}
+
+/**
  * Écrit ce que le bandeau dit des saisies en attente
  *
  * `textContent`, jamais `innerHTML` : le nombre vient du code, mais la règle
