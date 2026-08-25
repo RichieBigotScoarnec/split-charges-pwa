@@ -548,3 +548,74 @@ describe('Une charge sans montant exploitable', () => {
     expect(Number.isFinite(bilan.balance), 'le solde est NaN').toBe(true);
   });
 });
+
+/**
+ * Le panneau des virements, sur les mêmes charges abîmées
+ *
+ * `computeSummary` avait été durci contre un montant inexploitable. Le calcul
+ * des virements, non — et c'est pourtant lui qui dit combien virer. Mesuré
+ * avant correctif : le bilan annonçait 900 €, le panneau juste en dessous
+ * « NaN € ».
+ */
+describe('Un virement sur une charge sans montant', () => {
+  const params = {
+    shareMode: '50-50',
+    salaries: { vous: 2000, conjointe: 2000 },
+    totalSalaries: 4000,
+    customPercents: { vous: 50, conjointe: 50 }
+  };
+
+  it('ne rend jamais NaN, quel que soit le mode', () => {
+    for (const mode of ['50-50', 'prorata', 'custom']) {
+      const [groupe] = computeVirementsByDestination(
+        [{ description: 'Abîmée', destination: 'compte-commun' }],
+        { ...params, shareMode: mode }
+      );
+
+      expect(Number.isFinite(groupe.total), `total NaN en mode ${mode}`).toBe(true);
+      expect(groupe.total).toBe(0);
+    }
+  });
+
+  it('n\'emporte pas les charges saines du même virement', () => {
+    // Le défaut ne coûtait pas une ligne mais tout le groupe : le total
+    // devenait NaN, et le montant à virer avec lui.
+    const [groupe] = computeVirementsByDestination([
+      { description: 'Loyer', amount: 900, destination: 'compte-commun' },
+      { description: 'Abîmée', destination: 'compte-commun' }
+    ], params);
+
+    expect(groupe.total).toBe(450);
+    expect(groupe.charges).toHaveLength(2);
+  });
+
+  it('dit le même total que le bilan', () => {
+    // Deux chiffres qui décrivent la même chose ne doivent pas se contredire :
+    // c'est ainsi que le défaut se voyait à l'écran.
+    const charges = [
+      { description: 'Loyer', amount: 900, destination: 'compte-commun', paidBy: 'vous' },
+      { description: 'Abîmée', destination: 'compte-commun', paidBy: 'vous' }
+    ];
+
+    const [groupe] = computeVirementsByDestination(charges, params);
+    const bilan = computeSummary({
+      salaries: { vous: 2000, conjointe: 2000 }, fixedCharges: charges,
+      variableCharges: [], reimbursements: [], shareMode: '50-50',
+      customPercents: { vous: 50, conjointe: 50 }
+    });
+
+    expect(groupe.total).toBe(bilan.partnerShare);
+  });
+
+  it('ramène le montant affiché à zéro plutôt qu\'à rien', () => {
+    // La ligne reste, avec un montant lisible : la retirer ferait disparaître
+    // une charge que le bilan compte, et l'écart serait introuvable.
+    const [groupe] = computeVirementsByDestination(
+      [{ description: 'Abîmée', destination: 'compte-commun', amount: 'douze euros' }],
+      params
+    );
+
+    expect(groupe.charges[0].amount).toBe(0);
+    expect(groupe.charges[0].partnerShare).toBe(0);
+  });
+});

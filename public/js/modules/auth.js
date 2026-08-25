@@ -23,7 +23,7 @@ import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
 import { initMap, cleanupMap } from './map.js';
 import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
-import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente, liaisonRompue, getDataPath } from '../db.js';
+import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente, liaisonRompue, getDataPath, getDataRoot } from '../db.js';
 import { diagnostiquerLaLiaison } from '../utils/sonde-liaison.js';
 import { annoncerLaCause } from '../utils/connection-banner.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -175,12 +175,20 @@ export async function signOut() {
       if (!accepte) return;
     }
 
+    // Relevé avant, effacé après.
+    //
+    // Après, parce qu'une déconnexion qui échoue ne doit pas avoir effacé les
+    // données du foyer de l'appareil au passage. Mais relevé avant, parce que
+    // `auth.signOut()` déclenche le changement d'état, qui ramène l'espace
+    // courant à `household` : un compte cantonné au bac à sable effaçait donc
+    // le miroir du foyer et laissait le sien intact, l'inverse exact de ce que
+    // la déconnexion promet.
+    const espace = getDataRoot();
+
     const auth = getFirebaseAuth();
     await auth.signOut();
 
-    // Après, jamais avant : une déconnexion qui échoue ne doit pas avoir
-    // effacé les données du foyer de l'appareil au passage.
-    oublierHorsLigne();
+    oublierHorsLigne(espace);
     toast.info('Déconnecté');
   } catch (error) {
     const message = `Erreur déconnexion : ${error.message}`;

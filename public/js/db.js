@@ -345,10 +345,19 @@ export function saisiesEnAttente() {
  * de ses saisies revenait à n'en offrir aucun. Elle repart à la connexion
  * suivante, comme après un rechargement.
  *
+ * L'espace se passe en argument, et ce n'est pas une commodité. Appelée sans
+ * lui, la fonction lisait `dataRoot` — que `setAuthenticatedUser(null)` vient
+ * précisément de ramener à `household`, puisque `auth.signOut()` a déjà
+ * déclenché le changement d'état. Un compte cantonné au bac à sable effaçait
+ * donc le miroir du foyer, et laissait le sien sur l'appareil : exactement
+ * l'inverse de ce que la déconnexion promet. L'appelant relève l'espace avant
+ * de se déconnecter, quand il est encore juste.
+ *
+ * @param {string} [racine] - Espace à oublier ; l'espace courant par défaut
  * @returns {void}
  */
-export function oublierHorsLigne() {
-  oublierLesLectures(dataRoot);
+export function oublierHorsLigne(racine = dataRoot) {
+  oublierLesLectures(racine);
 }
 
 /**

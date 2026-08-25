@@ -217,20 +217,27 @@ export function computeVirementsByDestination(fixedCharges, params) {
     const dest = charge.destination || '';
     if (!dest) return;
 
+    // Un montant inexploitable vaut zéro, jamais NaN — même règle que
+    // `computeSummary`, et pour la même raison. Elle avait été posée là et
+    // oubliée ici : mesuré, une seule charge fixe sans montant affichait
+    // « NaN € » à virer pendant que le bilan, juste au-dessus, annonçait le
+    // bon total. C'est pourtant ce panneau qui dit combien virer.
+    const amount = Number.isFinite(charge.amount) ? charge.amount : 0;
+
     const effectiveMode = charge.splitOverride ? charge.splitOverride.mode : shareMode;
     let partnerShare;
 
     if (effectiveMode === '50-50') {
-      partnerShare = charge.amount * 0.5;
+      partnerShare = amount * 0.5;
     } else if (effectiveMode === 'custom') {
       const pcts = (charge.splitOverride && charge.splitOverride.conjointe !== undefined)
         ? charge.splitOverride
         : customPercents;
-      partnerShare = charge.amount * (pcts.conjointe / 100);
+      partnerShare = amount * (pcts.conjointe / 100);
     } else {
       partnerShare = totalSalaries > 0
-        ? charge.amount * (salaries.conjointe / totalSalaries)
-        : charge.amount * 0.5;
+        ? amount * (salaries.conjointe / totalSalaries)
+        : amount * 0.5;
     }
 
     if (!grouped[dest]) {
@@ -238,7 +245,7 @@ export function computeVirementsByDestination(fixedCharges, params) {
     }
     grouped[dest].charges.push({
       description: charge.description,
-      amount: charge.amount,
+      amount,
       partnerShare
     });
     grouped[dest].total += partnerShare;

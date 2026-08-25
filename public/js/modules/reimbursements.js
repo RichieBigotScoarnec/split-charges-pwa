@@ -18,6 +18,7 @@ import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
 import { trierParDate } from '../utils/tri.js';
+import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -152,8 +153,27 @@ export async function loadReimbursements() {
 
 /**
  * Sauvegarde un remboursement (ajout uniquement, pas d'édition)
+ *
+ * Le corps de l'écriture vit dans `enregistrerReimbursement`. Cette enveloppe ne fait que la
+ * protéger : sur une connexion lente, la modale reste ouverte et le bouton
+ * actif le temps que `dbPush` réponde, et le second appui — le réflexe
+ * naturel devant un écran qui ne bouge pas — écrivait une seconde ligne.
  */
 export async function saveReimbursement() {
+  const bouton = document.getElementById('saveReimbursement');
+  const rendreLeBouton = occuperLeBouton(bouton);
+
+  try {
+    await uneSeuleFois('remboursement', enregistrerReimbursement);
+  } finally {
+    rendreLeBouton();
+  }
+}
+
+/**
+ * Sauvegarde un remboursement (ajout uniquement, pas d'édition) — le corps, sans la garde
+ */
+async function enregistrerReimbursement() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');

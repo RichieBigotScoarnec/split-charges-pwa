@@ -25,6 +25,7 @@ import { normaliserEmplacement } from '../utils/members.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
+import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -198,8 +199,27 @@ export async function loadVariableCharges() {
 
 /**
  * Sauvegarde une charge variable (ajout ou édition)
+ *
+ * Le corps de l'écriture vit dans `enregistrerVariableCharge`. Cette enveloppe ne fait que la
+ * protéger : sur une connexion lente, la modale reste ouverte et le bouton
+ * actif le temps que `dbPush` réponde, et le second appui — le réflexe
+ * naturel devant un écran qui ne bouge pas — écrivait une seconde charge.
  */
 export async function saveVariableCharge() {
+  const bouton = document.getElementById('saveVariableCharge');
+  const rendreLeBouton = occuperLeBouton(bouton);
+
+  try {
+    await uneSeuleFois('charge-variable', enregistrerVariableCharge);
+  } finally {
+    rendreLeBouton();
+  }
+}
+
+/**
+ * Sauvegarde une charge variable (ajout ou édition) — le corps, sans la garde
+ */
+async function enregistrerVariableCharge() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');

@@ -207,6 +207,18 @@ test.describe('Ce que l\'application écrit reste accepté', () => {
 
     expect(await ecrire(request, 'household/periods/2026-08/variableCharges/c1/deleted', true, jeton)).toBe(200);
   });
+
+  test('une heure bien formée, et son absence, passent', async ({ request }) => {
+    // Le champ est effaçable : une dépense qu'on ne sait pas situer dans la
+    // journée écrit une chaîne vide, qui doit passer comme le reste.
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+
+    for (const heure of ['08:30', '00:00', '23:59', '']) {
+      const code = await ecrire(request, 'household/periods/2026-08/variableCharges/c1',
+        { ...CHARGE_VALIDE, heure }, jeton);
+      expect(code, `« ${heure} » a été refusée`).toBe(200);
+    }
+  });
 });
 
 test.describe('Ce qui n\'a rien à faire en base est refusé', () => {
@@ -249,6 +261,20 @@ test.describe('Ce qui n\'a rien à faire en base est refusé', () => {
     const code = await ecrire(request, 'household/periods/pas-une-periode/variableCharges/c1',
       CHARGE_VALIDE, jeton);
     expect(code).not.toBe(200);
+  });
+
+  test('une heure hors format est refusée', async ({ request }) => {
+    // `heure` était le seul champ d'une charge sans règle propre : il tombait
+    // dans le fourre-tout, qui accepte n'importe quelle chaîne jusqu'à 500
+    // caractères. Tous ses voisins — `date`, `amount`, `description` — ont la
+    // leur depuis toujours ; la sienne a été oubliée le jour de son ajout.
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+
+    for (const heure of ['25:00', '08:70', '8:30', '08:30:00', 'midi', 'x'.repeat(400)]) {
+      const code = await ecrire(request, 'household/periods/2026-08/variableCharges/c1',
+        { ...CHARGE_VALIDE, heure }, jeton);
+      expect(code, `« ${heure} » a été acceptée comme heure`).not.toBe(200);
+    }
   });
 
   test('un prénom démesuré est refusé', async ({ request }) => {
