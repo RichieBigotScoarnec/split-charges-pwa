@@ -129,6 +129,18 @@ describe('Le workflow de sauvegarde', () => {
     expect(workflow).toMatch(/exit 1/);
   });
 
+  it('signale une sauvegarde en échec, plutôt que de se taire', () => {
+    // Le workflow tourne à 03:17 sans que personne ne regarde. Son propre
+    // commentaire dit qu'une sauvegarde qu'on croit faite est pire que pas de
+    // sauvegarde — il n'avait pourtant aucun moyen de le dire.
+    expect(workflow).toContain('alerte-sauvegarde');
+    expect(workflow).toMatch(/if:\s*failure\(\)/);
+    expect(workflow).toMatch(/issues:\s*write/);
+    expect(workflow).toContain('gh issue create');
+    // Un ticket par panne, pas un par nuit.
+    expect(workflow).toContain('gh issue comment');
+  });
+
   it('ne passe jamais un secret par la ligne de commande', () => {
     // Les journaux d'exécution conservent les lignes de commande. Le compte de
     // service comme la phrase secrète transitent par un fichier.

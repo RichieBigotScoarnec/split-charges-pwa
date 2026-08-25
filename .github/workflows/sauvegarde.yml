@@ -142,3 +142,45 @@ jobs:
             echo "\`gpg --decrypt sauvegarde.json.gpg > sauvegarde.json\`, puis"
             echo "passer par « Restaurer depuis un fichier » dans l'application."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Une sauvegarde qui échoue ne se voit nulle part : ce workflow tourne à
+  # 03:17 sans que personne ne regarde, et son propre commentaire dit qu'une
+  # sauvegarde qu'on croit faite est pire que pas de sauvegarde du tout. Il
+  # n'avait pourtant aucun moyen de le dire — l'onglet Actions n'est pas un
+  # endroit qu'on visite le matin.
+  alerte-sauvegarde:
+    name: Signaler une sauvegarde en échec
+    needs: sauvegarder
+    if: failure()
+    runs-on: ubuntu-latest
+
+    # Accordé à ce seul job : le reste du workflow n'écrit rien dans le dépôt.
+    permissions:
+      issues: write
+
+    steps:
+      - name: Ouvrir ou compléter le ticket
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPOT: ${{ github.repository }}
+          EXECUTION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          TITRE="⚠️ Sauvegarde quotidienne en échec"
+          CORPS="La sauvegarde chiffrée de l'historique du foyer a échoué.
+
+          **Aucune copie n'a été déposée** : l'historique n'existe qu'en base.
+
+          Exécution : $EXECUTION"
+
+          # Un ticket par panne, pas un par nuit : sans cela, une cause qui dure
+          # en ouvrirait un chaque matin.
+          EXISTANT=$(gh issue list --repo "$DEPOT" --state open --search "$TITRE in:title" --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTANT" ]; then
+            gh issue comment "$EXISTANT" --repo "$DEPOT" --body "$CORPS"
+            echo "Ticket #$EXISTANT complété."
+          else
+            gh issue create --repo "$DEPOT" --title "$TITRE" --body "$CORPS"
+          fi

@@ -56,6 +56,7 @@ const STATIC_ASSETS = [
   './js/utils/auth-errors.js',
   './js/utils/barre-solde.js',
   './js/utils/budgets.js',
+  './js/utils/cadre.js',
   './js/utils/calculations.js',
   './js/utils/categorie-lieu.js',
   './js/utils/categories-frequentes.js',

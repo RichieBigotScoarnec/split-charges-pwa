@@ -24,6 +24,7 @@ import { log, warn, error as logError } from './utils/debug.js';
 import { initDiagnostics, noter } from './utils/diagnostics.js';
 import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
 import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
+import { refuserLEncadrement } from './utils/cadre.js';
 
 /**
  * Ouvre la saisie rapide si l'URL le demande
@@ -57,8 +58,15 @@ function honorerLeRaccourci() {
  * Initialize the application
  */
 async function initApp() {
-  // Ouvert en tout premier : ce qu'on cherche à comprendre s'est produit
-  // pendant l'initialisation, et une panne d'appareil ne se raconte pas.
+  // Avant tout le reste, y compris le journal : une page encadrée par un site
+  // tiers ne doit ni s'afficher, ni joindre Firebase, ni ouvrir de session.
+  // GitHub Pages ne pose aucun en-tête, et `frame-ancestors` est ignorée en
+  // `<meta>` — ce contrôle est le seul levier qui reste.
+  if (refuserLEncadrement()) return;
+
+  // Ouvert en tout premier ensuite : ce qu'on cherche à comprendre s'est
+  // produit pendant l'initialisation, et une panne d'appareil ne se raconte
+  // pas.
   initDiagnostics();
   noter('demarrage', `FairSplit ${VERSION}`);
 

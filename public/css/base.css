@@ -211,3 +211,35 @@ header p {
   letter-spacing: 0.02em;
   text-align: center;
 }
+
+/* ===== PAGE DE REFUS D'ENCADREMENT =====
+   Le corps a été vidé : plus aucune carte, plus aucune mise en page. Ces règles
+   sont les seules à s'appliquer, et doivent tenir seules. */
+.cadre-refuse {
+  max-width: 32rem;
+  margin: 3rem auto 1rem;
+  padding: 0 var(--space-md);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.cadre-refuse + a {
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-lg);
+  /* 44 px de haut : la cible reste atteignable au pouce, comme partout. */
+  min-height: 44px;
+  border-radius: var(--radius);
+  background: var(--primary-color);
+  /* `white`, comme `.btn-primary` : le fond est la couleur de marque dans les
+     deux thèmes, et aucun jeton n'existe pour l'encre qui va dessus. */
+  color: white;
+  font-family: var(--font);
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 28px;
+}

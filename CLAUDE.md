@@ -236,6 +236,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Le panneau des virements rendait « NaN € » là où le bilan avait été blindé contre le même montant abîmé | `public/js/utils/calculations.js` | ✅ RÉSOLU 2026-08-25 — même garde des deux côtés, et un test qui compare les deux chiffres | Mesuré : bilan 900 €, virement NaN |
 | La déconnexion effaçait le miroir de l'espace courant — déjà retombé au foyer quand le compte venait du bac à sable | `public/js/db.js`, `public/js/modules/auth.js` | ✅ RÉSOLU 2026-08-25 — l'espace est relevé avant `signOut()`, effacé après | L'ordre d'origine était juste, sa lecture ne l'était plus |
 | `heure` était le seul champ d'une charge sans règle de validation : il tombait dans le fourre-tout | `database.rules.json` | ✅ RÉSOLU 2026-08-25 — format contrôlé, chaîne vide comprise, dans les quatre blocs de charges | Les remboursements n'en portent pas |
+| Une sauvegarde en échec ne se voyait nulle part, alors que le workflow lui-même dit qu'une sauvegarde qu'on croit faite est pire que rien | `.github/workflows/sauvegarde.yml` | ✅ RÉSOLU 2026-08-25 — ticket ouvert dès qu'une exécution échoue, un par panne | Il tourne à 03:17, sans témoin |
+| Rien n'empêchait un site tiers d'encadrer l'application : Pages ne pose aucun en-tête, et `frame-ancestors` est ignorée en `<meta>` | `public/js/utils/cadre.js` | ✅ RÉSOLU 2026-08-25 — la page se vide et s'explique si elle est encadrée, avant Firebase | Un cadre ne lit rien ; il fait cliquer |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
