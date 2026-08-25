@@ -92,6 +92,47 @@
 }
 
 /* --- Balance finale (proéminente, en tête de bilan) --- */
+/* ===== CE QUI RESTE À PASSER =====
+   Sous le solde, et volontairement plus sobre que lui : c'est une précision
+   sur le montant du dessus, pas un second chiffre concurrent. Le ton est
+   informatif — rien ne va mal, une partie du mois est simplement devant. */
+.summary-previsionnel {
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  text-align: center;
+}
+
+.previsionnel-montant {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* En chiffres alignés, comme le solde : les deux se comparent d'un coup d'œil.
+   `display: block` de `.summary-balance strong` ne s'applique pas ici — ce
+   montant vit dans sa phrase. */
+.previsionnel-montant strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.previsionnel-sur {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* `--text-secondary`, et non `--text-muted` : sur le lavis d'information,
+   muted tombe sous le seuil AA en thème clair. Mesuré, pas estimé. */
+.previsionnel-detail {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 .summary-balance {
   padding: var(--space-lg);
   border-radius: var(--radius);

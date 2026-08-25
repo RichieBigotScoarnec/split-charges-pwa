@@ -174,3 +174,28 @@ export function formatDate(date) {
   }).format(d);
 }
 
+
+/**
+ * Un jour et son mois, sans l'année
+ *
+ * Pour nommer une échéance à l'intérieur d'un mois qu'on est en train de
+ * regarder : « EDF le 12 sept. ». `formatDate` y ajoute l'année, ce qui est
+ * juste dans une liste de charges — on y navigue d'un mois à l'autre — mais
+ * pèse trop dans une phrase qui en enchaîne trois.
+ *
+ * Le mois est conservé plutôt que réduit au quantième : la ligne peut décrire
+ * un mois à venir, où « le 12 » seul ne dirait pas lequel.
+ *
+ * @param {string} date - AAAA-MM-JJ
+ * @returns {string} « 12 sept. », ou une chaîne vide si la date est illisible
+ */
+export function jourEtMois(date) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+
+  // Reconstruit en local, comme `formatDate` : minuit UTC recule d'un jour à
+  // l'ouest de Greenwich.
+  const d = new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));
+  if (Number.isNaN(d.getTime())) return '';
+
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(d);
+}
