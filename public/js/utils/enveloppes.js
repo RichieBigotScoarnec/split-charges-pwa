@@ -181,3 +181,90 @@ export function totalEnveloppe(charges, id) {
     0
   );
 }
+
+/** Format d'une clé de période : AAAA-MM */
+const CLE_PERIODE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Rassemble les charges d'une enveloppe sur toute sa durée
+ *
+ * L'écran de gestion ne comptait que le mois consulté, et le disait
+ * honnêtement — « 320 € ce mois-ci ». Mais c'est l'inverse du besoin : une
+ * enveloppe existe précisément pour traverser les mois, et le seul chiffre
+ * qu'on lui demande — ce qu'ont coûté les vacances en tout — était le seul
+ * qu'on ne pouvait pas obtenir. Son budget, comparé à un total mensuel, se
+ * mesurait donc au mauvais nombre.
+ *
+ * Les charges supprimées sont écartées : elles ne comptent pas dans le solde,
+ * elles ne doivent pas compter ici non plus.
+ *
+ * @param {Object} periods - Nœud `periods` complet, tel que lu en base
+ * @param {string} id - Identifiant de l'enveloppe
+ * @returns {Array<Object>} Charges, chacune portant sa période et son origine
+ */
+export function chargesDeLEnveloppeTousMois(periods, id) {
+  if (!periods || typeof periods !== 'object' || !id) return [];
+
+  const retenues = [];
+
+  for (const [periode, contenu] of Object.entries(periods)) {
+    if (!CLE_PERIODE.test(periode) || !contenu || typeof contenu !== 'object') continue;
+
+    for (const collection of ['fixedCharges', 'variableCharges']) {
+      const noeud = contenu[collection];
+      if (!noeud || typeof noeud !== 'object') continue;
+
+      for (const [cle, charge] of Object.entries(noeud)) {
+        if (!charge || typeof charge !== 'object') continue;
+        if (charge.deleted) continue;
+        if (charge.envelope !== id) continue;
+
+        retenues.push({
+          ...charge,
+          id: cle,
+          periode,
+          fixe: collection === 'fixedCharges'
+        });
+      }
+    }
+  }
+
+  // Du plus récent au plus ancien : on regarde d'abord ce qu'on vient de
+  // dépenser. À défaut de date, la période sert de repère.
+  return retenues.sort((a, b) => {
+    const cleA = a.date || `${a.periode}-00`;
+    const cleB = b.date || `${b.periode}-00`;
+    return cleB.localeCompare(cleA);
+  });
+}
+
+/**
+ * Ce qu'a coûté une enveloppe, et où elle en est de son budget
+ *
+ * @param {Array<Object>} charges - Charges de l'enveloppe, tous mois confondus
+ * @param {number|null} budget - Budget déclaré, ou null
+ * @returns {{total: number, nombre: number, mois: number, reste: number|null, part: number|null, depasse: boolean}}
+ */
+export function bilanEnveloppe(charges, budget) {
+  const liste = Array.isArray(charges) ? charges : [];
+
+  const total = liste.reduce(
+    (somme, charge) => somme + (Number.isFinite(charge.amount) ? charge.amount : 0),
+    0
+  );
+
+  const mois = new Set(liste.map(charge => charge.periode).filter(Boolean)).size;
+
+  const budgetUtile = Number.isFinite(budget) && budget > 0 ? budget : null;
+
+  return {
+    total,
+    nombre: liste.length,
+    mois,
+    reste: budgetUtile === null ? null : budgetUtile - total,
+    // Bornée à 100 % pour la barre : au-delà, c'est le dépassement qui le dit,
+    // pas une barre qui sortirait de son cadre.
+    part: budgetUtile === null ? null : Math.min(100, Math.round((total / budgetUtile) * 100)),
+    depasse: budgetUtile !== null && total > budgetUtile
+  };
+}

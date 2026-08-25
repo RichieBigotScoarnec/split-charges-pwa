@@ -228,12 +228,19 @@ test.describe('État des notifications', () => {
     await expect(page.locator('#notificationsStatus button')).toBeVisible();
   });
 
-  test('permission accordée : le bloc le dit, sans bouton', async ({ page }) => {
+  test('permission accordée : le bloc dit ce que les rappels peuvent tenir', async ({ page }) => {
     await imposerPermission(page, 'granted');
     await setupFirebaseMock(page);
     await waitForApp(page);
 
-    await expect(page.locator('#notificationsStatus')).toContainText('activées');
+    await expect(page.locator('#notificationsStatus')).toContainText('Rappels activés');
+
+    // Et surtout leur portée réelle. Les minuteurs vivent dans la page : un
+    // téléphone suspend l'onglet quelques minutes après qu'on l'a quitté, si
+    // bien que les rappels ne partent que si l'application est ouverte. Le
+    // panneau laissait croire à des rappels de fond, qui exigeraient un serveur
+    // d'envoi que ce projet n'a pas.
+    await expect(page.locator('#notificationsStatus')).toContainText('tant que FairSplit est ouvert');
     await expect(page.locator('#notificationsStatus button')).toHaveCount(0);
   });
 

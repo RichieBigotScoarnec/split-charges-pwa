@@ -247,6 +247,11 @@
           <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
         </button>
         <div class="reminders-body" id="remindersBody">
+          <!-- Ce que ces trois bascules peuvent réellement faire est énoncé par
+               `notificationsStatus`, en bas du panneau : les rappels ne partent
+               que si l'application est ouverte. Une page web ne peut pas
+               prévenir quand elle est fermée sans un serveur d'envoi, que ce
+               projet n'a pas. Le laisser sous-entendre revenait à promettre. -->
           <div class="reminder-toggle-row">
             <div>
               <div class="reminder-toggle-label">Fin de mois</div>
@@ -875,6 +880,18 @@
         </div>
       </div>
 
+      <!-- Le rattachement à une enveloppe. Les deux formulaires complets le
+           proposaient, la saisie rapide non — c'est-à-dire pas au moment où
+           l'on en a le plus besoin : en vacances, en trois gestes.
+           Le segment de la phrase ne paraît que si le foyer a des enveloppes ;
+           ce panneau reste donc inatteignable tant qu'il n'y en a aucune. -->
+      <div class="quick-add-panneau" id="quickAddPanneauEnveloppe">
+        <div class="quick-add-date">
+          <label for="quickAddEnvelope">Enveloppe</label>
+          <select id="quickAddEnvelope"></select>
+        </div>
+      </div>
+
       <!-- Facultatif : sans saisie, la description reste déduite du lieu ou de
            la catégorie, comme avant. Avec, elle prime — « Burger King » vaut
            mieux que le nom du lieu où l'on se trouvait en saisissant. -->
@@ -917,7 +934,10 @@
        Cette modale expose ce que la base conservait déjà sans le montrer. -->
   <div id="modalTrash" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTrashTitle">
     <div class="modal">
-      <h2 class="modal-header" id="modalTrashTitle">Corbeille du mois</h2>
+      <!-- « du mois » était faux : `trash.js` balaie toutes les périodes. Le
+           titre disait donc à qui cherchait une charge supprimée en juin
+           qu'elle ne pouvait pas s'y trouver. -->
+      <h2 class="modal-header" id="modalTrashTitle">Corbeille — tous les mois</h2>
       <p class="modal-hint">Tout ce qui a été supprimé, quel que soit le mois. Ces éléments ne sont plus comptés dans les bilans et restent récupérables.</p>
       <div id="trashList" class="trash-list"></div>
       <div class="modal-actions">

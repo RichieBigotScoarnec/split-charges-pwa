@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeMembers, memberLabel, describeBalance, directionLabel,
-  validateMemberName, MAX_LONGUEUR_PRENOM
+  validateMemberName, MAX_LONGUEUR_PRENOM,
+  emplacementDuCompte, normaliserEmplacement
 } from '../../public/js/utils/members.js';
+import { EMPLACEMENTS_PAR_COMPTE, ALLOWED_EMAILS } from '../../public/js/config.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../../public/js/config.js';
 
 /**
@@ -165,5 +167,75 @@ describe('Validation d\'un prénom saisi', () => {
   it('refuse une valeur non textuelle', () => {
     expect(validateMemberName(null).valid).toBe(false);
     expect(validateMemberName(42).valid).toBe(false);
+  });
+});
+
+/**
+ * Qui tient le téléphone
+ *
+ * L'application connaissait l'adresse du compte connecté et ne s'en servait
+ * jamais pour cela : la saisie rapide proposait `vous` en dur, à chaque
+ * ouverture, quel que soit l'appareil. Sur le second téléphone, chaque dépense
+ * expédiée en trois gestes était donc attribuée à l'autre — et le solde, la
+ * seule chose que cette application calcule, s'en trouvait faussé sans le
+ * moindre signal.
+ */
+describe('Emplacement du compte connecté', () => {
+  const TABLE = { 'a@exemple.fr': 'vous', 'b@exemple.fr': 'conjointe' };
+
+  it('rend l\'emplacement de chaque adresse connue', () => {
+    expect(emplacementDuCompte('a@exemple.fr', TABLE)).toBe('vous');
+    expect(emplacementDuCompte('b@exemple.fr', TABLE)).toBe('conjointe');
+  });
+
+  it('ignore la casse et les espaces', () => {
+    // Une adresse se saisit comme elle se prononce : la table serait
+    // silencieusement inopérante si « B@Exemple.fr » n'y correspondait pas.
+    expect(emplacementDuCompte('  B@Exemple.FR ', TABLE)).toBe('conjointe');
+  });
+
+  it('retombe sur le comportement d\'avant pour une adresse inconnue', () => {
+    // Un compte absent de la table garde une application utilisable.
+    expect(emplacementDuCompte('inconnu@exemple.fr', TABLE)).toBe('vous');
+  });
+
+  it('ne lève sur aucune entrée inexploitable', () => {
+    expect(emplacementDuCompte(null, TABLE)).toBe('vous');
+    expect(emplacementDuCompte('a@exemple.fr', null)).toBe('vous');
+    expect(emplacementDuCompte('', TABLE)).toBe('vous');
+    expect(emplacementDuCompte('a@exemple.fr', { 'a@exemple.fr': 'fantaisie' })).toBe('vous');
+  });
+
+  it('range les deux comptes du foyer à des emplacements distincts', () => {
+    // C'est tout l'objet du correctif : si les deux adresses tombaient au même
+    // endroit, le second téléphone continuerait d'attribuer à l'autre.
+    const foyer = ALLOWED_EMAILS
+      .filter(adresse => adresse in EMPLACEMENTS_PAR_COMPTE)
+      .map(adresse => emplacementDuCompte(adresse, EMPLACEMENTS_PAR_COMPTE));
+
+    expect(foyer, 'les comptes du foyer ne sont pas déclarés').toContain('vous');
+    expect(foyer, 'aucun compte n\'occupe l\'emplacement conjointe').toContain('conjointe');
+  });
+
+  it('toute adresse déclarée est autorisée', () => {
+    // Une entrée qui ne serait pas dans la liste blanche ne désignerait
+    // personne, et masquerait une faute de frappe.
+    for (const adresse of Object.keys(EMPLACEMENTS_PAR_COMPTE)) {
+      expect(ALLOWED_EMAILS, `${adresse} n'est pas un compte autorisé`).toContain(adresse);
+    }
+  });
+});
+
+describe('Normalisation d\'un emplacement', () => {
+  it('ne retient que les deux clés de stockage', () => {
+    expect(normaliserEmplacement('conjointe')).toBe('conjointe');
+    expect(normaliserEmplacement('vous')).toBe('vous');
+  });
+
+  it('retombe sur « vous » pour tout le reste', () => {
+    // État pas encore renseigné, lecture ratée : mieux vaut le comportement
+    // d'avant qu'une valeur qu'un `<select>` ignorerait en silence.
+    expect(normaliserEmplacement(undefined)).toBe('vous');
+    expect(normaliserEmplacement('partage')).toBe('vous');
   });
 });

@@ -35,8 +35,14 @@ function observateurSimule() {
     }
     observe(element) { this.observes.push(element); }
     disconnect() { this.deconnecte = true; }
-    /** Rapporte comme le ferait le navigateur */
-    rapporter(visible) { this.rappel([{ isIntersecting: visible }]); }
+    /**
+     * Rapporte comme le ferait le navigateur
+     * @param {boolean} visible
+     * @param {number} [part] - Part du bilan réellement à l'écran
+     */
+    rapporter(visible, part = 1) {
+      this.rappel([{ isIntersecting: visible, intersectionRatio: visible ? part : 0 }]);
+    }
   }
 
   return { Simule, instances };
@@ -58,12 +64,26 @@ beforeEach(() => {
 });
 
 describe('La lecture de ce que rapporte le navigateur', () => {
-  it('le bilan est visible dès qu\'une entrée le dit', () => {
-    expect(bilanVisible([{ isIntersecting: true }])).toBe(true);
+  it('le bilan parle encore quand il est entièrement à l\'écran', () => {
+    expect(bilanVisible([{ isIntersecting: true, intersectionRatio: 1 }])).toBe(true);
   });
 
-  it('il ne l\'est pas quand aucune ne le dit', () => {
-    expect(bilanVisible([{ isIntersecting: false }])).toBe(false);
+  it('il ne parle plus quand il est sorti', () => {
+    expect(bilanVisible([{ isIntersecting: false, intersectionRatio: 0 }])).toBe(false);
+  });
+
+  it('un liseré ne suffit pas', () => {
+    // `isIntersecting` est vrai dès un seul pixel de recouvrement. La barre se
+    // repliait donc alors qu'il ne restait qu'un bandeau du bilan en haut de
+    // l'écran — c'est-à-dire au moment précis où elle devait prendre le relais.
+    // Mesuré sur un iPhone 13 : 57 px visibles sur 198, et plus de solde nulle
+    // part.
+    expect(bilanVisible([{ isIntersecting: true, intersectionRatio: 0.29 }])).toBe(false);
+  });
+
+  it('une part manquante compte comme insuffisante', () => {
+    // Le défaut sûr est de montrer la barre.
+    expect(bilanVisible([{ isIntersecting: true }])).toBe(false);
   });
 
   it('rien de rapporté ne vaut pas « visible »', () => {
@@ -115,7 +135,7 @@ describe('Quand le bilan sort de l\'écran', () => {
     suivreLeBilan({ Observateur: Simule });
 
     instances[0].rapporter(false);
-    instances[0].rapporter(true);
+    instances[0].rapporter(true, 1);
 
     expect(barre().classList.contains(CLASSE_REDONDANTE)).toBe(true);
   });

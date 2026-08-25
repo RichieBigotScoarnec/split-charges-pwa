@@ -6,7 +6,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--scrim);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   z-index: 9999;
@@ -383,7 +383,7 @@
 }
 
 .manage-item-delete:hover {
-  background: var(--danger-color, #e74c3c);
+  background: var(--danger-color);
   color: white;
 }
 
@@ -458,9 +458,15 @@
   border-radius: var(--radius);
 }
 
+/*
+   44 px, et non 36 : c'est le seuil des WCAG 2.5.5, et la seule cible de
+   l'application qui restait en dessous. Une planche de cinquante-sept
+   pastilles serrées à 36 px se rate au doigt, et l'on repart avec une image
+   qu'on n'a pas choisie.
+*/
 .emoji-pick {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   background: transparent;
@@ -641,6 +647,18 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   margin-top: var(--space-sm);
+}
+
+/*
+   Le bouton clôt le formulaire, sous les champs qu'il envoie.
+
+   Il tenait auparavant dans la ligne du nom, avant le budget et les deux
+   dates : la disposition invitait à valider aux deux tiers de la saisie, et
+   les trois derniers champs partaient à la corbeille sans un mot.
+*/
+#envelopeAddBtn {
+  width: 100%;
+  margin-top: var(--space-md);
 }
 
 .envelope-field {
@@ -909,4 +927,152 @@
    ménager la place. */
 .quick-add-panneau {
   margin-bottom: var(--space-md);
+}
+
+/* ===== ÉDITION SUR PLACE D'UNE ENTRÉE =====
+   Renommer était promis par les deux info-bulles — « Ajouter, renommer ou
+   retirer » — et n'existait nulle part : corriger « Restaurent » imposait de
+   supprimer et recréer, ce qui détachait toutes les charges passées.
+
+   L'édition se fait dans la ligne : ouvrir une seconde modale pour deux champs
+   ferait perdre de vue la liste dans laquelle on se repère. */
+.manage-list-item--edition {
+  gap: var(--space-sm);
+  border: 1px solid var(--primary-color);
+  background: var(--primary-soft);
+}
+
+.manage-list-item--edition input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.manage-list-item--edition input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.manage-item-emoji {
+  flex-shrink: 0;
+}
+
+.manage-item-editer {
+  flex-shrink: 0;
+}
+
+/* Le formulaire d'enveloppe édité occupe la ligne entière : quatre champs ne
+   tiennent pas côte à côte sur un téléphone. */
+.envelope-edition {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.envelope-edition-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.envelope-edition-actions .btn {
+  flex: 1;
+}
+
+/* ===== VUE D'UNE ENVELOPPE =====
+   L'écran de gestion ne comptait que le mois consulté, ce qui est l'inverse du
+   besoin : une enveloppe existe pour traverser les mois. Cette vue donne le
+   seul chiffre qu'on lui demande — ce qu'elle a coûté en tout — et la liste de
+   ce qu'elle contient. */
+.enveloppe-total {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+}
+
+.enveloppe-total-montant {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.enveloppe-total-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.enveloppe-jauge {
+  height: 8px;
+  margin-top: var(--space-md);
+  border-radius: var(--radius-full);
+  background: var(--border-color);
+  overflow: hidden;
+}
+
+.enveloppe-jauge-barre {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--success-color);
+}
+
+.enveloppe-jauge--proche .enveloppe-jauge-barre { background: var(--warning-color); }
+.enveloppe-jauge--depasse .enveloppe-jauge-barre { background: var(--danger-color); }
+
+.enveloppe-jauge-legende {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.enveloppe-depenses {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.enveloppe-depense {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.enveloppe-depense-titre {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.enveloppe-depense-detail {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.enveloppe-depense-montant {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Le total de la ligne ne porte que sur le mois consulté : dire où trouver
+   l'autre évite de prendre celui-ci pour le total de l'enveloppe. */
+.envelope-detail--indice {
+  display: block;
+  color: var(--text-muted);
 }

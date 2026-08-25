@@ -1,13 +1,54 @@
 /* ===== CARTE MAP ===== */
-/* Map Modal */
+/*
+   La carte est une modale : elle doit se poser devant la page.
+
+   Elle n'en avait pourtant que le balisage. `.map-modal` ne portait que
+   `max-width`, `width` et `max-height` — les dimensions d'une *boîte*, alors
+   que `.modal-overlay`, qu'emploient toutes les autres modales, porte le
+   `position: fixed`, le voile et le `z-index`. Quelqu'un avait stylé le voile
+   comme s'il était la boîte.
+
+   Résultat mesuré : `position: static`, posée au pixel 3 472 d'une page qui en
+   compte 3 472 — c'est-à-dire tout en bas, hors de l'écran, bouton de
+   fermeture compris. Ouvrir la carte ne montrait rien.
+*/
 .map-modal {
-  max-width: 90%;
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  padding: var(--space-md);
+  align-items: center;
+  justify-content: center;
+}
+
+.map-modal.active {
+  display: flex;
+}
+
+.map-modal-content {
   width: 900px;
+  max-width: 100%;
+  /* La hauteur est bornée, et c'est le contenu qui défile : sans cela, filtres
+     et statistiques débordaient sous le bord de l'écran. */
   max-height: 90vh;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg, var(--radius));
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
 }
 
 .map-container {
   height: 500px;
+  /* Sur un téléphone, 500 px fixes ne laissaient pas la place aux filtres ni
+     aux totaux. La carte prend ce qui reste, sans jamais chasser le reste. */
+  max-height: 50vh;
   border-radius: var(--radius);
   overflow: hidden;
   margin: var(--space-md) 0;
@@ -66,12 +107,6 @@
    Ces classes sont produites par map.js depuis toujours ; aucune règle ne les
    visait. L'en-tête, les filtres et les totaux s'affichaient sans mise en
    forme, au-dessus d'une carte qui, elle, en avait une. */
-.map-modal-content {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-md);
-}
-
 .map-header {
   display: flex;
   align-items: center;

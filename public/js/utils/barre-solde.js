@@ -29,6 +29,19 @@
  */
 export const CLASSE_REDONDANTE = 'balance-bar--redondante';
 
+/**
+ * Part du solde du bilan qui doit rester à l'écran pour que la barre se taise
+ *
+ * `isIntersecting` est vrai dès un seul pixel de recouvrement. La barre se
+ * repliait donc alors qu'il ne restait qu'un liseré du bilan en haut de
+ * l'écran — c'est-à-dire au moment précis où elle devait prendre le relais.
+ * Mesuré sur un iPhone 13 : 57 px visibles sur 198, et plus de solde nulle
+ * part.
+ *
+ * Deux tiers : en deçà, ce qui reste du bilan ne se lit plus comme une réponse.
+ */
+const PART_SUFFISANTE = 0.66;
+
 /** Observateur en cours, pour ne jamais en laisser deux derrière soi */
 let observateur = null;
 
@@ -69,9 +82,11 @@ export function suivreLeBilan({ Observateur } = {}) {
     return false;
   }
 
+  // Les seuils font rapporter l'observateur au passage de la part utile, et
+  // pas seulement à l'entrée et à la sortie du cadre.
   observateur = new Classe((entrees) => {
     barre.classList.toggle(CLASSE_REDONDANTE, bilanVisible(entrees));
-  });
+  }, { threshold: [0, PART_SUFFISANTE, 1] });
 
   observateur.observe(temoin);
 
@@ -84,17 +99,21 @@ export function suivreLeBilan({ Observateur } = {}) {
 }
 
 /**
- * Le solde du bilan est-il à l'écran ?
+ * Le solde du bilan est-il assez à l'écran pour se passer de la barre ?
  *
  * Rendue à part pour être vérifiable : c'est la seule décision de ce module, et
  * l'inverser rendrait la barre visible exactement quand elle est inutile.
  *
- * @param {Array<{isIntersecting: boolean}>} entrees
+ * @param {Array<{isIntersecting: boolean, intersectionRatio: number}>} entrees
  * @returns {boolean}
  */
 export function bilanVisible(entrees) {
   if (!Array.isArray(entrees) || entrees.length === 0) return false;
-  return entrees.some(entree => entree && entree.isIntersecting);
+
+  // Une part manquante compte comme insuffisante : le défaut sûr est de
+  // montrer la barre — une redondance vaut mieux qu'un solde introuvable.
+  return entrees.some(entree =>
+    entree && entree.isIntersecting && entree.intersectionRatio >= PART_SUFFISANTE);
 }
 
 /**

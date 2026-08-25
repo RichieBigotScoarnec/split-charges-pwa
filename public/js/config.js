@@ -191,6 +191,31 @@ export const ALLOWED_EMAILS = [
 ];
 
 /**
+ * Quel emplacement du foyer occupe chaque compte
+ *
+ * Les données ont deux emplacements fixes, `vous` et `conjointe`, et les deux
+ * comptes lisent le même enregistrement. L'application savait donc afficher les
+ * bons prénoms, mais elle ignorait lequel des deux tenait le téléphone : la
+ * saisie rapide partait sur `vous` en dur, à chaque ouverture.
+ *
+ * Conséquence, sur le second téléphone : chaque dépense saisie sans y penser
+ * était attribuée à l'autre, et le solde — la seule chose que cette application
+ * calcule — partait de travers sans le moindre signal.
+ *
+ * Une adresse absente de cette table retombe sur `vous`, c'est-à-dire sur le
+ * comportement d'avant : aucun compte ne perd l'usage de l'application faute
+ * d'y figurer.
+ *
+ * Le compte de test occupe `vous` : il travaille seul dans le bac à sable, et
+ * n'a pas de conjoint dont il faudrait le distinguer.
+ */
+export const EMPLACEMENTS_PAR_COMPTE = {
+  'bigot.richard@gmail.com': 'vous',
+  'cindypepe.cp95@gmail.com': 'conjointe',
+  'testfairsplit@gmail.com': 'vous'
+};
+
+/**
  * Comptes cantonnés au bac à sable, quelle que soit l'URL.
  *
  * Le compte de test existe pour exercer l'application contre le vrai Firebase,

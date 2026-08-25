@@ -83,7 +83,7 @@
   font-size: 10px;
   font-weight: 600;
   color: var(--primary-light);
-  background: rgba(99, 102, 241, 0.12);
+  background: var(--primary-soft);
   padding: 1px 6px;
   border-radius: var(--radius-full);
   margin-left: 4px;
@@ -151,8 +151,8 @@
 }
 
 .summary-balance.balance-positive {
-  background: rgba(52, 211, 153, 0.08);
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  background: var(--success-soft);
+  border: 1px solid var(--success-edge);
 }
 
 .summary-balance.balance-positive strong {
@@ -160,8 +160,8 @@
 }
 
 .summary-balance.balance-negative {
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.2);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-edge);
 }
 
 .summary-balance.balance-negative strong {
@@ -169,8 +169,8 @@
 }
 
 .summary-balance.balance-zero {
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-edge);
 }
 
 .summary-balance.balance-zero strong {
@@ -458,15 +458,15 @@
 }
 
 .budget-gauge.budget-ok {
-  border-color: rgba(52, 211, 153, 0.25);
+  border-color: var(--success-edge);
 }
 
 .budget-gauge.budget-warning {
-  border-color: rgba(251, 191, 36, 0.25);
+  border-color: var(--warning-edge);
 }
 
 .budget-gauge.budget-over {
-  border-color: rgba(248, 113, 113, 0.25);
+  border-color: var(--danger-edge);
 }
 
 .budget-gauge h3 {
@@ -545,7 +545,7 @@
 .virements-recap {
   margin-top: var(--space-md);
   background: var(--card-bg);
-  border: 1px solid rgba(96, 165, 250, 0.2);
+  border: 1px solid var(--info-edge);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
 }
@@ -592,7 +592,7 @@
 
 .virement-details {
   padding-left: var(--space-sm);
-  border-left: 2px solid rgba(96, 165, 250, 0.2);
+  border-left: 2px solid var(--info-edge);
 }
 
 .virement-detail-row {
@@ -616,7 +616,7 @@
 /* ===== TAGS CHARGES FIXES ===== */
 .charge-destination {
   display: inline-block;
-  background: rgba(96, 165, 250, 0.1);
+  background: var(--info-soft);
   color: var(--info-color);
   font-size: 10px;
   padding: 1px 7px;
@@ -693,7 +693,7 @@
 
 .charge-ponctuel {
   display: inline-block;
-  background: rgba(251, 191, 36, 0.1);
+  background: var(--warning-soft);
   color: var(--warning-color);
   font-size: 10px;
   padding: 1px 6px;

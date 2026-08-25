@@ -401,7 +401,7 @@
 }
 
 .btn-delete:hover {
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--danger-soft);
   border-color: var(--danger-color);
   color: var(--danger-color);
 }
@@ -734,11 +734,24 @@
 }
 
 /* ===== TOAST NOTIFICATIONS ===== */
+/*
+   Le positionnement appartient au conteneur, pas au message.
+
+   `.toast` portait `position: fixed; bottom: 20px; right: 20px`, alors que
+   `toast.js` crée un conteneur empilable — précisément pour que deux messages
+   se suivent. Chaque message sortait donc du flux de ce conteneur et atterrissait
+   au même point : deux messages simultanés formaient un tas illisible. Mesuré,
+   et non supposé : les deux se posaient à trois pixels l'un de l'autre.
+
+   Le cas n'est pas rare — ouvrir la carte sans réseau et créer une enveloppe
+   dans la foulée suffit à le produire.
+*/
 .toast {
-  position: fixed;
-  bottom: env(safe-area-inset-bottom, 20px);
-  bottom: 20px;
-  right: 20px;
+  position: relative;
+  /* Le conteneur ne capte pas le doigt, pour ne pas voler un appui destiné à
+     ce qu'il recouvre ; le message, lui, doit rester touchable — il porte le
+     bouton « Annuler ». */
+  pointer-events: auto;
   background: var(--card-bg);
   color: var(--text-primary);
   padding: 14px 20px;
@@ -795,9 +808,15 @@
 }
 
 /* ===== FLOATING ACTION BUTTON (FAB) ===== */
+/* `.container` réserve déjà 100 px en bas pour que la fin de la page ne passe
+   pas dessous. Ce qu'il manquait : la garde du bas d'écran, sans laquelle le
+   bouton se pose sur la barre de navigation d'un téléphone récent.
+
+   Qu'il recouvre le contenu au milieu du défilement est, lui, inhérent à un
+   bouton flottant — et c'est le prix de l'avoir toujours sous le pouce. */
 .fab {
   position: fixed;
-  bottom: var(--space-lg);
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
   right: var(--space-lg);
   width: 56px;
   height: 56px;
@@ -810,14 +829,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 16px var(--primary-glow);
   z-index: 9998;
   transition: all var(--duration) var(--ease);
 }
 
 .fab:hover {
   background: var(--primary-dark);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6px 24px var(--primary-glow);
   transform: translateY(-2px);
 }
 
@@ -826,12 +845,19 @@
 }
 
 @keyframes fabPulse {
-  0%, 100% { box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 4px 24px rgba(99, 102, 241, 0.6), 0 0 0 8px rgba(99, 102, 241, 0.1); }
+  0%, 100% { box-shadow: 0 4px 16px var(--primary-glow); }
+  50% { box-shadow: 0 4px 24px var(--primary-glow), 0 0 0 8px var(--primary-soft); }
 }
 
+/*
+   Le bouton pulsait sans fin : `fabPulse … infinite`. Dans une application de
+   finances de couple, dont tout le dessin cherche le calme, un élément qui
+   bouge en permanence tire l'œil sans jamais rien annoncer de nouveau. Trois
+   battements suffisent à signaler le raccourci à qui ne l'a pas vu, puis il se
+   tient tranquille.
+*/
 .fab {
-  animation: fabPulse 3s ease-in-out 2s infinite;
+  animation: fabPulse 3s ease-in-out 2s 3;
 }
 
 /* ===== REVENUS COMPLÉMENTAIRES ===== */

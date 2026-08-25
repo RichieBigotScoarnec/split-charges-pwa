@@ -122,6 +122,16 @@
   display: none;
 }
 
+/*
+   Les quatre couleurs ci-dessous sont volontairement écrites en dur.
+
+   Google impose l'apparence de son bouton de connexion : fond, texte et
+   bordure sont prescrits, et le bouton doit se ressembler d'un site à l'autre
+   pour être reconnu. Le faire suivre le thème de l'application le rendrait
+   méconnaissable — et non conforme. C'est la seule exception assumée à la
+   règle « pas de couleur hors de variables.css » : elles sont regroupées ici,
+   nommées, et ne servent qu'à ce bouton.
+*/
 .btn-google-signin {
   --google-bg: #fff;
   --google-text: #1f1f1f;
@@ -202,8 +212,19 @@
   margin-bottom: var(--space-xs);
 }
 
+/*
+   `--hover-bg` plutôt qu'un voile blanc.
+
+   Ces trois règles écrivaient `rgba(255, 255, 255, 0.0x)` : un lavis blanc,
+   dessiné pour l'époque où l'application n'existait qu'en sombre. Sur le thème
+   clair — celui par défaut aujourd'hui — du blanc à 4 % sur une carte presque
+   blanche ne se voit pas. Les deux boutons du premier écran ne donnaient donc
+   aucun retour à l'appui, et la bordure de l'avatar n'existait pas.
+
+   Le jeton, lui, s'assombrit en clair et s'éclaircit en sombre.
+*/
 .auth-card .btn-create-account:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover-bg);
   border-color: var(--primary-color);
   color: var(--text-primary);
 }
@@ -248,7 +269,7 @@
   width: 26px;
   height: 26px;
   border-radius: var(--radius-full);
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  border: 2px solid var(--border-strong);
 }
 
 .user-name {
@@ -269,7 +290,7 @@
 }
 
 .btn-logout:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
   color: var(--text-primary);
   border-color: var(--text-secondary);
 }

@@ -16,8 +16,11 @@ import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
+import { formatDate } from '../utils/date.js';
 import {
   normaliserEnveloppes,
+  chargesDeLEnveloppeTousMois,
+  bilanEnveloppe,
   enveloppesOuvertes,
   enveloppeParId,
   budgetLisible,
@@ -153,6 +156,14 @@ export function populateAllEnvelopeSelects() {
 // ===== ÉCRAN DE GESTION =====
 
 /**
+ * Rang de l'enveloppe en cours d'édition, ou null
+ *
+ * Une seule à la fois : deux formulaires ouverts laisseraient croire qu'un seul
+ * « Enregistrer » vaut pour les deux.
+ */
+let _enEdition = null;
+
+/**
  * Charges du mois consulté, fixes et variables confondues
  *
  * Le total affiché à côté de chaque enveloppe ne porte donc que sur ce mois-ci,
@@ -190,7 +201,11 @@ function showManageEnvelopesModal() {
 
   const lignes = enveloppes.length === 0
     ? '<p class="empty-state">Aucune enveloppe. Créez-en une pour regrouper des dépenses qui vont ensemble — des vacances, un déménagement.</p>'
-    : enveloppes.map((enveloppe, index) => ligneEnveloppe(enveloppe, index, charges)).join('');
+    : enveloppes.map((enveloppe, index) => (
+      index === _enEdition
+        ? formulaireEdition(enveloppe, index)
+        : ligneEnveloppe(enveloppe, index, charges)
+    )).join('');
 
   modal.innerHTML = `
     <div class="modal manage-lists-modal">
@@ -203,12 +218,18 @@ function showManageEnvelopesModal() {
 
         <div id="manageEnvelopeItems" class="manage-list-items">${lignes}</div>
 
+        <!--
+          Le bouton vient après tous les champs qu'il envoie.
+
+          Il était placé juste après le nom, avant le budget et les deux dates :
+          qui remplissait le nom et appuyait sur « Ajouter » — le geste que la
+          disposition appelle — perdait les trois champs suivants sans rien voir.
+        -->
         <div class="manage-list-add">
           <div class="manage-add-row">
             <button type="button" id="envelopeEmojiBtn" class="manage-emoji-btn" title="Choisir une image">🧳</button>
             <label class="sr-only" for="envelopeNewLabel">Nom de l'enveloppe</label>
             <input type="text" id="envelopeNewLabel" placeholder="Ex : Vacances été" maxlength="30" />
-            <button type="button" id="envelopeAddBtn" class="btn btn-primary btn-sm">Ajouter</button>
           </div>
           <div id="envelopeEmojiPicker" class="manage-emoji-picker" style="display:none;">
             ${emojisProposes().map(emoji => `
@@ -229,6 +250,7 @@ function showManageEnvelopesModal() {
               <input type="date" id="envelopeNewFin" />
             </div>
           </div>
+          <button type="button" id="envelopeAddBtn" class="btn btn-primary">Ajouter l'enveloppe</button>
         </div>
       </div>
 
@@ -242,6 +264,56 @@ function showManageEnvelopesModal() {
 
   modal.style.display = 'flex';
   requestAnimationFrame(() => modal.classList.add('active'));
+}
+
+/**
+ * Le formulaire d'édition d'une enveloppe, à la place de sa ligne
+ *
+ * Une enveloppe se créait, se clôturait, se rouvrait et se supprimait — jamais
+ * elle ne se modifiait. Une faute de frappe dans « Vacanes été » ne se réparait
+ * donc qu'en supprimant, ce qui détachait toutes les charges rattachées.
+ *
+ * Contrairement aux catégories, rien n'a besoin d'être reporté : une charge
+ * renvoie à son enveloppe par identifiant, que le renommage ne touche pas.
+ *
+ * @param {Object} enveloppe
+ * @param {number} index
+ * @returns {string} Fragment HTML échappé
+ */
+function formulaireEdition(enveloppe, index) {
+  return `
+    <div class="manage-list-item manage-list-item--edition envelope-edition" data-index="${index}">
+      <div class="manage-add-row">
+        <button type="button" id="envelopeEditEmojiBtn" class="manage-emoji-btn"
+                aria-label="Changer l'image">${escapeHtml(enveloppe.icon)}</button>
+        <label class="sr-only" for="envelopeEditLabel">Nom de l'enveloppe</label>
+        <input type="text" id="envelopeEditLabel" value="${escapeHtml(enveloppe.label)}" maxlength="30" />
+      </div>
+      <div id="envelopeEditEmojiPicker" class="manage-emoji-picker" style="display:none;">
+        ${emojisProposes().map(emoji => `
+          <button type="button" class="emoji-pick emoji-pick--edition" data-emoji="${escapeHtml(emoji)}">${escapeHtml(emoji)}</button>
+        `).join('')}
+      </div>
+      <div class="envelope-add-details">
+        <div class="envelope-field">
+          <label for="envelopeEditBudget">Budget (€, facultatif)</label>
+          <input type="text" id="envelopeEditBudget" value="${enveloppe.budget ?? ''}" inputmode="decimal" maxlength="10" />
+        </div>
+        <div class="envelope-field">
+          <label for="envelopeEditDebut">Du (facultatif)</label>
+          <input type="date" id="envelopeEditDebut" value="${escapeHtml(enveloppe.debut || '')}" />
+        </div>
+        <div class="envelope-field">
+          <label for="envelopeEditFin">Au (facultatif)</label>
+          <input type="date" id="envelopeEditFin" value="${escapeHtml(enveloppe.fin || '')}" />
+        </div>
+      </div>
+      <div class="envelope-edition-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="envelopeEditAnnuler">Annuler</button>
+        <button type="button" class="btn btn-primary btn-sm" id="envelopeEditValider">Enregistrer</button>
+      </div>
+    </div>
+  `;
 }
 
 /**
@@ -265,7 +337,12 @@ function ligneEnveloppe(enveloppe, index, charges) {
       <span class="manage-item-label">
         ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>
+        <small class="envelope-detail envelope-detail--indice">🔍 pour le total sur toute sa durée</small>
       </span>
+      <button type="button" class="btn-icon envelope-ouvrir" data-index="${index}"
+              aria-label="Voir le détail de ${escapeHtml(enveloppe.label)}">🔍</button>
+      <button type="button" class="btn-icon envelope-editer" data-index="${index}"
+              aria-label="Modifier ${escapeHtml(enveloppe.label)}">✏️</button>
       <button type="button" class="btn-icon envelope-toggle" data-index="${index}"
               aria-label="${enveloppe.cloturee ? 'Rouvrir' : 'Clore'} ${escapeHtml(enveloppe.label)}">
         ${enveloppe.cloturee ? '♻️' : '📥'}
@@ -283,12 +360,18 @@ function ligneEnveloppe(enveloppe, index, charges) {
  */
 function decrireFenetre(enveloppe) {
   if (!enveloppe.debut && !enveloppe.fin) return '';
-  if (enveloppe.debut && enveloppe.fin) {
-    return ` · ${escapeHtml(enveloppe.debut)} → ${escapeHtml(enveloppe.fin)}`;
-  }
-  return enveloppe.debut
-    ? ` · à partir du ${escapeHtml(enveloppe.debut)}`
-    : ` · jusqu'au ${escapeHtml(enveloppe.fin)}`;
+
+  // En toutes lettres, comme partout ailleurs dans l'application. La ligne
+  // affichait « 2026-08-01 → 2026-08-15 » en chasse fixe, au milieu d'un écran
+  // qui écrit « 15 août 2026 » : de la donnée brute, là où l'on cherche une
+  // date.
+  const debut = enveloppe.debut ? formatDate(enveloppe.debut) : '';
+  const fin = enveloppe.fin ? formatDate(enveloppe.fin) : '';
+
+  if (debut && fin) return ` · ${escapeHtml(debut)} → ${escapeHtml(fin)}`;
+  return debut
+    ? ` · à partir du ${escapeHtml(debut)}`
+    : ` · jusqu'au ${escapeHtml(fin)}`;
 }
 
 /**
@@ -364,10 +447,106 @@ function brancherEcran(modal) {
   };
 
   modal.querySelector('#envelopeAddBtn').addEventListener('click', ajouter);
+
+  // Entrée depuis le nom avance au champ suivant, elle ne valide pas.
+  //
+  // Elle validait — ce qui, avec le bouton placé juste après le nom, formait le
+  // même piège au clavier qu'à l'écran : le budget et les deux dates étaient
+  // perdus sans un mot. Depuis le budget, en revanche, il ne reste que deux
+  // champs facultatifs : Entrée y garde son sens de « c'est fini ».
   champLibelle.addEventListener('keydown', evenement => {
     if (evenement.key !== 'Enter') return;
     evenement.preventDefault();
+    modal.querySelector('#envelopeNewBudget').focus();
+  });
+
+  modal.querySelector('#envelopeNewBudget').addEventListener('keydown', evenement => {
+    if (evenement.key !== 'Enter') return;
+    evenement.preventDefault();
     ajouter();
+  });
+
+  // Ouvrir le détail d'une enveloppe
+  modal.querySelectorAll('.envelope-ouvrir').forEach(bouton => {
+    bouton.addEventListener('click', () => {
+      const cible = getEnveloppes()[Number(bouton.dataset.index)];
+      if (cible) ouvrirLaVueEnveloppe(cible.id);
+    });
+  });
+
+  // Ouvrir l'édition d'une enveloppe
+  modal.querySelectorAll('.envelope-editer').forEach(bouton => {
+    bouton.addEventListener('click', () => {
+      _enEdition = Number(bouton.dataset.index);
+      showManageEnvelopesModal();
+      document.getElementById('envelopeEditLabel')?.focus();
+    });
+  });
+
+  modal.querySelector('#envelopeEditAnnuler')?.addEventListener('click', () => {
+    _enEdition = null;
+    showManageEnvelopesModal();
+  });
+
+  const emojiEdition = modal.querySelector('#envelopeEditEmojiBtn');
+  const plancheEdition = modal.querySelector('#envelopeEditEmojiPicker');
+  if (emojiEdition && plancheEdition) {
+    emojiEdition.addEventListener('click', () => {
+      plancheEdition.style.display = plancheEdition.style.display === 'none' ? 'flex' : 'none';
+    });
+    modal.querySelectorAll('.emoji-pick--edition').forEach(pastille => {
+      pastille.addEventListener('click', () => {
+        emojiEdition.textContent = pastille.dataset.emoji;
+        plancheEdition.style.display = 'none';
+      });
+    });
+  }
+
+  modal.querySelector('#envelopeEditValider')?.addEventListener('click', async () => {
+    const index = _enEdition;
+    const avant = getEnveloppes();
+    const cible = avant[index];
+    if (!cible) return;
+
+    const libelle = modal.querySelector('#envelopeEditLabel').value.trim();
+    if (!libelle) {
+      toast.error('Nom requis');
+      return;
+    }
+
+    // La comparaison exclut l'enveloppe éditée : garder son propre nom parce
+    // qu'on ne change que le budget ne doit pas se heurter à soi-même.
+    const doublon = avant.some((e, rang) =>
+      rang !== index && e.label.toLowerCase() === libelle.toLowerCase());
+    if (doublon) {
+      toast.error('Ce nom existe déjà');
+      return;
+    }
+
+    const debut = dateLisible(modal.querySelector('#envelopeEditDebut').value);
+    const fin = dateLisible(modal.querySelector('#envelopeEditFin').value);
+    if (!fenetreCoherente(debut, fin)) {
+      toast.error('La date de fin précède celle de début');
+      return;
+    }
+
+    const apres = avant.map((enveloppe, rang) => (rang === index ? {
+      ...enveloppe,
+      label: libelle,
+      icon: emojiEdition ? emojiEdition.textContent.trim() : enveloppe.icon,
+      budget: budgetLisible(modal.querySelector('#envelopeEditBudget').value),
+      debut,
+      fin
+    } : enveloppe));
+
+    if (!await enregistrer(apres, avant)) return;
+
+    // L'identifiant ne bouge pas : les charges rattachées le restent, sans
+    // qu'aucune écriture ne les touche.
+    _enEdition = null;
+    toast.success(`« ${libelle} » enregistrée`);
+    populateAllEnvelopeSelects();
+    showManageEnvelopesModal();
   });
 
   modal.querySelectorAll('.envelope-toggle').forEach(bouton => {
@@ -418,9 +597,165 @@ function brancherEcran(modal) {
   });
 
   modal.querySelector('#envelopeManageClose').addEventListener('click', () => {
+    // Sans cela, rouvrir l'écran retrouverait un formulaire ouvert dont plus
+    // personne ne se souvient.
+    _enEdition = null;
     modal.classList.remove('active');
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   });
+}
+
+// ===== VUE D'UNE ENVELOPPE, TOUS MOIS CONFONDUS =====
+
+/**
+ * Ouvre le détail d'une enveloppe
+ *
+ * L'écran de gestion ne comptait que le mois consulté — « 320 € ce mois-ci » —
+ * ce qui est l'inverse du besoin : une enveloppe existe pour traverser les
+ * mois, et le seul chiffre qu'on lui demande, ce qu'ont coûté les vacances en
+ * tout, était le seul qu'on ne pouvait pas obtenir. Son budget se mesurait donc
+ * au mauvais nombre, et rien ne permettait de voir ce qu'elle contient.
+ *
+ * La lecture du nœud complet ne se fait qu'à l'ouverture de cette vue, jamais
+ * au fil de l'écran de gestion : c'est la seule requête coûteuse du module.
+ *
+ * @param {string} id - Identifiant de l'enveloppe
+ * @returns {Promise<void>}
+ */
+async function ouvrirLaVueEnveloppe(id) {
+  const enveloppe = enveloppeParId(getEnveloppes(), id);
+  if (!enveloppe) return;
+
+  let charges;
+  try {
+    const { dbGet } = await import('../db.js');
+    charges = chargesDeLEnveloppeTousMois(await dbGet('periods'), id);
+  } catch (erreur) {
+    logError('❌ Lecture des dépenses de l\'enveloppe impossible :', erreur);
+    toast.error('Dépenses illisibles — réessayez');
+    return;
+  }
+
+  const bilan = bilanEnveloppe(charges, enveloppe.budget);
+
+  let modal = document.getElementById('modalVueEnveloppe');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalVueEnveloppe';
+    modal.className = 'modal-overlay';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'vueEnveloppeTitre');
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div class="modal enveloppe-vue">
+      <h2 class="modal-header" id="vueEnveloppeTitre">
+        ${escapeHtml(enveloppe.icon)} ${escapeHtml(enveloppe.label)}
+      </h2>
+
+      <div class="enveloppe-total">
+        <div class="enveloppe-total-montant">${formatCurrency(bilan.total)}</div>
+        <div class="enveloppe-total-detail">${resumeDuBilan(bilan)}</div>
+        ${jaugeBudget(bilan, enveloppe.budget)}
+      </div>
+
+      <div class="enveloppe-depenses">
+        ${charges.length === 0
+          ? '<p class="empty-state">Aucune dépense rattachée pour l\'instant. Choisissez cette enveloppe au moment de saisir une charge.</p>'
+          : charges.map(ligneDepense).join('')}
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="vueEnveloppeFermer">Fermer</button>
+      </div>
+    </div>
+  `;
+
+  modal.querySelector('#vueEnveloppeFermer').addEventListener('click', () => {
+    modal.classList.remove('active');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+  });
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('active'));
+}
+
+/**
+ * La phrase qui accompagne le total
+ *
+ * @param {Object} bilan - Rendu par `bilanEnveloppe`
+ * @returns {string} Fragment échappé
+ */
+function resumeDuBilan(bilan) {
+  const depenses = `${bilan.nombre} dépense${bilan.nombre > 1 ? 's' : ''}`;
+  const mois = bilan.mois > 1 ? ` sur ${bilan.mois} mois` : '';
+  return escapeHtml(`${depenses}${mois}`);
+}
+
+/**
+ * La jauge de budget, quand l'enveloppe en porte un
+ *
+ * @param {Object} bilan
+ * @param {number|null} budget
+ * @returns {string} Fragment échappé, ou chaîne vide
+ */
+function jaugeBudget(bilan, budget) {
+  if (bilan.part === null) return '';
+
+  const etat = bilan.depasse ? 'depasse' : (bilan.part >= 80 ? 'proche' : 'ok');
+  const reste = bilan.depasse
+    ? `${formatCurrency(Math.abs(bilan.reste))} de plus que prévu`
+    : `${formatCurrency(bilan.reste)} restants`;
+
+  return `
+    <div class="enveloppe-jauge enveloppe-jauge--${etat}">
+      <div class="enveloppe-jauge-barre" style="width: ${bilan.part}%"></div>
+    </div>
+    <div class="enveloppe-jauge-legende">
+      ${escapeHtml(reste)} sur ${formatCurrency(budget)}
+    </div>
+  `;
+}
+
+/**
+ * Une dépense de la liste
+ *
+ * @param {Object} charge - Charge portant sa période
+ * @returns {string} Fragment échappé
+ */
+function ligneDepense(charge) {
+  const quand = charge.date ? formatDate(charge.date) : moisLisible(charge.periode);
+
+  return `
+    <div class="enveloppe-depense">
+      <div class="enveloppe-depense-titre">
+        ${escapeHtml(charge.description || 'Sans description')}
+        ${charge.fixe ? '<span class="charge-split-tag">fixe</span>' : ''}
+      </div>
+      <div class="enveloppe-depense-detail">
+        ${escapeHtml(quand)}${charge.category ? ` · ${escapeHtml(charge.category)}` : ''}
+      </div>
+      <div class="enveloppe-depense-montant">${formatCurrency(charge.amount || 0)}</div>
+    </div>
+  `;
+}
+
+/**
+ * Un mois écrit en toutes lettres
+ *
+ * Les dates d'enveloppe s'affichaient en ISO brut — « 2026-08-01 → 2026-08-15 »
+ * — au milieu d'une application qui écrit partout ailleurs « 15 août 2026 ».
+ *
+ * @param {string} periode - Clé AAAA-MM
+ * @returns {string}
+ */
+export function moisLisible(periode) {
+  if (typeof periode !== 'string' || !/^\d{4}-\d{2}$/.test(periode)) return '';
+  const [annee, mois] = periode.split('-');
+  return new Date(Number(annee), Number(mois) - 1, 1)
+    .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
 // Joignable depuis le balisage, par la délégation `data-action` de init.js.

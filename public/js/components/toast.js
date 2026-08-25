@@ -14,14 +14,21 @@ function ensureContainer() {
   if (!toastContainer) {
     toastContainer = document.createElement('div');
     toastContainer.id = 'toast-container';
+    // La marge basse tient compte de la barre de navigation du téléphone.
+    // `.toast` déclarait bien `bottom: env(safe-area-inset-bottom, 20px)`, mais
+    // la ligne suivante l'écrasait par `bottom: 20px` : le repli était pris
+    // pour la valeur, et les messages passaient sous la barre. Ici la garde
+    // s'ajoute aux 80 px qui laissent le bouton flottant dégagé.
     toastContainer.style.cssText = `
       position: fixed;
-      bottom: 80px;
+      bottom: calc(80px + env(safe-area-inset-bottom, 0px));
       right: 20px;
       z-index: 10000;
       display: flex;
       flex-direction: column;
+      align-items: flex-end;
       gap: 10px;
+      pointer-events: none;
     `;
     document.body.appendChild(toastContainer);
   }

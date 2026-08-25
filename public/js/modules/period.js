@@ -16,43 +16,70 @@ import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
+import { listePeriodes } from '../utils/periodes.js';
 
 /**
- * Populate period dropdown with last 12 months
+ * Remplit le sélecteur de mois
+ *
+ * La liste ne se limite plus aux douze derniers mois : elle réunit ce que la
+ * base contient, quel que soit son âge. Le sélecteur étant le seul moyen de
+ * naviguer — les flèches ne font que s'y déplacer —, un mois de plus d'un an
+ * restait sinon en base sans qu'aucun chemin ne puisse l'afficher.
+ *
+ * @returns {void}
  */
 function populatePeriodDropdown() {
   const select = document.getElementById('periodSelect');
   if (!select) return;
 
-  select.innerHTML = '';
   const currentPeriod = getState('currentPeriod');
 
-  // Generate last 12 months + current month
-  //
-  // Le premier du mois, jamais la date du jour : `setMonth` conserve le
-  // quantième, et le 31 mars un `setMonth(1)` donne le 31 février, que
-  // JavaScript reporte au 3 mars. La liste affichait alors deux fois le même
-  // mois et en omettait un — visible seulement du 29 au 31, donc presque
-  // jamais pendant qu'on développe.
-  const aujourdhui = new Date();
-  for (let i = 0; i < 12; i++) {
-    const date = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() - i, 1);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const periodStr = `${year}-${month}`;
+  const periodes = listePeriodes({
+    moisCourant: getCurrentPeriod(),
+    // Alimenté par `chargerLesPeriodesConnues`, appelé une fois les données
+    // lues. Absent au tout premier rendu : la liste vaut alors les douze mois
+    // glissants, c'est-à-dire le comportement d'avant.
+    enBase: getState('periodesConnues') || [],
+    consultee: currentPeriod
+  });
 
+  select.replaceChildren();
+
+  for (const periodStr of periodes) {
     const option = document.createElement('option');
     option.value = periodStr;
     option.textContent = formatPeriod(periodStr);
-
-    if (periodStr === currentPeriod) {
-      option.selected = true;
-    }
-
+    if (periodStr === currentPeriod) option.selected = true;
     select.appendChild(option);
   }
 
   updatePeriodInfo();
+}
+
+/**
+ * Relève les mois présents en base, pour que le sélecteur les propose
+ *
+ * Lecture des seules clés : le nœud complet des périodes pèse toutes les
+ * charges de tous les mois, et le sélecteur n'a besoin que de leurs noms.
+ * Realtime Database ne sait pas ne rendre que les clés — on lit donc le nœud
+ * une fois, au démarrage, comme le font déjà le report et la corbeille.
+ *
+ * @returns {Promise<void>}
+ */
+export async function chargerLesPeriodesConnues() {
+  try {
+    const { dbGet } = await import('../db.js');
+    const periods = await dbGet('periods');
+    const cles = periods && typeof periods === 'object' ? Object.keys(periods) : [];
+
+    setState('periodesConnues', cles);
+    populatePeriodDropdown();
+    log(`🗓️ ${cles.length} mois connus en base`);
+  } catch (error) {
+    // Sans cette liste, le sélecteur retombe sur les douze mois glissants :
+    // l'application reste utilisable, seul l'historique ancien s'éloigne.
+    warn('⚠️ Liste des mois illisible, sélecteur limité aux douze derniers :', error);
+  }
 }
 
 /**

@@ -8,7 +8,9 @@ import {
   enveloppesOuvertes,
   enveloppeParId,
   chargesDeLEnveloppe,
-  totalEnveloppe
+  totalEnveloppe,
+  chargesDeLEnveloppeTousMois,
+  bilanEnveloppe
 } from '../../public/js/utils/enveloppes.js';
 import { computeSummary } from '../../public/js/utils/calculations.js';
 
@@ -263,5 +265,113 @@ describe('L\'exigence : une enveloppe ne déplace pas un euro', () => {
     // vide, et ce cas passerait sans rien prouver.
     expect(avec.total).toBeGreaterThan(0);
     expect(avec.balance).not.toBe(0);
+  });
+});
+
+/**
+ * Une enveloppe se lit sur toute sa durée
+ *
+ * L'écran de gestion ne comptait que le mois consulté, et le disait
+ * honnêtement — « 320 € ce mois-ci ». Mais c'est l'inverse du besoin : une
+ * enveloppe existe précisément pour traverser les mois, et le seul chiffre
+ * qu'on lui demande — ce qu'ont coûté les vacances en tout — était le seul
+ * qu'on ne pouvait pas obtenir. Son budget, comparé à un total mensuel, se
+ * mesurait au mauvais nombre.
+ */
+
+const BASE = {
+  '2026-07': {
+    variableCharges: {
+      a: { description: 'Péage', amount: 42, envelope: 'vacances', date: '2026-07-28' },
+      b: { description: 'Courses', amount: 30, envelope: 'quotidien' }
+    }
+  },
+  '2026-08': {
+    variableCharges: {
+      c: { description: 'Restaurant', amount: 58, envelope: 'vacances', date: '2026-08-03' },
+      d: { description: 'Musée', amount: 24, envelope: 'vacances', deleted: true }
+    },
+    fixedCharges: {
+      e: { description: 'Location', amount: 600, envelope: 'vacances', date: '2026-08-01' }
+    }
+  },
+  undefined: { variableCharges: { f: { amount: 99, envelope: 'vacances' } } }
+};
+
+describe('Les charges d\'une enveloppe, tous mois confondus', () => {
+  it('rassemble les mois, les fixes et les variables', () => {
+    const charges = chargesDeLEnveloppeTousMois(BASE, 'vacances');
+
+    expect(charges.map(c => c.description)).toEqual(['Restaurant', 'Location', 'Péage']);
+  });
+
+  it('écarte les charges supprimées', () => {
+    // Elles ne comptent pas dans le solde : elles ne doivent pas compter ici.
+    const charges = chargesDeLEnveloppeTousMois(BASE, 'vacances');
+    expect(charges.some(c => c.description === 'Musée')).toBe(false);
+  });
+
+  it('ignore les clés de période qui n\'en sont pas', () => {
+    const charges = chargesDeLEnveloppeTousMois(BASE, 'vacances');
+    expect(charges.some(c => c.periode === 'undefined')).toBe(false);
+  });
+
+  it('retient la période et l\'origine de chaque charge', () => {
+    const location = chargesDeLEnveloppeTousMois(BASE, 'vacances')
+      .find(c => c.description === 'Location');
+
+    expect(location.periode).toBe('2026-08');
+    expect(location.fixe).toBe(true);
+  });
+
+  it('range du plus récent au plus ancien', () => {
+    const dates = chargesDeLEnveloppeTousMois(BASE, 'vacances').map(c => c.date);
+    expect(dates).toEqual(['2026-08-03', '2026-08-01', '2026-07-28']);
+  });
+
+  it('ne lève sur aucune entrée inexploitable', () => {
+    expect(chargesDeLEnveloppeTousMois(null, 'vacances')).toEqual([]);
+    expect(chargesDeLEnveloppeTousMois(BASE, '')).toEqual([]);
+  });
+});
+
+describe('Le bilan d\'une enveloppe', () => {
+  const charges = chargesDeLEnveloppeTousMois(BASE, 'vacances');
+
+  it('additionne toute la durée, et non le seul mois consulté', () => {
+    // C'est le chiffre qui manquait : 58 + 600 + 42, et non les 658 d'août.
+    expect(bilanEnveloppe(charges, null).total).toBe(700);
+  });
+
+  it('compte les dépenses et les mois traversés', () => {
+    const bilan = bilanEnveloppe(charges, null);
+    expect(bilan.nombre).toBe(3);
+    expect(bilan.mois).toBe(2);
+  });
+
+  it('situe le total par rapport au budget', () => {
+    const bilan = bilanEnveloppe(charges, 1000);
+    expect(bilan.reste).toBe(300);
+    expect(bilan.part).toBe(70);
+    expect(bilan.depasse).toBe(false);
+  });
+
+  it('annonce un dépassement sans faire sortir la barre de son cadre', () => {
+    const bilan = bilanEnveloppe(charges, 500);
+    expect(bilan.depasse).toBe(true);
+    expect(bilan.reste).toBe(-200);
+    expect(bilan.part, 'la barre déborderait').toBe(100);
+  });
+
+  it('sans budget, ne compare rien', () => {
+    const bilan = bilanEnveloppe(charges, null);
+    expect(bilan.reste).toBeNull();
+    expect(bilan.part).toBeNull();
+    expect(bilan.depasse).toBe(false);
+  });
+
+  it('ne lève pas sur une liste vide', () => {
+    expect(bilanEnveloppe([], 500).total).toBe(0);
+    expect(bilanEnveloppe(null, null).nombre).toBe(0);
   });
 });
