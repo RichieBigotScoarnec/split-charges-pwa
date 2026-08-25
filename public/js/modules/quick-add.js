@@ -17,6 +17,7 @@ import { segmentsDeLaPhrase } from '../utils/phrase-saisie.js';
 import { decrireLieu } from '../utils/lieu.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { categoriePourLieu } from '../utils/categorie-lieu.js';
+import { applicationPrete, quandApplicationPrete } from '../utils/attente-application.js';
 import {
   categoriesFrequentes,
   ligneFrequentesUtile,
@@ -44,6 +45,27 @@ let _gpsPermissionGranted = false; // tracks if user already granted GPS permiss
  * suivantes.
  */
 let _soumissionEnCours = false;
+
+/**
+ * La modale a-t-elle été ouverte avant que l'application soit prête ?
+ *
+ * Le raccourci ouvre la saisie sans attendre Firebase : le montant se tape
+ * pendant l'authentification, et non après. Ce drapeau dit que ce qui est
+ * affiché repose sur des valeurs par défaut — catégories du code, aucun
+ * enveloppe, payeur non encore rattaché au compte — et qu'il faudra le
+ * reprendre quand les vraies données arriveront.
+ */
+let _ouvertureAnticipee = false;
+
+/**
+ * Le payeur a-t-il été choisi à la main ?
+ *
+ * Sans cette mémoire, l'arrivée de l'état effacerait le choix. Avec elle, le
+ * défaut se corrige tout seul — le compte connecté n'est connu qu'après
+ * l'authentification, et l'ancien défaut « vous » en dur attribuait au
+ * conjoint chaque dépense saisie depuis le second téléphone.
+ */
+let _payeurChoisiALaMain = false;
 
 const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
@@ -140,7 +162,12 @@ function surCinquanteCinquante() {
 /** Délégation : les libellés des payeurs changent avec les prénoms du foyer */
 function surPayeur(e) {
   const bouton = e.target.closest('button[data-payer]');
-  if (bouton) updatePayer(bouton.dataset.payer);
+  if (!bouton) return;
+
+  // Un choix explicite : l'arrivée des données ne le remplacera plus par le
+  // défaut du compte.
+  _payeurChoisiALaMain = true;
+  updatePayer(bouton.dataset.payer);
 }
 
 /** Choix d'une enveloppe : referme le panneau et redessine la phrase */
@@ -196,6 +223,12 @@ export function cleanupQuickAdd() {
     _keydownHandler = null;
   }
   stopBackgroundGPS();
+
+  // Une saisie ouverte d'avance devant un écran de connexion n'a plus lieu
+  // d'être : Firebase a répondu, et il n'y a personne. La laisser ouverte
+  // recouvrirait le formulaire par lequel il faut passer.
+  if (_ouvertureAnticipee) closeQuickAddModal();
+
   resetState();
   oublierHistoriqueFrequentes();
   // Une écriture interrompue par une déconnexion ne doit pas laisser le verrou
@@ -245,8 +278,16 @@ function remplirLesEnveloppes() {
 
 /**
  * Ouvre la modale quick-add
+ *
+ * @param {{anticipee?: boolean}} [options] - `anticipee` ouvre sans attendre
+ *   que l'application soit prête : le montant se tape pendant
+ *   l'authentification. Cf. `ouvrirSaisieRapideAnticipee`.
  */
-function showQuickAddModal() {
+function showQuickAddModal({ anticipee = false } = {}) {
+  // Une ouverture anticipée alors que tout est déjà prêt est une ouverture
+  // ordinaire : rien à rattraper, rien à annoncer.
+  _ouvertureAnticipee = anticipee && !applicationPrete(document);
+
   // Reset state
   resetState();
 
@@ -304,12 +345,136 @@ function showQuickAddModal() {
     if (amountInput) amountInput.focus();
   }, 100);
 
-  // L'historique des catégories, une fois par session, sans bloquer
-  // l'ouverture : la ligne apparaît quand il arrive.
-  chargerHistoriqueFrequentes();
+  if (_ouvertureAnticipee) {
+    // Rien à lire tant qu'il n'y a ni compte ni période : l'historique des
+    // fréquentes partirait dans le vide, et le miroir hors ligne le mettrait
+    // en file pour rien. Il est repris à la complétion.
+    annoncerLAttente(true);
+    quandApplicationPrete(document).then(completerOuvertureAnticipee);
+  } else {
+    // L'historique des catégories, une fois par session, sans bloquer
+    // l'ouverture : la ligne apparaît quand il arrive.
+    chargerHistoriqueFrequentes();
+  }
 
   // Lancer détection GPS en arrière-plan
   startGPSDetection();
+}
+
+/**
+ * Ouvre la saisie rapide sans attendre l'authentification
+ *
+ * Le raccourci d'appui long ouvrait la modale au bout de la séquence
+ * d'initialisation : jeton, attestation, listes du foyer, salaires, charges du
+ * mois. Le geste économisé par le raccourci était repris par l'attente.
+ *
+ * Elle s'ouvre désormais dès que le balisage existe, sur les valeurs par
+ * défaut, et se corrige toute seule quand les vraies données arrivent — sans
+ * effacer ce qui a été saisi entre-temps. L'écriture, elle, attend : cf.
+ * `soumettre`.
+ *
+ * @returns {boolean} false si le balisage de la modale est absent
+ */
+export function ouvrirSaisieRapideAnticipee() {
+  if (!document.getElementById('modalQuickAdd')) {
+    warn('⚠️ Saisie rapide anticipée demandée, balisage absent');
+    return false;
+  }
+
+  // Les écouteurs d'abord : sans eux la modale s'afficherait sans rien
+  // accepter. `initQuickAdd` ne touche ni à Firebase ni à l'état — il pose des
+  // écouteurs et interroge la permission de géolocalisation — et il est
+  // idempotent, `initializeAppData` le rappellera sans rien empiler.
+  initQuickAdd();
+  showQuickAddModal({ anticipee: true });
+  return true;
+}
+
+/**
+ * Remplace les valeurs par défaut par celles du foyer
+ *
+ * Appelée quand l'application devient prête, la modale étant restée ouverte.
+ * Ne touche à rien de ce qui a été saisi : montant, description et date sont
+ * l'œuvre de la personne, pas des défauts à rattraper.
+ *
+ * @param {boolean} prete - Verdict de `quandApplicationPrete`
+ * @returns {void}
+ */
+function completerOuvertureAnticipee(prete) {
+  if (!_ouvertureAnticipee) return;
+  if (!prete) {
+    // Le délai est dépassé sans que rien n'aboutisse. L'annonce reste : elle
+    // dit exactement ce qu'il en est, et l'enregistrement dira le reste.
+    return;
+  }
+
+  _ouvertureAnticipee = false;
+  annoncerLAttente(false);
+
+  const modale = document.getElementById('modalQuickAdd');
+  if (!modale || !modale.classList.contains('active')) return;
+
+  remplirLesEnveloppes();
+
+  // Le compte est maintenant rattaché à son emplacement : le payeur proposé
+  // devient celui qui tient l'appareil, sauf choix explicite entre-temps.
+  if (!_payeurChoisiALaMain) updatePayer(payeurParDefaut());
+
+  // Les catégories du foyer remplacent celles du code : elles peuvent être
+  // renommées, réordonnées, ou en compter d'autres.
+  populateCategoryGrid();
+  reappliquerLaCategorie();
+
+  chargerHistoriqueFrequentes();
+  dessinerLaPhrase();
+
+  log('⚡ Saisie rapide complétée par les données du foyer');
+}
+
+/**
+ * Reporte la catégorie choisie sur la grille reconstruite
+ *
+ * Le choix a pu être fait sur la liste par défaut — à la main, ou par le GPS.
+ * Si le foyer ne connaît pas cette catégorie, elle est abandonnée plutôt que
+ * conservée en silence : la phrase la redemandera, ce qui vaut mieux qu'une
+ * charge rangée sous une catégorie qui n'existe pas ici.
+ *
+ * @returns {void}
+ */
+function reappliquerLaCategorie() {
+  const choisie = quickAddState.selectedCategory;
+  if (!choisie) return;
+
+  const connue = getCategories().find(c => c.id === choisie.id);
+  if (!connue) {
+    quickAddState.selectedCategory = null;
+    return;
+  }
+
+  quickAddState.selectedCategory = connue;
+  marquerLaCategorie(connue.id);
+}
+
+/**
+ * Signale que la modale tourne encore sur ses valeurs par défaut
+ *
+ * `textContent`, et un texte fixe : rien de dynamique ne passe par ici.
+ *
+ * @param {boolean} visible
+ * @param {string} [texte]
+ * @returns {void}
+ */
+function annoncerLAttente(visible, texte = 'Connexion en cours — la saisie est déjà possible') {
+  const zone = document.getElementById('quickAddAttente');
+  if (zone) {
+    zone.textContent = visible ? texte : '';
+    zone.hidden = !visible;
+  }
+
+  // Tant que l'écran de connexion est là, la modale doit passer devant lui :
+  // il est à 10000, elle à 9999. Elle redescend dès que l'attente cesse.
+  const modale = document.getElementById('modalQuickAdd');
+  if (modale) modale.classList.toggle('modal-overlay--anticipee', Boolean(visible));
 }
 
 /**
@@ -317,6 +482,8 @@ function showQuickAddModal() {
  */
 function closeQuickAddModal() {
   closeModal('modalQuickAdd');
+  _ouvertureAnticipee = false;
+  annoncerLAttente(false);
   resetState();
 
   // Reset UI spécifique
@@ -358,6 +525,7 @@ function resetState() {
   quickAddState.paidBy = payeurParDefaut();
   quickAddState.envelope = '';
   quickAddState.gpsLocation = null;
+  _payeurChoisiALaMain = false;
 
   // Les panneaux se referment avec l'état qu'ils servaient à choisir : rouvrir
   // la modale sur la grille de catégories dépliée annulerait tout le gain.
@@ -528,17 +696,27 @@ function selectCategory(categoryId) {
   if (!category) return;
 
   quickAddState.selectedCategory = category;
-
-  // Les deux surfaces désignent les mêmes catégories : n'en marquer qu'une
-  // laisserait croire à deux choix distincts, dont l'un serait resté vide.
-  document.querySelectorAll('.category-btn, .category-frequente-btn').forEach(btn => {
-    btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
-  });
+  marquerLaCategorie(categoryId);
 
   // Le choix fait, le panneau n'a plus rien à montrer : le refermer ramène le
   // bouton d'enregistrement sous le pouce, qui est là où va le geste suivant.
   if (panneauOuvert === 'quickAddPanneauCategorie') ouvrirLePanneau(null);
   else dessinerLaPhrase();
+}
+
+/**
+ * Marque la catégorie choisie sur les deux surfaces
+ *
+ * Les deux désignent les mêmes catégories : n'en marquer qu'une laisserait
+ * croire à deux choix distincts, dont l'un serait resté vide.
+ *
+ * @param {string} categoryId
+ * @returns {void}
+ */
+function marquerLaCategorie(categoryId) {
+  document.querySelectorAll('.category-btn, .category-frequente-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
+  });
 }
 
 // ===== LA PHRASE =====
@@ -735,12 +913,6 @@ async function handleQuickAddSubmit() {
  * @returns {Promise<void>}
  */
 async function soumettre() {
-  const currentPeriod = getState('currentPeriod');
-  if (!currentPeriod) {
-    toast.error('Aucune période sélectionnée');
-    return;
-  }
-
   // L'ordre des refus suit l'ordre de lecture du formulaire : le montant
   // d'abord, la catégorie ensuite. Se faire renvoyer vers le bas de l'écran
   // alors qu'un champ plus haut est vide fait chercher au mauvais endroit.
@@ -769,6 +941,32 @@ async function soumettre() {
     // manquant tout en le laissant hors de vue, ce qui est pire que se taire.
     if (panneauOuvert !== 'quickAddPanneauCategorie') ouvrirLePanneau('quickAddPanneauCategorie');
     document.querySelector('.category-btn')?.focus();
+    return;
+  }
+
+  // La saisie est complète ; l'application ne l'est peut-être pas encore.
+  //
+  // Le raccourci ouvre la modale avant que Firebase ait répondu : on peut donc
+  // arriver ici sans période, sans compte, et avec des règles qui refuseraient
+  // l'écriture. Attendre ici plutôt que d'avoir fait attendre avant : le temps
+  // passé à taper le montant est autant de pris sur celui de la connexion.
+  //
+  // Cas ordinaire — la modale ouverte depuis l'application — : la promesse est
+  // déjà résolue, rien n'est ajourné.
+  if (!applicationPrete(document)) {
+    annoncerLAttente(true, 'Enregistrement dès que la connexion est établie…');
+    const prete = await quandApplicationPrete(document);
+    annoncerLAttente(_ouvertureAnticipee);
+
+    if (!prete) {
+      toast.error('Connexion trop longue — la saisie reste à l\'écran, réessayez');
+      return;
+    }
+  }
+
+  const currentPeriod = getState('currentPeriod');
+  if (!currentPeriod) {
+    toast.error('Aucune période sélectionnée');
     return;
   }
 

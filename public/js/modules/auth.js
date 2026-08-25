@@ -453,6 +453,10 @@ async function initializeAppData() {
   // de l'authentification, bien avant que les modules soient initialisés :
   // s'y fier laisse une fenêtre où une saisie part dans le vide. Ce marqueur
   // sert aux tests E2E et au diagnostic.
+  //
+  // Il sert aussi de signal : la saisie rapide ouverte d'avance par le
+  // raccourci l'observe pour remplacer ses valeurs par défaut par celles du
+  // foyer, et pour laisser partir une écriture mise en attente.
   document.body.dataset.appReady = 'true';
 
   if (failures.length) {

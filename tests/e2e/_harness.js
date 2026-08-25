@@ -233,14 +233,21 @@ export const REACTIVE_FIREBASE_MOCK = `
       return {
         onAuthStateChanged: function(cb) {
           window.__mockAuthCallback = cb;
+          // Cent millisecondes par defaut. La saisie rapide ouverte par le
+          // raccourci parait AVANT cette reponse : pour l'observer il faut
+          // pouvoir tenir Firebase en attente, d'ou __delaiAuth. Et pour
+          // verifier qu'elle se referme devant un ecran de connexion, il faut
+          // pouvoir repondre qu'il n'y a personne, d'ou __authSansPersonne.
+          var delai = typeof window.__delaiAuth === 'number' ? window.__delaiAuth : 100;
           setTimeout(function() {
+            if (window.__authSansPersonne) { cb(null); return; }
             cb({
               uid: 'test-user-123',
               email: '${TEST_EMAIL}',
               displayName: 'Test User',
               photoURL: null
             });
-          }, 100);
+          }, delai);
           return function() {};
         },
         signInWithPopup: function() { return Promise.resolve(); },

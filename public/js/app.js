@@ -20,8 +20,38 @@ import { setState } from './state.js';
 import { initModals } from './components/modal.js';
 import { toast } from './components/toast.js';
 import { initAuth, revelerFormulaireConnexion } from './modules/auth.js';
-import { log, error as logError } from './utils/debug.js';
+import { log, warn, error as logError } from './utils/debug.js';
 import { initDiagnostics, noter } from './utils/diagnostics.js';
+import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
+import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
+
+/**
+ * Ouvre la saisie rapide si l'URL le demande
+ *
+ * Le manifeste déclare un raccourci — appui long sur l'icône, « ⚡ Saisie
+ * rapide » — qui ouvre `?action=quick-add`. La même URL peut être posée sur
+ * l'écran d'accueil comme seconde icône, et s'ouvre alors d'un seul appui.
+ *
+ * Le paramètre est retiré de la barre d'adresse une fois honoré : sans cela un
+ * rafraîchissement rouvrirait la modale sans qu'on l'ait demandé, et un lien
+ * mis en favori emporterait l'intention avec lui.
+ *
+ * @returns {void}
+ */
+function honorerLeRaccourci() {
+  if (!ouvreLaSaisieRapide(window.location.search)) return;
+
+  const propre = urlSansAction(window.location.href);
+  if (propre) window.history.replaceState({}, '', propre);
+
+  if (!ouvrirSaisieRapideAnticipee()) {
+    warn('⚠️ Raccourci de saisie rapide demandé, modale indisponible');
+    return;
+  }
+
+  noter('raccourci', 'saisie rapide ouverte avant authentification');
+  log('⚡ Saisie rapide ouverte par le raccourci');
+}
 
 /**
  * Initialize the application
@@ -83,6 +113,17 @@ async function initApp() {
 
     // 3. Initialize UI components
     initModals();
+
+    // 3 bis. Le raccourci ouvre la saisie tout de suite
+    //
+    // Ici et pas après l'authentification : c'est tout l'intérêt du raccourci.
+    // Attendre Firebase reprendrait le temps qu'il fait gagner — et l'attente
+    // n'est jamais aussi longue que devant un écran où l'on n'a rien à faire.
+    //
+    // La modale s'ouvre sur les valeurs par défaut et se corrige seule quand
+    // les données arrivent ; l'écriture, elle, attend d'avoir de quoi écrire.
+    // Si Firebase répond qu'il n'y a personne, elle se referme d'elle-même.
+    honorerLeRaccourci();
 
     // 4. Initialize authentication
     initAuth();

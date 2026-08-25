@@ -37,7 +37,7 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 31 aides pures — dont miroir (ce que l'appareil
+│       └── utils/              # 33 aides pures — dont miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
 │                               # montant (lecture d'une
@@ -53,7 +53,10 @@ FairSplit/
 │                               # periodes (les mois que le sélecteur propose),
 │                               # renommage (renommer sans détacher les charges),
 │                               # tendances (ce que six mois de dépenses disent),
-│                               # calculations, format, validation, salaries
+│                               # raccourci (ce que l'URL demande à l'ouverture),
+│                               # attente-application (attendre d'avoir de quoi
+│                               # écrire), calculations, format, validation,
+│                               # salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
 │                               # migration-repartition.mjs
@@ -210,6 +213,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Un seul mois produisait un graphe d'un point et une « tendance » de 0 € en rouge | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — le panneau dit qu'il n'y a pas encore de quoi comparer | — |
 | « Tendance » comparait le premier mois au dernier, et « Moyenne » se laissait tirer par un mois exceptionnel | `public/js/utils/tendances.js` | ✅ RÉSOLU 2026-08-25 — écart à la médiane des mois précédents, mois ordinaire | Le mois en cours est signalé comme incomplet |
 | Les revenus et les charges détaillées étaient lus par le module de tendances, puis jetés | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — taux d'effort, reste à vivre, catégorie qui a le plus bougé | Aucune lecture supplémentaire |
+| Saisir une dépense exigeait d'ouvrir l'application, d'attendre, puis de viser le bouton flottant | `public/manifest.json`, `public/js/utils/raccourci.js` | ✅ RÉSOLU 2026-08-25 — raccourci d'appui long « ⚡ Saisie rapide », posable sur l'écran d'accueil | Un vrai widget Android exigerait une application native |
+| La modale du raccourci n'ouvrait qu'au bout de l'initialisation : le temps gagné sur les gestes était repris par l'attente | `public/js/app.js`, `public/js/utils/attente-application.js` | ✅ RÉSOLU 2026-08-25 — ouverte avant Firebase, sur les valeurs par défaut ; l'écriture seule attend | Se referme si Firebase répond qu'il n'y a personne |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

@@ -99,9 +99,48 @@ async function ecrire(nom, taille, part, carreArrondi) {
   console.log(`✓ ${nom} — ${taille}px, marque à ${Math.round(part * 100)} %`);
 }
 
+/**
+ * L'icône du raccourci « Saisie rapide »
+ *
+ * Android l'affiche à l'appui long sur l'icône de l'application, dans un menu
+ * où elle côtoie celles des autres applications. Elle doit donc se distinguer
+ * de la marque — sinon le menu montre deux fois le même rond — tout en restant
+ * de la même famille : même dégradé, l'éclair par-dessus.
+ *
+ * @param {string} nom
+ * @param {number} taille
+ * @returns {Promise<void>}
+ */
+async function ecrireRaccourci(nom, taille) {
+  const cote = Math.round(taille * 0.62);
+
+  const eclair = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 2 4.5 13.5h6L11 22l8.5-11.5h-6z" fill="#FFFFFF"/>
+  </svg>`);
+
+  const dessin = await sharp(eclair, { density: 400 })
+    .resize(cote, cote)
+    .png()
+    .toBuffer();
+
+  const decalage = Math.round((taille - cote) / 2);
+
+  await sharp(fond(taille, true))
+    .composite([{ input: dessin, top: decalage, left: decalage }])
+    .png()
+    .toFile(resolve(RACINE, 'public', nom));
+
+  console.log(`✓ ${nom} — ${taille}px, raccourci`);
+}
+
 // « any » : la marque remplit 78 % du carré, comme sur les icônes du système.
 // « maskable » : 56 %, pour tenir dans la zone sûre quel que soit le rognage.
 await ecrire('icon-192.png', 192, 0.78, true);
 await ecrire('icon-512.png', 512, 0.78, true);
 await ecrire('icon-192-maskable.png', 192, 0.56, false);
 await ecrire('icon-512-maskable.png', 512, 0.56, false);
+
+// Le raccourci d'appui long. 96 px est la taille qu'Android réclame ; la 192
+// sert aux écrans plus fins.
+await ecrireRaccourci('icon-quick-add-96.png', 96);
+await ecrireRaccourci('icon-quick-add-192.png', 192);

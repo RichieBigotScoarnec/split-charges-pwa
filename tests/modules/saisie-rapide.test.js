@@ -132,6 +132,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetState();
   document.body.innerHTML = BALISAGE;
+  // La modale ouverte depuis l'application : celle-ci est prête, sinon le
+  // bouton n'existerait pas à l'écran. L'écriture ne l'attend donc pas.
+  // L'ouverture anticipée par le raccourci, elle, a sa propre suite ci-dessous.
+  document.body.dataset.appReady = 'true';
   setState('currentPeriod', '2026-08');
   initQuickAdd();
   window.showQuickAddModal();
@@ -1000,5 +1004,100 @@ describe('La page livre bien ce que le module manipule', () => {
       expect(dernierPanneau, `${id} n'est dans aucun panneau`).toBeGreaterThan(-1);
       expect(dernierPanneau, `${id} est hors de son panneau`).toBeGreaterThan(dernieresFermetures);
     }
+  });
+});
+
+/**
+ * Ouverte par le raccourci, avant que l'application soit prête
+ *
+ * Le raccourci d'appui long ouvrait la modale au bout de la séquence
+ * d'initialisation : jeton, attestation, listes du foyer, salaires, charges du
+ * mois. Le temps gagné sur les gestes était repris par l'attente.
+ *
+ * Elle s'ouvre désormais tout de suite, sur les valeurs par défaut. Ce qui se
+ * juge ici : que rien ne parte en base avant qu'il y ait de quoi écrire, et
+ * que ce qui a été tapé pendant l'attente survive.
+ */
+describe('Saisie ouverte avant que l\'application soit prête', () => {
+
+  beforeEach(() => {
+    // L'état d'avant l'authentification : le marqueur n'est pas encore posé.
+    delete document.body.dataset.appReady;
+    document.body.innerHTML = BALISAGE;
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    document.body.dataset.appReady = 'true';
+  });
+
+  it('n\'écrit rien tant que l\'application n\'est pas prête', async () => {
+    initQuickAdd();
+    window.showQuickAddModal({ anticipee: true });
+    saisir({ montant: '12,50', description: 'Cafe' });
+
+    const partie = valider();
+    // Le temps de laisser passer les micro-tâches : sans la garde, l'écriture
+    // serait déjà partie — sans période lisible, et avec des règles qui la
+    // refuseraient.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(dbPush).not.toHaveBeenCalled();
+
+    document.body.dataset.appReady = 'true';
+    await partie;
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
+    expect(derniereCharge()).toMatchObject({ amount: 12.5, description: 'Cafe' });
+  });
+
+  it('l\'ouverture ordinaire n\'attend rien', async () => {
+    document.body.dataset.appReady = 'true';
+    initQuickAdd();
+    window.showQuickAddModal();
+    saisir();
+
+    await valider();
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
+  });
+
+  it('passe devant l\'écran de connexion, et redescend ensuite', async () => {
+    initQuickAdd();
+    window.showQuickAddModal({ anticipee: true });
+
+    const modale = document.getElementById('modalQuickAdd');
+    expect(modale.classList.contains('modal-overlay--anticipee')).toBe(true);
+
+    document.body.dataset.appReady = 'true';
+    await vi.waitFor(() => {
+      expect(modale.classList.contains('modal-overlay--anticipee')).toBe(false);
+    });
+  });
+
+  it('anticiper alors que tout est prêt est une ouverture ordinaire', () => {
+    document.body.dataset.appReady = 'true';
+    initQuickAdd();
+    window.showQuickAddModal({ anticipee: true });
+
+    const modale = document.getElementById('modalQuickAdd');
+    expect(modale.classList.contains('modal-overlay--anticipee')).toBe(false);
+  });
+
+  it('un payeur choisi à la main survit à l\'arrivée des données', async () => {
+    initQuickAdd();
+    window.showQuickAddModal({ anticipee: true });
+
+    ouvrirSegment('payeur');
+    document.querySelector('#quickAddPayer [data-payer="conjointe"]').click();
+
+    setState('emplacementCourant', 'vous');
+    document.body.dataset.appReady = 'true';
+    document.getElementById('modalQuickAdd').classList.add('active');
+
+    saisir({ montant: '30' });
+    await valider();
+
+    expect(derniereCharge().paidBy).toBe('conjointe');
   });
 });
