@@ -72,20 +72,31 @@ test.describe('Raccourci de saisie rapide', () => {
 test.describe('Saisie rapide avant l\'authentification', () => {
 
   /**
-   * Tient Firebase en attente, comme un réseau mobile lent
+   * Retient la réponse de Firebase jusqu'à ce que le test la libère
    *
    * C'est la fenêtre que le raccourci exploite : la modale s'y ouvre, le
-   * montant s'y tape. Sans ce délai, le double répond en cent millisecondes et
-   * il n'y aurait rien à observer.
+   * montant s'y tape. Un délai fixe ne convenait pas — sur une machine
+   * chargée, l'ouverture de la page peut le dépasser, la fenêtre se referme
+   * avant que le contrôle l'ait vue, et il tombe sans qu'aucun défaut existe.
+   * C'est exactement ce qui est arrivé après la fusion : le déploiement, qui
+   * dépend de cette suite, ne s'est jamais fait.
+   *
+   * Ici la fenêtre n'a pas de durée : elle dure jusqu'à `libererFirebase`.
    *
    * @param {import('@playwright/test').Page} page
-   * @param {{ms?: number, personne?: boolean}} [options]
+   * @param {{personne?: boolean}} [options] - `personne: true` répond qu'il
+   *   n'y a aucun compte connecté
    */
-  async function firebaseLent(page, { ms = 3000, personne = false } = {}) {
-    await page.addInitScript(({ ms, personne }) => {
-      window.__delaiAuth = ms;
+  async function firebaseRetenu(page, { personne = false } = {}) {
+    await page.addInitScript((personne) => {
+      window.__authRetenue = true;
       window.__authSansPersonne = personne;
-    }, { ms, personne });
+    }, personne);
+  }
+
+  /** Laisse enfin Firebase répondre */
+  async function libererFirebase(page) {
+    await page.evaluate(() => window.__libererAuth());
   }
 
   /** Ouvre la page sans attendre `data-app-ready` */
@@ -98,19 +109,19 @@ test.describe('Saisie rapide avant l\'authentification', () => {
   });
 
   test('la modale paraît avant que Firebase ait répondu', async ({ page }) => {
-    await firebaseLent(page);
+    await firebaseRetenu(page);
     await ouvrirSansAttendre(page);
 
-    await expect(page.locator('#modalQuickAdd')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('#modalQuickAdd')).toBeVisible();
     // L'application n'est pas prête : c'est tout l'intérêt.
     await expect(page.locator('body')).not.toHaveAttribute('data-app-ready', 'true');
     await expect(page.locator('#quickAddAttente')).toBeVisible();
   });
 
   test('elle passe devant l\'écran de connexion', async ({ page }) => {
-    await firebaseLent(page);
+    await firebaseRetenu(page);
     await ouvrirSansAttendre(page);
-    await expect(page.locator('#modalQuickAdd')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('#modalQuickAdd')).toBeVisible();
 
     // L'écran d'attente est à 10000, une modale à 9999 : ouverte tôt, elle
     // s'ouvrait derrière lui. Le montant tapé partait dans un champ invisible.
@@ -127,14 +138,15 @@ test.describe('Saisie rapide avant l\'authentification', () => {
   });
 
   test('le montant se tape pendant l\'attente et survit à la connexion', async ({ page }) => {
-    await firebaseLent(page);
+    await firebaseRetenu(page);
     await ouvrirSansAttendre(page);
-    await expect(page.locator('#quickAddAmount')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('#quickAddAmount')).toBeVisible();
 
     await page.locator('#quickAddAmount').fill('12,50');
     await page.locator('#quickAddDescription').fill('Cafe');
 
-    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
+    await libererFirebase(page);
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Ce que la personne a tapé n'est pas un défaut à rattraper.
     await expect(page.locator('#quickAddAmount')).toHaveValue('12,50');
@@ -144,9 +156,9 @@ test.describe('Saisie rapide avant l\'authentification', () => {
   });
 
   test('une saisie commencée avant la connexion s\'enregistre après', async ({ page }) => {
-    await firebaseLent(page, { ms: 1500 });
+    await firebaseRetenu(page);
     await ouvrirSansAttendre(page);
-    await expect(page.locator('#quickAddAmount')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('#quickAddAmount')).toBeVisible();
 
     await page.locator('#quickAddAmount').fill('12,50');
     await page.locator('#quickAddDescription').fill('Cafe du matin');
@@ -157,31 +169,35 @@ test.describe('Saisie rapide avant l\'authentification', () => {
     await page.locator('.category-btn').first().click();
 
     // Appui sur « Ajouter » alors que rien n'est encore prêt : l'écriture
-    // attend, elle ne se perd pas.
+    // attend, elle ne se perd pas. Firebase ne répond qu'ensuite.
     await page.locator('#btnQuickAdd').click();
+    await libererFirebase(page);
 
     await expect(page.locator('#variableChargesList').getByText('Cafe du matin'))
       .toBeVisible({ timeout: 15000 });
   });
 
   test('elle se referme devant un écran de connexion', async ({ page }) => {
-    await firebaseLent(page, { ms: 800, personne: true });
+    await firebaseRetenu(page, { personne: true });
     await ouvrirSansAttendre(page);
 
-    await expect(page.locator('#modalQuickAdd')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('#modalQuickAdd')).toBeVisible();
 
-    // Firebase a répondu qu'il n'y a personne : la saisie n'a plus lieu d'être,
+    // Firebase répond qu'il n'y a personne : la saisie n'a plus lieu d'être,
     // et laisser la modale ouverte recouvrirait le formulaire de connexion.
-    await expect(page.locator('#modalQuickAdd')).toBeHidden({ timeout: 5000 });
+    await libererFirebase(page);
+
+    await expect(page.locator('#modalQuickAdd')).toBeHidden();
     await expect(page.locator('#authOverlay')).toBeVisible();
   });
 
   test('le payeur proposé devient celui du compte, une fois connu', async ({ page }) => {
-    await firebaseLent(page, { ms: 1200 });
+    await firebaseRetenu(page);
     await ouvrirSansAttendre(page);
-    await expect(page.locator('#modalQuickAdd')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('#modalQuickAdd')).toBeVisible();
 
-    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
+    await libererFirebase(page);
+    await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Le compte du banc d'essai est le premier de la liste blanche, rattaché à
     // « vous ». Ce qui compte ici : qu'un payeur soit marqué, et un seul —

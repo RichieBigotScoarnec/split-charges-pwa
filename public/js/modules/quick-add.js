@@ -341,8 +341,22 @@ function showQuickAddModal({ anticipee = false } = {}) {
   //
   // Le montant étant désormais le premier champ, il n'y a plus rien à
   // rattraper : le focus suffit.
+  //
+  // Le report ne vaut que tant que personne n'a rien touché. Sinon c'est un
+  // vol : ouverte par le raccourci, la modale paraît pendant que le pouce est
+  // déjà en mouvement, et une frappe partie dans la description atterrissait
+  // dans le montant — « 12,50Cafe ». Mesuré, pas supposé.
   setTimeout(() => {
-    if (amountInput) amountInput.focus();
+    if (!amountInput) return;
+
+    const actif = document.activeElement;
+    const ailleurs = actif
+      && actif !== document.body
+      && actif !== document.documentElement
+      && actif !== amountInput;
+    if (ailleurs) return;
+
+    amountInput.focus();
   }, 100);
 
   if (_ouvertureAnticipee) {

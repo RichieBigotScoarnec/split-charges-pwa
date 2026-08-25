@@ -44,6 +44,28 @@ function trapFocus(modal) {
 const _focusTraps = {};
 
 /**
+ * Le focus a-t-il déjà été posé quelque part dans cette modale ?
+ *
+ * Le premier champ reçoit le focus cent millisecondes après l'ouverture, le
+ * temps que la modale soit affichée. Ce report est un vol quand la personne a
+ * touché un autre champ entre-temps : sa frappe part alors dans le premier.
+ *
+ * Mesuré, et non supposé : la saisie rapide ouverte par le raccourci recevait
+ * « 12,50 » dans le montant puis « Cafe » dans la description, et le montant
+ * finissait à « 12,50Cafe ». Le raccourci n'a pas créé ce défaut, il l'a rendu
+ * atteignable — la modale s'ouvre désormais pendant que le pouce est en
+ * mouvement, au lieu d'attendre la fin de l'initialisation.
+ *
+ * @param {Element} modal - Conteneur de la modale
+ * @returns {boolean}
+ */
+function focusDejaPose(modal) {
+  const actif = document.activeElement;
+  if (!actif || actif === document.body || actif === document.documentElement) return false;
+  return actif !== modal && modal.contains(actif);
+}
+
+/**
  * Show modal by ID
  * @param {string} modalId - Modal element ID
  */
@@ -55,7 +77,10 @@ export function showModal(modalId) {
     // Focus first input if exists
     const firstInput = modal.querySelector('input, select, textarea');
     if (firstInput) {
-      setTimeout(() => firstInput.focus(), 100);
+      setTimeout(() => {
+        if (focusDejaPose(modal)) return;
+        firstInput.focus();
+      }, 100);
     }
 
     // Rouvrir une modale déjà ouverte écrasait la fonction de nettoyage sans

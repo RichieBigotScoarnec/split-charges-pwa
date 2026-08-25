@@ -1101,3 +1101,53 @@ describe('Saisie ouverte avant que l\'application soit prête', () => {
     expect(derniereCharge().paidBy).toBe('conjointe');
   });
 });
+
+/**
+ * Le montant reçoit le focus, mais ne le reprend pas
+ *
+ * La modale le pose cent millisecondes après l'ouverture, le temps qu'elle
+ * soit affichée. C'est un vol dès que la personne a touché autre chose : sa
+ * frappe part alors dans le montant. Constaté en bout de chaîne — « 12,50 »
+ * puis « Cafe » donnaient un montant à « 12,50Cafe », soit 1 250 € au lieu de
+ * 12,50 sans que rien ne le signale.
+ */
+describe('Le focus reporté sur le montant', () => {
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = BALISAGE;
+    document.body.dataset.appReady = 'true';
+    initQuickAdd();
+    window.showQuickAddModal();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('se pose sur le montant quand personne n\'a rien touché', () => {
+    vi.advanceTimersByTime(200);
+
+    expect(document.activeElement.id).toBe('quickAddAmount');
+  });
+
+  it('ne reprend pas le focus posé sur la description', () => {
+    const description = document.getElementById('quickAddDescription');
+    description.focus();
+    description.value = 'Cafe';
+
+    vi.advanceTimersByTime(200);
+
+    expect(document.activeElement.id).toBe('quickAddDescription');
+    expect(document.getElementById('quickAddAmount').value).toBe('');
+  });
+
+  it('ne reprend pas le focus posé sur une catégorie', () => {
+    ouvrirSegment('categorie');
+    document.querySelector('[data-category-id="restaurant"]').focus();
+
+    vi.advanceTimersByTime(200);
+
+    expect(document.activeElement.dataset.categoryId).toBe('restaurant');
+  });
+});
