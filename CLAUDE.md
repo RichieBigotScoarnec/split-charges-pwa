@@ -60,7 +60,9 @@ FairSplit/
 │                               # salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
-│                               # migration-repartition.mjs
+│                               # migration-repartition.mjs,
+│                               # fusionner-couverture.mjs + couverture-lignes.mjs
+│                               # (la couverture réelle, E2E comprise)
 │                               # (hors `public/`, donc jamais publié)
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
 └── database.rules.json         # Règles de sécurité — source de vérité unique
@@ -115,6 +117,9 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ## Commandes
 
 - `npx vitest run` — tests unitaires
+- `npm run couverture` — couverture réelle, unitaires **et** bout en bout réunis
+  (les deux suites, puis fusion ; `coverage-fusionnee/lignes.json` liste, par
+  fichier, les lignes que personne n'exécute)
 - `npx vitest --watch` — tests mode watch
 - `npx playwright test` — tests E2E
 - `npm run test:all` — tout (vitest + playwright)
@@ -219,6 +224,9 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Une modale reprenait le focus 100 ms après l'ouverture, même posé ailleurs entre-temps : « 12,50 » puis « Cafe » donnaient un montant à « 12,50Cafe » | `public/js/components/modal.js`, `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-25 — le report ne s'applique plus si le focus est déjà posé dans la modale | Défaut ancien, rendu atteignable par le raccourci |
 | Les contrôles du raccourci tenaient sur un délai fixe : sur un runner chargé la fenêtre se refermait avant d'être vue, et le déploiement, qui en dépend, ne s'est pas fait | `tests/e2e/_harness.js` | ✅ RÉSOLU 2026-08-25 — Firebase retenu jusqu'à `__libererAuth()`, fenêtre sans durée | C'est ce contrôle qui a révélé le vol de focus |
 | Le bilan disait ce qui avait été dépensé, jamais ce qui restait à passer — alors que la reconduction inscrit les charges fixes à leur quantième dès le premier du mois | `public/js/utils/previsionnel.js`, `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-25 — montant encore à venir sous le solde, échéances nommées | Aucune lecture ni donnée supplémentaire |
+| Un déploiement raté ne se voyait nulle part : le job E2E tombé sur main, `deploy` sauté, le site figé deux heures sans un mot | `.github/workflows/deploy.yml` | ✅ RÉSOLU 2026-08-25 — `gh-pages` comparée à `public/` après publication, et un ticket ouvert dès qu'une étape échoue | Le ticket est unique par panne, pas par exécution |
+| `components/modal.js` à 29,5 % de couverture, alors que neuf modules en dépendent et qu'un défaut de montant y a vécu des mois | `tests/components/modal.test.js` | ✅ RÉSOLU 2026-08-25 — 100 % des instructions : piège à focus, Échap, remise à zéro, confirmation | — |
+| La couverture annoncée ignorait 300 tests de bout en bout : des modules réellement éprouvés figuraient à 0 % | `tools/fusionner-couverture.mjs` | ✅ RÉSOLU 2026-08-25 — relevés V8 du navigateur fusionnés avec Vitest ; 59,4 % → **85,2 %** de lignes, mesure inchangée, comptage corrigé | Deux erreurs de méthode avant d'y arriver, toutes deux plausibles |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

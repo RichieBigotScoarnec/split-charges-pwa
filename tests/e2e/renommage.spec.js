@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_couverture.js';
 import { setupFirebaseMock, waitForApp } from './_harness.js';
 
 /**

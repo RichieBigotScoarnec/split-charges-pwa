@@ -18,7 +18,11 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check": "eslint . --quiet && vitest run",
-    "deploy:hosting": "npx firebase deploy --only hosting --project fairsplit-foyer"
+    "deploy:hosting": "npx firebase deploy --only hosting --project fairsplit-foyer",
+    "couverture": "npm run couverture:unitaire && npm run couverture:e2e && npm run couverture:fusion",
+    "couverture:unitaire": "vitest run --coverage --coverage.reporter=json --coverage.include=\"public/js/**\"",
+    "couverture:e2e": "COUVERTURE=1 npx firebase emulators:exec --only auth,database \"npx playwright test\"",
+    "couverture:fusion": "node tools/fusionner-couverture.mjs"
   },
   "repository": {
     "type": "git",
@@ -44,6 +48,7 @@
     "jsdom": "^30.0.1",
     "serve": "^14.2.6",
     "sharp": "0.35.3",
+    "v8-to-istanbul": "^9.3.0",
     "vitest": "^4.1.0"
   },
   "private": true,

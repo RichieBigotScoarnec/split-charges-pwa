@@ -190,3 +190,109 @@ jobs:
           REPO_NAME="${{ github.repository }}"
           REPO_NAME="${REPO_NAME#*/}"
           echo "Déployé sur : https://${{ github.repository_owner }}.github.io/${REPO_NAME}/"
+
+  # Le site peut ne pas être à jour sans que rien ne le dise.
+  #
+  # Constaté le 25 août 2026 : la #83 fusionnée, le job « Tests end-to-end » est
+  # tombé sur main, `deploy` en dépend et n'a donc jamais tourné. GitHub Pages a
+  # continué à servir la version précédente pendant deux heures, personne n'en a
+  # rien su, et le raccourci qu'on croyait livré n'existait pas.
+  #
+  # Deux angles morts, deux jobs. Celui-ci répond au premier : ce qui est publié
+  # est-il bien ce qui a été fusionné ? Il compare la branche gh-pages au
+  # contenu de `public/`, `sw.js` estampillé compris. Une divergence — un
+  # fichier manquant, une publication partielle, une branche écrite par autre
+  # chose — fait échouer le workflow au lieu de passer inaperçue.
+  verifier-publication:
+    name: Vérifier ce qui est réellement publié
+    needs: deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Le même estampillage que le job de publication : sans lui, `sw.js`
+      # différerait toujours, et le contrôle crierait à chaque déploiement
+      # jusqu'à ce qu'on cesse de le lire.
+      - name: Stamp service worker cache version
+        run: sed -i "s/__CACHE_VERSION__/${GITHUB_SHA::12}/" public/sw.js
+
+      - name: Comparer gh-pages au contenu de public/
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags --depth=1 origin gh-pages
+
+          # `git archive` plutôt qu'un worktree : celui-ci dépose un fichier
+          # `.git` dans le dossier, que `public/` n'a pas. La comparaison aurait
+          # donc échoué à chaque déploiement, sur une différence qui n'en est
+          # pas une — et un contrôle qui crie toujours cesse d'être lu.
+          # Éprouvé contre la vraie branche avant d'être écrit ici.
+          rm -rf /tmp/publie
+          mkdir -p /tmp/publie
+          git archive FETCH_HEAD | tar -x -C /tmp/publie
+
+          # `.nojekyll` est posé par l'action de publication, il n'existe pas
+          # dans le dépôt. C'est la seule différence attendue.
+          rm -f /tmp/publie/.nojekyll
+
+          if diff --recursive --brief public /tmp/publie; then
+            echo "### ✅ Publication conforme" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "### ❌ Ce qui est publié ne correspond pas à ce qui a été fusionné"
+            echo ""
+            echo "La branche \`gh-pages\` diffère de \`public/\` au commit \`${GITHUB_SHA::12}\`."
+            echo "Le site sert donc autre chose que le dépôt."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+  # Le second angle mort, et le plus coûteux : un workflow rouge sur main que
+  # personne ne regarde. Un échec ici ouvre un ticket, qui lui ne disparaît pas
+  # d'un rafraîchissement de page.
+  #
+  # `needs` porte sur toute la chaîne : un échec à n'importe quelle étape —
+  # y compris avant `deploy`, qui est justement le cas survenu — déclenche
+  # l'alerte. `if: failure()` seul ne suffirait pas, un job sans dépendances
+  # n'ayant rien à observer.
+  alerte-publication:
+    name: Signaler une publication en échec
+    needs: [test, e2e, deploy-rules, deploy, verifier-publication]
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    # Accordé à ce seul job. Le workflow reste en lecture seule par défaut :
+    # les jobs qui exécutent le code des dépendances n'ont rien à écrire.
+    permissions:
+      issues: write
+
+    steps:
+      - name: Ouvrir ou compléter le ticket
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPOT: ${{ github.repository }}
+          EXECUTION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          TITRE="⚠️ Déploiement en échec sur main"
+          CORPS="Le workflow de déploiement a échoué sur \`main\` (commit \`${GITHUB_SHA::12}\`).
+
+          **Le site n'a donc pas été mis à jour** : GitHub Pages sert toujours la version précédente.
+
+          Exécution : $EXECUTION"
+
+          # Un ticket par panne, pas un par exécution : deux fusions coup sur
+          # coup en ouvriraient deux pour la même cause.
+          EXISTANT=$(gh issue list --repo "$DEPOT" --state open --search "$TITRE in:title" --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTANT" ]; then
+            gh issue comment "$EXISTANT" --repo "$DEPOT" --body "$CORPS"
+            echo "Ticket #$EXISTANT complété."
+          else
+            gh issue create --repo "$DEPOT" --title "$TITRE" --body "$CORPS"
+          fi

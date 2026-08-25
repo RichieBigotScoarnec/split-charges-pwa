@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_couverture.js';
 
 // Le simulateur Firebase et les aides d'ouverture sont partagés : les recopier
 // dans chaque suite ferait diverger leur fidélité au fil des corrections.

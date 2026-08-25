@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_couverture.js';
 
 import { ALLOWED_EMAILS, SANDBOX_ONLY_EMAILS } from '../../public/js/config.js';
 
