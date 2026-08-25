@@ -116,7 +116,7 @@ export const EMULATOR_PORTS = { database: 9010, auth: 9099 };
 // Les identifiants comptent autant que les libellés : `utils/categorie-lieu.js`
 // les vise nommément pour déduire la catégorie du lieu où l'on se trouve.
 //
-// Cette table reconnaît 81 types de lieux OpenStreetMap, chacun visant
+// Cette table reconnaît 93 types de lieux OpenStreetMap, chacun visant
 // plusieurs catégories par ordre de préférence. Douze de ces types avaient pour
 // premier choix `bar`, `cafe` ou `boulangerie` — trois catégories qui
 // n'existaient pas ici. Un café était donc rangé en « Restaurant », une
