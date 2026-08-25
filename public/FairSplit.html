@@ -533,9 +533,19 @@
         <!-- La date de la DÉPENSE, pas celle de la saisie. Le formulaire n'en
              portait aucune : une course de samedi régularisée le lundi était
              datée du lundi, et rien ne permettait de le corriger. -->
-        <div class="form-group">
-          <label for="variableChargeDate">Date de la dépense</label>
-          <input type="date" id="variableChargeDate" />
+        <div class="form-group form-group--datetime">
+          <div>
+            <label for="variableChargeDate">Date de la dépense</label>
+            <input type="date" id="variableChargeDate" />
+          </div>
+          <!-- Préremplie à l'heure courante, et effaçable : deux courses du
+               même samedi se lisaient à l'identique, mais une dépense qu'on ne
+               sait pas situer dans la journée ne doit pas s'en voir attribuer
+               une. Le vide se conserve. -->
+          <div>
+            <label for="variableChargeHeure">Heure</label>
+            <input type="time" id="variableChargeHeure" />
+          </div>
         </div>
 
         <div class="form-group">
@@ -864,13 +874,19 @@
         </div>
       </div>
 
-      <!-- Préremplie au jour courant : la saisie rapide doit rester rapide, et
-           le montant garde le focus. Sert à régulariser une dépense d'hier sans
-           passer par le formulaire complet. -->
+      <!-- Préremplis au jour et à l'heure courants : la saisie rapide doit
+           rester rapide, et le montant garde le focus. Servent à régulariser
+           une dépense d'hier sans passer par le formulaire complet. L'heure est
+           effaçable — une dépense qu'on ne sait pas situer dans la journée ne
+           doit pas s'en voir attribuer une. -->
       <div class="quick-add-panneau" id="quickAddPanneauDate">
         <div class="quick-add-date">
           <label for="quickAddDate">Date de la dépense</label>
           <input type="date" id="quickAddDate" />
+        </div>
+        <div class="quick-add-date">
+          <label for="quickAddHeure">Heure</label>
+          <input type="time" id="quickAddHeure" />
         </div>
       </div>
 

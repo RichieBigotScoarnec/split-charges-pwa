@@ -21,7 +21,7 @@
  */
 
 import { memberLabel } from './members.js';
-import { formatDate, dateDuJour } from './date.js';
+import { formatDate, dateDuJour, heureValide } from './date.js';
 
 /**
  * Les segments de la phrase, dans l'ordre où ils se lisent
@@ -35,6 +35,7 @@ import { formatDate, dateDuJour } from './date.js';
  * @param {Object} [options]
  * @param {Object} [options.members] - Prénoms du foyer, pour `memberLabel`
  * @param {string} [options.date] - Date saisie, au format `AAAA-MM-JJ`
+ * @param {string} [options.heure] - Heure saisie, au format `HH:MM`
  * @param {string} [options.aujourdhui] - Injectable pour les bancs d'essai
  * @returns {Array<{cle: string, texte: string, panneau: string}>}
  */
@@ -46,7 +47,7 @@ export function segmentsDeLaPhrase(etat = {}, options = {}) {
     { cle: 'payeur', texte: libellePayeur(etat.paidBy, members), panneau: 'quickAddPanneauPayeur' },
     { cle: 'repartition', texte: libelleRepartition(etat.splitMode), panneau: 'quickAddPanneauRepartition' },
     { cle: 'categorie', texte: libelleCategorie(etat.selectedCategory), panneau: 'quickAddPanneauCategorie' },
-    { cle: 'date', texte: libelleDate(options.date, aujourdhui), panneau: 'quickAddPanneauDate' }
+    { cle: 'date', texte: libelleDate(options.date, aujourdhui, options.heure), panneau: 'quickAddPanneauDate' }
   ];
 
   // L'enveloppe, seulement si le foyer en a.
@@ -136,13 +137,21 @@ export function libelleCategorie(categorie) {
  * différente s'écrit en entier, puisque c'est justement elle qu'on veut
  * vérifier.
  *
+ * L'heure s'y ajoute quand il y en a une. Elle allonge le segment de six
+ * caractères, et c'est le prix à payer : la phrase est le seul endroit qui dise
+ * ce qui sera enregistré, et une heure tue s'inscrirait sans que personne ne
+ * l'ait vue passer.
+ *
  * @param {string} date - Format `AAAA-MM-JJ`
  * @param {string} aujourdhui - Format `AAAA-MM-JJ`
+ * @param {string} [heure] - Format `HH:MM` ; le segment s'en passe si elle manque
  * @returns {string}
  */
-export function libelleDate(date, aujourdhui) {
-  if (!date || date === aujourdhui) return "Aujourd'hui";
+export function libelleDate(date, aujourdhui, heure) {
+  const jour = (!date || date === aujourdhui)
+    ? "Aujourd'hui"
+    : (formatDate(date) || "Aujourd'hui");
 
-  const lisible = formatDate(date);
-  return lisible || "Aujourd'hui";
+  const moment = heureValide(heure);
+  return moment ? `${jour} à ${moment}` : jour;
 }

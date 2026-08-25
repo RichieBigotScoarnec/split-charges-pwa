@@ -464,6 +464,31 @@
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
+/* Date et heure côte à côte : elles décrivent le même instant, et les empiler
+   ferait descendre d'autant le bouton d'enregistrement. La date reçoit deux
+   fois la largeur de l'heure — « 25/08/2026 » est plus long que « 08:30 ». */
+.form-group--datetime {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-md);
+}
+
+.form-group--datetime > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  /* `min-width: 0` : sans lui, la largeur intrinsèque des sélecteurs de date
+     déborde de la carte au lieu de se laisser réduire. */
+  min-width: 0;
+}
+
+.form-group--datetime > div:first-child { flex: 2; }
+.form-group--datetime > div:last-child { flex: 1; }
+
+.form-group--datetime input {
+  width: 100%;
+}
+
 /* ===== TOGGLE SWITCH ===== */
 .form-group-toggle {
   display: flex;

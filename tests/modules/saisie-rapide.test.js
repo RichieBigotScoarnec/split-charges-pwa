@@ -72,6 +72,7 @@ const BALISAGE = `
       </div>
       <div class="quick-add-panneau" id="quickAddPanneauDate">
         <input type="date" id="quickAddDate" />
+        <input type="time" id="quickAddHeure" />
       </div>
       <input type="text" id="quickAddDescription" maxlength="100" />
       <div class="quick-add-panneau" id="quickAddPanneauPayeur">
@@ -888,13 +889,15 @@ describe('La phrase, et les panneaux qu\'elle ouvre', () => {
 
   it('dit l\'état par défaut dès l\'ouverture', () => {
     // Une phrase vide à l'ouverture laisserait croire qu'aucun défaut n'est
-    // posé — alors qu'il y en a quatre, et qu'ils vont partir en base.
-    expect(phrase()).toEqual([
+    // posé — alors qu'il y en a cinq, et qu'ils vont partir en base. L'heure
+    // est l'un d'eux depuis qu'elle est préremplie : la fixer dans ce contrôle
+    // le ferait tomber à chaque minute.
+    expect(phrase().slice(0, 3)).toEqual([
       'Payé par Vous',
       'Au prorata',
-      'Choisir une catégorie',
-      "Aujourd'hui"
+      'Choisir une catégorie'
     ]);
+    expect(phrase()[3]).toMatch(/^Aujourd'hui à ([01]\d|2[0-3]):[0-5]\d$/);
   });
 
   it('les panneaux partent repliés : c\'est tout le gain', () => {
@@ -938,12 +941,12 @@ describe('La phrase, et les panneaux qu\'elle ouvre', () => {
     ouvrirSegment('repartition');
     document.getElementById('quickSplit5050').click();
 
-    expect(phrase()).toEqual([
+    expect(phrase().slice(0, 3)).toEqual([
       'Payé à deux',
       'Partagé 50-50',
-      '🍕 Restaurant',
-      "Aujourd'hui"
+      '🍕 Restaurant'
     ]);
+    expect(phrase()[3]).toMatch(/^Aujourd'hui à ([01]\d|2[0-3]):[0-5]\d$/);
   });
 
   it('le segment de catégorie signale ce qui manque, sans désactiver le bouton', () => {
@@ -1188,5 +1191,94 @@ describe('Le focus reporté sur le montant', () => {
     vi.advanceTimersByTime(200);
 
     expect(document.activeElement.dataset.categoryId).toBe('restaurant');
+  });
+});
+
+/**
+ * L'heure de la dépense
+ *
+ * La date répondait à « quel jour », jamais à « à quel moment ». Deux courses
+ * du même samedi se lisaient à l'identique, et rien ne disait laquelle était
+ * celle du marché du matin.
+ *
+ * L'heure est préremplie — sur un téléphone, la saisir à la main coûte deux
+ * gestes de plus que de l'accepter — et effaçable : une dépense qu'on ne sait
+ * pas situer dans la journée vaut mieux sans heure qu'avec une heure inventée.
+ */
+describe('L\'heure part avec la dépense', () => {
+
+  it('le champ s\'ouvre prérempli à l\'heure courante', () => {
+    expect(document.getElementById('quickAddHeure').value)
+      .toMatch(/^([01]\d|2[0-3]):[0-5]\d$/);
+  });
+
+  it('l\'heure affichée est celle de l\'appareil, pas UTC', () => {
+    // `toISOString` rendrait l'heure de Greenwich : deux heures de moins qu'à
+    // Paris l'été, ce qui daterait une dépense de 00h30 de la veille au soir.
+    const maintenant = new Date();
+    const attendue = `${String(maintenant.getHours()).padStart(2, '0')}:${String(maintenant.getMinutes()).padStart(2, '0')}`;
+
+    expect(document.getElementById('quickAddHeure').value).toBe(attendue);
+  });
+
+  it('l\'heure saisie est celle qui part en base', async () => {
+    document.getElementById('quickAddHeure').value = '08:30';
+    saisir();
+    await valider();
+
+    expect(derniereCharge().heure).toBe('08:30');
+  });
+
+  it('un champ vidé enregistre une absence d\'heure, pas celle du jour', async () => {
+    document.getElementById('quickAddHeure').value = '';
+    saisir();
+    await valider();
+
+    expect(derniereCharge().heure).toBe('');
+  });
+
+  it('une heure illisible vaut une absence', async () => {
+    // La valeur peut venir d'ailleurs que du champ : rejeu de la file hors
+    // ligne, restauration de sauvegarde.
+    document.getElementById('quickAddHeure').value = '';
+    document.getElementById('quickAddHeure').setAttribute('value', '25:99');
+    saisir();
+    await valider();
+
+    expect(derniereCharge().heure).toBe('');
+  });
+
+  it('l\'heure revient à celle du moment à la réouverture', async () => {
+    document.getElementById('quickAddHeure').value = '';
+    window.closeQuickAddModal();
+    window.showQuickAddModal();
+
+    expect(document.getElementById('quickAddHeure').value)
+      .toMatch(/^([01]\d|2[0-3]):[0-5]\d$/);
+  });
+
+  it('la phrase annonce l\'heure qui sera enregistrée', () => {
+    // Sans cela elle s'inscrirait sans que personne ne l'ait vue passer.
+    document.getElementById('quickAddHeure').value = '08:30';
+    document.getElementById('quickAddHeure').dispatchEvent(new Event('change'));
+
+    expect(phrase().join(' ')).toContain("Aujourd'hui à 08:30");
+  });
+
+  it('la phrase se tait quand l\'heure est retirée', () => {
+    document.getElementById('quickAddHeure').value = '';
+    document.getElementById('quickAddHeure').dispatchEvent(new Event('change'));
+
+    expect(phrase().join(' ')).toContain("Aujourd'hui");
+    expect(phrase().join(' ')).not.toContain('à 0');
+  });
+
+  it('le segment de date ouvre le panneau qui porte les deux champs', () => {
+    // L'heure vit dans le panneau de la date : un cinquième segment pour elle
+    // seule allongerait la phrase sans rien apprendre.
+    ouvrirSegment('date');
+
+    const panneau = document.getElementById('quickAddPanneauDate');
+    expect(panneau.contains(document.getElementById('quickAddHeure'))).toBe(true);
   });
 });

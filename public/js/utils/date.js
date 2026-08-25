@@ -70,6 +70,95 @@ export function dateDuJour(instant = new Date()) {
   return `${annee}-${mois}-${jour}`;
 }
 
+/** Format d'une heure telle qu'on l'écrit et la lit : HH:MM, sur 24 heures */
+const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * L'heure courante, telle qu'elle est ici — HH:MM
+ *
+ * Mêmes raisons que `dateDuJour` : les composantes locales interrogent la base
+ * de fuseaux du système, qui sait à quelle heure il est là où se trouve
+ * l'appareil. Un café pris à Lisbonne porte l'heure du ticket de caisse, pas
+ * celle de Paris.
+ *
+ * @param {Date} [instant] - Instant à convertir ; maintenant par défaut
+ * @returns {string} HH:MM
+ */
+export function heureDuJour(instant = new Date()) {
+  const heures = String(instant.getHours()).padStart(2, '0');
+  const minutes = String(instant.getMinutes()).padStart(2, '0');
+  return `${heures}:${minutes}`;
+}
+
+/**
+ * L'heure d'une charge, si elle en déclare une
+ *
+ * Il n'y a pas de repli sur `timestamp`, et c'est le point important : cet
+ * horodatage est l'instant d'écriture en base. Une course de samedi matin
+ * saisie le lundi soir en tirerait « 21:14 », qui a l'air d'une heure de
+ * dépense et n'en est pas une. Une date approchée d'un jour reste lisible ;
+ * une heure fausse ne se distingue pas d'une heure juste.
+ *
+ * Une heure illisible — écrite par une version future, ou par une main
+ * étrangère — est traitée comme absente plutôt qu'affichée telle quelle.
+ *
+ * @param {Object} charge - Charge fixe ou variable
+ * @returns {string} HH:MM, ou une chaîne vide
+ */
+export function heureDeLaCharge(charge) {
+  if (!charge || typeof charge !== 'object') return '';
+  return typeof charge.heure === 'string' && HEURE.test(charge.heure) ? charge.heure : '';
+}
+
+/**
+ * L'heure d'une charge au format qu'attend `<input type="time">`
+ *
+ * Vide quand la charge n'en porte pas : rouvrir une dépense d'avant ce champ
+ * ne doit pas lui inventer l'heure du jour. Le champ reste effaçable, et ce
+ * vide-là se conserve.
+ *
+ * @param {Object} charge - Charge fixe ou variable
+ * @returns {string} HH:MM, ou une chaîne vide
+ */
+export function heureSaisissable(charge) {
+  return heureDeLaCharge(charge);
+}
+
+/**
+ * Ce qu'une saisie d'heure vaut une fois relue
+ *
+ * `<input type="time">` rend une chaîne vide quand il est vidé, et le
+ * navigateur garantit le format quand il ne l'est pas — mais la valeur peut
+ * aussi venir d'ailleurs : un rejeu de la file d'attente hors ligne, un import,
+ * une restauration de sauvegarde. Ce qui n'est pas une heure devient une
+ * absence d'heure, jamais une heure approximative.
+ *
+ * @param {string} saisie - Valeur brute du champ
+ * @returns {string} HH:MM, ou une chaîne vide
+ */
+export function heureValide(saisie) {
+  return typeof saisie === 'string' && HEURE.test(saisie) ? saisie : '';
+}
+
+/**
+ * La date d'une charge, et son heure si elle en a une
+ *
+ * « 25 août 2026 à 08:30 », ou « 25 août 2026 » quand l'heure manque. Les deux
+ * formes cohabitent dans une même liste : les dépenses d'avant ce champ n'en
+ * porteront jamais, et l'heure reste effaçable pour celles qu'on ne sait pas
+ * situer dans la journée.
+ *
+ * @param {Object} charge - Charge fixe ou variable
+ * @returns {string} Date lisible, ou une chaîne vide si la charge n'apprend rien
+ */
+export function formatDateEtHeure(charge) {
+  const jour = formatDate(dateDeLaCharge(charge));
+  if (!jour) return '';
+
+  const heure = heureDeLaCharge(charge);
+  return heure ? `${jour} à ${heure}` : jour;
+}
+
 /**
  * La date d'une charge, quelle que soit la façon dont elle a été saisie
  *

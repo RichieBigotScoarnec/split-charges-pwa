@@ -55,7 +55,7 @@ const {
 } = await import('../../public/js/modules/variable-charges.js');
 const { saveFixedCharge, renderFixedCharges } = await import('../../public/js/modules/fixed-charges.js');
 const { setState, resetState } = await import('../../public/js/state.js');
-const { dateDuJour } = await import('../../public/js/utils/date.js');
+const { dateDuJour, heureDuJour } = await import('../../public/js/utils/date.js');
 
 /** Le formulaire de charge variable, tel que le livre FairSplit.html */
 const formulaireVariable = `
@@ -63,6 +63,7 @@ const formulaireVariable = `
   <input id="variableChargeDescription" value="Courses" />
   <input id="variableChargeAmount" value="42,50" />
   <input type="date" id="variableChargeDate" value="" />
+  <input type="time" id="variableChargeHeure" value="" />
   <select id="variableChargeCategory"><option value="Courses" selected>Courses</option></select>
   <select id="variableChargePaidBy"><option value="vous" selected>Vous</option></select>
   <select id="variableChargeEnvelope"><option value="" selected></option></select>
@@ -313,5 +314,135 @@ describe('L\'ordre de la liste', () => {
 
     const categories = [...document.querySelectorAll('.category-header')].map(e => e.textContent.trim());
     expect(categories[0]).toContain('Maison');
+  });
+});
+
+/**
+ * L'heure, du formulaire jusqu'à la liste
+ *
+ * La date répondait à « quel jour », jamais à « à quel moment ». Deux courses
+ * du même samedi se lisaient à l'identique. L'heure vit dans son propre champ,
+ * `heure`, en HH:MM local — jamais déduite de `timestamp`, qui est l'instant
+ * d'écriture : une course de samedi matin saisie le lundi soir en tirerait
+ * « 21:14 », une heure parfaitement crédible et fausse.
+ */
+describe('Ce que le formulaire écrit de l\'heure', () => {
+
+  it('une charge variable porte l\'heure saisie', async () => {
+    document.body.innerHTML = formulaireVariable;
+    document.getElementById('variableChargeDate').value = '2026-08-15';
+    document.getElementById('variableChargeHeure').value = '08:30';
+
+    await saveVariableCharge();
+
+    expect(derniereEcriture().heure).toBe('08:30');
+  });
+
+  it('un champ vidé écrit une absence, pas l\'heure du jour', async () => {
+    // Symétrique inverse de la date, et voulu : une dépense qu'on ne sait pas
+    // situer dans la journée vaut mieux sans heure qu'avec une heure inventée.
+    // La chaîne vide, plutôt que `null`, efface celle qu'une édition retire —
+    // `null` supprimerait la clé sans la remplacer.
+    document.body.innerHTML = formulaireVariable;
+    document.getElementById('variableChargeHeure').value = '';
+
+    await saveVariableCharge();
+
+    expect(derniereEcriture().heure).toBe('');
+  });
+
+  it('une heure illisible vaut une absence', async () => {
+    document.body.innerHTML = formulaireVariable;
+    document.getElementById('variableChargeHeure').value = '';
+    document.getElementById('variableChargeHeure').setAttribute('value', '25:99');
+
+    await saveVariableCharge();
+
+    expect(derniereEcriture().heure).toBe('');
+  });
+
+  it('une charge fixe n\'en porte pas : un prélèvement mensuel n\'a pas d\'heure', async () => {
+    document.body.innerHTML = formulaireFixe;
+
+    await saveFixedCharge();
+
+    expect(derniereEcriture().heure).toBeUndefined();
+  });
+
+  it('le formulaire s\'ouvre prérempli à l\'heure courante', () => {
+    document.body.innerHTML = formulaireVariable;
+
+    showAddVariableChargeModal();
+
+    expect(document.getElementById('variableChargeHeure').value).toBe(heureDuJour());
+  });
+
+  it('rouvrir une charge y remet son heure', () => {
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      { id: '1', description: 'Marché', amount: 30, category: 'Courses', paidBy: 'vous', date: '2026-08-15', heure: '08:30' }
+    ]);
+
+    editVariableCharge('1');
+
+    expect(document.getElementById('variableChargeHeure').value).toBe('08:30');
+  });
+
+  it('rouvrir une charge d\'avant ce champ laisse l\'heure vide', () => {
+    // Lui proposer l'heure du jour déplacerait la dépense dans la journée au
+    // premier enregistrement, comme le faisait autrefois la date.
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      { id: '1', description: 'Ancienne', amount: 20, category: 'Courses', paidBy: 'vous', date: '2026-08-15' }
+    ]);
+
+    editVariableCharge('1');
+
+    expect(document.getElementById('variableChargeHeure').value).toBe('');
+  });
+});
+
+describe('Ce que la liste montre de l\'heure', () => {
+
+  it('la ligne joint le jour et l\'heure', async () => {
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      { id: '1', description: 'Marché', amount: 30, category: 'Courses', paidBy: 'vous', date: '2026-08-15', heure: '08:30' }
+    ]);
+
+    renderVariableCharges();
+
+    const ligne = document.querySelector('.charge-date');
+    expect(ligne.textContent).toContain('15');
+    expect(ligne.textContent).toContain('à 08:30');
+  });
+
+  it('une dépense sans heure n\'affiche que son jour', async () => {
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      { id: '1', description: 'Marché', amount: 30, category: 'Courses', paidBy: 'vous', date: '2026-08-15' }
+    ]);
+
+    renderVariableCharges();
+
+    const ligne = document.querySelector('.charge-date');
+    expect(ligne.textContent).toContain('15');
+    expect(ligne.textContent).not.toContain('à');
+  });
+
+  it('une charge d\'avant ce champ n\'emprunte pas d\'heure à son horodatage', async () => {
+    document.body.innerHTML = formulaireVariable;
+    setState('variableCharges', [
+      {
+        id: '1', description: 'Ancienne', amount: 20, category: 'Courses', paidBy: 'vous',
+        timestamp: new Date(2026, 6, 9, 21, 14).getTime()
+      }
+    ]);
+
+    renderVariableCharges();
+
+    const ligne = document.querySelector('.charge-date');
+    expect(ligne.textContent).toContain('9');
+    expect(ligne.textContent).not.toContain('21:14');
   });
 });
