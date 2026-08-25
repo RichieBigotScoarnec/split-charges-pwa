@@ -224,8 +224,15 @@ jobs:
           set -euo pipefail
 
           git fetch --no-tags --depth=1 origin gh-pages
+
+          # `git archive` plutôt qu'un worktree : celui-ci dépose un fichier
+          # `.git` dans le dossier, que `public/` n'a pas. La comparaison aurait
+          # donc échoué à chaque déploiement, sur une différence qui n'en est
+          # pas une — et un contrôle qui crie toujours cesse d'être lu.
+          # Éprouvé contre la vraie branche avant d'être écrit ici.
           rm -rf /tmp/publie
-          git worktree add --detach /tmp/publie FETCH_HEAD
+          mkdir -p /tmp/publie
+          git archive FETCH_HEAD | tar -x -C /tmp/publie
 
           # `.nojekyll` est posé par l'action de publication, il n'existe pas
           # dans le dépôt. C'est la seule différence attendue.

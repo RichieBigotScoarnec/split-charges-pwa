@@ -117,6 +117,14 @@ describe('La vérification de ce qui est publié', () => {
     expect(job).toContain('diff --recursive --brief public /tmp/publie');
   });
 
+  it('extrait la branche sans y laisser de marqueur git', () => {
+    // Un worktree dépose un fichier `.git` que `public/` n'a pas : la
+    // comparaison aurait échoué à chaque déploiement, sur une différence qui
+    // n'en est pas une. Un contrôle qui crie toujours cesse d'être lu.
+    expect(job).toContain('git archive FETCH_HEAD');
+    expect(job).not.toContain('git worktree');
+  });
+
   it('vient après la publication, jamais avant', () => {
     // Comparer avant que l'action ait poussé rendrait toujours l'état
     // précédent : un contrôle qui passe sans rien vérifier.
