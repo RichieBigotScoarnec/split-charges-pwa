@@ -26,6 +26,8 @@ const STATIC_ASSETS = [
   './icon-192.png',
   './icon-512-maskable.png',
   './icon-512.png',
+  './icon-quick-add-96.png',
+  './icon-quick-add-192.png',
 
   // Polices servies par l'application : les précacher est tout l'intérêt de
   // les avoir rapatriées. Sans cela elles seraient retéléchargées à chaque
@@ -69,6 +71,7 @@ const STATIC_ASSETS = [
   './js/utils/montant.js',
   './js/utils/periodes.js',
   './js/utils/phrase-saisie.js',
+  './js/utils/raccourci.js',
   './js/utils/recherche-lieu.js',
   './js/utils/recherche-texte.js',
   './js/utils/recurrence.js',
