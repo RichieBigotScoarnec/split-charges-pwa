@@ -4,6 +4,7 @@
 import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { formatPeriod } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { getDataPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -18,10 +19,22 @@ let database = null;
  * aurait donné une légende qui ment sur ce qu'elle désigne.
  */
 const SERIES = {
-  fixes: { couleur: '#667eea', libelle: 'Charges fixes' },
-  variables: { couleur: '#f093fb', libelle: 'Charges variables' },
-  total: { couleur: '#4ade80', libelle: 'Total' }
+  fixes: { jeton: '--serie-fixes', repli: '#4F46E5', libelle: 'Charges fixes' },
+  variables: { jeton: '--serie-variables', repli: '#C026D3', libelle: 'Charges variables' },
+  total: { jeton: '--serie-total', repli: '#059669', libelle: 'Total' }
 };
+
+/**
+ * Lit un jeton de la page, avec un repli
+ *
+ * @param {string} nom - Nom de la propriété personnalisée
+ * @param {string} defaut - Valeur si le jeton est absent
+ * @returns {string}
+ */
+function jetonCss(nom, defaut) {
+  if (typeof getComputedStyle !== 'function') return defaut;
+  return getComputedStyle(document.documentElement).getPropertyValue(nom).trim() || defaut;
+}
 
 /**
  * Initialise le module de tendances
@@ -166,12 +179,27 @@ export async function generateTrendsChart(months = 6) {
     return;
   }
 
-  toast.info('Génération des tendances...');
-
+  // Aucune annonce : déplier un panneau n'est pas un événement.
+  //
+  // L'ouverture en produisait deux — « Génération des tendances... » puis
+  // « Tendances générées » — pour un calcul local de deux cents millisecondes,
+  // dont le résultat est sous les yeux. Elles recouvraient de surcroît la
+  // moitié du graphe qu'elles annonçaient.
   const historicalData = await fetchHistoricalData(months);
 
   if (!historicalData || historicalData.periods.length === 0) {
     toast.warning('Aucune donnée historique disponible');
+    return;
+  }
+
+  // Un seul mois n'est pas une tendance.
+  //
+  // Le panneau dessinait alors un graphe d'un seul point, et quatre cartes
+  // disant la même chose : moyenne, minimum et maximum tous égaux au total du
+  // mois, et une « tendance » de 0,00 € ornée d'une flèche montante et de la
+  // couleur d'une hausse. De l'analyse pour de la décoration.
+  if (historicalData.periods.length < 2) {
+    annoncerUnSeulMois(canvas, historicalData.periods[0]);
     return;
   }
 
@@ -180,8 +208,35 @@ export async function generateTrendsChart(months = 6) {
 
   // Afficher les statistiques
   renderTrendsStats(historicalData);
+}
 
-  toast.success('Tendances générées');
+/**
+ * Dit qu'il n'y a pas encore de quoi tracer une tendance
+ *
+ * Le canevas est masqué plutôt que rempli d'un point : un graphe à une seule
+ * valeur n'apprend rien, et laisser croire le contraire vaut moins qu'une
+ * phrase.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {string} periode - Le seul mois connu
+ * @returns {void}
+ */
+function annoncerUnSeulMois(canvas, periode) {
+  canvas.hidden = true;
+
+  const stats = document.getElementById('trendsStats');
+  if (!stats) return;
+
+  stats.replaceChildren();
+
+  const bloc = document.createElement('p');
+  bloc.className = 'empty-state';
+  bloc.textContent = periode
+    ? `Un seul mois enregistré pour l'instant — ${formatPeriod(periode)}. La tendance apparaîtra dès le deuxième.`
+    : 'Pas encore de mois à comparer. La tendance apparaîtra dès le deuxième.';
+
+  stats.appendChild(bloc);
+  log('📈 Un seul mois : pas de tendance à tracer');
 }
 
 /**
@@ -224,50 +279,55 @@ function ajusterALaFinesse(canvas) {
  * @param {Object} data - Données historiques
  */
 function renderTrendsChart(canvas, data) {
+  // Rendu visible : un mois précédent a pu le masquer.
+  canvas.hidden = false;
+
   const ctx = canvas.getContext('2d');
 
-  // Le canevas se dessine à la finesse de l'écran.
-  //
-  // Il portait `width="600" height="240"` et s'étirait à 100 % de sa carte.
-  // Mesuré sur un Pixel : une mémoire de 600 px rendue sur 936 pixels
-  // physiques, soit un étirement de 1,56×. Les quatre libellés dessinés dessus
-  // étaient donc mous, à côté du texte net qui les entoure.
-  //
-  // La taille d'affichage vient de la feuille de style ; on n'ajuste ici que la
-  // mémoire, puis on remet le repère à l'échelle pour que le tracé continue de
-  // raisonner en points CSS.
+  // Le canevas se dessine à la finesse de l'écran, et raisonne en points CSS.
   ajusterALaFinesse(canvas);
-  // Les couleurs venaient en dur : fond clair et texte sombre, illisibles et
-  // étrangers au thème sombre. Elles sont lues sur les jetons de la page, comme
-  // le veut le reste du projet.
-  const jeton = (nom, defaut) =>
-    getComputedStyle(document.documentElement).getPropertyValue(nom).trim() || defaut;
+
   const couleurs = {
-    fond: jeton('--elevated-bg', '#f9f9f9'),
-    grille: jeton('--border-color', '#e0e0e0'),
-    texte: jeton('--text-secondary', '#666'),
-    axes: jeton('--text-primary', '#333')
+    fond: jetonCss('--elevated-bg', '#f9f9f9'),
+    grille: jetonCss('--border-color', '#e0e0e0'),
+    texte: jetonCss('--text-secondary', '#666'),
+    axes: jetonCss('--text-primary', '#333')
   };
-  // Dimensions en points CSS : le repère est déjà mis à l'échelle.
+  const police = jetonCss('--font', 'system-ui, sans-serif');
+
   const width = canvas.clientWidth || canvas.width;
   const height = canvas.clientHeight || canvas.height;
 
-  // Effacer le canvas
   ctx.clearRect(0, 0, width, height);
 
-  // Marges
-  const margin = { top: 40, right: 40, bottom: 60, left: 80 };
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
-
-  // Données à afficher
   const periods = data.periods;
   const totals = periods.map(p => data.data[p].total);
   const fixedTotals = periods.map(p => data.data[p].fixedCharges);
   const variableTotals = periods.map(p => data.data[p].variableCharges);
 
-  // Échelles
-  const maxValue = Math.max(...totals) * 1.1 || 1; // +10% marge, min 1 pour éviter div/0
+  const maxValue = Math.max(...totals) * 1.1 || 1;
+
+  // Les marges se déduisent de la place, elles ne sont plus écrites en dur.
+  //
+  // Elles valaient 40 en haut et 60 en bas. Sur la carte d'un téléphone, le
+  // canevas mesurait 125 px de haut : il restait 25 px pour six graduations,
+  // qui se chevauchaient au point d'être illisibles. La gauche, elle, se mesure
+  // sur le plus large des libellés — « 1 234,56 € » n'occupe pas la place de
+  // « 12 € », et la fixer à 80 px gaspille ou rogne selon les montants.
+  ctx.font = `12px ${police}`;
+  const largeurLibelle = Math.ceil(ctx.measureText(formatCurrency(maxValue)).width);
+
+  const HAUTEUR_LEGENDE = 24;
+  const margin = {
+    top: 28,
+    right: 16,
+    bottom: 26 + HAUTEUR_LEGENDE,
+    left: Math.min(largeurLibelle + 12, Math.round(width * 0.35))
+  };
+
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
   const xStep = chartWidth / (periods.length - 1 || 1);
   const yScale = chartHeight / maxValue;
 
@@ -275,10 +335,12 @@ function renderTrendsChart(canvas, data) {
   ctx.fillStyle = couleurs.fond;
   ctx.fillRect(margin.left, margin.top, chartWidth, chartHeight);
 
-  // Grille horizontale
+  // Grille et graduations. Leur nombre suit la hauteur : trois graduations sur
+  // un graphe court se lisent, six s'y empilent.
+  const gridLines = chartHeight >= 160 ? 5 : 3;
   ctx.strokeStyle = couleurs.grille;
   ctx.lineWidth = 1;
-  const gridLines = 5;
+
   for (let i = 0; i <= gridLines; i++) {
     const y = margin.top + (chartHeight / gridLines) * i;
     ctx.beginPath();
@@ -286,18 +348,16 @@ function renderTrendsChart(canvas, data) {
     ctx.lineTo(margin.left + chartWidth, y);
     ctx.stroke();
 
-    // Labels Y
-    const value = maxValue * (1 - i / gridLines);
     ctx.fillStyle = couleurs.texte;
-    ctx.font = '12px Arial';
+    ctx.font = `12px ${police}`;
     ctx.textAlign = 'right';
-    ctx.fillText(formatCurrency(value), margin.left - 10, y + 4);
+    ctx.fillText(formatCurrency(maxValue * (1 - i / gridLines)), margin.left - 8, y + 4);
   }
 
-  // Dessiner les courbes
-  drawLine(ctx, periods, fixedTotals, margin, xStep, yScale, chartHeight, SERIES.fixes.couleur, SERIES.fixes.libelle);
-  drawLine(ctx, periods, variableTotals, margin, xStep, yScale, chartHeight, SERIES.variables.couleur, SERIES.variables.libelle);
-  drawLine(ctx, periods, totals, margin, xStep, yScale, chartHeight, SERIES.total.couleur, SERIES.total.libelle, 3);
+  // Courbes
+  drawLine(ctx, periods, fixedTotals, margin, xStep, yScale, chartHeight, jetonCss(SERIES.fixes.jeton, SERIES.fixes.repli));
+  drawLine(ctx, periods, variableTotals, margin, xStep, yScale, chartHeight, jetonCss(SERIES.variables.jeton, SERIES.variables.repli));
+  drawLine(ctx, periods, totals, margin, xStep, yScale, chartHeight, jetonCss(SERIES.total.jeton, SERIES.total.repli), 3);
 
   // Axes
   ctx.strokeStyle = couleurs.axes;
@@ -308,24 +368,44 @@ function renderTrendsChart(canvas, data) {
   ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
   ctx.stroke();
 
-  // Labels X (périodes)
+  // Mois, en toutes lettres et abrégés : « 2026-08 » est une clé de stockage,
+  // pas une date. Un mois sur deux quand la place manque.
   ctx.fillStyle = couleurs.texte;
-  ctx.font = '12px Arial';
+  ctx.font = `11px ${police}`;
   ctx.textAlign = 'center';
+
+  const pas = xStep < 46 ? 2 : 1;
   periods.forEach((period, i) => {
-    const x = margin.left + i * xStep;
-    const y = margin.top + chartHeight + 20;
-    ctx.fillText(period, x, y);
+    if (i % pas !== 0 && i !== periods.length - 1) return;
+
+    const libelle = moisAbrege(period);
+    const demi = ctx.measureText(libelle).width / 2;
+
+    // Le dernier point touche le bord droit du tracé : centré dessus, son
+    // libellé débordait du canevas et « août 26 » se lisait « août 2 ». On le
+    // ramène dans le cadre plutôt que de le laisser sortir.
+    const x = Math.min(Math.max(margin.left + i * xStep, demi + 2), width - demi - 2);
+
+    ctx.fillText(libelle, x, margin.top + chartHeight + 18);
   });
 
-  // Titre
-  ctx.fillStyle = couleurs.axes;
-  ctx.font = 'bold 16px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Évolution des Dépenses', width / 2, 25);
+  // Légende, sous le graphe. Elle se dessinait par-dessus lui, sur 150 px de
+  // large dans une aire qui en fait 192, et en `#333` écrit en dur : illisible
+  // en thème sombre, et posée sur les courbes qu'elle nomme.
+  drawLegend(ctx, width, height, police, couleurs.texte);
+}
 
-  // Légende
-  drawLegend(ctx, width, height, margin);
+/**
+ * Un mois abrégé, tel qu'on le lit — « août 26 »
+ *
+ * @param {string} periode - Clé AAAA-MM
+ * @returns {string}
+ */
+function moisAbrege(periode) {
+  if (typeof periode !== 'string' || !/^\d{4}-\d{2}$/.test(periode)) return periode || '';
+  const [annee, mois] = periode.split('-');
+  const date = new Date(Number(annee), Number(mois) - 1, 1);
+  return `${date.toLocaleDateString('fr-FR', { month: 'short' })} ${annee.slice(2)}`;
 }
 
 /**
@@ -338,10 +418,9 @@ function renderTrendsChart(canvas, data) {
  * @param {number} yScale - Échelle Y
  * @param {number} chartHeight - Hauteur du graphique
  * @param {string} color - Couleur de la ligne
- * @param {string} label - Label de la ligne
  * @param {number} lineWidth - Épaisseur de la ligne
  */
-function drawLine(ctx, periods, values, margin, xStep, yScale, chartHeight, color, label, lineWidth = 2) {
+function drawLine(ctx, periods, values, margin, xStep, yScale, chartHeight, color, lineWidth = 2) {
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
@@ -372,36 +451,99 @@ function drawLine(ctx, periods, values, margin, xStep, yScale, chartHeight, colo
 }
 
 /**
- * Dessine la légende
- * @param {CanvasRenderingContext2D} ctx - Contexte canvas
- * @param {number} width - Largeur canvas
- * @param {number} height - Hauteur canvas
- * @param {Object} margin - Marges
+ * Dessine la légende, sous le graphe
+ *
+ * Elle se posait à l'intérieur de l'aire de tracé — sur 150 px de large dans
+ * une aire qui en fait 192 sur un téléphone — et écrivait ses libellés en
+ * `#333` en dur : par-dessus les courbes qu'elle nomme, et invisible en thème
+ * sombre.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} width - Largeur utile, en points CSS
+ * @param {number} height - Hauteur utile, en points CSS
+ * @param {string} police - Famille de caractères de la page
+ * @param {string} encre - Couleur du texte
+ * @returns {void}
  */
-function drawLegend(ctx, width, height, margin) {
-  const legendItems = Object.values(SERIES).map(s => ({ color: s.couleur, label: s.libelle }));
+function drawLegend(ctx, width, height, police, encre) {
+  const entrees = Object.values(SERIES);
 
-  const legendX = width - margin.right - 150;
-  const legendY = margin.top + 20;
-  const lineHeight = 25;
+  ctx.font = `11px ${police}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
 
-  legendItems.forEach((item, i) => {
-    const y = legendY + i * lineHeight;
+  const TRAIT = 16;
+  const ESPACE = 6;
+  const ENTRE = 14;
 
-    // Ligne colorée
-    ctx.strokeStyle = item.color;
+  // Largeur réelle, pour centrer sans deviner.
+  const largeurs = entrees.map(s => TRAIT + ESPACE + ctx.measureText(s.libelle).width);
+  const totale = largeurs.reduce((somme, l) => somme + l, 0) + ENTRE * (entrees.length - 1);
+
+  let x = Math.max(4, (width - totale) / 2);
+  const y = height - 10;
+
+  entrees.forEach((serie, i) => {
+    ctx.strokeStyle = jetonCss(serie.jeton, serie.repli);
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(legendX, y);
-    ctx.lineTo(legendX + 30, y);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + TRAIT, y);
     ctx.stroke();
 
-    // Label
-    ctx.fillStyle = '#333';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(item.label, legendX + 40, y + 4);
+    ctx.fillStyle = encre;
+    ctx.fillText(serie.libelle, x + TRAIT + ESPACE, y);
+
+    x += largeurs[i] + ENTRE;
   });
+
+  ctx.textBaseline = 'alphabetic';
+}
+
+/**
+ * En deçà d'un centime, une variation n'en est pas une
+ *
+ * Le test était `trend >= 0` : une tendance exactement nulle prenait donc la
+ * flèche montante et la couleur d'une hausse. « ↗ 0,00 € » en rouge, pour une
+ * dépense inchangée.
+ */
+const SEUIL_TENDANCE = 0.01;
+
+/**
+ * La classe d'une tendance
+ * @param {number} variation - En euros
+ * @returns {string}
+ */
+function classeTendance(variation) {
+  if (Math.abs(variation) < SEUIL_TENDANCE) return 'trend-flat';
+  return variation > 0 ? 'trend-up' : 'trend-down';
+}
+
+/**
+ * Une variation en pourcentage, écrite en français
+ *
+ * `toFixed(1)` rend « 231.2 », avec un point décimal — au milieu d'un écran où
+ * tous les montants s'écrivent « 1 259,97 € ».
+ *
+ * @param {number} variation - En pourcentage
+ * @returns {string}
+ */
+function pourcentageLisible(variation) {
+  const signe = variation > 0 ? '+' : '';
+  return `${signe}${variation.toLocaleString('fr-FR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  })} %`;
+}
+
+/**
+ * La flèche d'une tendance
+ * @param {number} variation - En euros
+ * @returns {string}
+ */
+function flecheTendance(variation) {
+  if (Math.abs(variation) < SEUIL_TENDANCE) return '→';
+  return variation > 0 ? '↗' : '↘';
 }
 
 /**
@@ -439,17 +581,17 @@ function renderTrendsStats(data) {
       <div class="stat-card">
         <div class="stat-label">Minimum</div>
         <div class="stat-value">${formatCurrency(min)}</div>
-        <div class="stat-period">${escapeHtml(periods[totals.indexOf(min)])}</div>
+        <div class="stat-period">${escapeHtml(formatPeriod(periods[totals.indexOf(min)]))}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Maximum</div>
         <div class="stat-value">${formatCurrency(max)}</div>
-        <div class="stat-period">${escapeHtml(periods[totals.indexOf(max)])}</div>
+        <div class="stat-period">${escapeHtml(formatPeriod(periods[totals.indexOf(max)]))}</div>
       </div>
-      <div class="stat-card ${trend >= 0 ? 'trend-up' : 'trend-down'}">
+      <div class="stat-card ${classeTendance(trend)}">
         <div class="stat-label">Tendance</div>
-        <div class="stat-value">${trend >= 0 ? '↗' : '↘'} ${formatCurrency(Math.abs(trend))}</div>
-        <div class="stat-percent">${trendPercent >= 0 ? '+' : ''}${trendPercent.toFixed(1)}%</div>
+        <div class="stat-value">${flecheTendance(trend)} ${formatCurrency(Math.abs(trend))}</div>
+        <div class="stat-percent">${escapeHtml(pourcentageLisible(trendPercent))}</div>
       </div>
     </div>
   `;

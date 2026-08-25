@@ -44,8 +44,27 @@ test.describe('Tendances sur 6 mois', () => {
     await expect(page.locator('#trendsToggle')).toHaveAttribute('aria-expanded', 'true');
   });
 
+  /**
+   * Pose un mois antérieur en base
+   *
+   * Un seul mois n'est pas une tendance : le panneau le dit désormais, au lieu
+   * de dessiner un point et quatre cartes identiques. Ces contrôles portent sur
+   * le graphe, il leur faut donc de quoi en tracer un — le cas du mois unique
+   * est éprouvé par `tests/e2e/tendances.spec.js`.
+   */
+  async function moisAnterieur(page, periode, montant) {
+    await page.evaluate(async ({ periode, montant }) => {
+      const { dbUpdate } = await import('/js/db.js');
+      await dbUpdate(undefined, {
+        [`periods/${periode}/variableCharges/anterieure`]:
+          { description: 'Mois precedent', amount: montant, category: 'Courses', paidBy: 'vous' }
+      });
+    }, { periode, montant });
+  }
+
   test('le graphique et les statistiques sont produits au dépliage', async ({ page }) => {
     await charge(page, 'Depense du mois', 300);
+    await moisAnterieur(page, '2026-01', 220);
 
     await page.locator('#trendsToggle').click();
 
@@ -58,6 +77,7 @@ test.describe('Tendances sur 6 mois', () => {
 
   test('le canevas est réellement dessiné, pas seulement présent', async ({ page }) => {
     await charge(page, 'Depense', 250);
+    await moisAnterieur(page, '2026-01', 180);
     await page.locator('#trendsToggle').click();
     await expect(page.locator('#trendsStats')).not.toBeEmpty({ timeout: 5000 });
 
@@ -78,6 +98,7 @@ test.describe('Tendances sur 6 mois', () => {
 
   test('se referme sans perdre son contenu', async ({ page }) => {
     await charge(page, 'Depense', 100);
+    await moisAnterieur(page, '2026-01', 90);
     await page.locator('#trendsToggle').click();
     await expect(page.locator('#trendsStats')).not.toBeEmpty({ timeout: 5000 });
 
