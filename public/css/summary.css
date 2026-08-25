@@ -255,13 +255,26 @@
   transform: rotate(180deg);
 }
 
+/*
+   Une hauteur réelle, et non déduite du rapport des attributs.
+
+   `height: auto` laissait le navigateur calculer la hauteur d'après le rapport
+   600 × 240 du canevas : sur la carte d'un téléphone, large de 312 px, cela
+   donnait 125 px. Les marges du tracé — 40 en haut, 60 en bas — en mangeaient
+   100, et il restait **25 px** pour six graduations, qui se chevauchaient au
+   point d'être illisibles. Mesuré, puis remesuré après correction.
+*/
 #trendsCanvas {
-  /* Le canevas porte des dimensions intrinsèques : sans cela il déborderait
-     de sa carte sur les écrans étroits. */
   width: 100%;
   max-width: 100%;
-  height: auto;
+  height: 260px;
   margin-bottom: var(--space-md);
+}
+
+@media (min-width: 600px) {
+  #trendsCanvas {
+    height: 300px;
+  }
 }
 
 /* ===== REMINDERS / NOTIFICATIONS ===== */
@@ -858,5 +871,9 @@
 
 /* Dépenser plus que le mois de départ n'est pas une réussite : la hausse est
    signalée en rouge, la baisse en vert. */
+/* Dépenser plus est signalé en rouge, moins en vert. Une dépense inchangée
+   n'est ni l'un ni l'autre : le test était `trend >= 0`, si bien qu'une
+   variation exactement nulle s'affichait « ↗ 0,00 € » en rouge. */
 .stat-card.trend-up .stat-value { color: var(--danger-color); }
 .stat-card.trend-down .stat-value { color: var(--success-color); }
+.stat-card.trend-flat .stat-value { color: var(--text-secondary); }

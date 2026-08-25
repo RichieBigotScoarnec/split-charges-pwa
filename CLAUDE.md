@@ -205,6 +205,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Le 50-50 exigeait des salaires dont il n'a pas besoin | `public/js/utils/calculations.js` | ✅ RÉSOLU 2026-08-24 — `exigeLesSalaires` | Le prorata les réclame toujours |
 | Une charge sans montant rendait tout le bilan égal à NaN | `public/js/utils/calculations.js` | ✅ RÉSOLU 2026-08-24 — un montant inexploitable vaut zéro | — |
 | Le graphe de tendances était étiré 1,56× sur un écran fin | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-24 — canevas accordé à `devicePixelRatio` | Remesuré à 1,00 |
+| Le graphe de tendances n'avait que 25 px de haut pour six graduations, qui se chevauchaient | `public/css/summary.css`, `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — hauteur réelle, marges calculées, légende sortie du tracé | Régression de la correction `devicePixelRatio` |
+| Un seul mois produisait un graphe d'un point et une « tendance » de 0 € en rouge | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — le panneau dit qu'il n'y a pas encore de quoi comparer | — |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

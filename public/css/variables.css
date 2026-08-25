@@ -122,6 +122,13 @@
   --primary-soft: rgba(79, 70, 229, 0.10);
   --primary-edge: rgba(79, 70, 229, 0.20);
 
+  /* Les trois courbes du graphe de tendances
+     Écrites en dur dans trends.js — #667eea, #f093fb, #4ade80 —, c'est-à-dire
+     l'ancienne palette froide, étrangère aux deux thèmes actuels. */
+  --serie-fixes: #4F46E5;
+  --serie-variables: #C026D3;
+  --serie-total: #059669;
+
   /* Le voile d'une modale. Noir dans les deux thèmes : il assombrit ce qu'il
      recouvre, ce qui est vrai d'un fond clair comme d'un fond sombre. */
   --scrim: rgba(0, 0, 0, 0.6);
@@ -210,6 +217,10 @@
     --info-edge: rgba(96, 165, 250, 0.28);
     --primary-soft: rgba(99, 102, 241, 0.14);
     --primary-edge: rgba(99, 102, 241, 0.28);
+    /* Plus claires sur fond sombre, pour rester lisibles. */
+    --serie-fixes: #818CF8;
+    --serie-variables: #E879F9;
+    --serie-total: #34D399;
     --dark-bg: #12100E;
     --card-bg: #1B1815;
     --elevated-bg: #23201C;
