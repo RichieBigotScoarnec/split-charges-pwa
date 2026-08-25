@@ -31,7 +31,7 @@ beforeEach(() => {
   setState('variableCharges', [
     {
       id: 'v1', description: 'Restaurant', category: 'Restaurant', amount: 42,
-      paidBy: 'conjointe', date: '2026-08-15', envelope: 'vacances-ete',
+      paidBy: 'conjointe', date: '2026-08-15', heure: '20:45', envelope: 'vacances-ete',
       location: { name: 'Le Bistrot', commune: 'Rennes' }
     }
   ]);
@@ -87,6 +87,19 @@ describe('Ce qu\'on lit à l\'écran, on peut le chercher', () => {
   it('le lieu, nom comme commune', () => {
     expect(trouves('bistrot')).toContain('v1');
     expect(trouves('rennes')).toContain('v1');
+  });
+
+  it('l\'heure, seule ou avec son jour', () => {
+    // « 20:45 » se cherche sans avoir à retrouver le jour qui va avec, et
+    // « 15 août 2026 à 20:45 » est ce que la ligne montre en entier.
+    expect(trouves('20:45')).toContain('v1');
+    expect(trouves('à 20:45')).toContain('v1');
+  });
+
+  it('une charge sans heure reste trouvable par sa date', () => {
+    // Les dépenses d'avant ce champ n'en portent pas : les exclure de la
+    // recherche par date les rendrait introuvables.
+    expect(trouves('2026-08-05')).toContain('f1');
   });
 });
 

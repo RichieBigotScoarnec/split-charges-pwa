@@ -127,3 +127,76 @@ describe('Le regroupement par catégorie', () => {
     expect(grouperParCategorie(null)).toEqual([]);
   });
 });
+
+/**
+ * L'heure départage ce que le jour laisse ex æquo
+ *
+ * Trois courses du même samedi sortaient dans l'ordre où elles avaient été
+ * saisies — le marché du matin après le plein du soir si on l'avait régularisé
+ * ensuite. L'heure déclarée le dit ; l'ordre de saisie ne le disait pas.
+ */
+describe('À jour égal, l\'heure décide', () => {
+  const dépense = (description, heure, timestamp) => ({
+    description, date: '2026-08-25', heure, timestamp
+  });
+
+  it('range la plus tardive en tête', () => {
+    const triees = trierParDate([
+      dépense('Marché', '08:30', 1),
+      dépense('Plein', '19:05', 2),
+      dépense('Café', '14:00', 3)
+    ]);
+
+    expect(triees.map(c => c.description)).toEqual(['Plein', 'Café', 'Marché']);
+  });
+
+  it('l\'heure prime sur l\'ordre de saisie', () => {
+    // Le plein a été saisi en dernier, mais il est du matin.
+    const triees = trierParDate([
+      dépense('Dîner', '20:30', 1),
+      dépense('Plein', '07:15', 99)
+    ]);
+
+    expect(triees.map(c => c.description)).toEqual(['Dîner', 'Plein']);
+  });
+
+  it('le jour prime sur l\'heure', () => {
+    // 08:00 la veille reste avant 23:00 aujourd'hui : comparer les heures sans
+    // regarder le jour inverserait les deux.
+    const triees = trierParDate([
+      { description: 'Hier soir', date: '2026-08-24', heure: '23:00' },
+      { description: 'Ce matin', date: '2026-08-25', heure: '08:00' }
+    ]);
+
+    expect(triees.map(c => c.description)).toEqual(['Ce matin', 'Hier soir']);
+  });
+
+  it('range une dépense sans heure après celles de sa journée qui en portent', () => {
+    // Elle ne peut pas s'intercaler entre deux heures sans qu'on invente
+    // laquelle. La reléguer laisse la suite des heures lisible.
+    const triees = trierParDate([
+      dépense('Sans heure', undefined, 5),
+      dépense('Matin', '08:00', 1)
+    ]);
+
+    expect(triees.map(c => c.description)).toEqual(['Matin', 'Sans heure']);
+  });
+
+  it('entre deux dépenses sans heure, l\'ordre de saisie décide encore', () => {
+    const triees = trierParDate([
+      dépense('Première', undefined, 1),
+      dépense('Seconde', undefined, 2)
+    ]);
+
+    expect(triees.map(c => c.description)).toEqual(['Seconde', 'Première']);
+  });
+
+  it('une heure illisible ne classe pas : elle vaut une absence', () => {
+    const triees = trierParDate([
+      dépense('Illisible', '25:99', 9),
+      dépense('Matin', '08:00', 1)
+    ]);
+
+    expect(triees.map(c => c.description)).toEqual(['Matin', 'Illisible']);
+  });
+});

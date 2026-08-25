@@ -5,7 +5,7 @@ import { getState } from '../state.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { memberLabel } from '../utils/members.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
-import { formatDate, dateDeLaCharge } from '../utils/date.js';
+import { formatDate, dateDeLaCharge, formatDateEtHeure, heureDeLaCharge } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { log, error as logError } from '../utils/debug.js';
 
@@ -89,9 +89,12 @@ export function exportToCSV() {
 
     // Charges variables
     csv += '=== CHARGES VARIABLES ===\n';
-    csv += 'Description;Catégorie;Montant;Payé par;Date\n';
+    // L'heure dans sa propre colonne, et non collée à la date : un tableur trie
+    // et filtre deux colonnes, pas une phrase. Les charges fixes n'en ont pas —
+    // un prélèvement mensuel n'a pas d'heure.
+    csv += 'Description;Catégorie;Montant;Payé par;Date;Heure\n';
     variableCharges.forEach(charge => {
-      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(dateDeLaCharge(charge)))}\n`;
+      csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(dateDeLaCharge(charge)))};${champCsv(heureDeLaCharge(charge))}\n`;
     });
     csv += `\nTotal charges variables: ${formatCurrency(variableCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
     csv += '\n';
@@ -275,7 +278,7 @@ export function exportToPDF() {
                 <td>${escapeHtml(charge.category)}</td>
                 <td>${formatCurrency(charge.amount)}</td>
                 <td>${escapeHtml(formatPaidBy(charge.paidBy))}</td>
-                <td>${escapeHtml(formatDate(dateDeLaCharge(charge)))}</td>
+                <td>${escapeHtml(formatDateEtHeure(charge))}</td>
               </tr>
             `).join('')}
             <tr class="total">

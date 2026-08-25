@@ -3,7 +3,7 @@
 
 import { getState } from '../state.js';
 import { escapeHtml, formatPaidBy } from '../utils/format.js';
-import { formatDate, dateDeLaCharge } from '../utils/date.js';
+import { formatDateEtHeure, heureDeLaCharge } from '../utils/date.js';
 import { jourDeTri } from '../utils/tri.js';
 import { contient, plier } from '../utils/recherche-texte.js';
 import { log } from '../utils/debug.js';
@@ -170,7 +170,10 @@ function matchesQuery(charge, query) {
     // La date sous les deux formes : « 2026-08-15 » pour qui tape le mois, et
     // « 15 août 2026 » pour qui tape ce qu'il voit à l'écran.
     jourDeTri(charge),
-    formatDate(dateDeLaCharge(charge)),
+    formatDateEtHeure(charge),
+    // L'heure seule aussi : « 08:30 » se cherche sans avoir à retrouver le jour
+    // qui va avec.
+    heureDeLaCharge(charge),
     // Les deux séparément, et non l'un ou l'autre : une charge nommée « Le
     // Bistrot » à Rennes doit se retrouver par l'enseigne comme par la ville.
     charge.location && charge.location.name,

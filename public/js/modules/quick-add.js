@@ -12,7 +12,7 @@ import { getCategories } from './custom-lists.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
-import { dateDuJour } from '../utils/date.js';
+import { dateDuJour, heureDuJour, heureValide } from '../utils/date.js';
 import { segmentsDeLaPhrase } from '../utils/phrase-saisie.js';
 import { decrireLieu } from '../utils/lieu.js';
 import { normaliserEmplacement } from '../utils/members.js';
@@ -210,6 +210,7 @@ function setupEventListeners() {
   poserUnique(document.getElementById('quickAddLocationDetach'), 'click', detachLocation);
   poserUnique(document.getElementById('quickAddPhrase'), 'click', surSegment);
   poserUnique(document.getElementById('quickAddDate'), 'change', surDate);
+  poserUnique(document.getElementById('quickAddHeure'), 'change', surDate);
   poserUnique(document.getElementById('quickAddEnvelope'), 'change', surEnveloppe);
   poserUnique(document.getElementById('modalQuickAdd'), 'click', surFondDeModale);
 }
@@ -306,6 +307,11 @@ function showQuickAddModal({ anticipee = false } = {}) {
   // ne doit plus obliger à rouvrir le formulaire complet.
   const dateInput = document.getElementById('quickAddDate');
   if (dateInput) dateInput.value = dateDuJour();
+
+  // L'heure courante, effaçable elle aussi : une dépense qu'on ne sait pas
+  // situer dans la journée vaut mieux sans heure qu'avec une heure inventée.
+  const heureInput = document.getElementById('quickAddHeure');
+  if (heureInput) heureInput.value = heureDuJour();
 
   updateSplitMode('prorata');
   updatePayer('vous');
@@ -762,9 +768,11 @@ function dessinerLaPhrase() {
   if (!zone) return;
 
   const champDate = document.getElementById('quickAddDate');
+  const champHeure = document.getElementById('quickAddHeure');
   const segments = segmentsDeLaPhrase(quickAddState, {
     members: getState('members'),
     date: champDate ? champDate.value : null,
+    heure: champHeure ? champHeure.value : null,
     // Le segment ne paraît que si le foyer a des enveloppes ouvertes : un
     // cinquième bouton permanent encombrerait la phrase de tous ceux qui ne
     // s'en servent pas, et n'en avoir aucune est l'état de départ.
@@ -827,7 +835,7 @@ function surSegment(e) {
   if (bouton) ouvrirLePanneau(bouton.dataset.panneau);
 }
 
-/** Une date changée se relit dans la phrase, sans refermer le panneau */
+/** Une date ou une heure changée se relit dans la phrase, sans refermer le panneau */
 function surDate() {
   dessinerLaPhrase();
 }
@@ -1029,6 +1037,9 @@ async function soumettre() {
     // premières heures de la nuit basculaient sur la veille. `dateDuJour` lit
     // le fuseau de l'appareil.
     date: document.getElementById('quickAddDate')?.value || dateDuJour(),
+    // Vide si le champ l'est : l'heure reste facultative, et rien ne doit
+    // l'inventer à la place de qui saisit.
+    heure: heureValide(document.getElementById('quickAddHeure')?.value),
     timestamp: Date.now(),
     deleted: false
   };
@@ -1295,6 +1306,7 @@ export async function addQuickCharge(chargeData) {
     category: chargeData.category || 'Autre',
     paidBy: chargeData.paidBy || 'vous',
     date: chargeData.date || dateDuJour(),
+    heure: heureValide(chargeData.heure),
     timestamp: Date.now(),
     deleted: false
   };

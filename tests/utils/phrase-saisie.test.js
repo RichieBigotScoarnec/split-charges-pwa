@@ -95,6 +95,19 @@ describe('La date', () => {
   it('une date illisible ne fabrique pas un libellé faux', () => {
     expect(libelleDate('pas une date', '2026-08-24')).toBe("Aujourd'hui");
   });
+
+  it('porte l\'heure quand il y en a une', () => {
+    // La phrase est le seul endroit qui dise ce qui sera enregistré : une heure
+    // tue s'inscrirait sans que personne ne l'ait vue passer.
+    expect(libelleDate('2026-08-24', '2026-08-24', '08:30')).toBe("Aujourd'hui à 08:30");
+    expect(libelleDate('2026-08-21', '2026-08-24', '19:05')).toContain('à 19:05');
+  });
+
+  it('s\'en passe quand l\'heure manque ou ne veut rien dire', () => {
+    expect(libelleDate('2026-08-24', '2026-08-24')).toBe("Aujourd'hui");
+    expect(libelleDate('2026-08-24', '2026-08-24', '')).toBe("Aujourd'hui");
+    expect(libelleDate('2026-08-24', '2026-08-24', '25:99')).toBe("Aujourd'hui");
+  });
 });
 
 describe('La phrase entière', () => {

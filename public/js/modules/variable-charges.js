@@ -12,7 +12,10 @@ import { validateChargeAmount, validateChargeName } from '../utils/validation.js
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
-import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
+import {
+  formatDateEtHeure, dateDuJour, dateSaisissable,
+  heureDuJour, heureSaisissable, heureValide
+} from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
@@ -50,6 +53,11 @@ export function showAddVariableChargeModal() {
   // qui est tout l'intérêt — régulariser une dépense de samedi le lundi.
   const dateEl = document.getElementById('variableChargeDate');
   if (dateEl) dateEl.value = dateDuJour();
+
+  // Même raison pour l'heure, et une de plus : sur un téléphone, la saisir à
+  // la main coûte deux gestes de plus que de l'accepter.
+  const heureEl = document.getElementById('variableChargeHeure');
+  if (heureEl) heureEl.value = heureDuJour();
 
   // Reset split override
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -210,6 +218,10 @@ export async function saveVariableCharge() {
   // À défaut de saisie, le jour courant : une charge sans date ne pourrait plus
   // être située, et `timestamp` ne dit que le moment de l'écriture.
   const date = document.getElementById('variableChargeDate')?.value || dateDuJour();
+  // Vide si le champ l'est : l'heure est facultative, et une chaîne vide
+  // efface celle qu'une édition vient de retirer. `null` supprimerait la clé
+  // sans la remplacer, ce qui laisserait l'ancienne valeur en base.
+  const heure = heureValide(document.getElementById('variableChargeHeure')?.value);
   // Le lieu retenu dans le champ de recherche, ou celui que la charge portait
   // déjà — `poserLieu` l'a remis en place à la réouverture.
   const location = lieuChoisi();
@@ -263,6 +275,7 @@ export async function saveVariableCharge() {
       paidBy,
       envelope,
       date,
+      heure,
       // `null` supprime la clé côté Firebase : c'est exactement ce qu'on veut
       // quand le lieu vient d'être retiré.
       location: location || null,
@@ -326,6 +339,11 @@ export function editVariableCharge(chargeId) {
   // enregistrement remplacerait par la date du jour.
   const dateEl = document.getElementById('variableChargeDate');
   if (dateEl) dateEl.value = dateSaisissable(charge);
+
+  // Vide pour une charge d'avant ce champ : lui proposer l'heure du jour
+  // déplacerait la dépense dans la journée au premier enregistrement.
+  const heureEl = document.getElementById('variableChargeHeure');
+  if (heureEl) heureEl.value = heureSaisissable(charge);
 
   // Restaurer splitOverride
   const splitToggle = document.getElementById('variableChargeSplitToggle');
@@ -461,7 +479,7 @@ export function renderVariableCharges() {
       const splitTag = charge.splitOverride
         ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
         : '';
-      const dateLisible = formatDate(dateDeLaCharge(charge));
+      const dateLisible = formatDateEtHeure(charge);
       const dateTag = dateLisible
         ? `<span class="charge-date">${escapeHtml(dateLisible)}</span>`
         : '';

@@ -1,4 +1,4 @@
-import { dateDeLaCharge, dateDuJour } from './date.js';
+import { dateDeLaCharge, dateDuJour, heureDeLaCharge } from './date.js';
 
 /**
  * L'ordre d'affichage des listes
@@ -37,8 +37,15 @@ export function jourDeTri(entree) {
 /**
  * Compare deux entrées, la plus récente d'abord
  *
- * Le jour prime ; à jour égal, l'ordre de saisie départage, la dernière écrite
- * en tête. C'est celle qu'on vient d'ajouter et qu'on veut vérifier.
+ * Le jour prime ; à jour égal, l'heure déclarée départage, puis l'ordre de
+ * saisie — la dernière écrite en tête, c'est celle qu'on vient d'ajouter et
+ * qu'on veut vérifier.
+ *
+ * Une entrée sans heure passe après celles qui en portent, à jour égal. Ce
+ * n'est pas un jugement sur son ancienneté : c'est qu'elle ne peut pas
+ * s'intercaler entre deux heures sans qu'on invente laquelle. La reléguer
+ * laisse la suite des heures lisible, et le repli sur l'ordre de saisie garde
+ * son sens entre elles.
  *
  * Une entrée sans repère temporel passe en dernier plutôt que de se glisser
  * n'importe où : elle n'a pas de place légitime dans une suite chronologique,
@@ -58,6 +65,13 @@ export function plusRecenteDAbord(a, b) {
   const jourB = jourDeTri(b);
 
   if (jourA !== jourB) return jourA < jourB ? 1 : -1;
+
+  // HH:MM se compare lexicographiquement dans le bon ordre, les deux membres
+  // étant sur deux chiffres. Le vide précède toute heure, donc l'ordre
+  // décroissant range les entrées sans heure en queue de leur journée.
+  const heureA = heureDeLaCharge(a);
+  const heureB = heureDeLaCharge(b);
+  if (heureA !== heureB) return heureA < heureB ? 1 : -1;
 
   const tsA = Number.isFinite(a && a.timestamp) ? a.timestamp : 0;
   const tsB = Number.isFinite(b && b.timestamp) ? b.timestamp : 0;

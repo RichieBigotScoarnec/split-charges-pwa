@@ -93,6 +93,41 @@ describe('exportToCSV — charges variables', () => {
     expect(capturedCSV).toContain('24');
   });
 
+  it('donne à l\'heure sa propre colonne', () => {
+    // Collée à la date dans une seule cellule, elle cesserait d'être triable et
+    // filtrable — ce pour quoi on ouvre un CSV dans un tableur.
+    setState('variableCharges', [
+      { id: 'v1', description: 'Marché', amount: 30, category: 'Courses', paidBy: 'vous', date: '2026-03-14', heure: '08:30' }
+    ]);
+
+    exportToCSV();
+
+    expect(capturedCSV).toContain('Payé par;Date;Heure');
+    expect(capturedCSV).toContain(';"14 mars 2026";"08:30"');
+  });
+
+  it('laisse la cellule vide pour une dépense sans heure', () => {
+    // Les dépenses d'avant ce champ n'en portent pas, et l'heure reste
+    // effaçable. Une cellule vide le dit ; une heure inventée mentirait.
+    setState('variableCharges', [
+      { id: 'v1', description: 'Marché', amount: 30, category: 'Courses', paidBy: 'vous', date: '2026-03-14' }
+    ]);
+
+    exportToCSV();
+
+    expect(capturedCSV).toContain(';"14 mars 2026";""');
+  });
+
+  it('les charges fixes gardent la date seule', () => {
+    // Un prélèvement mensuel n'a pas d'heure : lui ajouter une colonne vide
+    // ferait chercher ce qui n'existe pas.
+    exportToCSV();
+
+    const sectionFixes = capturedCSV.split('=== CHARGES FIXES ===')[1].split('===')[0];
+    expect(sectionFixes).toContain('Payé par;Date');
+    expect(sectionFixes).not.toContain('Heure');
+  });
+
   it('exclut les charges supprimées (deleted=true)', () => {
     setState('variableCharges', [
       { id: 'v1', description: 'Active', amount: 50, category: 'A', paidBy: 'vous', timestamp: 1700000000000 },
