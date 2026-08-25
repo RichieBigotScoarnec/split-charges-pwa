@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   periodePrecedente,
   categoriesFrequentes,
-  ligneFrequentesUtile
+  categoriesAMontrer,
+  TUILES_VISIBLES
 } from '../../public/js/utils/categories-frequentes.js';
 
 const CATEGORIES = [
@@ -105,30 +106,107 @@ describe('Compter ce qui est réellement employé', () => {
   });
 });
 
-describe('La ligne ne s\'affiche que si elle sert', () => {
-  const TROIS = CATEGORIES.slice(0, 3);
+/**
+ * Ce que la grille montre, et ce qu'elle garde en réserve
+ *
+ * La liste du foyer est passée à dix-neuf catégories pour suivre la table des
+ * lieux OpenStreetMap. Les montrer toutes rendrait la saisie rapide plus lente
+ * qu'un formulaire complet : la grille s'en tient aux plus employées, et une
+ * dernière tuile déplie le reste.
+ */
+describe('Les catégories que la grille montre', () => {
+  const ids = liste => liste.map(categorie => categorie.id);
 
-  it('s\'affiche sur une longue liste avec des habitudes établies', () => {
-    const frequentes = CATEGORIES.slice(0, 3);
+  /** Autant de charges d'une catégorie qu'annoncé */
+  const charges = paires => paires.flatMap(([category, nombre]) =>
+    Array.from({ length: nombre }, () => ({ category }))
+  );
 
-    expect(ligneFrequentesUtile(frequentes, CATEGORIES)).toBe(true);
+  it('montre tout, sans réserve, quand la liste tient dans la grille', () => {
+    const courte = CATEGORIES.slice(0, 4);
+
+    const { visibles, reste } = categoriesAMontrer(courte, []);
+
+    expect(visibles).toEqual(courte);
+    expect(reste).toBe(0);
   });
 
-  it('se tait sur une liste courte : la grille entière tient déjà sous le pouce', () => {
-    expect(ligneFrequentesUtile(TROIS.slice(0, 2), TROIS)).toBe(false);
+  it('n\'en montre pas plus que la grille n\'en porte', () => {
+    const { visibles, reste } = categoriesAMontrer(CATEGORIES, []);
+
+    expect(visibles).toHaveLength(TUILES_VISIBLES);
+    expect(reste).toBe(CATEGORIES.length - TUILES_VISIBLES);
   });
 
-  it('se tait faute d\'historique', () => {
-    expect(ligneFrequentesUtile([], CATEGORIES)).toBe(false);
-    expect(ligneFrequentesUtile(CATEGORIES.slice(0, 1), CATEGORIES)).toBe(false);
+  it('met en tête ce que le foyer emploie, pas ce que la liste déclare', () => {
+    // « Bar » ferme la liste du foyer et ne serait jamais visible ; c'est
+    // pourtant la catégorie la plus employée ici.
+    const { visibles } = categoriesAMontrer(CATEGORIES, charges([
+      ['Bar', 5], ['Santé', 3]
+    ]));
+
+    expect(ids(visibles).slice(0, 2)).toEqual(['bar', 'sante']);
   });
 
-  it('se tait si elle ne ferait que répéter la grille', () => {
-    expect(ligneFrequentesUtile(CATEGORIES, CATEGORIES)).toBe(false);
+  it('complète avec l\'ordre du foyer quand les habitudes ne suffisent pas', () => {
+    // Deux catégories employées, six tuiles à remplir : les quatre suivantes
+    // viennent de `config.js`, qui place les plus courantes en tête.
+    const { visibles } = categoriesAMontrer(CATEGORIES, charges([
+      ['Bar', 5], ['Santé', 3]
+    ]));
+
+    expect(ids(visibles)).toEqual(['bar', 'sante', 'courses', 'maison', 'essence', 'restaurant']);
+  });
+
+  it('suit l\'ordre du foyer tant qu\'aucune habitude n\'est connue', () => {
+    // Un foyer neuf, ou le premier du mois : rien à compter, et il faut
+    // pourtant proposer six tuiles.
+    const { visibles } = categoriesAMontrer(CATEGORIES, []);
+
+    expect(visibles).toEqual(CATEGORIES.slice(0, TUILES_VISIBLES));
+  });
+
+  it('montre la catégorie épinglée, si rare soit-elle', () => {
+    // Celle que le GPS vient de deviner, ou celle déjà choisie. Une grille qui
+    // ne montre pas le choix en cours donne à croire qu'il a été perdu.
+    const { visibles, reste } = categoriesAMontrer(CATEGORIES, [], {
+      epinglee: { id: 'bar' }
+    });
+
+    expect(ids(visibles)).toContain('bar');
+    expect(visibles).toHaveLength(TUILES_VISIBLES);
+    expect(reste).toBe(CATEGORIES.length - TUILES_VISIBLES);
+  });
+
+  it('épingle à la place de la dernière, celle qui manquera le moins', () => {
+    const { visibles } = categoriesAMontrer(CATEGORIES, [], {
+      epinglee: { id: 'bar' }
+    });
+
+    expect(ids(visibles)).toEqual(['courses', 'maison', 'essence', 'restaurant', 'sante', 'bar']);
+  });
+
+  it('ne déplace rien si l\'épinglée est déjà montrée', () => {
+    const sansEpingle = categoriesAMontrer(CATEGORIES, []);
+    const avec = categoriesAMontrer(CATEGORIES, [], { epinglee: { id: 'courses' } });
+
+    expect(avec.visibles).toEqual(sansEpingle.visibles);
+  });
+
+  it('ignore une épinglée que le foyer ne possède pas', () => {
+    // Une catégorie supprimée depuis la saisie, ou devinée par le GPS avant que
+    // la liste ne soit lue. La grille ne doit pas perdre une tuile pour elle.
+    const { visibles } = categoriesAMontrer(CATEGORIES, [], {
+      epinglee: { id: 'inconnue' }
+    });
+
+    expect(visibles).toEqual(CATEGORIES.slice(0, TUILES_VISIBLES));
   });
 
   it('ne lève sur aucune entrée aberrante', () => {
-    expect(ligneFrequentesUtile(null, CATEGORIES)).toBe(false);
-    expect(ligneFrequentesUtile(CATEGORIES, null)).toBe(false);
+    expect(categoriesAMontrer(null, null)).toEqual({ visibles: [], reste: 0 });
+    expect(categoriesAMontrer(undefined, undefined)).toEqual({ visibles: [], reste: 0 });
+    expect(categoriesAMontrer([null, undefined], []).visibles).toEqual([]);
+    expect(categoriesAMontrer(CATEGORIES, 'des charges').visibles).toHaveLength(TUILES_VISIBLES);
   });
 });

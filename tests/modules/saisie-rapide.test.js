@@ -68,11 +68,6 @@ const BALISAGE = `
       <input type="text" id="quickAddAmount" />
       <div class="quick-add-phrase" id="quickAddPhrase" role="group"></div>
       <div class="quick-add-panneau" id="quickAddPanneauCategorie">
-      <div class="category-frequentes" id="categoryFrequentes" hidden>
-        <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
-        <div class="category-frequentes-liste" id="categoryFrequentesListe"
-             role="group" aria-labelledby="categoryFrequentesTitre"></div>
-      </div>
       <div class="category-grid" id="categoryGrid"></div>
       </div>
       <div class="quick-add-panneau" id="quickAddPanneauDate">
@@ -552,11 +547,16 @@ describe('La catégorie déduite du lieu', () => {
   });
 });
 
-describe('La ligne des catégories souvent employées', () => {
+describe('La grille montre les catégories les plus employées', () => {
   /**
-   * La grille présente toutes les catégories à poids égal. C'est juste tant
-   * qu'elles sont huit ; ça cesse de l'être dès qu'on en crée d'autres, car
-   * l'usage réel est très inégal.
+   * La grille présentait toutes les catégories à poids égal. C'était juste tant
+   * qu'elles étaient huit ; elles sont dix-neuf depuis qu'elles suivent la
+   * table des lieux OpenStreetMap, et l'usage réel est très inégal : les
+   * courses reviennent chaque semaine, la santé trois fois l'an.
+   *
+   * Six tuiles, donc, classées par usage, et une septième qui déplie le reste.
+   * Le calcul lui-même est éprouvé par `tests/utils/categories-frequentes.js` ;
+   * ces contrôles portent sur ce que la modale en fait.
    */
   const ORIGINE = getCategories();
   afterEach(() => { getCategories.mockReturnValue(ORIGINE); });
@@ -586,40 +586,76 @@ describe('La ligne des catégories souvent employées', () => {
     window.showQuickAddModal();
   }
 
-  it('reste masquée sur une grille courte : elle ne raccourcit aucun geste', async () => {
+  /** Ce que la grille propose, la tuile de dépliement exclue */
+  const proposees = () => [...document.querySelectorAll('.category-btn[data-category-id]')]
+    .map(b => b.dataset.categoryId);
+
+  it('montre toute une liste courte, sans rien mettre en réserve', async () => {
     await rouvrir(NEUF.slice(0, 3), [
       { category: 'Courses' }, { category: 'Courses' }, { category: 'Maison' }
     ]);
 
-    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+    expect(proposees()).toEqual(['courses', 'maison', 'essence']);
+    expect(document.getElementById('categoryPlus')).toBeNull();
   });
 
-  it('reste masquée sans historique : rien à en tirer', async () => {
+  it('suit l\'ordre du foyer tant qu\'aucune habitude n\'est connue', async () => {
     await rouvrir(NEUF, []);
 
-    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+    expect(proposees()).toEqual(['courses', 'maison', 'essence', 'restaurant', 'sante', 'loisirs']);
   });
 
-  it('apparaît sur une longue grille, la plus employée en tête', async () => {
+  it('met en tête ce que le foyer emploie le plus', async () => {
+    // « Bar » ferme la liste et ne serait jamais visible ; c'est pourtant la
+    // catégorie la plus employée ici.
     await rouvrir(NEUF, [
       { category: 'Bar' }, { category: 'Bar' }, { category: 'Bar' },
       { category: 'Courses' }, { category: 'Courses' },
       { category: 'Restaurant' }
     ]);
 
-    expect(document.getElementById('categoryFrequentes').hidden).toBe(false);
-
-    const libelles = [...document.querySelectorAll('.category-frequente-btn')]
-      .map(b => b.dataset.categoryId);
-    expect(libelles).toEqual(['bar', 'courses', 'restaurant']);
+    expect(proposees().slice(0, 3)).toEqual(['bar', 'courses', 'restaurant']);
   });
 
-  it('un raccourci sélectionne la catégorie, comme la tuile', async () => {
-    await rouvrir(NEUF, [
-      { category: 'Bar' }, { category: 'Bar' }, { category: 'Courses' }
-    ]);
+  it('annonce combien de catégories restent en réserve', async () => {
+    await rouvrir(NEUF, []);
 
-    document.querySelector('.category-frequente-btn[data-category-id="bar"]').click();
+    const plus = document.getElementById('categoryPlus');
+    expect(plus, 'la tuile de dépliement est absente').not.toBeNull();
+    expect(plus.textContent).toContain('3 autres');
+  });
+
+  it('accorde le compte au singulier', async () => {
+    await rouvrir(NEUF.slice(0, 7), []);
+
+    expect(document.getElementById('categoryPlus').textContent).toContain('1 autre');
+    expect(document.getElementById('categoryPlus').textContent).not.toContain('1 autres');
+  });
+
+  it('déplie la liste entière, et la tuile disparaît', async () => {
+    await rouvrir(NEUF, []);
+
+    document.getElementById('categoryPlus').click();
+
+    expect(proposees()).toEqual(NEUF.map(c => c.id));
+    expect(document.getElementById('categoryPlus')).toBeNull();
+  });
+
+  it('se replie à la réouverture : le cas courant reste une dépense courante', async () => {
+    await rouvrir(NEUF, []);
+    document.getElementById('categoryPlus').click();
+
+    window.closeQuickAddModal();
+    window.showQuickAddModal();
+
+    expect(proposees()).toHaveLength(6);
+  });
+
+  it('une tuile dépliée sélectionne la catégorie comme les six premières', async () => {
+    await rouvrir(NEUF, []);
+    document.getElementById('categoryPlus').click();
+
+    document.querySelector('.category-btn[data-category-id="bar"]').click();
     document.getElementById('quickAddAmount').value = '7,50';
     await valider();
 
@@ -627,28 +663,28 @@ describe('La ligne des catégories souvent employées', () => {
     expect(derniereCharge().categoryId).toBe('bar');
   });
 
-  it('le choix se voit sur les deux surfaces, pas sur une seule', async () => {
-    // N'en marquer qu'une laisserait croire à deux choix distincts, dont l'un
-    // serait resté vide.
-    await rouvrir(NEUF, [
-      { category: 'Bar' }, { category: 'Bar' }, { category: 'Courses' }
-    ]);
-
+  it('montre la catégorie choisie même si elle n\'est pas dans les six', async () => {
+    // Celle que le GPS vient de deviner, ou celle déjà choisie avant un
+    // dépliement refermé. Une grille qui ne montre pas le choix en cours donne
+    // à croire qu'il a été perdu.
+    await rouvrir(NEUF, []);
+    document.getElementById('categoryPlus').click();
     document.querySelector('.category-btn[data-category-id="bar"]').click();
 
-    expect(document.querySelector('.category-frequente-btn[data-category-id="bar"]').className)
-      .toContain('selected');
+    expect(proposees()).toContain('bar');
+    expect(document.querySelector('.category-btn.selected').dataset.categoryId).toBe('bar');
   });
 
   it('ignore la corbeille : une charge retirée n\'est pas une habitude', async () => {
     await rouvrir(NEUF, [
-      { category: 'Santé', deleted: true }, { category: 'Santé', deleted: true },
-      { category: 'Bar' }, { category: 'Courses' }
+      { category: 'Bar', deleted: true }, { category: 'Bar', deleted: true },
+      { category: 'Transport' }
     ]);
 
-    const libelles = [...document.querySelectorAll('.category-frequente-btn')]
-      .map(b => b.dataset.categoryId);
-    expect(libelles).not.toContain('sante');
+    // « Bar » ferme la liste : sans la corbeille, deux charges l'auraient hissé
+    // en tête. « Transport » y monte, lui, avec une seule.
+    expect(proposees()[0]).toBe('transport');
+    expect(proposees()).not.toContain('bar');
   });
 });
 
@@ -686,9 +722,12 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     dbGet.mockResolvedValue(null);
   });
 
-  /** Libellés actuellement proposés dans la ligne */
-  const proposes = () => [...document.querySelectorAll('.category-frequente-btn')]
+  /** Libellés actuellement proposés par la grille, la réserve exclue */
+  const proposes = () => [...document.querySelectorAll('.category-btn[data-category-id]')]
     .map(b => b.dataset.categoryId);
+
+  /** Ordre de la liste du foyer : celui qu'on voit quand rien n'est connu */
+  const ORDRE_NEUF = ['courses', 'maison', 'essence', 'restaurant', 'sante', 'loisirs'];
 
   it('l\'historique d\'un mois ne sert pas à un autre', async () => {
     getCategories.mockReturnValue(NEUF);
@@ -699,7 +738,7 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
-    await vi.waitFor(() => expect(proposes()).toEqual(['bar', 'loisirs']));
+    await vi.waitFor(() => expect(proposes().slice(0, 2)).toEqual(['bar', 'loisirs']));
 
     // On navigue vers un autre mois : juillet n'a rien à dire de septembre.
     setState('currentPeriod', '2026-10');
@@ -708,7 +747,7 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     document.body.innerHTML = BALISAGE;
     window.showQuickAddModal();
 
-    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+    expect(proposes()).toEqual(ORDRE_NEUF);
   });
 
   it('la déconnexion efface l\'historique : le compte suivant part de zéro', async () => {
@@ -722,7 +761,7 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
-    await vi.waitFor(() => expect(proposes()).toEqual(['bar', 'loisirs']));
+    await vi.waitFor(() => expect(proposes().slice(0, 2)).toEqual(['bar', 'loisirs']));
 
     cleanupQuickAdd();
     dbGet.mockResolvedValue(null);
@@ -731,7 +770,7 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     initQuickAdd();
     window.showQuickAddModal();
 
-    expect(document.getElementById('categoryFrequentes').hidden).toBe(true);
+    expect(proposes()).toEqual(ORDRE_NEUF);
   });
 
   it('ne relit pas la base quand le mois n\'a pas changé', async () => {

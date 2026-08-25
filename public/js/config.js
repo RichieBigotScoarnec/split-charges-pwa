@@ -123,7 +123,16 @@ export const EMULATOR_PORTS = { database: 9010, auth: 9099 };
 // boulangerie en « Courses » : le repli fonctionnait, la précision se perdait.
 // `tests/utils/categorie-lieu.test.js` compare désormais les deux fichiers, et
 // tombe si l'un vise une catégorie que l'autre ne fournit pas.
+//
+// La liste s'est ensuite allongée pour suivre la table de plus près : trois
+// paquets y absorbaient l'essentiel — dix-sept types de lieux tombaient dans
+// « Loisirs », douze dans « Maison », treize dans « Transport ». Un cinéma, une
+// salle de sport et un jeu vidéo comptaient pour la même chose, et le bilan ne
+// pouvait rien en dire. Une liste longue ne coûte plus rien à la saisie : la
+// grille de la saisie rapide ne montre que les six plus employées.
 export const CATEGORIES = [
+  // L'ordre compte : il décide de l'affichage tant qu'aucune habitude n'est
+  // connue, et il départage les ex æquo ensuite. Les plus courantes d'abord.
   { id: 'courses', icon: '🛒', label: 'Courses', color: '#4caf50' },
   { id: 'maison', icon: '🏠', label: 'Maison', color: '#2196f3' },
   { id: 'essence', icon: '🚗', label: 'Essence', color: '#ff9800' },
@@ -132,8 +141,16 @@ export const CATEGORIES = [
   { id: 'bar', icon: '🍺', label: 'Bar', color: '#fbc02d' },
   { id: 'boulangerie', icon: '🥐', label: 'Boulangerie', color: '#d4a373' },
   { id: 'sante', icon: '💊', label: 'Santé', color: '#9c27b0' },
-  { id: 'loisirs', icon: '🎮', label: 'Loisirs', color: '#00bcd4' },
   { id: 'transport', icon: '🚌', label: 'Transport', color: '#795548' },
+  { id: 'peage', icon: '🛣️', label: 'Péage', color: '#5c6bc0' },
+  { id: 'parking', icon: '🅿️', label: 'Parking', color: '#546e7a' },
+  { id: 'bricolage', icon: '🔨', label: 'Bricolage', color: '#ef6c00' },
+  { id: 'jardin', icon: '🌿', label: 'Jardin', color: '#689f38' },
+  { id: 'sport', icon: '🏋️', label: 'Sport', color: '#00897b' },
+  { id: 'culture', icon: '🎬', label: 'Culture', color: '#7e57c2' },
+  { id: 'vetements', icon: '👕', label: 'Vêtements', color: '#ec407a' },
+  { id: 'coiffeur', icon: '💇', label: 'Coiffeur', color: '#ab47bc' },
+  { id: 'loisirs', icon: '🎮', label: 'Loisirs', color: '#00bcd4' },
   { id: 'autre', icon: '⚡', label: 'Autre', color: '#607d8b' }
 ];
 
