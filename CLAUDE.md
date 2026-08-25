@@ -215,6 +215,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Les revenus et les charges détaillées étaient lus par le module de tendances, puis jetés | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — taux d'effort, reste à vivre, catégorie qui a le plus bougé | Aucune lecture supplémentaire |
 | Saisir une dépense exigeait d'ouvrir l'application, d'attendre, puis de viser le bouton flottant | `public/manifest.json`, `public/js/utils/raccourci.js` | ✅ RÉSOLU 2026-08-25 — raccourci d'appui long « ⚡ Saisie rapide », posable sur l'écran d'accueil | Un vrai widget Android exigerait une application native |
 | La modale du raccourci n'ouvrait qu'au bout de l'initialisation : le temps gagné sur les gestes était repris par l'attente | `public/js/app.js`, `public/js/utils/attente-application.js` | ✅ RÉSOLU 2026-08-25 — ouverte avant Firebase, sur les valeurs par défaut ; l'écriture seule attend | Se referme si Firebase répond qu'il n'y a personne |
+| Une modale reprenait le focus 100 ms après l'ouverture, même posé ailleurs entre-temps : « 12,50 » puis « Cafe » donnaient un montant à « 12,50Cafe » | `public/js/components/modal.js`, `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-25 — le report ne s'applique plus si le focus est déjà posé dans la modale | Défaut ancien, rendu atteignable par le raccourci |
+| Les contrôles du raccourci tenaient sur un délai fixe : sur un runner chargé la fenêtre se refermait avant d'être vue, et le déploiement, qui en dépend, ne s'est pas fait | `tests/e2e/_harness.js` | ✅ RÉSOLU 2026-08-25 — Firebase retenu jusqu'à `__libererAuth()`, fenêtre sans durée | C'est ce contrôle qui a révélé le vol de focus |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

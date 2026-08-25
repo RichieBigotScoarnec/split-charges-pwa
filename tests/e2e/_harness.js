@@ -233,13 +233,8 @@ export const REACTIVE_FIREBASE_MOCK = `
       return {
         onAuthStateChanged: function(cb) {
           window.__mockAuthCallback = cb;
-          // Cent millisecondes par defaut. La saisie rapide ouverte par le
-          // raccourci parait AVANT cette reponse : pour l'observer il faut
-          // pouvoir tenir Firebase en attente, d'ou __delaiAuth. Et pour
-          // verifier qu'elle se referme devant un ecran de connexion, il faut
-          // pouvoir repondre qu'il n'y a personne, d'ou __authSansPersonne.
-          var delai = typeof window.__delaiAuth === 'number' ? window.__delaiAuth : 100;
-          setTimeout(function() {
+
+          var repondre = function() {
             if (window.__authSansPersonne) { cb(null); return; }
             cb({
               uid: 'test-user-123',
@@ -247,7 +242,21 @@ export const REACTIVE_FIREBASE_MOCK = `
               displayName: 'Test User',
               photoURL: null
             });
-          }, delai);
+          };
+
+          // La saisie rapide ouverte par le raccourci parait AVANT cette
+          // reponse. Pour l'observer, un delai fixe ne suffit pas : sur une
+          // machine chargee, l'ouverture de la page peut le depasser, la
+          // fenetre se referme avant que le test l'ait vue, et le controle
+          // tombe sans qu'aucun defaut existe. __authRetenue rend la fenetre
+          // deterministe : Firebase ne repond que lorsque le test appelle
+          // __libererAuth().
+          if (window.__authRetenue) {
+            window.__libererAuth = repondre;
+            return function() {};
+          }
+
+          setTimeout(repondre, 100);
           return function() {};
         },
         signInWithPopup: function() { return Promise.resolve(); },
