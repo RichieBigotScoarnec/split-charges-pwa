@@ -8,6 +8,7 @@ import { toast } from '../components/toast.js';
 import { escapeHtml } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
+import { categoriesQueLeGpsAttend } from '../utils/categorie-lieu.js';
 import { planRenommage, libelleAcceptable } from '../utils/renommage.js';
 
 // Réexporté : la fabrication d'identifiant vit désormais dans `utils/`, mais
@@ -407,6 +408,47 @@ let _enEdition = null;
  * Affiche le modal de gestion (catégories ou destinations)
  * @param {'categories'|'destinations'} listType
  */
+/**
+ * Propose les catégories que le GPS sait reconnaître et qui manquent
+ *
+ * `utils/categorie-lieu.js` reconnaît 81 types de lieux OpenStreetMap, chacun
+ * visant des catégories nommément. Douze d'entre eux visent « Café », « Bar »
+ * ou « Boulangerie » : ces catégories figurent désormais dans les défauts,
+ * mais un foyer qui a modifié sa liste une seule fois ne les verra jamais —
+ * la liste enregistrée l'emporte sur les défauts, pour toujours.
+ *
+ * Cette ligne n'apparaît que s'il manque réellement quelque chose, et
+ * n'ajoute rien d'elle-même : la liste appartient au foyer.
+ *
+ * @param {Array} actuelles - Catégories du foyer
+ * @returns {string} Fragment HTML, ou chaîne vide
+ */
+function propositionGps(actuelles) {
+  const manquantes = categoriesQueLeGpsAttend(actuelles);
+  if (manquantes.length === 0) return '';
+
+  const noms = manquantes
+    .map(c => `${escapeHtml(c.icon)} ${escapeHtml(c.label)}`)
+    .join(', ');
+
+  const combien = manquantes.length > 1
+    ? `${manquantes.length} catégories que le GPS sait reconnaître`
+    : 'Une catégorie que le GPS sait reconnaître';
+
+  return `
+    <div class="manage-proposition">
+      <p class="manage-proposition-texte">
+        ${combien} ne ${manquantes.length > 1 ? 'sont' : 'est'} pas dans votre liste :
+        <strong>${noms}</strong>.
+        Les ajouter permet à la saisie rapide de les proposer d'elle-même.
+      </p>
+      <button type="button" id="manageAjouterGps" class="btn btn-secondary btn-sm">
+        Ajouter ${manquantes.length > 1 ? 'ces catégories' : 'cette catégorie'}
+      </button>
+    </div>
+  `;
+}
+
 function showManageModal(listType) {
   const isCategories = listType === 'categories';
   const title = isCategories ? 'Gérer les catégories' : 'Gérer les destinations';
@@ -460,6 +502,8 @@ function showManageModal(listType) {
             </div>
           `)).join('')}
         </div>
+
+        ${isCategories ? propositionGps(getCategories()) : ''}
 
         <div class="manage-list-add">
           <div class="manage-add-row">
@@ -545,6 +589,23 @@ function showManageModal(listType) {
     populateAllSelects();
     showManageModal(listType); // Re-render
   };
+
+  // La proposition n'existe que s'il manque quelque chose.
+  modal.querySelector('#manageAjouterGps')?.addEventListener('click', async () => {
+    const actuelles = getCategories();
+    const manquantes = categoriesQueLeGpsAttend(actuelles);
+    if (manquantes.length === 0) return;
+
+    // `actuelles` sert de référence : ce que l'autre personne a ajouté
+    // entre-temps survit à cette écriture.
+    await saveCategories([...actuelles, ...manquantes], actuelles);
+
+    toast.success(manquantes.length > 1
+      ? `${manquantes.length} catégories ajoutées`
+      : `"${manquantes[0].label}" ajoutée`);
+    populateAllSelects();
+    showManageModal(listType);
+  });
 
   addBtn.addEventListener('click', addItem);
   newLabelInput.addEventListener('keydown', (e) => {

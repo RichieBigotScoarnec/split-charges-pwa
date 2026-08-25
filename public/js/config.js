@@ -113,11 +113,24 @@ export const USE_EMULATOR =
 export const EMULATOR_PORTS = { database: 9010, auth: 9099 };
 
 // ===== CATEGORIES =====
+// Les identifiants comptent autant que les libellés : `utils/categorie-lieu.js`
+// les vise nommément pour déduire la catégorie du lieu où l'on se trouve.
+//
+// Cette table reconnaît 81 types de lieux OpenStreetMap, chacun visant
+// plusieurs catégories par ordre de préférence. Douze de ces types avaient pour
+// premier choix `bar`, `cafe` ou `boulangerie` — trois catégories qui
+// n'existaient pas ici. Un café était donc rangé en « Restaurant », une
+// boulangerie en « Courses » : le repli fonctionnait, la précision se perdait.
+// `tests/utils/categorie-lieu.test.js` compare désormais les deux fichiers, et
+// tombe si l'un vise une catégorie que l'autre ne fournit pas.
 export const CATEGORIES = [
   { id: 'courses', icon: '🛒', label: 'Courses', color: '#4caf50' },
   { id: 'maison', icon: '🏠', label: 'Maison', color: '#2196f3' },
   { id: 'essence', icon: '🚗', label: 'Essence', color: '#ff9800' },
   { id: 'restaurant', icon: '🍕', label: 'Restaurant', color: '#e91e63' },
+  { id: 'cafe', icon: '☕', label: 'Café', color: '#8d6e63' },
+  { id: 'bar', icon: '🍺', label: 'Bar', color: '#fbc02d' },
+  { id: 'boulangerie', icon: '🥐', label: 'Boulangerie', color: '#d4a373' },
   { id: 'sante', icon: '💊', label: 'Santé', color: '#9c27b0' },
   { id: 'loisirs', icon: '🎮', label: 'Loisirs', color: '#00bcd4' },
   { id: 'transport', icon: '🚌', label: 'Transport', color: '#795548' },

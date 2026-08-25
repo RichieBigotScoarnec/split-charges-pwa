@@ -105,6 +105,13 @@
   text-align: center;
 }
 
+/* Rien devant : le ton passe de l'information à la confirmation. Le bloc dit
+   qu'il a regardé et qu'il n'y a rien, ce qu'une absence ne dit pas. */
+.summary-previsionnel.previsionnel-solde {
+  border-color: var(--success-edge);
+  background: var(--success-soft);
+}
+
 .previsionnel-montant {
   font-size: 14px;
   color: var(--text-primary);

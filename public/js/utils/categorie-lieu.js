@@ -28,6 +28,9 @@
  * l'application : le libellé en minuscules, espaces en tirets. « Bar » donne
  * donc `bar`, « Boulangerie » donne `boulangerie`.
  */
+import { CATEGORIES } from '../config.js';
+import { plier } from './recherche-texte.js';
+
 const TYPES = {
   // ===== Boire =====
   bar: ['bar', 'restaurant', 'loisirs'],
@@ -241,4 +244,39 @@ export function categoriePourLieu(lieu, categories, habitudes = []) {
  */
 export function typesReconnus() {
   return Object.keys(TYPES);
+}
+
+/**
+ * Les catégories que cette table sait reconnaître et qui manquent au foyer
+ *
+ * Ajouter des catégories aux défauts de `config.js` ne suffit pas : dès qu'un
+ * foyer a modifié sa liste une fois, elle est écrite en base et les défauts ne
+ * l'atteignent plus jamais. Un foyer installé de longue date resterait donc
+ * sans « Café », « Bar » ni « Boulangerie », et douze types de lieux
+ * continueraient de se ranger sous un à-peu-près.
+ *
+ * D'où cette fonction, qui alimente une proposition explicite dans la gestion
+ * des catégories. Rien n'est ajouté sans qu'on le demande : la liste appartient
+ * au foyer, et la compléter d'office reviendrait à décider à sa place.
+ *
+ * La comparaison porte sur l'identifiant **et** sur le libellé plié : un foyer
+ * qui a créé « Cafe » sans accent possède déjà cette catégorie, sous un
+ * identifiant que la table ne vise pas. La lui proposer ferait un doublon.
+ *
+ * @param {Array} actuelles - Catégories du foyer (`getCategories()`)
+ * @returns {Array} Définitions complètes à ajouter, vide s'il n'en manque aucune
+ */
+export function categoriesQueLeGpsAttend(actuelles) {
+  const liste = Array.isArray(actuelles) ? actuelles.filter(Boolean) : [];
+
+  const identifiants = new Set(liste.map(c => String(c.id || '').toLowerCase()));
+  const libelles = new Set(liste.map(c => plier(String(c.label || ''))));
+
+  const visees = new Set(Object.values(TYPES).flat());
+
+  return CATEGORIES.filter(categorie =>
+    visees.has(categorie.id)
+    && !identifiants.has(categorie.id)
+    && !libelles.has(plier(categorie.label))
+  );
 }

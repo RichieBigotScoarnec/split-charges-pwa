@@ -84,9 +84,11 @@ export function previsionnelDuMois({ fixedCharges, variableCharges, aujourdhui }
   const aVenirCharges = [];
   let passe = 0;
   let aVenir = 0;
+  let datees = 0;
 
   for (const charge of charges) {
     const date = dateDeclaree(charge);
+    if (date) datees++;
 
     // Strictement après aujourd'hui : ce qui tombe le jour même est réputé
     // passé. Un prélèvement du 12 consulté le 12 n'est plus une prévision, et
@@ -106,6 +108,16 @@ export function previsionnelDuMois({ fixedCharges, variableCharges, aujourdhui }
     aVenir,
     total: passe + aVenir,
     nombreAVenir: aVenirCharges.length,
+    // Combien de charges portent une date, et permettent donc de trancher.
+    //
+    // Sans ce compte, « rien à venir » se confond avec « on n'en sait rien » :
+    // une charge d'avant le champ « date », ou reconduite depuis une charge qui
+    // n'en avait pas, ne dit ni qu'elle est passée ni qu'elle est devant. Le
+    // bilan doit pouvoir se taire dans le second cas, et parler dans le
+    // premier — sinon son silence se lit comme une panne. C'est ce qui s'est
+    // produit : le panneau ne montrant rien le 25 du mois, il a été signalé
+    // comme ne fonctionnant pas.
+    datees,
     prochaines: aVenirCharges.slice(0, PROCHAINES_NOMMEES).map(charge => ({
       description: typeof charge.description === 'string' ? charge.description : '',
       amount: montant(charge),

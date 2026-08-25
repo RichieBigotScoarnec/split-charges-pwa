@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { categoriePourLieu, typesReconnus } from '../../public/js/utils/categorie-lieu.js';
 import { CATEGORIES } from '../../public/js/config.js';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 /**
  * Le défaut signalé à l'usage : à la Brioche Dorée, aucune catégorie n'était
@@ -8,40 +10,48 @@ import { CATEGORIES } from '../../public/js/config.js';
  * restaurant, pharmacie — et une boulangerie est taguée `bakery`.
  */
 
-/** Les catégories livrées par défaut, sans « Bar » ni « Boulangerie » */
+/** Les catégories livrées par défaut — « Bar », « Café » et « Boulangerie »
+ *  en font désormais partie : douze types de lieux les visaient sans qu'aucun
+ *  foyer ne les possède. */
 const PAR_DEFAUT = CATEGORIES;
 
-/** Un foyer qui a créé ses propres catégories dans l'application */
-const ENRICHIES = [
-  ...CATEGORIES,
-  { id: 'bar', icon: '🍺', label: 'Bar' },
-  { id: 'boulangerie', icon: '🥐', label: 'Boulangerie' }
-];
+/** Un foyer resté sur l'ancienne liste, ou qui a supprimé ces catégories */
+const SANS_LES_NOUVELLES = CATEGORIES.filter(
+  c => !['bar', 'cafe', 'boulangerie'].includes(c.id)
+);
 
 describe('Le type du lieu prime, c\'est une donnée structurée', () => {
-  it('une boulangerie tombe sur « Boulangerie » quand elle existe', () => {
+  it('une boulangerie tombe sur « Boulangerie », livrée par défaut', () => {
     const lieu = { type: 'bakery', nom: 'Brioche Dorée' };
 
-    expect(categoriePourLieu(lieu, ENRICHIES).id).toBe('boulangerie');
+    expect(categoriePourLieu(lieu, PAR_DEFAUT).id).toBe('boulangerie');
   });
 
-  it('… et se rabat sur « Courses » quand elle n\'existe pas', () => {
-    // Sans repli, un foyer qui n'a pas créé « Boulangerie » n'aurait aucune
+  it('… et se rabat sur « Courses » chez qui l\'a supprimée', () => {
+    // Sans repli, un foyer qui n'a pas cette catégorie n'aurait aucune
     // détection — le défaut qu'on répare, simplement déplacé.
     const lieu = { type: 'bakery', nom: 'Brioche Dorée' };
 
-    expect(categoriePourLieu(lieu, PAR_DEFAUT).id).toBe('courses');
+    expect(categoriePourLieu(lieu, SANS_LES_NOUVELLES).id).toBe('courses');
   });
 
   it('un bar vise « Bar », puis « Restaurant »', () => {
-    expect(categoriePourLieu({ type: 'bar', nom: 'Le Zinc' }, ENRICHIES).id).toBe('bar');
-    expect(categoriePourLieu({ type: 'bar', nom: 'Le Zinc' }, PAR_DEFAUT).id).toBe('restaurant');
+    expect(categoriePourLieu({ type: 'bar', nom: 'Le Zinc' }, PAR_DEFAUT).id).toBe('bar');
+    expect(categoriePourLieu({ type: 'bar', nom: 'Le Zinc' }, SANS_LES_NOUVELLES).id)
+      .toBe('restaurant');
+  });
+
+  it('un café tombe sur « Café » plutôt que sur « Restaurant »', () => {
+    // C'est le gain : douze types de lieux visaient une catégorie absente, et
+    // se rangeaient donc sous un à-peu-près permanent.
+    expect(categoriePourLieu({ type: 'cafe', nom: 'Colombus' }, PAR_DEFAUT).id).toBe('cafe');
+    expect(categoriePourLieu({ type: 'pub', nom: 'Le Zinc' }, PAR_DEFAUT).id).toBe('bar');
   });
 
   it('couvre les lieux courants qui n\'étaient pas reconnus', () => {
     const attendus = {
       cinema: 'loisirs',
-      pub: 'restaurant',          // pas de « Bar » dans les catégories livrées
+      pub: 'bar',
       butcher: 'courses',
       dentist: 'sante',
       doityourself: 'maison',
@@ -71,7 +81,7 @@ describe('Ne rien proposer plutôt que se tromper', () => {
    */
   it('un type ambigu ne déclenche aucune détection', () => {
     for (const type of ['yes', 'house', 'residential', 'service', 'clothes', 'hairdresser']) {
-      expect(categoriePourLieu({ type }, ENRICHIES), type).toBeNull();
+      expect(categoriePourLieu({ type }, PAR_DEFAUT), type).toBeNull();
     }
   });
 
@@ -79,15 +89,15 @@ describe('Ne rien proposer plutôt que se tromper', () => {
     // Le cas de la capture : « Quai Vasco de Gama », aucun lieu nommé.
     const lieu = { type: 'residential', nom: '', adresseComplete: 'Quai Vasco de Gama, 66700 Argelès-sur-Mer' };
 
-    expect(categoriePourLieu(lieu, ENRICHIES)).toBeNull();
+    expect(categoriePourLieu(lieu, PAR_DEFAUT)).toBeNull();
   });
 
   it('ne lève sur aucune entrée aberrante', () => {
-    expect(categoriePourLieu(null, ENRICHIES)).toBeNull();
-    expect(categoriePourLieu({}, ENRICHIES)).toBeNull();
+    expect(categoriePourLieu(null, PAR_DEFAUT)).toBeNull();
+    expect(categoriePourLieu({}, PAR_DEFAUT)).toBeNull();
     expect(categoriePourLieu({ type: 'bakery' }, [])).toBeNull();
     expect(categoriePourLieu({ type: 'bakery' }, null)).toBeNull();
-    expect(categoriePourLieu({ type: 42 }, ENRICHIES)).toBeNull();
+    expect(categoriePourLieu({ type: 42 }, PAR_DEFAUT)).toBeNull();
   });
 });
 
@@ -102,21 +112,21 @@ describe('Le nom, quand le type ne dit rien', () => {
   it('« Brioche Dorée » est reconnue même sans type exploitable', () => {
     const lieu = { type: 'yes', nom: 'Brioche Dorée', adresseComplete: 'Brioche Dorée, Rennes' };
 
-    expect(categoriePourLieu(lieu, PAR_DEFAUT).id).toBe('courses');
-    expect(categoriePourLieu(lieu, ENRICHIES).id).toBe('boulangerie');
+    expect(categoriePourLieu(lieu, PAR_DEFAUT).id).toBe('boulangerie');
+    expect(categoriePourLieu(lieu, SANS_LES_NOUVELLES).id).toBe('courses');
   });
 
   it('le type l\'emporte sur le nom quand les deux parlent', () => {
     // « Le Bar à Pain » est une boulangerie : le tag le sait, le nom trompe.
     const lieu = { type: 'bakery', nom: 'Le Bar à Pain' };
 
-    expect(categoriePourLieu(lieu, ENRICHIES).id).toBe('boulangerie');
+    expect(categoriePourLieu(lieu, PAR_DEFAUT).id).toBe('boulangerie');
   });
 
   it('un nom quelconque ne déclenche rien', () => {
     const lieu = { type: 'yes', nom: 'Chez Untel', adresseComplete: 'Chez Untel, Rennes' };
 
-    expect(categoriePourLieu(lieu, ENRICHIES)).toBeNull();
+    expect(categoriePourLieu(lieu, PAR_DEFAUT)).toBeNull();
   });
 });
 
@@ -127,7 +137,9 @@ describe('Les habitudes du foyer arbitrent les replis', () => {
    * dit qu'un foyer sans « Bar » range ses sorties sous « Restaurant » plutôt
    * que sous « Loisirs ». Celui qui saisit le sait ; la table, non.
    */
-  const SANS_BAR = CATEGORIES;   // ni « Bar », ni « Boulangerie »
+  // Un foyer qui a supprimé « Bar », « Café » et « Boulangerie » de sa liste :
+  // c'est là que l'arbitrage par les habitudes a encore quelque chose à faire.
+  const SANS_BAR = CATEGORIES.filter(c => !['bar', 'cafe', 'boulangerie'].includes(c.id));
 
   /** Ce foyer range tout ce qui sort sous « Loisirs » */
   const HABITUE_LOISIRS = [
@@ -149,7 +161,7 @@ describe('Les habitudes du foyer arbitrent les replis', () => {
     // fait pour qu'il serve.
     const lieu = { type: 'bar', nom: 'Le Zinc' };
 
-    expect(categoriePourLieu(lieu, ENRICHIES, HABITUE_LOISIRS).id).toBe('bar');
+    expect(categoriePourLieu(lieu, PAR_DEFAUT, HABITUE_LOISIRS).id).toBe('bar');
   });
 
   it('une catégorie jamais employée passe derrière, sans être écartée', () => {
@@ -175,5 +187,72 @@ describe('Les habitudes du foyer arbitrent les replis', () => {
     expect(() => categoriePourLieu({ type: 'bar' }, SANS_BAR, null)).not.toThrow();
     expect(() => categoriePourLieu({ type: 'bar' }, SANS_BAR, [null, undefined])).not.toThrow();
     expect(categoriePourLieu({ type: 'bar' }, SANS_BAR, [null]).id).toBe('restaurant');
+  });
+});
+
+/**
+ * Les deux fichiers doivent se correspondre
+ *
+ * `categorie-lieu.js` vise des identifiants de catégories ; `config.js` décide
+ * de celles qui existent au premier usage. Rien ne les tenait ensemble.
+ *
+ * Douze types de lieux avaient donc pour premier choix `bar`, `cafe` ou
+ * `boulangerie`, trois catégories qu'aucun foyer ne possédait : un café était
+ * rangé en « Restaurant », une boulangerie en « Courses ». Le repli
+ * fonctionnait — la précision se perdait, sans que rien ne le signale.
+ */
+describe('La table des lieux et les catégories par défaut', () => {
+  const TABLE = readFileSync(
+    resolve(process.cwd(), 'public/js/utils/categorie-lieu.js'),
+    'utf8'
+  );
+
+  /** Les catégories visées par la table, du premier choix au dernier */
+  function ciblesDeLaTable() {
+    const bloc = TABLE.slice(
+      TABLE.indexOf('const TYPES = {'),
+      TABLE.indexOf('\n};', TABLE.indexOf('const TYPES = {'))
+    );
+
+    const cibles = new Map();
+    for (const ligne of bloc.matchAll(/^\s+([a-z_0-9]+):\s*\[([^\]]+)\]/gm)) {
+      const [type, liste] = [ligne[1], ligne[2]];
+      cibles.set(type, liste.split(',').map(c => c.trim().replace(/'/g, '')));
+    }
+    return cibles;
+  }
+
+  it('chaque premier choix existe parmi les catégories par défaut', () => {
+    // Le premier choix est celui qui décrit le lieu le plus justement. S'il
+    // n'existe pas, la détection retombe sur un à-peu-près permanent.
+    const disponibles = new Set(CATEGORIES.map(c => c.id));
+
+    for (const [type, cibles] of ciblesDeLaTable()) {
+      expect(disponibles, `« ${type} » vise « ${cibles[0]} », absente des défauts`)
+        .toContain(cibles[0]);
+    }
+  });
+
+  it('aucune cible, même de repli, ne désigne une catégorie inexistante', () => {
+    // Une cible de repli inexistante n'est pas fausse — elle est simplement
+    // sans effet, et elle laisse croire à une couverture qui n'existe pas.
+    const disponibles = new Set(CATEGORIES.map(c => c.id));
+
+    for (const [type, cibles] of ciblesDeLaTable()) {
+      for (const cible of cibles) {
+        expect(disponibles, `« ${type} » vise « ${cible} », absente des défauts`)
+          .toContain(cible);
+      }
+    }
+  });
+
+  it('les nouvelles catégories portent une icône et une couleur', () => {
+    for (const id of ['cafe', 'bar', 'boulangerie']) {
+      const categorie = CATEGORIES.find(c => c.id === id);
+      expect(categorie, `${id} absente`).toBeDefined();
+      expect(categorie.icon).toBeTruthy();
+      expect(categorie.color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(categorie.label).toBeTruthy();
+    }
   });
 });
