@@ -92,3 +92,89 @@ describe('Les actions employées restent épinglées', () => {
     }
   });
 });
+
+/**
+ * Un déploiement raté ne doit plus passer inaperçu
+ *
+ * Constaté le 25 août 2026 : la PR #83 fusionnée, le job « Tests end-to-end »
+ * est tombé sur main. `deploy` en dépend, il n'a donc jamais tourné. GitHub
+ * Pages a servi la version précédente pendant deux heures, personne n'en a
+ * rien su, et la fonctionnalité qu'on croyait livrée n'existait pas.
+ *
+ * Deux angles morts distincts : ce qui est publié peut différer de ce qui est
+ * fusionné, et un workflow rouge sur main peut n'être lu par personne. D'où
+ * deux jobs, et ces contrôles pour qu'ils ne disparaissent pas en silence —
+ * un garde-fou retiré ne casse rien de visible.
+ */
+describe('La vérification de ce qui est publié', () => {
+  const job = workflow.slice(
+    workflow.indexOf('  verifier-publication:'),
+    workflow.indexOf('  alerte-publication:')
+  );
+
+  it('existe et compare gh-pages au contenu de public/', () => {
+    expect(job).toContain('git fetch --no-tags --depth=1 origin gh-pages');
+    expect(job).toContain('diff --recursive --brief public /tmp/publie');
+  });
+
+  it('vient après la publication, jamais avant', () => {
+    // Comparer avant que l'action ait poussé rendrait toujours l'état
+    // précédent : un contrôle qui passe sans rien vérifier.
+    expect(job).toMatch(/needs:\s*deploy/);
+  });
+
+  it('estampille sw.js comme le fait la publication', () => {
+    // Sans cela `sw.js` différerait à chaque déploiement, le contrôle crierait
+    // toujours, et on cesserait de le lire.
+    expect(job).toContain('__CACHE_VERSION__');
+  });
+
+  it('écarte le seul écart légitime, et lui seul', () => {
+    // `.nojekyll` est posé par l'action de publication. Toute autre différence
+    // doit faire échouer.
+    expect(job).toContain('rm -f /tmp/publie/.nojekyll');
+    expect(job).not.toContain('|| true');
+    expect(job).not.toContain('continue-on-error');
+  });
+
+  it('ne se déclenche pas sur une pull request', () => {
+    // Une PR ne publie rien : il n'y aurait rien à comparer.
+    expect(job).toMatch(/if:\s*github\.event_name == 'push'/);
+  });
+});
+
+describe('L\'alerte de publication en échec', () => {
+  const job = workflow.slice(workflow.indexOf('  alerte-publication:'));
+
+  it('surveille toute la chaîne, pas seulement la publication', () => {
+    // L'incident du 25 août est tombé AVANT `deploy` : n'observer que lui
+    // aurait laissé passer exactement la panne qu'on cherche à voir.
+    for (const etape of ['test', 'e2e', 'deploy-rules', 'deploy', 'verifier-publication']) {
+      expect(job, `${etape} n'est pas surveillé`).toMatch(
+        new RegExp(`needs:\\s*\\[[^\\]]*\\b${etape}\\b`)
+      );
+    }
+  });
+
+  it('ne se déclenche qu\'en cas d\'échec, et sur main', () => {
+    expect(job).toContain("if: failure() && github.event_name == 'push'");
+  });
+
+  it('laisse une trace durable, pas un message qui s\'efface', () => {
+    // Un bandeau rouge dans l'onglet Actions se referme d'un rafraîchissement.
+    expect(job).toContain('gh issue create');
+  });
+
+  it('n\'ouvre pas un ticket par exécution', () => {
+    // Deux fusions coup sur coup en ouvriraient deux pour la même cause.
+    expect(job).toContain('gh issue list');
+    expect(job).toContain('gh issue comment');
+  });
+
+  it('demande le droit d\'écrire des tickets pour lui seul', () => {
+    // Le workflow reste en lecture seule par défaut : les jobs qui exécutent
+    // le code des dépendances n'ont rien à écrire.
+    expect(job).toContain('issues: write');
+    expect(workflow).toMatch(/^permissions:\n {2}contents: read$/m);
+  });
+});

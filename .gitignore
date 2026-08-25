@@ -74,3 +74,10 @@ playwright-report/
 
 # Cache local de deploiement Firebase
 .firebase/
+
+# Couverture : relevés bruts du navigateur, rapports Vitest et fusion.
+# Ce sont des mesures, pas des sources — elles se refont d'une commande
+# (`npm run couverture`) et périment au premier commit suivant.
+.couverture-e2e/
+coverage/
+coverage-fusionnee/

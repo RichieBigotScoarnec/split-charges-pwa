@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_couverture.js';
 
 test.describe('Page de connexion (pré-auth)', () => {
 
