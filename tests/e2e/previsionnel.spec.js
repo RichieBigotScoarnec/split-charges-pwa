@@ -59,10 +59,40 @@ test.describe('Le prévisionnel du mois', () => {
     }, { description, amount, joursDEcart });
   }
 
-  test('rien ne s\'affiche tant que tout est passé', async ({ page }) => {
+  test('dit que tout est passé, au lieu de disparaître', async ({ page }) => {
+    // Le panneau se taisait dès que rien n'était devant. Le 25 du mois, il ne
+    // montrait donc rien — et un panneau absent est indiscernable d'une
+    // fonctionnalité en panne. C'est ainsi qu'il a été signalé comme ne
+    // fonctionnant pas. Une ligne coûte moins qu'un doute.
     await chargeDatee(page, { description: 'Loyer', amount: 800, joursDEcart: -2 });
 
-    // Un zéro n'apprendrait rien : le bloc disparaît.
+    const bloc = page.locator('.summary-previsionnel');
+    await expect(bloc).toBeVisible();
+    await expect(bloc).toHaveClass(/previsionnel-solde/);
+    await expect(bloc).toContainText('Tout est passé ce mois-ci');
+    await expect(bloc).toContainText('800,00');
+  });
+
+  test('se tait quand aucune charge ne porte de date', async ({ page }) => {
+    // Une charge d'avant le champ « date » ne dit ni qu'elle est passée ni
+    // qu'elle est devant. Affirmer que tout est passé serait inventer.
+    await page.evaluate(async () => {
+      const { dbUpdate } = await import('/js/db.js');
+      const { getState } = await import('/js/state.js');
+      const { loadFixedCharges } = await import('/js/modules/fixed-charges.js');
+      const { calculateSummary } = await import('/js/modules/summary.js');
+
+      await dbUpdate(undefined, {
+        [`periods/${getState('currentPeriod')}/fixedCharges/ancienne`]: {
+          description: 'Loyer', amount: 800, category: 'Logement',
+          paidBy: 'vous', deleted: false, timestamp: Date.now()
+        }
+      });
+
+      await loadFixedCharges();
+      calculateSummary();
+    });
+
     await expect(page.locator('.summary-previsionnel')).toHaveCount(0);
   });
 

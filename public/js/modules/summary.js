@@ -357,9 +357,31 @@ function updateBalanceBar(html, cssClass) {
  * @returns {string} Fragment HTML, ou chaîne vide
  */
 function renderPrevisionnel(previsionnel) {
-  if (!previsionnel || previsionnel.nombreAVenir === 0) return '';
+  if (!previsionnel) return '';
 
-  const { aVenir, total, nombreAVenir, prochaines } = previsionnel;
+  const { aVenir, total, nombreAVenir, prochaines, datees } = previsionnel;
+
+  // Rien devant, mais on sait pourquoi : le dire, plutôt que disparaître.
+  //
+  // Le panneau se taisait dès que tout était passé. Le 25 du mois, avec des
+  // charges datées du 3 et du 12, il ne montrait donc rien — et un panneau
+  // absent est indiscernable d'une fonctionnalité en panne. C'est ainsi qu'il a
+  // été signalé. Une ligne coûte moins qu'un doute.
+  if (nombreAVenir === 0) {
+    // Sans aucune date, on ne sait pas : affirmer que tout est passé serait
+    // inventer. Là, le silence est la seule réponse honnête.
+    if (datees === 0) return '';
+
+    return `
+      <div class="summary-previsionnel previsionnel-solde">
+        <div class="previsionnel-montant">
+          <span aria-hidden="true">✅</span>
+          Tout est passé ce mois-ci
+          <span class="previsionnel-sur">${formatCurrency(total)} au total</span>
+        </div>
+      </div>
+    `;
+  }
 
   // Les libellés viennent du foyer : ils passent par `escapeHtml`, comme
   // partout où du contenu saisi entre dans du HTML.

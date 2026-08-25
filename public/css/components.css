@@ -1073,3 +1073,26 @@
     transform: translateX(24px);
   }
 }
+
+/* ===== PROPOSITION DES CATÉGORIES QUE LE GPS RECONNAÎT =====
+   Dans la gestion des catégories, sous la liste. Ton d'information : rien ne
+   manque à l'application, c'est une possibilité qu'on signale. Elle disparaît
+   dès qu'elle a servi. */
+.manage-proposition {
+  margin: var(--space-md) 0;
+  padding: var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+}
+
+.manage-proposition-texte {
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.manage-proposition-texte strong {
+  color: var(--text-primary);
+}

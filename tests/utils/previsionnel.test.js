@@ -196,3 +196,62 @@ describe('previsionnelDuMois', () => {
     });
   });
 });
+
+/**
+ * Savoir se taire, et savoir dire qu'il n'y a rien
+ *
+ * Le panneau disparaissait dès que tout était passé. Le 25 du mois, avec des
+ * charges datées du 3 et du 12, il ne montrait donc rien — et un panneau absent
+ * est indiscernable d'une fonctionnalité en panne. C'est ainsi qu'il a été
+ * signalé comme ne fonctionnant pas.
+ *
+ * Il faut donc distinguer deux silences : « j'ai regardé, rien n'est devant »,
+ * qui se dit, et « je n'ai aucune date, je n'en sais rien », qui se tait.
+ */
+describe('Ce que le prévisionnel sait de ce qu\'il ignore', () => {
+
+  const charge = (description, amount, date) => ({ description, amount, date });
+
+  it('compte les charges qui portent une date', () => {
+    const bilan = previsionnelDuMois({
+      fixedCharges: [
+        charge('Loyer', 800, '2026-09-05'),
+        { description: 'Vieille charge', amount: 40, timestamp: 1756000000000 }
+      ],
+      aujourdhui: '2026-09-10'
+    });
+
+    expect(bilan.datees).toBe(1);
+  });
+
+  it('tout passé, mais daté : le bilan peut l\'affirmer', () => {
+    const bilan = previsionnelDuMois({
+      fixedCharges: [charge('Loyer', 800, '2026-09-05')],
+      aujourdhui: '2026-09-25'
+    });
+
+    expect(bilan.nombreAVenir).toBe(0);
+    expect(bilan.datees).toBe(1);
+  });
+
+  it('aucune date : rien ne permet d\'affirmer que tout est passé', () => {
+    // Une charge d'avant le champ « date », ou reconduite depuis une charge qui
+    // n'en avait pas. Dire « tout est passé » serait inventer.
+    const bilan = previsionnelDuMois({
+      fixedCharges: [{ description: 'Loyer', amount: 800, timestamp: 1756000000000 }],
+      aujourdhui: '2026-09-25'
+    });
+
+    expect(bilan.nombreAVenir).toBe(0);
+    expect(bilan.datees).toBe(0);
+  });
+
+  it('une date illisible ne compte pas comme une date', () => {
+    const bilan = previsionnelDuMois({
+      fixedCharges: [charge('Loyer', 800, '05/09/2026')],
+      aujourdhui: '2026-09-25'
+    });
+
+    expect(bilan.datees).toBe(0);
+  });
+});
