@@ -50,11 +50,17 @@ describe('Le type du lieu prime, c\'est une donnée structurée', () => {
 
   it('couvre les lieux courants qui n\'étaient pas reconnus', () => {
     const attendus = {
-      cinema: 'loisirs',
+      cinema: 'culture',
       pub: 'bar',
       butcher: 'courses',
       dentist: 'sante',
-      doityourself: 'maison',
+      doityourself: 'bricolage',
+      toll_booth: 'peage',
+      parking: 'parking',
+      hairdresser: 'coiffeur',
+      clothes: 'vetements',
+      fitness_centre: 'sport',
+      garden_centre: 'jardin',
       train_station: 'transport',
       charging_station: 'essence',
       fast_food: 'restaurant',
@@ -80,7 +86,9 @@ describe('Ne rien proposer plutôt que se tromper', () => {
    * absence se voit et se corrige. Le doute profite donc à l'absence.
    */
   it('un type ambigu ne déclenche aucune détection', () => {
-    for (const type of ['yes', 'house', 'residential', 'service', 'clothes', 'hairdresser']) {
+    // `clothes` et `hairdresser` en sont sortis : ils n'étaient pas ambigus,
+    // ils n'avaient simplement aucune catégorie à viser.
+    for (const type of ['yes', 'house', 'residential', 'service', 'commercial', 'retail']) {
       expect(categoriePourLieu({ type }, PAR_DEFAUT), type).toBeNull();
     }
   });

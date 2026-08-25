@@ -79,27 +79,56 @@ export function categoriesFrequentes(charges, categories, options = {}) {
 }
 
 /**
- * La ligne des fréquentes a-t-elle lieu d'être ?
+ * Combien de tuiles la grille montre avant de proposer le reste
  *
- * Elle ne se justifie que lorsqu'elle épargne du parcours. Sur une grille
- * courte, elle ajoute de la hauteur pour rien — et redouble des tuiles déjà
- * visibles, ce qui fait hésiter au lieu d'aider.
- *
- * @param {Array} frequentes - Sortie de `categoriesFrequentes`
- * @param {Array} categories - Catégories du foyer
- * @returns {boolean}
+ * Deux rangées de trois : la grille tient sous le pouce, et le bouton
+ * d'enregistrement reste visible sans défiler. Au-delà, chaque tuile ajoutée
+ * repousse ce bouton — et c'est lui qu'on vise à la fin.
  */
-export function ligneFrequentesUtile(frequentes, categories) {
-  if (!Array.isArray(frequentes) || !Array.isArray(categories)) return false;
+export const TUILES_VISIBLES = 6;
 
-  // Une seule catégorie employée, c'est un historique trop mince pour qu'on en
-  // tire une habitude — et une ligne à une tuile n'a l'air de rien.
-  if (frequentes.length < 2) return false;
+/**
+ * Les catégories que la grille montre, et combien elle en garde en réserve
+ *
+ * La liste du foyer est passée de huit à dix-neuf pour suivre la table des
+ * lieux OpenStreetMap de plus près. Les montrer toutes rendrait la saisie
+ * rapide plus lente qu'avant : dix-neuf tuiles à parcourir pour en toucher une,
+ * quand trois d'entre elles couvrent l'essentiel des dépenses.
+ *
+ * L'ordre vient de l'usage réel, pas d'une supposition. Tant qu'aucune habitude
+ * n'est connue — un foyer neuf, un mois vide — c'est l'ordre de `config.js` qui
+ * décide, et il place les plus courantes en tête.
+ *
+ * La catégorie épinglée est toujours montrée, même rare : c'est celle que le
+ * GPS vient de deviner, ou celle déjà choisie. Une grille qui ne montre pas le
+ * choix en cours donne à croire qu'il a été perdu.
+ *
+ * @param {Array} categories - Catégories du foyer (`getCategories()`)
+ * @param {Array} charges - Charges connues, pour compter les habitudes
+ * @param {{epinglee?: Object|null, maximum?: number}} [options]
+ * @returns {{visibles: Array, reste: number}}
+ */
+export function categoriesAMontrer(categories, charges, options = {}) {
+  const liste = Array.isArray(categories) ? categories.filter(Boolean) : [];
+  const maximum = options.maximum || TUILES_VISIBLES;
 
-  // En deçà, la grille entière tient sous le pouce : la ligne ne raccourcit
-  // aucun geste.
-  if (categories.length <= 6) return false;
+  if (liste.length <= maximum) return { visibles: liste, reste: 0 };
 
-  // Si les fréquentes sont toute la liste, la ligne ne fait que la répéter.
-  return frequentes.length < categories.length;
+  // Les employées d'abord, dans l'ordre de l'usage ; les autres ensuite, dans
+  // l'ordre du foyer. `categoriesFrequentes` ne rend que celles qui ont servi.
+  const employees = categoriesFrequentes(charges, liste, { maximum: Number.MAX_SAFE_INTEGER });
+  const vues = new Set(employees.map(categorie => categorie.id));
+  const ordonnees = [...employees, ...liste.filter(categorie => !vues.has(categorie.id))];
+
+  const visibles = ordonnees.slice(0, maximum);
+
+  const epinglee = options.epinglee;
+  if (epinglee && !visibles.some(categorie => categorie.id === epinglee.id)) {
+    // Elle prend la place de la dernière : la grille garde sa hauteur, et la
+    // moins employée des visibles est celle qui manquera le moins.
+    const dansLaListe = liste.find(categorie => categorie.id === epinglee.id);
+    if (dansLaListe) visibles[visibles.length - 1] = dansLaListe;
+  }
+
+  return { visibles, reste: liste.length - visibles.length };
 }

@@ -20,7 +20,7 @@ import { categoriePourLieu } from '../utils/categorie-lieu.js';
 import { applicationPrete, quandApplicationPrete } from '../utils/attente-application.js';
 import {
   categoriesFrequentes,
-  ligneFrequentesUtile,
+  categoriesAMontrer,
   periodePrecedente
 } from '../utils/categories-frequentes.js';
 
@@ -540,6 +540,7 @@ function resetState() {
   quickAddState.envelope = '';
   quickAddState.gpsLocation = null;
   _payeurChoisiALaMain = false;
+  _grilleDepliee = false;
 
   // Les panneaux se referment avec l'état qu'ils servaient à choisir : rouvrir
   // la modale sur la grille de catégories dépliée annulerait tout le gain.
@@ -549,78 +550,78 @@ function resetState() {
 // ===== GRILLE CATÉGORIES =====
 
 /**
- * Peuple la grille de catégories depuis custom-lists (dynamique)
+ * La grille montre-t-elle tout, ou seulement les plus employées ?
+ *
+ * Repliée à l'ouverture, et à chaque ouverture : le cas courant est une
+ * dépense courante, et rouvrir sur une grille dépliée annulerait le gain.
+ */
+let _grilleDepliee = false;
+
+/**
+ * Charges du mois précédent, retenues une fois lues
+ *
+ * La période est retenue avec elles : sans cela, les charges de juin
+ * décriraient les habitudes de septembre, et celles du foyer celles d'un
+ * compte de test. Aucune erreur ne serait levée — juste un classement
+ * parfaitement crédible, et faux.
+ */
+let _historiqueFrequentes = { periode: null, charges: null };
+
+/**
+ * Peuple la grille de catégories
+ *
+ * La liste du foyer est passée de huit à dix-neuf pour suivre la table des
+ * lieux OpenStreetMap de plus près. Les montrer toutes rendrait la saisie
+ * rapide plus lente qu'avant : la grille s'en tient donc aux six plus
+ * employées, et une dernière tuile déplie le reste.
+ *
+ * La ligne « Souvent », qui rendait ce service à côté d'une grille complète,
+ * disparaît : elle répéterait maintenant ce que la grille montre déjà, et une
+ * proposition en double fait hésiter au lieu d'aider.
  */
 function populateCategoryGrid() {
   const grid = document.getElementById('categoryGrid');
   if (!grid) return;
 
   const categories = getCategories();
+  const { visibles, reste } = _grilleDepliee
+    ? { visibles: categories, reste: 0 }
+    : categoriesAMontrer(categories, chargesConnues(), {
+      epinglee: quickAddState.selectedCategory
+    });
 
-  grid.innerHTML = categories.map(cat => `
+  const tuiles = visibles.map(cat => `
     <button type="button" class="category-btn" data-category-id="${escapeHtml(cat.id)}">
       <div class="category-icon">${escapeHtml(cat.icon)}</div>
       <div>${escapeHtml(cat.label)}</div>
     </button>
-  `).join('');
+  `);
+
+  if (reste > 0) {
+    tuiles.push(`
+      <button type="button" class="category-btn category-btn--autres" id="categoryPlus">
+        <div class="category-icon" aria-hidden="true">⋯</div>
+        <div>${reste} autre${reste > 1 ? 's' : ''}</div>
+      </button>
+    `);
+  }
+
+  grid.innerHTML = tuiles.join('');
 
   // Bind click events (pas de onclick inline)
-  grid.querySelectorAll('.category-btn').forEach(btn => {
+  grid.querySelectorAll('.category-btn[data-category-id]').forEach(btn => {
     btn.addEventListener('click', () => {
       const catId = btn.dataset.categoryId;
       selectCategory(catId);
     });
   });
 
-  peuplerFrequentes(categories);
-}
-
-/**
- * Charges du mois précédent, lues une fois par mois consulté
- *
- * Sans elles, la ligne des fréquentes resterait vide les premiers jours du
- * mois — précisément quand la grille est la plus longue à parcourir, puisque
- * rien n'a encore été saisi. Une lecture, mise de côté ensuite : la rouvrir à
- * chaque ouverture de la modale coûterait un aller-retour pour un confort.
- *
- * La période lue est retenue avec les charges. Un cache anonyme aurait servi
- * les charges de juin en naviguant vers septembre, et celles du foyer à un
- * compte du bac à sable — sans que rien ne le signale, puisque la ligne aurait
- * l'air aussi crédible dans un cas que dans l'autre.
- */
-let _historiqueFrequentes = { periode: null, charges: null };
-
-/**
- * Dépouille les charges connues et remplit la ligne des fréquentes
- *
- * @param {Array} categories - Catégories du foyer
- * @returns {void}
- */
-function peuplerFrequentes(categories) {
-  const ligne = document.getElementById('categoryFrequentes');
-  const liste = document.getElementById('categoryFrequentesListe');
-  if (!ligne || !liste) return;
-
-  const frequentes = categoriesFrequentes(chargesConnues(), categories);
-
-  if (!ligneFrequentesUtile(frequentes, categories)) {
-    ligne.hidden = true;
-    liste.innerHTML = '';
-    return;
-  }
-
-  liste.innerHTML = frequentes.map(cat => `
-    <button type="button" class="category-frequente-btn" data-category-id="${escapeHtml(cat.id)}">
-      <span aria-hidden="true">${escapeHtml(cat.icon)}</span>
-      <span>${escapeHtml(cat.label)}</span>
-    </button>
-  `).join('');
-
-  liste.querySelectorAll('.category-frequente-btn').forEach(bouton => {
-    bouton.addEventListener('click', () => selectCategory(bouton.dataset.categoryId));
+  grid.querySelector('#categoryPlus')?.addEventListener('click', () => {
+    _grilleDepliee = true;
+    populateCategoryGrid();
+    // Le panneau reste ouvert : on vient d'en demander davantage.
+    grid.querySelector('.category-btn[data-category-id]')?.focus();
   });
-
-  ligne.hidden = false;
 }
 
 /**
@@ -684,7 +685,10 @@ async function chargerHistoriqueFrequentes() {
     _historiqueFrequentes = { periode: precedente, charges: [] };
   }
 
-  peuplerFrequentes(getCategories());
+  // Le classement change dès que l'historique arrive : la grille doit se
+  // réécrire, sans quoi les six tuiles resteraient celles du seul mois en
+  // cours — souvent vide au premier du mois.
+  populateCategoryGrid();
 }
 
 /**
@@ -710,6 +714,14 @@ function selectCategory(categoryId) {
   if (!category) return;
 
   quickAddState.selectedCategory = category;
+
+  // Le GPS peut désigner une catégorie qui n'est pas parmi les plus employées :
+  // la grille se refait alors pour l'y faire entrer. Sans cela le choix serait
+  // enregistré sans que rien ne le montre, ce qui se lit comme une perte.
+  const affichee = [...document.querySelectorAll('.category-btn[data-category-id]')]
+    .some(bouton => bouton.dataset.categoryId === categoryId);
+  if (!affichee) populateCategoryGrid();
+
   marquerLaCategorie(categoryId);
 
   // Le choix fait, le panneau n'a plus rien à montrer : le refermer ramène le
@@ -719,16 +731,13 @@ function selectCategory(categoryId) {
 }
 
 /**
- * Marque la catégorie choisie sur les deux surfaces
- *
- * Les deux désignent les mêmes catégories : n'en marquer qu'une laisserait
- * croire à deux choix distincts, dont l'un serait resté vide.
+ * Marque la catégorie choisie sur la grille
  *
  * @param {string} categoryId
  * @returns {void}
  */
 function marquerLaCategorie(categoryId) {
-  document.querySelectorAll('.category-btn, .category-frequente-btn').forEach(btn => {
+  document.querySelectorAll('.category-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
   });
 }

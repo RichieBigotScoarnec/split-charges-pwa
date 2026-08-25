@@ -854,23 +854,11 @@
       </div>
 
       <div class="quick-add-panneau" id="quickAddPanneauCategorie">
-        <!-- Les catégories que ce foyer emploie le plus, comptées sur ses propres
-             charges. Rempli par quick-add.js, et masqué tant que la grille est
-             courte ou l'historique trop mince : une ligne qui répète des tuiles
-             déjà visibles fait hésiter au lieu d'aider. -->
-        <div class="category-frequentes" id="categoryFrequentes" hidden>
-          <span class="category-frequentes-titre" id="categoryFrequentesTitre">Souvent</span>
-          <!-- Ces boutons portent les mêmes libellés que des tuiles de la grille
-               juste en dessous. Sans groupe nommé, la synthèse vocale annonce
-               deux fois « Courses » sans rien qui distingue le raccourci de la
-               tuile — le doublon devient une hésitation au lieu d'un gain. -->
-          <div
-            class="category-frequentes-liste"
-            id="categoryFrequentesListe"
-            role="group"
-            aria-labelledby="categoryFrequentesTitre"
-          ></div>
-        </div>
+        <!-- Les six catégories que ce foyer emploie le plus, comptées sur ses
+             propres charges, puis une tuile qui déplie le reste. Remplie par
+             quick-add.js : la liste du foyer compte dix-neuf catégories, et les
+             montrer toutes rendrait la saisie rapide plus lente qu'un
+             formulaire complet. -->
         <div class="category-grid" id="categoryGrid">
           <!-- Categories will be populated by JavaScript -->
         </div>

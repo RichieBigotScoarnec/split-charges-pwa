@@ -11,8 +11,11 @@
  *
  * D'abord : ne proposer que ce dont on est sûr. Une catégorie choisie à tort
  * est pire que pas de catégorie du tout — elle part en base sans qu'on la
- * relise, alors qu'une absence se voit et se corrige. Les types ambigus
- * (`shop=clothes`, `building=yes`) ne figurent donc pas ici.
+ * relise, alors qu'une absence se voit et se corrige. Les types réellement
+ * ambigus (`building=yes`, `shop=yes`) ne figurent donc pas ici.
+ *
+ * `shop=clothes` et `shop=hairdresser` y figuraient à tort : ils ne sont pas
+ * ambigus, ils n'avaient simplement aucune catégorie à viser.
  *
  * Ensuite : chaque type vise plusieurs catégories, par ordre de préférence. Le
  * foyer choisit ses catégories ; rien ne garantit qu'il ait un « Bar ». Un
@@ -74,7 +77,18 @@ const TYPES = {
   charging_station: ['essence'],
   car_wash: ['transport', 'essence'],
   car_repair: ['transport'],
-  parking: ['transport'],
+
+  // Le stationnement et le péage sortent de « Transport », où ils se
+  // confondaient avec le billet de train. Ce sont des dépenses de voiture, et
+  // c'est à ce titre qu'on veut les lire.
+  //
+  // Le péage se paie en roulant : la position détectée sera rarement la
+  // barrière elle-même, plutôt l'aire d'après. La détection ne le rattrapera
+  // donc pas toujours — mais la catégorie existe pour la saisie du soir, et
+  // c'est déjà ce qui manquait.
+  parking: ['parking', 'transport'],
+  toll_booth: ['peage', 'transport'],
+  toll_gantry: ['peage', 'transport'],
 
   // ===== Se déplacer =====
   bus_station: ['transport'],
@@ -99,38 +113,68 @@ const TYPES = {
   optician: ['sante'],
   hearing_aids: ['sante'],
 
-  // ===== Loisirs =====
-  cinema: ['loisirs'],
-  theatre: ['loisirs'],
-  museum: ['loisirs'],
+  // ===== Culture =====
+  // Dix-sept types tombaient dans « Loisirs » : un cinéma, une séance de
+  // piscine et une console y comptaient pour la même chose, et le bilan ne
+  // pouvait rien en dire. Le repli sur « Loisirs » reste, pour les foyers qui
+  // n'ont pas ces catégories.
+  cinema: ['culture', 'loisirs'],
+  theatre: ['culture', 'loisirs'],
+  museum: ['culture', 'loisirs'],
+  gallery: ['culture', 'loisirs'],
+  books: ['culture', 'loisirs'],
+  music: ['culture', 'loisirs'],
+  musical_instrument: ['culture', 'loisirs'],
+
+  // ===== Sport =====
+  fitness_centre: ['sport', 'loisirs'],
+  sports_centre: ['sport', 'loisirs'],
+  swimming_pool: ['sport', 'loisirs'],
+  golf_course: ['sport', 'loisirs'],
+  climbing: ['sport', 'loisirs'],
+  sports: ['sport', 'loisirs'],
+
+  // ===== Se distraire =====
   casino: ['loisirs'],
   zoo: ['loisirs'],
   theme_park: ['loisirs'],
   water_park: ['loisirs'],
   bowling_alley: ['loisirs'],
-  fitness_centre: ['loisirs'],
-  sports_centre: ['loisirs'],
-  swimming_pool: ['loisirs'],
-  golf_course: ['loisirs'],
-  climbing: ['loisirs'],
-  books: ['loisirs'],
   video_games: ['loisirs'],
-  music: ['loisirs'],
   toys: ['loisirs'],
 
+  // ===== S'habiller, se coiffer =====
+  // `shop=clothes` et `shop=hairdresser` figuraient parmi les types écartés
+  // pour ambiguïté. Ils ne l'étaient pas : ils n'avaient simplement aucune
+  // catégorie à viser, et les ranger sous « Maison » ou « Autre » n'apprenait
+  // rien. Maintenant qu'il existe où les mettre, ils entrent.
+  clothes: ['vetements'],
+  shoes: ['vetements'],
+  bag: ['vetements'],
+  jewelry: ['vetements'],
+  boutique: ['vetements'],
+  hairdresser: ['coiffeur'],
+  beauty: ['coiffeur', 'sante'],
+
   // ===== Maison =====
-  doityourself: ['maison'],
-  hardware: ['maison'],
   furniture: ['maison'],
-  garden_centre: ['maison'],
   houseware: ['maison'],
-  paint: ['maison'],
-  florist: ['maison'],
   appliance: ['maison'],
   electronics: ['maison'],
   bed: ['maison'],
   kitchen: ['maison'],
-  trade: ['maison']
+
+  // ===== Bricolage =====
+  // Douze types tombaient dans « Maison » : une perceuse et un canapé y
+  // comptaient pour la même chose.
+  doityourself: ['bricolage', 'maison'],
+  hardware: ['bricolage', 'maison'],
+  paint: ['bricolage', 'maison'],
+  trade: ['bricolage', 'maison'],
+
+  // ===== Jardin =====
+  garden_centre: ['jardin', 'maison'],
+  florist: ['jardin', 'maison']
 };
 
 /**

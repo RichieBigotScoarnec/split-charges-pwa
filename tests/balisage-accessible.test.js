@@ -89,23 +89,16 @@ describe('Le balisage livré', () => {
   });
 });
 
-describe('Les raccourcis de catégories', () => {
+describe('La grille de catégories', () => {
   const doc = documentLivre();
 
-  it('forment un groupe nommé, pour ne pas doubler la grille sans le dire', () => {
-    // Ces boutons portent les mêmes libellés que des tuiles situées juste en
-    // dessous. Sans groupe nommé, la synthèse vocale annonce deux fois
-    // « Courses » sans rien qui distingue le raccourci de la tuile.
-    const liste = doc.getElementById('categoryFrequentesListe');
-    expect(liste, 'la ligne des fréquentes est absente du balisage').not.toBeNull();
-    expect(liste.getAttribute('role')).toBe('group');
-
-    const titre = doc.getElementById(liste.getAttribute('aria-labelledby'));
-    expect(titre, 'le groupe renvoie à un identifiant qui n\'existe pas').not.toBeNull();
-    expect(titre.textContent.trim()).toBe('Souvent');
-  });
-
-  it('part masquée : elle n\'a rien à montrer avant d\'avoir compté', () => {
-    expect(doc.getElementById('categoryFrequentes').hasAttribute('hidden')).toBe(true);
+  it('est le seul chemin vers une catégorie dans la saisie rapide', () => {
+    // Une ligne « Souvent » doublait la grille en répétant ses libellés. La
+    // grille classe désormais elle-même par usage : deux propositions pour le
+    // même geste faisaient hésiter au lieu d'aider, et la synthèse vocale
+    // annonçait deux fois « Courses » sans distinguer l'une de l'autre.
+    expect(doc.getElementById('categoryGrid'), 'la grille est absente du balisage').not.toBeNull();
+    expect(doc.getElementById('categoryFrequentes')).toBeNull();
+    expect(doc.getElementById('categoryFrequentesListe')).toBeNull();
   });
 });
