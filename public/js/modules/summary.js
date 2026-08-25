@@ -8,6 +8,8 @@ import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
 import { computeSummary, exigeLesSalaires, computeVirementsByDestination } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
+import { previsionnelDuMois } from '../utils/previsionnel.js';
+import { jourEtMois } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
@@ -87,6 +89,7 @@ export function calculateSummary() {
 
   // Afficher le résumé
   renderSummary({
+    previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
     totalCharges: summary.total,
     yourTheoricalShare: summary.yourShare,
     partnerTheoricalShare: summary.partnerShare,
@@ -136,6 +139,7 @@ function renderSummary(summary) {
   }
 
   const {
+    previsionnel,
     totalCharges,
     yourTheoricalShare,
     partnerTheoricalShare,
@@ -219,6 +223,8 @@ function renderSummary(summary) {
         ${balanceExplanation}
         ${settleButton}
       </div>
+
+      ${renderPrevisionnel(previsionnel)}
 
       <details class="summary-details">
         <summary>Voir le détail</summary>
@@ -328,6 +334,60 @@ function updateBalanceBar(html, cssClass) {
   bar.className = `balance-bar ${cssClass}`;
   bar.innerHTML = html;
   bar.hidden = false;
+}
+
+/**
+ * Annonce ce qui reste à passer ce mois-ci
+ *
+ * Le bilan répond à « combien avons-nous dépensé », jamais à « combien
+ * reste-t-il à passer » — alors que la donnée est là depuis la reconduction :
+ * au premier du mois, les charges fixes récurrentes sont déjà inscrites,
+ * chacune à son quantième. Au 3 du mois, le solde annonce donc un total dont
+ * les trois quarts ne sont pas encore sortis du compte.
+ *
+ * La dernière phrase n'est pas une politesse : sans elle, ce bloc semblerait
+ * contredire le solde juste au-dessus, qui compte déjà ces montants. Un
+ * chiffre qu'on ne sait pas raccorder au précédent est pire qu'un chiffre
+ * absent.
+ *
+ * Rien à annoncer quand tout est passé — fin de mois, ou mois révolu : le bloc
+ * disparaît au lieu d'afficher un zéro qui n'apprend rien.
+ *
+ * @param {Object|null} previsionnel - Sortie de `previsionnelDuMois`
+ * @returns {string} Fragment HTML, ou chaîne vide
+ */
+function renderPrevisionnel(previsionnel) {
+  if (!previsionnel || previsionnel.nombreAVenir === 0) return '';
+
+  const { aVenir, total, nombreAVenir, prochaines } = previsionnel;
+
+  // Les libellés viennent du foyer : ils passent par `escapeHtml`, comme
+  // partout où du contenu saisi entre dans du HTML.
+  const nommees = prochaines.map(charge => {
+    const quand = jourEtMois(charge.date);
+    const libelle = escapeHtml(charge.description || 'Sans libellé');
+    return quand ? `${libelle} le ${escapeHtml(quand)}` : libelle;
+  });
+
+  // « …le 3 sept., 1 autre » se lit comme une quatrième échéance nommée « 1 ».
+  // La conjonction dit ce que la virgule laissait deviner de travers.
+  const reste = nombreAVenir - prochaines.length;
+  const liste = reste > 0
+    ? `${nommees.join(', ')} et ${reste} autre${reste > 1 ? 's' : ''}`
+    : nommees.join(', ');
+
+  return `
+    <div class="summary-previsionnel">
+      <div class="previsionnel-montant">
+        <span aria-hidden="true">⏳</span>
+        <strong>${formatCurrency(aVenir)}</strong> encore à passer
+        <span class="previsionnel-sur">sur ${formatCurrency(total)}</span>
+      </div>
+      <small class="previsionnel-detail">
+        ${liste} — déjà comptés dans le solde ci-dessus
+      </small>
+    </div>
+  `;
 }
 
 /**

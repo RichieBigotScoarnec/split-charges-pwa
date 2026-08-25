@@ -3,6 +3,7 @@ import {
   getCurrentPeriod,
   formatPeriod,
   formatDate,
+  jourEtMois,
 } from '../../public/js/utils/date.js';
 
 // ===== getCurrentPeriod =====
@@ -77,5 +78,32 @@ describe('formatDate face à une date absente', () => {
     expect(formatDate('2026-08-22')).toMatch(/2026/);
     expect(formatDate(new Date(2026, 7, 22))).toMatch(/2026/);
     expect(formatDate(1755820800000)).toMatch(/20\d\d/);
+  });
+});
+
+describe('jourEtMois', () => {
+  // Pour nommer une échéance dans le mois qu'on regarde : « EDF le 12 sept. ».
+  // `formatDate` y ajoute l'année, ce qui pèse trop dans une phrase qui en
+  // enchaîne trois.
+
+  it('rend le jour et le mois abrégé, sans l\'année', () => {
+    expect(jourEtMois('2026-09-12')).toBe('12 sept.');
+  });
+
+  it('ne recule pas d\'un jour à l\'ouest de Greenwich', () => {
+    // « 2026-09-01 » lu par `new Date` vaut minuit UTC : réaffiché à l'ouest,
+    // il devenait le 31 août. La date est reconstruite en local.
+    expect(jourEtMois('2026-09-01')).toBe('1 sept.');
+  });
+
+  it('garde le mois : la ligne peut décrire un mois à venir', () => {
+    expect(jourEtMois('2026-10-05')).toBe('5 oct.');
+  });
+
+  it('rend une chaîne vide plutôt qu\'une date inventée', () => {
+    expect(jourEtMois('')).toBe('');
+    expect(jourEtMois(null)).toBe('');
+    expect(jourEtMois('05/09/2026')).toBe('');
+    expect(jourEtMois(1756000000000)).toBe('');
   });
 });
