@@ -37,7 +37,7 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 30 aides pures — dont miroir (ce que l'appareil
+│       └── utils/              # 31 aides pures — dont miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
 │                               # montant (lecture d'une
@@ -52,6 +52,7 @@ FairSplit/
 │                               # recherche-texte (chercher sans les accents),
 │                               # periodes (les mois que le sélecteur propose),
 │                               # renommage (renommer sans détacher les charges),
+│                               # tendances (ce que six mois de dépenses disent),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
@@ -207,6 +208,8 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Le graphe de tendances était étiré 1,56× sur un écran fin | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-24 — canevas accordé à `devicePixelRatio` | Remesuré à 1,00 |
 | Le graphe de tendances n'avait que 25 px de haut pour six graduations, qui se chevauchaient | `public/css/summary.css`, `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — hauteur réelle, marges calculées, légende sortie du tracé | Régression de la correction `devicePixelRatio` |
 | Un seul mois produisait un graphe d'un point et une « tendance » de 0 € en rouge | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — le panneau dit qu'il n'y a pas encore de quoi comparer | — |
+| « Tendance » comparait le premier mois au dernier, et « Moyenne » se laissait tirer par un mois exceptionnel | `public/js/utils/tendances.js` | ✅ RÉSOLU 2026-08-25 — écart à la médiane des mois précédents, mois ordinaire | Le mois en cours est signalé comme incomplet |
+| Les revenus et les charges détaillées étaient lus par le module de tendances, puis jetés | `public/js/modules/trends.js` | ✅ RÉSOLU 2026-08-25 — taux d'effort, reste à vivre, catégorie qui a le plus bougé | Aucune lecture supplémentaire |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

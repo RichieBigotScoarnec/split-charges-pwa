@@ -77,6 +77,7 @@ const STATIC_ASSETS = [
   './js/utils/sonde-liaison.js',
   './js/utils/sandbox-banner.js',
   './js/utils/soft-delete.js',
+  './js/utils/tendances.js',
   './js/utils/tri.js',
   './js/utils/validation.js',
   // Composants

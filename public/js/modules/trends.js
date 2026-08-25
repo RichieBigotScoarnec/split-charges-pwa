@@ -4,7 +4,16 @@
 import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
-import { formatPeriod } from '../utils/date.js';
+import { formatPeriod, getCurrentPeriod } from '../utils/date.js';
+import { resolveIncomeBase } from '../utils/salaries.js';
+import {
+  mediane,
+  ecartAuHabituel,
+  tauxDEffort,
+  resteAVivre,
+  partDuFixe,
+  categorieQuiABouge
+} from '../utils/tendances.js';
 import { toast } from '../components/toast.js';
 import { getDataPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -137,7 +146,11 @@ export async function fetchHistoricalData(months = 6) {
         fixedCharges: calculatePeriodTotal(periodData.fixedCharges),
         variableCharges: calculatePeriodTotal(periodData.variableCharges),
         reimbursements: calculatePeriodTotal(periodData.reimbursements),
-        salaries: periodData.salaries || { vous: 0, conjointe: 0 }
+        salaries: periodData.salaries || { vous: 0, conjointe: 0 },
+        // Le détail par catégorie ne coûte rien : le nœud entier est déjà lu,
+        // et il n'était jusqu'ici écrasé qu'en un total. C'est lui qui permet
+        // de dire « Courses : +85 € » plutôt que « total +231 % ».
+        parCategorie: totauxParCategorie(periodData)
       };
 
       historicalData.data[period].total =
@@ -165,6 +178,37 @@ function calculatePeriodTotal(charges) {
   return Object.values(charges)
     .filter(charge => !charge.deleted)
     .reduce((sum, charge) => sum + (charge.amount || 0), 0);
+}
+
+/**
+ * Répartit les charges d'une période par catégorie
+ *
+ * Fixes et variables confondues : c'est la dépense qui compte, pas la forme
+ * sous laquelle elle est saisie.
+ *
+ * @param {Object} periodData - Contenu d'une période, tel que lu en base
+ * @returns {Object<string, number>} Total par libellé de catégorie
+ */
+function totauxParCategorie(periodData) {
+  const totaux = {};
+
+  for (const collection of ['fixedCharges', 'variableCharges']) {
+    const noeud = periodData && periodData[collection];
+    if (!noeud || typeof noeud !== 'object') continue;
+
+    for (const charge of Object.values(noeud)) {
+      if (!charge || charge.deleted) continue;
+
+      const categorie = typeof charge.category === 'string' && charge.category
+        ? charge.category
+        : 'Sans catégorie';
+      const montant = Number.isFinite(charge.amount) ? charge.amount : 0;
+
+      totaux[categorie] = (totaux[categorie] || 0) + montant;
+    }
+  }
+
+  return totaux;
 }
 
 /**
@@ -552,49 +596,180 @@ function flecheTendance(variation) {
  */
 function renderTrendsStats(data) {
   const statsContainer = document.getElementById('trendsStats');
-
-  if (!statsContainer) {
-    return;
-  }
+  if (!statsContainer) return;
 
   const periods = data.periods;
   const totals = periods.map(p => data.data[p].total);
 
-  // Calculer les statistiques
-  const average = totals.length > 0 ? totals.reduce((sum, v) => sum + v, 0) / totals.length : 0;
-  const min = Math.min(...totals);
-  const max = Math.max(...totals);
+  const dernier = periods[periods.length - 1];
+  const avantDernier = periods[periods.length - 2];
+  const mois = data.data[dernier];
 
-  // Tendance (variation entre première et dernière période)
-  const first = totals[0];
-  const last = totals[totals.length - 1];
-  const trend = last - first;
-  const trendPercent = first > 0 ? (trend / first) * 100 : 0;
+  const habituel = mediane(totals);
+  const ecart = ecartAuHabituel(totals);
+  const taux = tauxDEffort(mois.total, mois.salaries);
+  const reste = resteAVivre(mois.total, mois.salaries);
+  const fixe = partDuFixe(mois.fixedCharges, mois.variableCharges);
 
-  // Afficher
+  const bougee = avantDernier
+    ? categorieQuiABouge(mois.parCategorie, data.data[avantDernier].parCategorie)
+    : null;
+
   statsContainer.innerHTML = `
     <div class="trends-stats-grid">
       <div class="stat-card">
-        <div class="stat-label">Moyenne</div>
-        <div class="stat-value">${formatCurrency(average)}</div>
+        <div class="stat-label">Mois ordinaire</div>
+        <div class="stat-value">${formatCurrency(habituel || 0)}</div>
+        <div class="stat-period">médiane sur ${periods.length} mois</div>
       </div>
+
+      ${carteEcart(ecart, dernier, dernier === getCurrentPeriod())}
+      ${carteTaux(taux, fixe)}
+      ${carteReste(reste, mois.salaries)}
+    </div>
+
+    ${ligneCategorie(bougee, avantDernier)}
+  `;
+}
+
+/**
+ * L'écart du dernier mois à un mois ordinaire
+ *
+ * Remplace la « tendance », qui comparait le premier mois au dernier et rien
+ * entre les deux : sur 380 → 512 → 445 → 1 260, elle annonçait +231 % à partir
+ * de deux points sur quatre.
+ *
+ * Quand le mois le plus récent est le mois courant, il est par nature
+ * incomplet : le 5 août, l'écart se calcule sur cinq jours de dépenses et
+ * annoncerait une chute spectaculaire. La carte le dit, faute de quoi elle
+ * commettrait la faute que la mesure précédente commettait — donner un chiffre
+ * exact à une question mal posée.
+ *
+ * @param {Object|null} ecart - Rendu par `ecartAuHabituel`
+ * @param {string} periode - Mois le plus récent
+ * @param {boolean} enCours - Vrai si ce mois n'est pas terminé
+ * @returns {string} Fragment échappé
+ */
+function carteEcart(ecart, periode, enCours) {
+  if (!ecart) {
+    return `
       <div class="stat-card">
-        <div class="stat-label">Minimum</div>
-        <div class="stat-value">${formatCurrency(min)}</div>
-        <div class="stat-period">${escapeHtml(formatPeriod(periods[totals.indexOf(min)]))}</div>
+        <div class="stat-label">Ce mois-ci</div>
+        <div class="stat-value">—</div>
+        <div class="stat-period">pas encore de quoi comparer</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Maximum</div>
-        <div class="stat-value">${formatCurrency(max)}</div>
-        <div class="stat-period">${escapeHtml(formatPeriod(periods[totals.indexOf(max)]))}</div>
-      </div>
-      <div class="stat-card ${classeTendance(trend)}">
-        <div class="stat-label">Tendance</div>
-        <div class="stat-value">${flecheTendance(trend)} ${formatCurrency(Math.abs(trend))}</div>
-        <div class="stat-percent">${escapeHtml(pourcentageLisible(trendPercent))}</div>
-      </div>
+    `;
+  }
+
+  const part = ecart.part === null ? '' : pourcentageLisible(ecart.part);
+  const legende = enCours
+    ? 'mois en cours, encore incomplet'
+    : `${part} par rapport à l'ordinaire`;
+
+  return `
+    <div class="stat-card ${enCours ? '' : classeTendance(ecart.variation)}">
+      <div class="stat-label">${escapeHtml(formatPeriod(periode))}</div>
+      <div class="stat-value">${flecheTendance(ecart.variation)} ${formatCurrency(Math.abs(ecart.variation))}</div>
+      <div class="stat-percent">${escapeHtml(legende)}</div>
     </div>
   `;
+}
+
+/**
+ * La part des revenus que les charges consomment
+ *
+ * « 1 260 € » ne dit rien ; « 29 % de vos revenus » dit tout. C'est la seule
+ * mesure qui donne un sens au montant, et les revenus étaient déjà lus par ce
+ * module — puis jetés.
+ *
+ * @param {number|null} taux - Pourcentage
+ * @param {number|null} fixe - Part des charges fixes
+ * @returns {string} Fragment échappé
+ */
+function carteTaux(taux, fixe) {
+  if (taux === null) {
+    return `
+      <div class="stat-card">
+        <div class="stat-label">Taux d'effort</div>
+        <div class="stat-value">—</div>
+        <div class="stat-period">salaires du mois non renseignés</div>
+      </div>
+    `;
+  }
+
+  const detail = fixe === null
+    ? 'de vos revenus'
+    : `de vos revenus · ${Math.round(fixe)} % de fixe`;
+
+  return `
+    <div class="stat-card">
+      <div class="stat-label">Taux d'effort</div>
+      <div class="stat-value">${escapeHtml(partLisible(taux))}</div>
+      <div class="stat-period">${escapeHtml(detail)}</div>
+    </div>
+  `;
+}
+
+/**
+ * Ce qui reste une fois les charges payées
+ *
+ * @param {number|null} reste - En euros
+ * @param {*} revenus - Instantané de salaires, pour le rappeler
+ * @returns {string} Fragment échappé
+ */
+function carteReste(reste, revenus) {
+  if (reste === null) {
+    return `
+      <div class="stat-card">
+        <div class="stat-label">Reste à vivre</div>
+        <div class="stat-value">—</div>
+        <div class="stat-period">salaires du mois non renseignés</div>
+      </div>
+    `;
+  }
+
+  const base = resolveIncomeBase(revenus);
+
+  return `
+    <div class="stat-card ${reste < 0 ? 'trend-up' : ''}">
+      <div class="stat-label">Reste à vivre</div>
+      <div class="stat-value">${formatCurrency(reste)}</div>
+      <div class="stat-period">sur ${formatCurrency(base.total)} de revenus</div>
+    </div>
+  `;
+}
+
+/**
+ * La catégorie dont la dépense a le plus varié
+ *
+ * Sur une ligne, sous les cartes : c'est une piste à suivre, pas une mesure de
+ * plus. Une cinquième carte aurait fait un tableau de bord.
+ *
+ * @param {Object|null} bougee - Rendu par `categorieQuiABouge`
+ * @param {string|undefined} precedent - Mois de comparaison
+ * @returns {string} Fragment échappé, ou chaîne vide
+ */
+function ligneCategorie(bougee, precedent) {
+  if (!bougee || !precedent) return '';
+
+  const sens = bougee.variation > 0 ? 'de plus' : 'de moins';
+
+  return `
+    <p class="trends-piste">
+      Ce qui a le plus bougé : <strong>${escapeHtml(bougee.categorie)}</strong>,
+      ${formatCurrency(Math.abs(bougee.variation))} ${sens} qu'en ${escapeHtml(formatPeriod(precedent))}.
+    </p>
+  `;
+}
+
+/**
+ * Un taux, écrit en français
+ *
+ * @param {number} valeur - Pourcentage
+ * @returns {string}
+ */
+function partLisible(valeur) {
+  return `${Math.round(valeur)} %`;
 }
 
 /**

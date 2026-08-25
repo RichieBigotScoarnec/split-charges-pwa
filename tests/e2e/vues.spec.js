@@ -72,7 +72,9 @@ test.describe('Tendances sur 6 mois', () => {
     // Le bloc de statistiques est rempli par le module : vide, la section
     // n'affichait rien — c'était précisément le défaut.
     await expect(page.locator('#trendsStats')).not.toBeEmpty({ timeout: 5000 });
-    await expect(page.locator('#trendsStats')).toContainText('Moyenne');
+    // « Moyenne » a cédé la place à « Mois ordinaire », une médiane : la
+    // moyenne se laissait tirer par un mois exceptionnel.
+    await expect(page.locator('#trendsStats')).toContainText('Mois ordinaire');
   });
 
   test('le canevas est réellement dessiné, pas seulement présent', async ({ page }) => {
