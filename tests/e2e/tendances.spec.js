@@ -108,8 +108,9 @@ test.describe('Avec plusieurs mois', () => {
     await expect(page.locator('#trendsCanvas')).toBeVisible();
 
     const stats = page.locator('#trendsStats');
-    await expect(stats).toContainText('juin 2026');
-    await expect(stats, 'une clé de stockage s\'affiche telle quelle').not.toContainText('2026-06');
+    // Le mois le plus récent nomme la carte d'écart.
+    await expect(stats).toContainText('août 2026');
+    await expect(stats, 'une clé de stockage s\'affiche telle quelle').not.toContainText('2026-08');
     // `toFixed(1)` rendait « 12.5% », au milieu d'un écran en « 1 259,97 € ».
     await expect(stats).toContainText(' %');
   });

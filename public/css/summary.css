@@ -877,3 +877,21 @@
 .stat-card.trend-up .stat-value { color: var(--danger-color); }
 .stat-card.trend-down .stat-value { color: var(--success-color); }
 .stat-card.trend-flat .stat-value { color: var(--text-secondary); }
+
+/* La piste à suivre, sous les quatre cartes. Sur une ligne plutôt qu'en
+   cinquième carte : quatre tiennent sur un écran de téléphone et se lisent
+   d'un coup d'œil, huit deviennent un tableau de bord qu'on fait défiler sans
+   rien retenir. */
+.trends-piste {
+  margin: var(--space-md) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.trends-piste strong {
+  color: var(--text-primary);
+}
