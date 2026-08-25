@@ -8,7 +8,6 @@ import { setState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS, EMPLACEMENTS_PAR_COMPTE } from '../config.js';
 import { emplacementDuCompte } from '../utils/members.js';
-import { ouvreLaSaisieRapide, urlSansAction } from '../utils/raccourci.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries, chargerLesPeriodesConnues } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
@@ -39,33 +38,6 @@ let authUnsubscribe = null;
 
 // Guard against concurrent popup calls
 let signInPending = false;
-
-/**
- * Ouvre la saisie rapide si l'URL le demande
- *
- * Le manifeste déclare un raccourci — appui long sur l'icône, « ⚡ Saisie
- * rapide » — qui ouvre `?action=quick-add`. La même URL peut être posée sur
- * l'écran d'accueil comme seconde icône, et s'ouvre alors d'un seul appui.
- *
- * Le paramètre est retiré de la barre d'adresse une fois honoré : sans cela un
- * rafraîchissement rouvrirait la modale sans qu'on l'ait demandé.
- *
- * @returns {void}
- */
-function honorerLeRaccourci() {
-  if (!ouvreLaSaisieRapide(window.location.search)) return;
-
-  const propre = urlSansAction(window.location.href);
-  if (propre) window.history.replaceState({}, '', propre);
-
-  if (typeof window.showQuickAddModal !== 'function') {
-    warn('⚠️ Raccourci de saisie rapide demandé, modale indisponible');
-    return;
-  }
-
-  window.showQuickAddModal();
-  log('⚡ Saisie rapide ouverte par le raccourci');
-}
 
 /**
  * Sign in with Google popup
@@ -481,15 +453,11 @@ async function initializeAppData() {
   // de l'authentification, bien avant que les modules soient initialisés :
   // s'y fier laisse une fenêtre où une saisie part dans le vide. Ce marqueur
   // sert aux tests E2E et au diagnostic.
-  document.body.dataset.appReady = 'true';
-
-  // Le raccourci d'appui long ouvre directement la saisie.
   //
-  // Ici, et pas plus tôt : la modale a besoin des catégories du foyer et des
-  // prénoms, que les étapes ci-dessus viennent de lire. L'ouvrir avant
-  // afficherait une grille vide — le lot suivant s'occupe de ce qui peut se
-  // faire pendant l'attente.
-  honorerLeRaccourci();
+  // Il sert aussi de signal : la saisie rapide ouverte d'avance par le
+  // raccourci l'observe pour remplacer ses valeurs par défaut par celles du
+  // foyer, et pour laisser partir une écriture mise en attente.
+  document.body.dataset.appReady = 'true';
 
   if (failures.length) {
     warn('⚠️ Modules en échec :', failures.join(', '));

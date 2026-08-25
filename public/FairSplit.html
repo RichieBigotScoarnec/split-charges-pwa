@@ -774,6 +774,12 @@
   <div id="modalQuickAdd" class="modal-overlay quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="modalQuickAddTitle">
     <div class="modal">
       <h2 class="modal-header" id="modalQuickAddTitle"><span aria-hidden="true">⚡</span> Saisie Rapide</h2>
+      <!-- Ouverte par le raccourci, la modale paraît avant que Firebase ait
+           répondu : le montant se tape pendant l'authentification au lieu de
+           la suivre. Cette ligne dit pourquoi les enveloppes manquent et
+           pourquoi les catégories sont celles par défaut — sans elle, la
+           modale mentirait par omission le temps de la connexion. -->
+      <p class="quick-add-attente" id="quickAddAttente" role="status" aria-live="polite" hidden></p>
       <div class="quick-add-location" id="quickAddLocation" aria-live="polite" aria-atomic="true">
         <!-- GPS status will be shown here -->
       </div>

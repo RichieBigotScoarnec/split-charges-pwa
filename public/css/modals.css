@@ -29,6 +29,21 @@
   z-index: 10001;
 }
 
+/*
+   Saisie rapide ouverte par le raccourci, avant que Firebase ait répondu.
+
+   L'écran d'attente de connexion est à 10000, la modale à 9999 : ouverte tôt,
+   elle s'ouvrait donc *derrière* lui — invisible, et le montant tapé partait
+   dans un champ que personne ne voyait. Cette classe n'est posée que pendant
+   l'anticipation, et retirée dès que l'application est prête : le reste du
+   temps, une modale n'a rien à faire par-dessus l'écran de connexion.
+
+   Les messages, à 10002, restent au-dessus.
+*/
+#modalQuickAdd.modal-overlay--anticipee {
+  z-index: 10001;
+}
+
 .modal {
   background: var(--card-bg);
   border-radius: var(--radius-xl);
@@ -81,6 +96,24 @@
   align-items: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
+}
+
+/* Saisie ouverte avant que l'application soit prête (raccourci d'appui long).
+   Ton d'information, jamais d'alerte : rien ne va mal, la connexion suit son
+   cours et la saisie est déjà possible. */
+.quick-add-attente {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.quick-add-attente[hidden] {
+  display: none;
 }
 
 .quick-add-location {
