@@ -13,6 +13,7 @@ import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
 import { dateDuJour, heureDuJour, heureValide } from '../utils/date.js';
+import { uneSeuleFois, relacher } from '../utils/soumission.js';
 import { segmentsDeLaPhrase } from '../utils/phrase-saisie.js';
 import { decrireLieu } from '../utils/lieu.js';
 import { normaliserEmplacement } from '../utils/members.js';
@@ -43,8 +44,12 @@ let _gpsPermissionGranted = false; // tracks if user already granted GPS permiss
  * `dbPush` passe par `borner()`, qui rejette au bout du délai : le verrou est
  * donc toujours relâché, et une écriture qui n'aboutit pas ne bloque pas les
  * suivantes.
+ *
+ * Le verrou lui-même vit dans `utils/soumission.js` : les trois formulaires
+ * complets écrivaient de la même façon et sont restés sans garde des mois
+ * durant, parce que le correctif tenait dans un drapeau local à ce fichier.
  */
-let _soumissionEnCours = false;
+const VERROU = 'saisie-rapide';
 
 /**
  * La modale a-t-elle été ouverte avant que l'application soit prête ?
@@ -234,7 +239,7 @@ export function cleanupQuickAdd() {
   oublierHistoriqueFrequentes();
   // Une écriture interrompue par une déconnexion ne doit pas laisser le verrou
   // fermé pour la session suivante.
-  _soumissionEnCours = false;
+  relacher(VERROU);
   log('🧹 Listeners quick-add nettoyés');
 }
 
@@ -921,17 +926,8 @@ function hideLocationDetach() {
  * Gère la soumission du formulaire quick-add
  */
 async function handleQuickAddSubmit() {
-  if (_soumissionEnCours) {
-    log('[Saisie rapide] ⏳ Écriture déjà en cours, appui ignoré');
-    return;
-  }
-  _soumissionEnCours = true;
-
-  try {
-    await soumettre();
-  } finally {
-    _soumissionEnCours = false;
-  }
+  const partie = await uneSeuleFois(VERROU, soumettre);
+  if (!partie) log('[Saisie rapide] ⏳ Écriture déjà en cours, appui ignoré');
 }
 
 /**

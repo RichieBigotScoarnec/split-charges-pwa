@@ -21,6 +21,7 @@ import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { normaliserEmplacement } from '../utils/members.js';
+import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -164,8 +165,27 @@ export async function loadFixedCharges() {
 
 /**
  * Sauvegarde une charge fixe (ajout ou édition)
+ *
+ * Le corps de l'écriture vit dans `enregistrerFixedCharge`. Cette enveloppe ne fait que la
+ * protéger : sur une connexion lente, la modale reste ouverte et le bouton
+ * actif le temps que `dbPush` réponde, et le second appui — le réflexe
+ * naturel devant un écran qui ne bouge pas — écrivait une seconde charge.
  */
 export async function saveFixedCharge() {
+  const bouton = document.getElementById('saveFixedCharge');
+  const rendreLeBouton = occuperLeBouton(bouton);
+
+  try {
+    await uneSeuleFois('charge-fixe', enregistrerFixedCharge);
+  } finally {
+    rendreLeBouton();
+  }
+}
+
+/**
+ * Sauvegarde une charge fixe (ajout ou édition) — le corps, sans la garde
+ */
+async function enregistrerFixedCharge() {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');

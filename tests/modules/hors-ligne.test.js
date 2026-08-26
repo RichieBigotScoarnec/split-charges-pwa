@@ -591,6 +591,39 @@ describe('Ce qui reste sur l\'appareil', () => {
     expect(base.journal.at(-1).donnees).toEqual({ amount: 5 });
   });
 
+  it('efface l\'espace qu\'on lui nomme, pas l\'espace courant', async () => {
+    // `auth.signOut()` déclenche le changement d\'état, qui ramène l\'espace
+    // courant à `household` avant que la déconnexion n\'ait fini. Sans espace
+    // nommé, un compte cantonné au bac à sable effaçait donc le miroir du
+    // foyer et laissait le sien sur l\'appareil — l\'inverse exact de ce que
+    // la déconnexion promet.
+    await amorcerLeMiroir();
+
+    // Le compte de test remplit le miroir du bac à sable.
+    setAuthenticatedUser('uid-essai', 'testfairsplit@gmail.com');
+    expect(getDataRoot()).toBe('sandbox');
+    await dbGet('salaries');
+
+    // La déconnexion a déjà eu lieu : l\'espace courant est retombé au foyer.
+    setAuthenticatedUser(null);
+    expect(getDataRoot()).toBe('household');
+
+    // C\'est le bac à sable qu\'il faut oublier, et lui seul.
+    oublierHorsLigne('sandbox');
+
+    setAuthenticatedUser('uid-essai', 'testfairsplit@gmail.com');
+    signalerLiaison(false);
+    await expect(dbGet('salaries'), 'le miroir du bac à sable est resté')
+      .rejects.toThrow(/jamais été lu/);
+
+    // Et le foyer, qu\'on n\'a pas nommé, garde le sien.
+    signalerLiaison(true);
+    setAuthenticatedUser('uid-test', 'bigot.richard@gmail.com');
+    signalerLiaison(false);
+    expect(await dbGet('salaries'), 'le miroir du foyer a été effacé à sa place')
+      .not.toBeNull();
+  });
+
   it('le bac à sable ne partage rien avec le foyer', async () => {
     // Deux espaces de données, deux dossiers : une charge d'essai ne doit pas
     // pouvoir remonter dans les comptes du foyer.
