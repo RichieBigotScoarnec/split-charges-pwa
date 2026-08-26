@@ -14,6 +14,27 @@ function ensureContainer() {
   if (!toastContainer) {
     toastContainer = document.createElement('div');
     toastContainer.id = 'toast-container';
+
+    // Une région vivante, sans quoi rien de tout cela n'est annoncé.
+    //
+    // Le conteneur n'en portait aucune : « Charge enregistrée », « Erreur :
+    // impossible de sauvegarder », tout le retour de l'application passait
+    // muet pour un lecteur d'écran — alors que chaque bandeau du HTML porte
+    // scrupuleusement son `role="status"`. Le seul retour de la saisie était
+    // donc la fermeture de la modale, qui ne distingue pas la réussite de
+    // l'échec.
+    //
+    // Elle est posée sur le conteneur et non sur chaque message : une région
+    // doit exister dans la page *avant* que son contenu change, sinon
+    // l'insertion n'est pas détectée. Les messages arrivent ensuite dedans.
+    //
+    // `polite` par défaut, `aria-atomic="false"` pour que deux messages
+    // simultanés soient lus l'un puis l'autre, et non le bloc entier relu à
+    // chaque ajout. Les erreurs relèvent la voix, plus bas, sur le message
+    // lui-même.
+    toastContainer.setAttribute('role', 'status');
+    toastContainer.setAttribute('aria-live', 'polite');
+    toastContainer.setAttribute('aria-atomic', 'false');
     // La marge basse tient compte de la barre de navigation du téléphone.
     // `.toast` déclarait bien `bottom: env(safe-area-inset-bottom, 20px)`, mais
     // la ligne suivante l'écrasait par `bottom: 20px` : le repli était pris
@@ -53,6 +74,14 @@ function showToast(message, type = 'success', options = {}) {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
+
+  // Une erreur interrompt, le reste attend son tour. « Erreur : impossible de
+  // sauvegarder le mode de partage » n'a pas à patienter derrière la fin d'une
+  // autre phrase — le message dure dix secondes et disparaît.
+  if (type === 'error') {
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+  }
 
   // Toast content
   const content = document.createElement('span');

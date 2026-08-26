@@ -50,6 +50,7 @@ FairSplit/
 │                               # identifiant (fabrique d'identifiants, partagée
 │                               # par catégories, destinations et enveloppes),
 │                               # recherche-texte (chercher sans les accents),
+│                               # ecouteur (un écouteur posé une seule fois),
 │                               # periodes (les mois que le sélecteur propose),
 │                               # renommage (renommer sans détacher les charges),
 │                               # tendances (ce que six mois de dépenses disent),
@@ -238,6 +239,13 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | `heure` était le seul champ d'une charge sans règle de validation : il tombait dans le fourre-tout | `database.rules.json` | ✅ RÉSOLU 2026-08-25 — format contrôlé, chaîne vide comprise, dans les quatre blocs de charges | Les remboursements n'en portent pas |
 | Une sauvegarde en échec ne se voyait nulle part, alors que le workflow lui-même dit qu'une sauvegarde qu'on croit faite est pire que rien | `.github/workflows/sauvegarde.yml` | ✅ RÉSOLU 2026-08-25 — ticket ouvert dès qu'une exécution échoue, un par panne | Il tourne à 03:17, sans témoin |
 | Rien n'empêchait un site tiers d'encadrer l'application : Pages ne pose aucun en-tête, et `frame-ancestors` est ignorée en `<meta>` | `public/js/utils/cadre.js` | ✅ RÉSOLU 2026-08-25 — la page se vide et s'explique si elle est encadrée, avant Firebase | Un cadre ne lit rien ; il fait cliquer |
+| La reconduction posait son empreinte avant de copier : une coupure entre les deux lignes laissait le mois marqué « reconduit » sans une seule charge, et `planRecurrence` s'y arrête pour de bon. Le loyer disparaissait du mois, définitivement, en silence | `public/js/modules/reconduction.js` | ✅ RÉSOLU 2026-08-26 — empreinte rendue si la copie échoue, et l'échec annoncé | La transaction contre le doublon à deux téléphones est conservée |
+| Se déconnecter puis se reconnecter sans recharger reposait un second écouteur sur sept modules : deux relectures par changement de mois, deux toasts par message | `public/js/utils/ecouteur.js` | ✅ RÉSOLU 2026-08-26 — registre hors du DOM, `WeakMap` plutôt qu'attribut | Les écritures en double étaient déjà bloquées par `soumission.js` |
+| Deux lectures d'initialisation retombaient en silence sur une valeur par défaut qui fausse l'argent : mode illisible → prorata, report illisible → désactivé | `public/js/modules/share-mode.js`, `carry-over.js` | ✅ RÉSOLU 2026-08-26 — l'erreur remonte à `runStep`, qui nomme l'étape dans « Chargement partiel » | Le repli reste appliqué : sans mode, aucun bilan |
+| Le conteneur des toasts ne portait aucune région vivante : tout le retour de l'application était muet pour un lecteur d'écran | `public/js/components/toast.js` | ✅ RÉSOLU 2026-08-26 — `role="status"`, et `role="alert"` sur les erreurs | Chaque bandeau du HTML en portait un, celui-là non |
+| La comparaison des deux politiques de sécurité ne couvrait que quatre directives sur huit — celles qu'une panne avait fait ajouter | `tests/chargement-initial.test.js`, `firebase.json` | ✅ RÉSOLU 2026-08-26 — réunion des deux fichiers, plus de liste tenue à la main | Aucun trou en production : Pages ne sert que la balise |
+| Les boutons à deux états de la saisie rapide ne marquaient leur choix que par une classe CSS | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-26 — `aria-pressed` sur les trois groupes, `aria-expanded` sur « N autres » | « Payé par » décide du sens du solde |
+| Les règles étaient plus permissives que les formulaires : salaires ×10, montants ×100 | `database.rules.json` | ✅ RÉSOLU 2026-08-26 — alignées sur `LIMITS`, et un test les tient ensemble | Les budgets restent plus larges, à dessein |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

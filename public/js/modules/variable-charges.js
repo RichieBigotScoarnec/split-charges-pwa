@@ -26,6 +26,7 @@ import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -103,12 +104,12 @@ export function initVariableCharges() {
   // l'action reste possible même si le reste de l'initialisation échoue.
   const addBtn = exigerElement('addVariableChargeBtn', 'ouvrir l\'ajout de charge variable');
   if (addBtn) {
-    addBtn.addEventListener('click', showAddVariableChargeModal);
+    ecouterUneFois(addBtn, 'click', showAddVariableChargeModal);
   }
 
   const saveBtn = exigerElement('saveVariableCharge', 'enregistrer une charge variable');
   if (saveBtn) {
-    saveBtn.addEventListener('click', saveVariableCharge);
+    ecouterUneFois(saveBtn, 'click', saveVariableCharge);
   }
 
   // Avant tout remplissage, comme les deux écouteurs ci-dessus : si

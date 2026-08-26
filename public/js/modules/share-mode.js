@@ -8,6 +8,7 @@ import { toast } from '../components/toast.js';
 import { calculateSummary } from './summary.js';
 import { log, error as logError } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 /**
  * Select and apply share mode
@@ -154,11 +155,28 @@ export async function loadShareMode() {
     }
   } catch (error) {
     logError('❌ Erreur chargement mode partage:', error);
-    toast.error('Erreur lors du chargement du mode de partage');
-    // Fallback to prorata
+
+    // Le repli au prorata reste appliqué : sans mode, aucun bilan ne se
+    // calcule, et une application qui n'affiche rien est pire qu'une qui
+    // affiche un chiffre daté.
     _isLoading = true;
     selectShareMode('prorata');
     _isLoading = false;
+
+    // Mais l'erreur remonte.
+    //
+    // Elle était avalée ici, avec pour tout signe un toast qui passe. Un foyer
+    // en 50-50 voyait alors le bilan entier recalculé au prorata — des parts
+    // et un solde parfaitement crédibles, et faux, sans que rien à l'écran ne
+    // permette de s'en douter. C'est la faute que `depuisMiroir` refuse de
+    // commettre trois fichiers plus loin : « rendre null afficherait un mois
+    // vide parfaitement crédible ».
+    //
+    // `runStep` la reçoit, la consigne au journal avec son motif, et nomme
+    // l'étape dans « Chargement partiel — en échec : mode de partage ». Ce
+    // bandeau existe déjà et sert exactement à ça ; il n'y avait qu'à ne pas
+    // l'empêcher de faire son travail.
+    throw error;
   }
 }
 
@@ -175,13 +193,8 @@ export function initShareMode() {
   const yourPercentEl = document.getElementById('customPercentYou');
   const partnerPercentEl = document.getElementById('customPercentPartner');
 
-  if (yourPercentEl) {
-    yourPercentEl.addEventListener('input', validateCustomPercents);
-  }
-
-  if (partnerPercentEl) {
-    partnerPercentEl.addEventListener('input', validateCustomPercents);
-  }
+  ecouterUneFois(yourPercentEl, 'input', validateCustomPercents);
+  ecouterUneFois(partnerPercentEl, 'input', validateCustomPercents);
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.selectShareMode = selectShareMode;

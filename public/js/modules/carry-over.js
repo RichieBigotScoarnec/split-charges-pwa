@@ -28,6 +28,11 @@ const SETTING_PATH = 'carryOverEnabled';
 export async function initCarryOver() {
   const toggle = document.getElementById('carryOverToggle');
 
+  // Avant la lecture, qui peut échouer : une case à cocher sans action
+  // derrière est pire qu'un réglage non chargé, et c'est précisément quand la
+  // lecture rate qu'on veut pouvoir corriger le réglage à la main.
+  window.toggleCarryOver = toggleCarryOver;
+
   try {
     const { dbGet } = await import('../db.js');
     const enabled = (await dbGet(SETTING_PATH)) === true;
@@ -35,12 +40,20 @@ export async function initCarryOver() {
     if (toggle) toggle.checked = enabled;
   } catch (error) {
     // Sans réglage lisible, on retombe sur le comportement historique.
-    warn('⚠️ Réglage du report illisible, report désactivé :', error);
     setState('carryOverEnabled', false);
     if (toggle) toggle.checked = false;
+
+    // Et on le dit. Ce repli n'avait qu'un `warn` en console, hors d'atteinte
+    // depuis un téléphone : un foyer qui reporte ses soldes voyait le sien
+    // amputé de tous les mois accumulés, sans un mot. Un solde faux qui se
+    // présente comme juste est le pire des deux états.
+    //
+    // `runStep` nomme l'étape dans « Chargement partiel », et le journal en
+    // garde le motif.
+    warn('⚠️ Réglage du report illisible, report désactivé :', error);
+    throw error;
   }
 
-  window.toggleCarryOver = toggleCarryOver;
   log('🔗 Report du solde initialisé');
 }
 

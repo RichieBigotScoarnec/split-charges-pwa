@@ -22,6 +22,7 @@ import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -91,12 +92,12 @@ export function initFixedCharges() {
   // resterait sans écouteur, visible mais inerte.
   const addBtn = exigerElement('addFixedChargeBtn', 'ouvrir l\'ajout de charge fixe');
   if (addBtn) {
-    addBtn.addEventListener('click', showAddFixedChargeModal);
+    ecouterUneFois(addBtn, 'click', showAddFixedChargeModal);
   }
 
   const saveBtn = exigerElement('saveFixedCharge', 'enregistrer une charge fixe');
   if (saveBtn) {
-    saveBtn.addEventListener('click', saveFixedCharge);
+    ecouterUneFois(saveBtn, 'click', saveFixedCharge);
   }
 
   // Peupler les selects catégorie et destination dynamiquement

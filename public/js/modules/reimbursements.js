@@ -19,6 +19,7 @@ import { parseMontant } from '../utils/montant.js';
 import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
 import { trierParDate } from '../utils/tri.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -93,13 +94,13 @@ export function initReimbursements() {
   // Listener sur le bouton d'ajout
   const addBtn = exigerElement('addReimbursementBtn', 'ouvrir l\'ajout de remboursement');
   if (addBtn) {
-    addBtn.addEventListener('click', showAddReimbursementModal);
+    ecouterUneFois(addBtn, 'click', showAddReimbursementModal);
   }
 
   // Listener sur le formulaire de sauvegarde
   const saveBtn = exigerElement('saveReimbursement', 'enregistrer un remboursement');
   if (saveBtn) {
-    saveBtn.addEventListener('click', saveReimbursement);
+    ecouterUneFois(saveBtn, 'click', saveReimbursement);
   }
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)

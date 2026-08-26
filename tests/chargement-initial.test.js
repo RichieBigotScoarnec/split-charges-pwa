@@ -198,7 +198,29 @@ describe('La politique de securite', () => {
     const propre = (origines) => (origines || [])
       .filter((origine) => !origine.includes('localhost') && !origine.includes('127.0.0.1'));
 
-    for (const directive of ['script-src', 'connect-src', 'frame-src', 'img-src']) {
+    // Toutes les directives des deux côtés, et non quatre choisies à la main.
+    //
+    // La liste était figée à `script-src`, `connect-src`, `frame-src` et
+    // `img-src` — celles que la panne du long-polling avait fait ajouter. Les
+    // quatre autres n'étaient comparées par personne : `base-uri`,
+    // `object-src` et `form-action` ne vivaient que dans la page, `style-src`
+    // et `font-src` citaient encore les serveurs de Google Fonts dans
+    // firebase.json, restes d'avant le rapatriement des polices. Aucune de ces
+    // divergences n'ouvrait quoi que ce soit en production — Pages ne sert que
+    // la balise, qui est la plus stricte — mais c'est exactement ainsi qu'a
+    // commencé la panne que ce contrôle est censé fermer : par une directive
+    // que personne ne regardait.
+    //
+    // La réunion des deux côtés, plutôt qu'une liste : une directive ajoutée
+    // demain à l'un des deux fichiers entre d'elle-même dans la comparaison.
+    const directives = [...new Set([...Object.keys(page), ...Object.keys(hebergement)])]
+      // `script-src-elem` est comparé à travers `script-src`, qu'il complète.
+      .filter((nom) => nom !== 'script-src-elem');
+
+    expect(directives.length, 'aucune directive à comparer : le découpage a échoué')
+      .toBeGreaterThan(4);
+
+    for (const directive of directives) {
       // `script-src-elem` n'est déclaré que dans firebase.json. La
       // spécification dit qu'à défaut il hérite de `script-src` : comparer
       // l'un à l'autre est donc juste, et ne pas le faire laisserait une

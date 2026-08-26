@@ -7,6 +7,7 @@ import { formatDateEtHeure, heureDeLaCharge } from '../utils/date.js';
 import { jourDeTri } from '../utils/tri.js';
 import { contient, plier } from '../utils/recherche-texte.js';
 import { log } from '../utils/debug.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 let searchTimeout = null;
 
@@ -47,20 +48,18 @@ function setupSearchUI() {
   const searchInput = document.getElementById('searchInput');
   const searchClearBtn = document.getElementById('searchClearBtn');
 
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      handleSearchInput(e.target.value);
-    });
+  ecouterUneFois(searchInput, 'input', (e) => {
+    handleSearchInput(e.target.value);
+  });
 
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        clearSearch();
-      }
-    });
-  }
+  ecouterUneFois(searchInput, 'keydown', (e) => {
+    if (e.key === 'Escape') {
+      clearSearch();
+    }
+  });
 
   if (searchClearBtn) {
-    searchClearBtn.addEventListener('click', clearSearch);
+    ecouterUneFois(searchClearBtn, 'click', clearSearch);
   }
 }
 
