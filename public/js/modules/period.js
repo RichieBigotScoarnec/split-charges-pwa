@@ -17,6 +17,7 @@ import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { listePeriodes } from '../utils/periodes.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -439,7 +440,7 @@ export function initPeriod() {
   // rend chaque panne indépendante et bien plus lisible.
   const periodSelect = exigerElement('periodSelect', 'changer de mois');
   if (periodSelect) {
-    periodSelect.addEventListener('change', changePeriod);
+    ecouterUneFois(periodSelect, 'change', changePeriod);
   }
 
   // Les quatre champs de revenus déclenchent la même sauvegarde.
@@ -447,11 +448,11 @@ export function initPeriod() {
     const input = exigerElement(champ.id, `enregistrer ${champ.libelle}`);
     // Le champ modifié est transmis : n'écrire que lui évite d'écraser la
     // saisie simultanée de l'autre personne.
-    if (input) input.addEventListener('change', () => saveSalaries(champ.cle));
+    ecouterUneFois(input, 'change', () => saveSalaries(champ.cle));
   }
 
   const bascule = exigerElement('extraIncomeToggle', 'afficher les revenus complémentaires');
-  if (bascule) bascule.addEventListener('click', toggleExtraIncome);
+  ecouterUneFois(bascule, 'click', toggleExtraIncome);
 
   // Populate dropdown
   populatePeriodDropdown();

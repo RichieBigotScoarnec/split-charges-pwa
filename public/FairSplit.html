@@ -849,17 +849,17 @@
         <!-- data-member : members.js y reporte les prénoms du foyer, comme sur
              les listes de payeur du formulaire complet. -->
         <div class="payer-toggle" id="quickAddPayer">
-          <button type="button" data-payer="vous" data-member="vous" class="selected">Vous</button>
-          <button type="button" data-payer="conjointe" data-member="conjointe">Conjointe</button>
-          <button type="button" data-payer="partage"><span aria-hidden="true">🤝</span> Partagé</button>
+          <button type="button" data-payer="vous" data-member="vous" class="selected" aria-pressed="true">Vous</button>
+          <button type="button" data-payer="conjointe" data-member="conjointe" aria-pressed="false">Conjointe</button>
+          <button type="button" data-payer="partage" aria-pressed="false"><span aria-hidden="true">🤝</span> Partagé</button>
         </div>
       </div>
 
       <div class="quick-add-panneau" id="quickAddPanneauRepartition">
         <div class="quick-add-header"><strong>Répartition</strong></div>
         <div class="payer-toggle">
-          <button type="button" id="quickSplitProrata" class="selected"><span aria-hidden="true">📊</span> Prorata</button>
-          <button type="button" id="quickSplit5050"><span aria-hidden="true">⚖️</span> 50-50</button>
+          <button type="button" id="quickSplitProrata" class="selected" aria-pressed="true"><span aria-hidden="true">📊</span> Prorata</button>
+          <button type="button" id="quickSplit5050" aria-pressed="false"><span aria-hidden="true">⚖️</span> 50-50</button>
         </div>
       </div>
 

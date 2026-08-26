@@ -521,7 +521,7 @@ function closeQuickAddModal() {
   if (descriptionInput) descriptionInput.value = '';
 
   document.querySelectorAll('.category-btn, .category-frequente-btn')
-    .forEach(btn => btn.classList.remove('selected'));
+    .forEach(btn => marquerLEtat(btn, false));
   updateSplitMode('prorata');
   updatePayer('vous');
   hideLocationDetach();
@@ -602,7 +602,7 @@ function populateCategoryGrid() {
     });
 
   const tuiles = visibles.map(cat => `
-    <button type="button" class="category-btn" data-category-id="${escapeHtml(cat.id)}">
+    <button type="button" class="category-btn" data-category-id="${escapeHtml(cat.id)}" aria-pressed="false">
       <div class="category-icon">${escapeHtml(cat.icon)}</div>
       <div>${escapeHtml(cat.label)}</div>
     </button>
@@ -610,7 +610,8 @@ function populateCategoryGrid() {
 
   if (reste > 0) {
     tuiles.push(`
-      <button type="button" class="category-btn category-btn--autres" id="categoryPlus">
+      <button type="button" class="category-btn category-btn--autres" id="categoryPlus"
+              aria-expanded="false">
         <div class="category-icon" aria-hidden="true">⋯</div>
         <div>${reste} autre${reste > 1 ? 's' : ''}</div>
       </button>
@@ -742,6 +743,29 @@ function selectCategory(categoryId) {
 }
 
 /**
+ * Dit qu'un bouton est choisi — à l'œil et au lecteur d'écran
+ *
+ * Les trois groupes de la saisie rapide — catégorie, mode de partage, payeur —
+ * ne marquaient leur sélection que par une classe CSS. Rien dans le balisage
+ * ne disait laquelle était retenue : un lecteur d'écran annonçait dix-neuf
+ * boutons rigoureusement identiques, et « Payé par » restait indéchiffrable
+ * alors que c'est le champ qui décide du sens du solde.
+ *
+ * `aria-pressed` est la propriété faite pour ça : elle décrit un bouton à deux
+ * états, ce que ces boutons sont, sans exiger le rôle `radio` qui imposerait
+ * une navigation par flèches et un conteneur `radiogroup`.
+ *
+ * @param {HTMLElement|null} bouton
+ * @param {boolean} choisi
+ * @returns {void}
+ */
+function marquerLEtat(bouton, choisi) {
+  if (!bouton) return;
+  bouton.classList.toggle('selected', choisi);
+  bouton.setAttribute('aria-pressed', choisi ? 'true' : 'false');
+}
+
+/**
  * Marque la catégorie choisie sur la grille
  *
  * @param {string} categoryId
@@ -749,7 +773,7 @@ function selectCategory(categoryId) {
  */
 function marquerLaCategorie(categoryId) {
   document.querySelectorAll('.category-btn').forEach(btn => {
-    btn.classList.toggle('selected', btn.dataset.categoryId === categoryId);
+    marquerLEtat(btn, btn.dataset.categoryId === categoryId);
   });
 }
 
@@ -855,8 +879,8 @@ function updateSplitMode(mode) {
 
   const prorataBtn = document.getElementById('quickSplitProrata');
   const fiftyBtn = document.getElementById('quickSplit5050');
-  if (prorataBtn) prorataBtn.classList.toggle('selected', mode === 'prorata');
-  if (fiftyBtn) fiftyBtn.classList.toggle('selected', mode === '50-50');
+  marquerLEtat(prorataBtn, mode === 'prorata');
+  marquerLEtat(fiftyBtn, mode === '50-50');
 
   if (panneauOuvert === 'quickAddPanneauRepartition') ouvrirLePanneau(null);
   else dessinerLaPhrase();
@@ -878,7 +902,7 @@ function updatePayer(payeur) {
   quickAddState.paidBy = payeur;
 
   document.querySelectorAll('#quickAddPayer button').forEach(bouton => {
-    bouton.classList.toggle('selected', bouton.dataset.payer === payeur);
+    marquerLEtat(bouton, bouton.dataset.payer === payeur);
   });
 
   if (panneauOuvert === 'quickAddPanneauPayeur') ouvrirLePanneau(null);

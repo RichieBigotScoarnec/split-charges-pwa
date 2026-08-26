@@ -11,6 +11,7 @@
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { log, error as logError } from '../utils/debug.js';
+import { ecouterUneFois } from '../utils/ecouteur.js';
 
 /**
  * Marqueur du format, vérifié à la restauration
@@ -34,7 +35,7 @@ export function initBackup() {
   window.pickBackupFile = pickBackupFile;
 
   const input = document.getElementById('backupFileInput');
-  if (input) input.addEventListener('change', handleFileSelected);
+  ecouterUneFois(input, 'change', handleFileSelected);
 
   log('💾 Sauvegarde initialisée');
 }

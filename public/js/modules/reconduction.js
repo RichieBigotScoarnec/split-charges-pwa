@@ -80,9 +80,9 @@ export async function applyRecurringCharges() {
     // chaque charge fixe en double.
     //
     // `transaction` tranche côté serveur : un seul appel obtient la marque.
-    const reservation = await database
-      .ref(getDataPath(`periods/${target}/reconductedFrom`))
-      .transaction(actuel => (actuel === null ? plan.source : undefined));
+    const empreinte = database.ref(getDataPath(`periods/${target}/reconductedFrom`));
+    const reservation = await empreinte.transaction(
+      actuel => (actuel === null ? plan.source : undefined));
 
     if (!reservation.committed) {
       log(`🔁 Reconduction vers ${target} déjà réservée par un autre appel`);
@@ -108,7 +108,27 @@ export async function applyRecurringCharges() {
       };
     }
 
-    await database.ref().update(updates);
+    // Rendre l'empreinte si la copie échoue.
+    //
+    // L'empreinte était posée avant la copie et n'était jamais reprise. Une
+    // coupure ou un refus de règle entre les deux lignes laissait le mois
+    // marqué « reconduit » sans une seule charge — et `planRecurrence` s'y
+    // arrête pour de bon : « Déjà reconduit : l'empreinte fait foi, même si
+    // les charges ont depuis été supprimées ». Aucune réouverture ne
+    // réessayait, et rien à l'écran ne le disait : le loyer disparaissait du
+    // mois, définitivement, en silence.
+    //
+    // La rendre remet le mois dans l'état où la transaction l'a trouvé, donc
+    // reconductible à la prochaine ouverture. Si cette écriture-là échoue
+    // aussi — la liaison est coupée, c'est le cas probable — le mois reste
+    // marqué : on ne peut pas faire mieux depuis l'appareil, mais l'erreur
+    // d'origine remonte au lieu d'être avalée.
+    try {
+      await database.ref().update(updates);
+    } catch (echec) {
+      await empreinte.set(null).catch(() => {});
+      throw echec;
+    }
 
     const { loadFixedCharges } = await import('./fixed-charges.js');
     await loadFixedCharges();
@@ -122,8 +142,11 @@ export async function applyRecurringCharges() {
 
     return nombre;
   } catch (error) {
-    // Un mois sans reconduction reste utilisable : on saisit à la main.
+    // Un mois sans reconduction reste utilisable : on saisit à la main. Mais
+    // il faut le dire — un mois qui devait s'ouvrir avec le loyer et qui
+    // s'ouvre vide se lit comme un mois où il n'y a rien à payer.
     logError('❌ Reconduction impossible :', error);
+    toast.error('Charges fixes non reconduites — elles le seront à la prochaine ouverture du mois');
     return 0;
   }
 }
