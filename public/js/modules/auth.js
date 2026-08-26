@@ -362,8 +362,18 @@ async function initializeAppData() {
   // elles restent en tête des étapes réseau, mais leur échec ne bloque plus
   // la suite.
   await runStep('listes personnalisées', async () => {
-    await initCustomLists();
-    populateAllSelects();
+    // `finally` : `initCustomLists` lève désormais quand la base n'a pas
+    // répondu, pour que l'étape soit nommée dans « Chargement partiel ». Mais
+    // elle a posé son repli en mémoire avant de lever, et ce repli doit
+    // atteindre les <select> — sans quoi les formulaires de charge s'ouvrent
+    // sur une liste de catégories vide, alors qu'une catégorie est
+    // obligatoire : plus aucune saisie n'est possible. Remplir puis relayer
+    // l'erreur donne les deux : une application utilisable, et un échec dit.
+    try {
+      await initCustomLists();
+    } finally {
+      populateAllSelects();
+    }
   }, failures);
 
   // Les enveloppes étiquettent les charges à l'affichage : elles doivent être
