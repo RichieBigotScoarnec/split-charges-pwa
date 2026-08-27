@@ -101,6 +101,56 @@ describe('FairSplit.html — le balisage dit ce qu\'il a l\'air de dire', () => 
     expect(enLigne.map(s => s.textContent.trim().slice(0, 60))).toEqual([]);
   });
 
+  it('la politique de sécurité est DANS le <head>, où elle s\'applique', () => {
+    // Le pire effet du `-->` orphelin, et le plus discret.
+    //
+    // Du texte nu en tête ferme `<head>` et ouvre `<body>` : tout ce qui suit
+    // y bascule, la balise de politique comprise. Or une politique posée dans
+    // `<body>` est purement ignorée — mesuré sous Chromium : le même script
+    // inline est bloqué quand la balise est en tête, et s'exécute quand elle a
+    // glissé dans le corps.
+    //
+    // Le site a donc tourné sans aucune politique de sécurité, sans que rien
+    // ne le signale : la balise était bien dans le fichier, et l'onglet
+    // Éléments la montrait — dans le corps.
+    const meta = doc.querySelector('meta[http-equiv="Content-Security-Policy"]');
+
+    expect(meta).not.toBeNull();
+    expect(doc.head.contains(meta)).toBe(true);
+  });
+
+  it('les origines locales de connect-src vont de pair avec la garde d\'hôte', () => {
+    // Deux décisions qui ne tiennent qu'ensemble.
+    //
+    // `?emulator=1` détourne la base et l'authentification vers localhost. Les
+    // origines locales doivent donc figurer dans `connect-src`, sinon les
+    // tests d'intégration et le développement local ne fonctionnent plus —
+    // une balise meta ne sait pas être conditionnelle.
+    //
+    // Ce qui rend cela acceptable en production, ce n'est pas la politique,
+    // c'est que `USE_EMULATOR` exige un hôte local : sur github.io,
+    // l'application n'ouvre aucune connexion locale, quoi que la politique
+    // autorise. Retirer cette garde sans retirer les origines rouvrirait le
+    // lien piégé — d'où ce test, qui refuse de laisser l'une sans l'autre.
+    const csp = doc.querySelector('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+    const connectSrc = csp.split(';').map(d => d.trim()).find(d => d.startsWith('connect-src'));
+    const autoriseLocal = connectSrc.includes('http://localhost:*');
+
+    const config = readFileSync(join(process.cwd(), 'public', 'js', 'config.js'), 'utf-8');
+    const gardeDHote = /HOTE_LOCAL\s*=\s*\/\^\(localhost/.test(config)
+      && /USE_EMULATOR[\s\S]{0,200}HOTE_LOCAL\.test\(location\.hostname\)/.test(config);
+
+    expect(autoriseLocal).toBe(gardeDHote);
+
+    // Et elles ne doivent jamais déborder de `connect-src` : un script ou un
+    // cadre servi depuis localhost n'a aucune raison d'être.
+    for (const directive of ['script-src', 'style-src', 'frame-src', 'img-src']) {
+      const valeur = csp.split(';').map(d => d.trim()).find(d => d.startsWith(directive));
+      expect(valeur).not.toContain('localhost');
+      expect(valeur).not.toContain('127.0.0.1');
+    }
+  });
+
   it('aucun commentaire ne cite une balise exécutable', () => {
     // La mine qui a explosé, et qu'on désamorce à la source.
     //
