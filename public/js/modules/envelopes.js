@@ -25,6 +25,7 @@ import {
   bilanCagnotte,
   versementEcrivable
 } from '../utils/versements.js';
+import { etatProvision } from '../utils/provisions.js';
 import {
   normaliserEnveloppes,
   chargesDeLEnveloppeTousMois,
@@ -502,6 +503,67 @@ function ligneEnveloppe(enveloppe, index, charges) {
       </button>
       <button type="button" class="btn-icon btn-delete envelope-delete" data-index="${index}"
               aria-label="Supprimer ${escapeHtml(enveloppe.label)}">✕</button>
+    </div>
+  `;
+}
+
+/**
+ * Ce qu'il faut mettre de côté chaque mois pour tenir l'échéance
+ *
+ * Une charge annuelle n'appartient pas au mois où elle tombe : la taxe foncière
+ * de 1 200 € payée en octobre appartient aux douze mois qui la précèdent. Sans
+ * cette ligne, octobre la portait seul et son bilan cessait de vouloir dire
+ * quelque chose.
+ *
+ * Trois états, et ils ne se disent pas de la même façon : l'objectif atteint se
+ * félicite, l'échéance dépassée alerte, et le cas courant donne un chiffre.
+ *
+ * @param {Object} provision - Sortie de `etatProvision`
+ * @returns {string} Fragment échappé, ou chaîne vide si l'enveloppe n'en est pas une
+ */
+function blocProvision(provision) {
+  if (!provision.concernee) return '';
+
+  const quand = formatDate(provision.echeance);
+
+  if (provision.atteinte) {
+    return `
+      <div class="enveloppe-provision enveloppe-provision--atteinte">
+        <div class="provision-titre"><span aria-hidden="true">✅</span> Objectif atteint</div>
+        <div class="provision-detail">
+          ${formatCurrency(provision.objectif)} réunis pour le ${escapeHtml(quand)} —
+          plus rien à mettre de côté.
+        </div>
+      </div>
+    `;
+  }
+
+  if (provision.enRetard) {
+    return `
+      <div class="enveloppe-provision enveloppe-provision--retard">
+        <div class="provision-titre"><span aria-hidden="true">⚠️</span> Échéance dépassée</div>
+        <div class="provision-detail">
+          Le ${escapeHtml(quand)} est passé et il manque
+          <strong>${formatCurrency(provision.manque)}</strong>.
+        </div>
+      </div>
+    `;
+  }
+
+  const mois = provision.restants > 1
+    ? `${provision.restants} mois`
+    : 'ce mois-ci, dernier délai';
+
+  return `
+    <div class="enveloppe-provision">
+      <div class="provision-titre">
+        <span aria-hidden="true">🗓️</span>
+        <strong>${formatCurrency(provision.parMois)}</strong> par mois
+      </div>
+      <div class="provision-detail">
+        Il manque ${formatCurrency(provision.manque)} pour le
+        ${escapeHtml(quand)} — ${escapeHtml(mois)}.
+      </div>
     </div>
   `;
 }
@@ -996,6 +1058,16 @@ async function ouvrirLaVueEnveloppe(id) {
     ? bilanCagnotte(versements, bilan.total, enveloppe.budget)
     : null;
 
+  // Ce qu'il reste à mettre de côté, mois par mois, pour tenir l'échéance.
+  //
+  // Le contenu est calculé sans passer par `estAlimentee` : une provision
+  // qu'on n'a pas encore alimentée contient bien zéro, et c'est justement le
+  // cas où la question « combien par mois ? » se pose le plus fort.
+  const contenu = cagnotte
+    ? bilanCagnotte(versements, bilan.total, enveloppe.budget).dansLePot
+    : 0;
+  const provision = etatProvision(enveloppe, contenu, moisConsulte);
+
   let modal = document.getElementById('modalVueEnveloppe');
   if (!modal) {
     modal = document.createElement('div');
@@ -1018,6 +1090,8 @@ async function ouvrirLaVueEnveloppe(id) {
         <div class="enveloppe-total-detail">${pot ? 'dans le pot' : resumeDuBilan(bilan)}</div>
         ${pot ? jaugeCagnotte(pot) : jaugeBudget(bilan, moisConsulte)}
       </div>
+
+      ${blocProvision(provision)}
 
       ${cagnotte ? blocVersements(versements, enveloppe) : ''}
 

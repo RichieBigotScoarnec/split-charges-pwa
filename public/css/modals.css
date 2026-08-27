@@ -997,6 +997,60 @@
   margin-top: var(--space-xs);
 }
 
+/* ===== CE QU'IL FAUT METTRE DE CÔTÉ ===== */
+/*
+   Une charge annuelle n'appartient pas au mois où elle tombe. Ce bloc porte la
+   division qui manquait : le reste à réunir, divisé par les mois qui restent.
+
+   Trois états, trois lavis — et jamais la couleur seule : chacun porte aussi
+   son emoji et son intitulé, faute de quoi l'information serait perdue pour
+   qui ne distingue pas les teintes (WCAG 1.4.1).
+*/
+.enveloppe-provision {
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  border: 1px solid var(--info-edge);
+}
+
+.enveloppe-provision--atteinte {
+  background: var(--success-soft);
+  border-color: var(--success-edge);
+}
+
+.enveloppe-provision--retard {
+  background: var(--warning-soft);
+  border-color: var(--warning-edge);
+}
+
+.provision-titre {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.provision-titre strong {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+
+.provision-detail {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.provision-detail strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 .enveloppe-jauge {
   height: 8px;
   margin-top: var(--space-md);
