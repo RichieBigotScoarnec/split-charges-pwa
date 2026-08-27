@@ -381,6 +381,9 @@ async function initializeAppData() {
   await runStep('dépenses privées', async () => {
     const { initPrive } = await import('./prive.js');
     initPrive();
+
+    const { initImport } = await import('./import.js');
+    initImport();
   }, failures);
 
   // Le mode de partage et le report sont des entrées de tout calcul de solde :

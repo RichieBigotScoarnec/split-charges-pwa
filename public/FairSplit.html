@@ -628,6 +628,12 @@
         <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés, tous mois confondus">
           <span aria-hidden="true">🗑️</span> Corbeille
         </button>
+        <!-- L'import n'écrase rien : il ajoute au mois affiché. C'est ce qui le
+             distingue de la restauration de sauvegarde, juste au-dessus, et
+             c'est pour cela qu'il vit avec les données plutôt qu'avec elle. -->
+        <button type="button" class="btn btn-secondary" data-action="showImportModal" title="Ajouter des charges depuis un fichier CSV">
+          <span aria-hidden="true">📥</span> Importer CSV
+        </button>
       </div>
 
       <h3 class="outils-titre">Sortir les données</h3>

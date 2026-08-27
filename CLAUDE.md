@@ -38,10 +38,15 @@ FairSplit/
 │       ├── db.js               # Abstraction DB (préfixage DATA_ROOT)
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 36 aides pures — dont onglets (quel panneau
+│       ├── modules/            # 25 modules fonctionnels
+│       └── utils/              # 45 aides pures — dont onglets (quel panneau
 │                               # l'écran montre, sous 900 px), entete (l'en-tête
 │                               # se compacte une fois sorti de l'écran),
+│                               # provisions (ce qu'il faut mettre de côté chaque
+│                               # mois pour tenir une échéance),
+│                               # recherche-historique (chercher au-delà du mois
+│                               # affiché), import-csv (lire un fichier de
+│                               # charges, sans jamais deviner le payeur),
 │                               # miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
@@ -323,6 +328,14 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 
 | **L'en-tête et le sélecteur de mois occupaient 294 px sur 844 — 35 % du premier écran** — et le découpage en onglets a alourdi ce péage : changer d'onglet remonte en haut, donc on le repaie à chaque fois. Rien ne restait épinglé au défilement : passé le premier écran, plus moyen de savoir quel mois on lisait | `public/css/onglets.css`, `public/js/utils/entete.js` | ✅ RÉSOLU 2026-08-27 — en-tête sur une ligne (159 → 70 px), sélecteur collé qui se compacte, badge effacé au défilement. Mesuré : **294 → 193 px, 35 % → 23 %**, et 54 px épinglés qui portent le mois | Rien de tout cela au-delà de 900 px |
 | Coller le mois et le solde chacun de son côté aurait exigé de décaler le second de la hauteur exacte du premier — une valeur qui change entre l'état compact et l'état de repos, donc un nombre en dur qui ment un cas sur deux | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-27 — un seul conteneur `.bandeau-colle`, où les deux s'empilent d'eux-mêmes ; `display: contents` le rend à la grille au-delà de 900 px | Un test mesure le recouvrement plutôt que de le supposer |
+
+| Une charge annuelle n'appartient pas au mois où elle tombe, et rien ne faisait la division : les enveloppes portaient un objectif, une échéance et le contenu du pot, mais octobre portait seul les 1 200 € de la taxe foncière | `public/js/utils/provisions.js` | ✅ RÉSOLU 2026-08-27 — part mensuelle calculée sur ce qui manque, divisé par ce qui reste de mois ; le retard fait monter la part au lieu de laisser filer l'objectif | Le rang ne décide de rien : une épargne datée obéit au même calcul |
+| `moisEcoules` ramène tout écart nul ou négatif à 1 — juste pour une durée écoulée, faux pour une échéance : une provision dépassée aurait réclamé un douzième de plus au lieu de la totalité | `public/js/utils/provisions.js` | ✅ RÉSOLU 2026-08-27 — `moisRestants` distinct, qui rend 0, et six contrôles sur cette seule frontière | Trois états à l'écran : atteinte, dépassée, en cours |
+| **La recherche ne voyait que le mois affiché.** Elle masquait des lignes déjà rendues — les autres mois ne sont pas dans la page, aucun réglage ne pouvait l'étendre | `public/js/utils/recherche-historique.js`, `public/js/modules/search.js` | ✅ RÉSOLU 2026-08-27 — case « tous les mois », panneau de résultats groupés, en-tête cliquable qui emmène au mois | Décochée par défaut : la lecture de tout l'historique se demande |
+| `changePeriod()` ne prend aucun argument — elle lit le sélecteur. Lui passer une période ne faisait rien du tout | `public/js/modules/search.js` | ✅ RÉSOLU 2026-08-27 — la valeur est posée là où elle se lit, et l'option créée si le mois manque | Trouvé par le test du clic sur un mois |
+| La reconduction n'écrivait que dans `fixedCharges` : une dépense régulière au montant changeant se ressaisissait chaque mois | `public/js/utils/recurrence.js`, `public/js/modules/reconduction.js` | ✅ RÉSOLU 2026-08-27 — case décochée par défaut, et la ligne repart **sans son montant** | La règle inverse des charges fixes, à dessein : le défaut y vaut « récurrente » |
+| Aucune entrée en masse : le premier mois se saisissait charge par charge, et un relevé bancaire ne pouvait pas être versé | `public/js/utils/import-csv.js`, `public/js/modules/import.js` | ✅ RÉSOLU 2026-08-27 — import CSV tolérant sur la forme, avec aperçu et motifs de rejet | **Le payeur n'est jamais deviné** : sans colonne, l'écran le demande |
+| Aucun garde-fou sur la géométrie : deux défauts d'un même jour trouvés sur des captures, pas par un test | `tests/e2e/coherence-visuelle.spec.js` | ✅ RÉSOLU 2026-08-27 — quatre propriétés sur trois onglets et quatre largeurs | Pas de captures de référence : le lissage des polices diverge entre conteneur et CI |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
