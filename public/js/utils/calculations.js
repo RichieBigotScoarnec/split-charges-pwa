@@ -116,6 +116,31 @@ export function exigeLesSalaires(shareMode) {
   return shareMode !== '50-50' && shareMode !== 'custom';
 }
 
+/**
+ * Le mode de partage sous lequel un mois donné se calcule
+ *
+ * Un mois reconduit fige le mode qui lui a été appliqué (`reconduction.js`
+ * l'écrit dans la même écriture atomique que les charges). Changer le mode
+ * global pour l'avenir ne doit donc pas réécrire un mois déjà soldé.
+ *
+ * Cette fabrique existe parce que la règle était appliquée d'un seul côté.
+ * `computeBalanceChain` lisait bien `period.shareMode`, mais l'écran —
+ * `summary.js` — ne lisait que le mode global : sur un mois reconduit au
+ * prorata puis un passage du foyer au 50-50, le bilan affiché et la chaîne de
+ * report annonçaient deux chiffres différents pour le même mois.
+ *
+ * C'est le jumeau exact du défaut `normalizePair` corrigé juste en dessous :
+ * deux formules pour un même chiffre, donc deux réponses, et aucun écran ne
+ * les montrant côte à côte. Une seule fabrique, des deux côtés.
+ *
+ * @param {string|undefined} modeDuMois - `periods/{mois}/shareMode`, s'il existe
+ * @param {string|undefined} modeGlobal - Le réglage courant du foyer
+ * @returns {string} Le mode à appliquer à ce mois
+ */
+export function resolveShareMode(modeDuMois, modeGlobal) {
+  return modeDuMois || modeGlobal || 'prorata';
+}
+
 export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver = 0 }) {
   // Le prorata porte sur l'ensemble des revenus, pas sur le seul salaire :
   // allocations, loyers perçus et activité annexe font partie de ce dont
@@ -372,7 +397,8 @@ export function computeBalanceChain(periods, { shareMode, customPercents, global
       variableCharges: toEntries(period.variableCharges),
       reimbursements: toEntries(period.reimbursements),
       // Un mois peut avoir figé son propre mode de partage (reconduction).
-      shareMode: period.shareMode || shareMode,
+      // Même fabrique que l'écran, pour qu'ils ne puissent plus diverger.
+      shareMode: resolveShareMode(period.shareMode, shareMode),
       customPercents
     });
 

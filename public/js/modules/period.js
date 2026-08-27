@@ -146,13 +146,22 @@ export async function loadPeriodData() {
   try {
     // 1. Salaires : l'instantané de la période fait foi, à défaut les globaux
     const { dbGet } = await import('../db.js');
-    const [periodSalaries, globalSalaries] = await Promise.all([
+    const [periodSalaries, globalSalaries, periodShareMode] = await Promise.all([
       dbGet(`periods/${currentPeriod}/salaries`),
-      dbGet('salaries')
+      dbGet('salaries'),
+      // Le mode figé du mois, s'il en a un. `computeBalanceChain` le lisait
+      // depuis toujours ; l'écran, jamais — et les deux annonçaient alors deux
+      // soldes différents pour le même mois reconduit.
+      dbGet(`periods/${currentPeriod}/shareMode`)
     ]);
 
     const { salaries } = resolveSalaries(periodSalaries, globalSalaries);
     setState('salaries', salaries);
+
+    // Rangé sous un nom distinct : `shareMode` reste le réglage du foyer, que
+    // l'écran des réglages lit et écrit. Les confondre ferait enregistrer le
+    // mode d'un vieux mois comme nouveau réglage global.
+    setState('shareModeDuMois', periodShareMode || null);
 
     // Les quatre champs de revenus reprennent l'instantané du mois affiché.
     restoreIncomeFields();
