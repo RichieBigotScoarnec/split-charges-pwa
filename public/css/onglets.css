@@ -183,6 +183,152 @@
   }
 }
 
+/* ===== L'EN-TÊTE, ET CE QU'IL COÛTE =====
+   ---------------------------------------------------------------------------
+   Mesuré sur un écran de 390 × 844, avant correction : **294 px avant le
+   premier contenu, soit 35 % de l'écran** — 159 px d'en-tête, 111 px de
+   sélecteur de mois, et le reste en marges. Et rien ne restait épinglé au
+   défilement : passé le premier écran, on ne savait plus quel mois on lisait.
+
+   Le découpage en onglets a rendu ce coût plus lourd qu'il n'était : changer
+   d'onglet remonte en haut, donc ces 294 px se repaient à chaque fois.
+
+   Deux corrections distinctes :
+
+   1. **Au repos** — l'en-tête tient sur une ligne : la marque à gauche, le
+      compte à droite, au lieu de trois rangées centrées.
+   2. **Au défilement** — le mois reste collé en haut, dans un bandeau qui se
+      compacte : le badge « période actuelle » s'efface, les marges se
+      resserrent. C'est la seule chose qu'il faut garder sous les yeux quand
+      on parcourt des charges.
+
+   Rien de tout cela au-delà de 900 px : la page y tient en colonnes, l'en-tête
+   n'y est pas un péage.
+   --------------------------------------------------------------------------- */
+
+/*
+   Le bandeau réunit le mois et le solde dans un seul conteneur collant.
+
+   Collés séparément, il aurait fallu décaler le solde de la hauteur exacte du
+   sélecteur — une valeur qui change entre l'état compact et l'état de repos.
+   Un nombre écrit en dur aurait fait mentir un cas sur deux : soit un trou,
+   soit un recouvrement. Réunis, ils s'empilent d'eux-mêmes.
+
+   `display: contents` par défaut : au-delà de 900 px le conteneur disparaît de
+   la mise en page et rend ses deux enfants à la grille, qui les place comme
+   avant. La requête média ci-dessous le rétablit là où il sert.
+*/
+.bandeau-colle {
+  display: contents;
+}
+
+@media (max-width: 899px) {
+  .bandeau-colle {
+    display: block;
+    position: sticky;
+    top: 0;
+    /* Au-dessus des cartes, sous les modales et la barre d'onglets. */
+    z-index: 55;
+    /* Sans fond, le contenu défilerait en transparence sous le bandeau. */
+    background: var(--dark-bg);
+  }
+
+  /*
+     L'en-tête au repos : une ligne au lieu de trois.
+
+     `text-align: center` et les trois rangées empilées appartenaient à un
+     écran d'accueil ; une fois connecté, la marque et le compte sont deux
+     informations qu'on ne lit plus — elles doivent tenir le moins de place
+     possible sans disparaître.
+  */
+  #mainApp > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    text-align: left;
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+
+  #mainApp > header h1 {
+    margin-bottom: 0;
+    font-size: 19px;
+    /* La ligne ne se coupe pas : « FairSplit » et la marque restent ensemble. */
+    white-space: nowrap;
+  }
+
+  #mainApp > header .user-info-bar {
+    margin-top: 0;
+    /* Le nom du compte cède la place avant le bouton de déconnexion : sur un
+       écran de 320 px, c'est lui qu'on peut perdre sans rien perdre. */
+    min-width: 0;
+  }
+
+  #mainApp > header .user-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /*
+     Le sélecteur au repos : resserré, pas amputé.
+
+     Les flèches gardent leurs 44 px de cible tactile et le badge « période
+     actuelle » reste — c'est le rembourrage de la carte qui cède, pas ce
+     qu'elle contient.
+  */
+  .period-navigation {
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+
+  .period-selector {
+    margin-bottom: var(--space-xs);
+  }
+
+  /*
+     L'état compact, posé par `utils/entete.js` dès que l'en-tête a quitté
+     l'écran. Le sélecteur perd son badge et ses marges — il ne garde que ce
+     qu'on doit voir en permanence : quel mois on lit, et comment en changer.
+  */
+  body[data-defile="true"] .period-navigation {
+    padding: var(--space-xs) var(--space-sm);
+    margin-bottom: var(--space-xs);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  body[data-defile="true"] .period-selector {
+    margin-bottom: 0;
+  }
+
+  /*
+     Le badge « ✓ Période actuelle » s'efface au défilement. Il répond à une
+     question qu'on se pose en arrivant — « suis-je bien sur le bon mois ? » —
+     pas à une question qu'on se pose en lisant la douzième charge.
+
+     `display: none` et non une hauteur nulle : l'élément quitte aussi l'arbre
+     d'accessibilité, au lieu d'être annoncé sans être visible.
+  */
+  body[data-defile="true"] .period-info {
+    display: none;
+  }
+
+  /*
+     La transition porte sur le rembourrage seul. Animer la hauteur d'un
+     élément collant fait sauter le contenu qui le suit à chaque image ; le
+     rembourrage se compose sans déclencher de recalcul de mise en page pour
+     le reste de la page.
+
+     Le bloc `prefers-reduced-motion` de responsive.css la neutralise pour qui
+     l'a demandé.
+  */
+  .period-navigation {
+    transition: padding var(--duration) var(--ease);
+  }
+}
+
 /* ===== LES OUTILS, RANGÉS PAR CE QU'ILS FONT ===== */
 /*
    Huit boutons alignés à égalité se lisent un par un. Deux boutons sous un

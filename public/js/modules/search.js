@@ -6,10 +6,22 @@ import { escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDateEtHeure, heureDeLaCharge } from '../utils/date.js';
 import { jourDeTri } from '../utils/tri.js';
 import { contient, plier } from '../utils/recherche-texte.js';
-import { log } from '../utils/debug.js';
+import { log, error as logError } from '../utils/debug.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+import { formatCurrency } from '../utils/format.js';
+import { moisLisible } from './envelopes.js';
+import { chargesDeTousLesMois, grouperParMois, moisRepresentes } from '../utils/recherche-historique.js';
 
 let searchTimeout = null;
+
+/**
+ * La recherche porte-t-elle sur tout l'historique ?
+ *
+ * Faux par défaut : le mois affiché reste le cas ordinaire, et une lecture de
+ * tout l'historique ne doit pas se déclencher à chaque frappe sans qu'on l'ait
+ * demandée.
+ */
+let porteeHistorique = false;
 
 /**
  * Initialise le module de recherche
@@ -61,6 +73,16 @@ function setupSearchUI() {
   if (searchClearBtn) {
     ecouterUneFois(searchClearBtn, 'click', clearSearch);
   }
+
+  // La portée. Changer d'avis relance la recherche en cours plutôt que
+  // d'obliger à retaper : c'est le même texte, posé ailleurs.
+  const portee = document.getElementById('searchTousMois');
+  ecouterUneFois(portee, 'change', () => {
+    porteeHistorique = portee.checked === true;
+    const saisi = (searchInput && searchInput.value.trim()) || '';
+    if (saisi) performSearch(saisi);
+    else clearSearch();
+  });
 }
 
 /**
@@ -90,8 +112,178 @@ function handleSearchInput(query) {
 export function performSearch(query) {
   // Le pliage — minuscules et accents — appartient à la comparaison, qui le
   // fait des deux côtés. Abaisser la casse ici ne servait qu'à moitié.
+  if (porteeHistorique) {
+    chercherDansToutLHistorique(query);
+    return;
+  }
+
+  masquerLHistorique();
   const results = searchInCharges(query);
   displaySearchResults(results, query);
+}
+
+/**
+ * Cherche dans tous les mois, et rend les résultats dans leur propre panneau
+ *
+ * Le filtrage des listes ne peut pas servir ici : les autres mois ne sont pas
+ * dans la page. Les listes du mois sont donc rendues intactes, et la réponse
+ * s'affiche à part — groupée par mois, parce que la question posée est presque
+ * toujours « c'était quand ? ».
+ *
+ * La lecture n'a lieu qu'à la frappe, une fois la portée cochée : c'est le même
+ * coût que l'ouverture de la corbeille, et il ne pèse pas sur le chargement.
+ *
+ * @param {string} query
+ * @returns {Promise<void>}
+ */
+async function chercherDansToutLHistorique(query) {
+  const panneau = document.getElementById('searchHistorique');
+  const info = document.getElementById('searchResultsInfo');
+  if (!panneau) return;
+
+  // Les listes du mois reprennent leur état normal : en portée historique,
+  // elles ne sont plus le support de la réponse.
+  showAllCharges();
+
+  panneau.hidden = false;
+  panneau.innerHTML = '<p class="search-historique-attente">Recherche dans tous les mois…</p>';
+
+  let tout;
+  try {
+    const { dbGet } = await import('../db.js');
+    tout = chargesDeTousLesMois(await dbGet('periods'));
+  } catch (erreur) {
+    logError('❌ Lecture de l\'historique impossible :', erreur);
+    panneau.innerHTML = '<p class="search-historique-attente">Historique illisible — réessayez.</p>';
+    return;
+  }
+
+  // La saisie a pu changer pendant la lecture : ne rendre que si la requête
+  // affichée est encore celle qu'on vient de traiter.
+  const champ = document.getElementById('searchInput');
+  if (champ && champ.value.trim() !== query) return;
+
+  const resultats = tout.filter(entree => matchesQuery(entree, query));
+
+  if (info) {
+    const mois = moisRepresentes(resultats);
+    info.textContent = resultats.length === 0
+      ? `Aucun résultat pour « ${query} » dans l'historique`
+      : `${resultats.length} résultat${resultats.length > 1 ? 's' : ''} dans ${mois} mois`;
+    info.classList.add('visible');
+  }
+
+  const bouton = document.getElementById('searchClearBtn');
+  if (bouton) bouton.classList.add('visible');
+
+  panneau.innerHTML = resultats.length === 0
+    ? '<p class="search-historique-attente">Rien trouvé, tous mois confondus.</p>'
+    : grouperParMois(resultats).map(rendreUnMois).join('');
+
+  brancherLesMois(panneau);
+}
+
+/**
+ * Un mois de résultats, avec son en-tête et ses lignes
+ *
+ * @param {{periode: string, lignes: Array<Object>}} groupe
+ * @returns {string} Fragment échappé
+ */
+function rendreUnMois(groupe) {
+  const total = groupe.lignes.reduce((somme, ligne) => {
+    const montant = Number(ligne.amount);
+    return somme + (Number.isFinite(montant) ? montant : 0);
+  }, 0);
+
+  return `
+    <div class="search-mois">
+      <button type="button" class="search-mois-entete" data-periode="${escapeHtml(groupe.periode)}">
+        <span class="search-mois-nom">${escapeHtml(moisLisible(groupe.periode))}</span>
+        <span class="search-mois-compte">${groupe.lignes.length} · ${formatCurrency(total)}</span>
+      </button>
+      ${groupe.lignes.map(rendreUneLigne).join('')}
+    </div>
+  `;
+}
+
+/**
+ * Une ligne de résultat
+ *
+ * @param {Object} ligne
+ * @returns {string} Fragment échappé
+ */
+function rendreUneLigne(ligne) {
+  const quand = jourDeTri(ligne);
+  const montant = Number(ligne.amount);
+
+  return `
+    <div class="search-ligne">
+      <div class="search-ligne-info">
+        <span class="search-ligne-titre">${escapeHtml(ligne.description || ligne.note || 'Sans libellé')}</span>
+        <span class="search-ligne-detail">
+          ${escapeHtml(ligne.typeLabel)}${quand ? ` · ${escapeHtml(formatDateEtHeure(ligne))}` : ''}
+        </span>
+      </div>
+      <span class="search-ligne-montant">${Number.isFinite(montant) ? formatCurrency(montant) : '—'}</span>
+    </div>
+  `;
+}
+
+/**
+ * Un en-tête de mois emmène au mois en question
+ *
+ * Trouver « Machine à laver, juin 2026 » sans pouvoir s'y rendre laisserait le
+ * travail à moitié fait.
+ *
+ * @param {HTMLElement} panneau
+ * @returns {void}
+ */
+function brancherLesMois(panneau) {
+  panneau.querySelectorAll('.search-mois-entete').forEach(entete => {
+    entete.addEventListener('click', () => allerAuMois(entete.dataset.periode));
+  });
+}
+
+/**
+ * Amène l'application sur un mois
+ *
+ * `changePeriod()` ne prend **aucun argument** : elle lit le sélecteur. Lui
+ * passer une période ne faisait donc rien du tout — le clic restait sans effet,
+ * et l'écran donnait raison au défaut. On pose la valeur là où elle se lit,
+ * puis on emprunte le même chemin que le sélecteur lui-même.
+ *
+ * @param {string} periode - Clé AAAA-MM
+ * @returns {void}
+ */
+function allerAuMois(periode) {
+  const select = document.getElementById('periodSelect');
+  if (!select || !periode) return;
+
+  // L'option peut manquer : le sélecteur se remplit au chargement, et un mois
+  // écrit depuis l'autre téléphone après coup n'y figure pas. La créer plutôt
+  // que de laisser le clic sans effet — et la ranger à sa place, la liste étant
+  // ordonnée du plus récent au plus ancien.
+  if (![...select.options].some(option => option.value === periode)) {
+    const option = document.createElement('option');
+    option.value = periode;
+    option.textContent = moisLisible(periode);
+    const suivante = [...select.options].find(autre => autre.value < periode);
+    select.insertBefore(option, suivante || null);
+  }
+
+  select.value = periode;
+  if (typeof window.changePeriod === 'function') window.changePeriod();
+}
+
+/**
+ * Referme le panneau d'historique
+ * @returns {void}
+ */
+function masquerLHistorique() {
+  const panneau = document.getElementById('searchHistorique');
+  if (!panneau) return;
+  panneau.hidden = true;
+  panneau.innerHTML = '';
 }
 
 /**
@@ -220,11 +412,16 @@ function displaySearchResults(results, query) {
   if (!searchResultsInfo) return;
 
   // Afficher le nombre de résultats
+  //
+  // `textContent` et non `innerHTML` : cette ligne est du texte, elle ne porte
+  // aucun balisage. L'écrire en HTML obligeait à échapper la requête — un
+  // échappement de plus à ne pas oublier, pour un gain nul — et ouvrait un site
+  // d'injection que le plafond d'avertissements du dépôt compte à raison.
   if (results.length === 0) {
-    searchResultsInfo.innerHTML = `Aucun résultat pour "${escapeHtml(query)}"`;
+    searchResultsInfo.textContent = `Aucun résultat pour "${query}"`;
     searchResultsInfo.classList.add('visible');
   } else {
-    searchResultsInfo.innerHTML = `${results.length} résultat${results.length > 1 ? 's' : ''} trouvé${results.length > 1 ? 's' : ''}`;
+    searchResultsInfo.textContent = `${results.length} résultat${results.length > 1 ? 's' : ''} trouvé${results.length > 1 ? 's' : ''}`;
     searchResultsInfo.classList.add('visible');
   }
 
@@ -317,6 +514,7 @@ export function clearSearch() {
 
   // Réafficher toutes les charges
   showAllCharges();
+  masquerLHistorique();
 }
 
 /**

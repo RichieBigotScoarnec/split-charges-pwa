@@ -30,7 +30,8 @@ const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
  * @param {string} params.target - Période à remplir (AAAA-MM)
  * @param {string} params.currentMonth - Mois calendaire courant (AAAA-MM)
  * @param {Object} params.periods - Nœud `periods` complet, tel que lu en base
- * @returns {{source: string, charges: Array<Object>}|null} Le plan, ou null s'il n'y a rien à faire
+ * @returns {{source: string, charges: Array<Object>, variables: Array<Object>}|null}
+ *   Le plan, ou null s'il n'y a rien à faire
  */
 export function planRecurrence({ target, currentMonth, periods }) {
   if (!PERIOD_KEY.test(target || '')) return null;
@@ -52,7 +53,30 @@ export function planRecurrence({ target, currentMonth, periods }) {
   if (!source) return null;
 
   const charges = recurringCharges(periods[source].fixedCharges);
-  return charges.length > 0 ? { source, charges } : null;
+  const variables = variablesReconductibles(periods[source].variableCharges);
+  return (charges.length > 0 || variables.length > 0)
+    ? { source, charges, variables }
+    : null;
+}
+
+/**
+ * Charges variables actives et **explicitement** marquées à reconduire
+ *
+ * L'inverse exact de `recurringCharges` sur un point décisif : ici, l'absence
+ * de l'indicateur vaut **non**. Une charge fixe sans `recurring` est récurrente
+ * — c'est le défaut de son formulaire, et le loyer d'avant l'indicateur doit
+ * continuer d'être reconduit. Appliquer la même règle aux variables recopierait
+ * d'un coup tout ce que le foyer a jamais saisi : chaque course, chaque
+ * restaurant, chaque essence, tous les mois. Il faut donc l'avoir demandé.
+ *
+ * @param {*} node - Nœud `variableCharges` d'une période
+ * @returns {Array<Object>}
+ */
+function variablesReconductibles(node) {
+  if (!node || typeof node !== 'object') return [];
+  return Object.values(node)
+    .filter(charge => charge && typeof charge === 'object'
+      && charge.deleted !== true && charge.recurring === true);
 }
 
 /**
@@ -72,7 +96,11 @@ function findSource(periods, target) {
     .reverse();
 
   for (const key of anterieures) {
-    if (recurringCharges(periods[key].fixedCharges).length > 0) return key;
+    const mois = periods[key] || {};
+    // Un foyer peut n'avoir aucune charge fixe et une essence mensuelle : ne
+    // regarder que les fixes lui refuserait la reconduction sans rien dire.
+    if (recurringCharges(mois.fixedCharges).length > 0) return key;
+    if (variablesReconductibles(mois.variableCharges).length > 0) return key;
   }
   return null;
 }

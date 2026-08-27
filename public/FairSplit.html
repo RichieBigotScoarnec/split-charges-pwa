@@ -227,6 +227,20 @@
       </div>
     </header>
 
+    <!-- ==================== BANDEAU COLLÉ ====================
+      Le mois et le solde, gardés sous les yeux pendant le défilement.
+
+      Les deux sont réunis dans un seul conteneur collant plutôt que collés
+      chacun de son côté : empilés indépendamment, il aurait fallu donner au
+      solde un décalage égal à la hauteur du sélecteur — une valeur qui change
+      selon que le bandeau est compact ou non, et qu'un nombre écrit en dur
+      aurait fait mentir dans un cas sur deux. Réunis, ils s'empilent d'eux-mêmes.
+
+      Au-delà de 900 px le conteneur s'efface (`display: contents`) et rend ses
+      deux enfants à la grille, qui les place comme avant.
+    -->
+    <div class="bandeau-colle">
+
     <!-- Period Navigation -->
     <nav aria-label="Navigation des périodes">
     <div class="card period-navigation">
@@ -245,8 +259,12 @@
     </nav>
 
     <!-- Solde net, maintenu visible pendant le défilement. Rempli par
-         summary.js ; masqué tant qu'aucun bilan n'est calculable. -->
+         summary.js ; masqué tant qu'aucun bilan n'est calculable, et replié
+         par `barre-solde.js` tant que le bilan dit déjà la même chose. -->
     <div id="balanceBar" class="balance-bar" role="status" hidden></div>
+
+    </div>
+    <!-- ==================== fin du bandeau collé ==================== -->
 
     <!-- Summary Section -->
     <!-- Colonne consultation : ce qu'on lit.
@@ -340,7 +358,23 @@
         <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
         <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
       </div>
+
+      <!-- La portée de la recherche.
+           Elle ne voyait que le mois affiché — et pour cause : elle masquait
+           des lignes déjà rendues, et les autres mois ne sont pas dans la page.
+           « Quand a-t-on acheté la machine à laver ? » restait sans réponse
+           alors que la donnée est là. Décochée par défaut : le mois courant
+           reste le cas ordinaire, et l'historique se lit à la demande. -->
+      <label class="search-portee">
+        <input type="checkbox" id="searchTousMois" />
+        <span>Chercher dans tous les mois</span>
+      </label>
+
       <div class="search-results-info" id="searchResultsInfo"></div>
+
+      <!-- Les résultats des autres mois. Le filtrage des listes ne peut pas
+           les montrer : ils n'y sont pas. -->
+      <div class="search-historique" id="searchHistorique" hidden></div>
     </div>
 
     <!-- Variable Charges Section -->
@@ -747,6 +781,22 @@
           </label>
         </div>
         <p id="variableChargePersoAide" class="form-aide">Elle n'entre pas dans le solde du couple : personne ne doit rien à personne dessus.</p>
+
+        <!-- Reconduite d'un mois sur l'autre, sans son montant.
+             Décochée par défaut, et il le faut : une charge variable est par
+             définition d'un montant qui change. La recopier avec son chiffre
+             inventerait de l'argent dans une application dont tout l'objet est
+             un solde exact — la ligne repart donc à zéro, prête à recevoir le
+             montant du mois. -->
+        <div class="form-group form-group-toggle">
+          <label for="variableChargeRecurring">Reconduire chaque mois</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargeRecurring"
+                   aria-describedby="variableChargeRecurringAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="variableChargeRecurringAide" class="form-aide">La ligne réapparaît chaque mois, sans montant : à vous d'y mettre celui du mois.</p>
 
         <div class="form-group form-group-toggle">
           <label for="variableChargeSplitToggle">Répartition spéciale</label>

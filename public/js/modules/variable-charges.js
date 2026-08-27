@@ -281,6 +281,11 @@ async function enregistrerVariableCharge() {
   const perimetre = document.getElementById('variableChargePerso')?.checked === true
     ? PERIMETRES.SOLO
     : PERIMETRES.COMMUN;
+  // Reconduction : **il faut l'avoir demandée**. Une charge fixe sans
+  // indicateur est récurrente — c'est le défaut de son formulaire — mais
+  // appliquer ce défaut aux variables recopierait chaque mois tout ce que le
+  // foyer a jamais saisi.
+  const recurring = document.getElementById('variableChargeRecurring')?.checked === true;
   // Chaîne vide plutôt que `null` quand aucune enveloppe n'est choisie :
   // Firebase supprime la clé sur `null`, et une édition qui détache une charge
   // de son enveloppe doit effacer l'ancienne valeur, pas la laisser en place.
@@ -354,6 +359,7 @@ async function enregistrerVariableCharge() {
       category,
       paidBy,
       perimetre,
+      recurring,
       envelope,
       date,
       heure,
@@ -417,6 +423,9 @@ export function editVariableCharge(chargeId) {
   const persoEl = document.getElementById('variableChargePerso');
   if (persoEl) persoEl.checked = estSolo(charge);
   window.toggleVariableChargePerso?.();
+
+  const recurringEl = document.getElementById('variableChargeRecurring');
+  if (recurringEl) recurringEl.checked = charge.recurring === true;
   // Repeupler plutôt que fixer la valeur : c'est ce qui permet de rattacher
   // après coup une dépense oubliée, y compris à une enveloppe close depuis.
   populateEnvelopeSelect('variableChargeEnvelope', charge.envelope || '');
@@ -593,13 +602,19 @@ export function renderVariableCharges() {
       const perimetreTag = estSolo(charge)
         ? '<span class="charge-perimetre-tag">perso</span>'
         : '';
+      // Une charge reconduite repart sans montant : la ligne doit le dire,
+      // faute de quoi un « 0,00 € » se lit comme une dépense nulle plutôt que
+      // comme une saisie qui attend son chiffre.
+      const aCompleterTag = charge.recurring === true && !(Number(charge.amount) > 0)
+        ? '<span class="charge-a-completer">à compléter</span>'
+        : '';
       const locationName = charge.location ? (charge.location.name || charge.location.place) : null;
       const locationTag = locationName
         ? `<span class="charge-location">📍 ${escapeHtml(locationName)}</span>`
         : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}${perimetreTag}</span>
+          <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}${perimetreTag}${aCompleterTag}</span>
           <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
           ${etiquetteEnveloppe(charge)}
           ${locationTag}

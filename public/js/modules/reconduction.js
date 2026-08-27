@@ -108,6 +108,28 @@ export async function applyRecurringCharges() {
       };
     }
 
+    // Les charges variables reconduites repartent **sans leur montant**.
+    //
+    // Une charge variable est par définition d'un montant qui change : l'essence,
+    // la cantine, le panier de la semaine. La recopier avec son chiffre
+    // inventerait de l'argent — et pas seulement à l'écran de celui qui ouvre
+    // l'application : le solde est partagé, et il serait faux pour les deux
+    // jusqu'à ce que quelqu'un corrige. Dans une application dont tout l'objet
+    // est un solde exact, c'est le défaut le plus cher qu'on puisse introduire.
+    //
+    // Zéro ne fausse rien : `calculations.js` le compte pour zéro, et la ligne
+    // se signale « à compléter » dans la liste.
+    for (const charge of plan.variables || []) {
+      const key = database.ref().push().key;
+      const date = reporterDansLaPeriode(charge.date, target);
+      updates[getDataPath(`periods/${target}/variableCharges/${key}`)] = {
+        ...charge,
+        amount: 0,
+        ...(date ? { date } : { date: null }),
+        timestamp: Date.now()
+      };
+    }
+
     // Le mois naissant fige le mode de partage qui lui est appliqué.
     //
     // `calculations.js` lit déjà `period.shareMode || shareMode` — « un mois

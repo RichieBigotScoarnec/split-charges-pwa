@@ -771,6 +771,24 @@
   vertical-align: middle;
 }
 
+/*
+   Une charge variable reconduite repart sans son montant : recopier le chiffre
+   d'un mois sur l'autre inventerait de l'argent dans un solde partagé. La ligne
+   doit donc dire ce qu'elle attend — sans quoi « 0,00 € » se lit comme une
+   dépense nulle et non comme une saisie inachevée.
+*/
+.charge-a-completer {
+  display: inline-block;
+  background: var(--warning-soft);
+  color: var(--warning-color);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .charge-ponctuel {
   display: inline-block;
   background: var(--warning-soft);

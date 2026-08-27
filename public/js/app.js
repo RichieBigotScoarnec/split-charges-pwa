@@ -26,6 +26,7 @@ import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
 import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
 import { refuserLEncadrement } from './utils/cadre.js';
 import { initOnglets } from './utils/onglets.js';
+import { suivreLEntete } from './utils/entete.js';
 
 /**
  * Ouvre la saisie rapide si l'URL le demande
@@ -128,6 +129,11 @@ async function initApp() {
     // brancher ici plutôt qu'après la connexion évite qu'un premier appui,
     // donné pendant que les données arrivent, ne tombe dans le vide.
     initOnglets();
+
+    // L'en-tête se compacte une fois sorti de l'écran, et le mois reste collé
+    // en haut. Comme les onglets : rien à voir avec Firebase, et un premier
+    // défilement pendant le chargement ne doit pas tomber dans le vide.
+    suivreLEntete();
 
     // 3 bis. Le raccourci ouvre la saisie tout de suite
     //
