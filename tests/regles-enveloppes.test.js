@@ -186,3 +186,69 @@ describe('L\'allocation et le rythme, bornés côté serveur', () => {
     }
   });
 });
+
+describe('Les versements : un nœud neuf, donc refusé tant qu\'il n\'est pas nommé', () => {
+  // `household` refuse tout ce qu'elle ne connaît pas — `$autre` y vaut
+  // `.validate: false`. Un nœud ajouté sans être déclaré est donc rejeté côté
+  // serveur, longtemps après que l'écran a affiché un formulaire crédible et
+  // un toast de succès. C'est exactement ce qui était arrivé à
+  // `reconductedFrom` : les charges fixes n'étaient reconduites aucun mois.
+  //
+  // Rejoué contre le moteur réel : 14 écritures, 5 acceptées et 9 refusées,
+  // toutes conformes.
+  it('le nœud existe dans les deux espaces de données', () => {
+    for (const espace of ESPACES) {
+      expect(regles[espace].versements, `versements manque sous ${espace}`).toBeDefined();
+    }
+  });
+
+  it('un versement exige un montant ET un auteur', () => {
+    // Sans auteur, « vous avez mis 400, elle 300 » devient incalculable — et
+    // c'est la seule question qu'on pose à un pot commun.
+    for (const espace of ESPACES) {
+      expect(regles[espace].versements.$enveloppe.$versement['.validate'])
+        .toContain("hasChildren(['montant', 'auteur'])");
+    }
+  });
+
+  it('le montant est strictement positif : un versement négatif serait un retrait déguisé', () => {
+    for (const espace of ESPACES) {
+      const v = regles[espace].versements.$enveloppe.$versement.montant['.validate'];
+      expect(v).toContain('isNumber()');
+      expect(v).toContain('> 0');
+      expect(v).toContain('<= 10000000');
+    }
+  });
+
+  it('l\'auteur désigne une personne, jamais « partage »', () => {
+    for (const espace of ESPACES) {
+      const v = regles[espace].versements.$enveloppe.$versement.auteur['.validate'];
+      expect(v).toContain("=== 'vous'");
+      expect(v).toContain("=== 'conjointe'");
+      expect(v).not.toContain("'partage'");
+    }
+  });
+
+  it('la date suit le format des autres dates, chaîne vide comprise', () => {
+    for (const espace of ESPACES) {
+      const v = regles[espace].versements.$enveloppe.$versement.date['.validate'];
+      expect(v).toContain("newData.val() === ''");
+      expect(v).toContain('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+  });
+
+  it('refuse un champ que le code n\'écrit pas', () => {
+    // La même posture que pour les enveloppes et les catégories : ce qui n'est
+    // pas prévu est refusé, plutôt que stocké au cas où.
+    for (const espace of ESPACES) {
+      expect(regles[espace].versements.$enveloppe.$versement.$autre['.validate']).toBe(false);
+    }
+  });
+
+  it('la suppression reste douce : `deleted` est déclaré', () => {
+    for (const espace of ESPACES) {
+      expect(regles[espace].versements.$enveloppe.$versement.deleted['.validate'])
+        .toBe('newData.isBoolean()');
+    }
+  });
+});
