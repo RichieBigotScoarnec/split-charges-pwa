@@ -40,6 +40,11 @@ describe('Lecture d\'une enveloppe venue de la base', () => {
       cloturee: false
     });
 
+    // La forme exacte, et non un sous-ensemble : c'est ce qui a signalé
+    // l'arrivée des champs `nature`, `report`, `rang` et `perimetre`. Les
+    // valeurs ci-dessous sont donc aussi la déclaration de leurs défauts — une
+    // enveloppe écrite avant qu'ils existent est une cagnotte commune sans
+    // rang, c'est-à-dire exactement ce qu'elle était.
     expect(lue).toEqual({
       id: 'vacances-ete',
       label: 'Vacances été',
@@ -47,7 +52,12 @@ describe('Lecture d\'une enveloppe venue de la base', () => {
       budget: 1200,
       debut: '2026-07-04',
       fin: '2026-07-18',
-      cloturee: false
+      cloturee: false,
+      nature: 'cagnotte',
+      report: false,
+      rang: null,
+      perimetre: 'commun',
+      proprietaire: null
     });
   });
 
@@ -340,38 +350,38 @@ describe('Le bilan d\'une enveloppe', () => {
 
   it('additionne toute la durée, et non le seul mois consulté', () => {
     // C'est le chiffre qui manquait : 58 + 600 + 42, et non les 658 d'août.
-    expect(bilanEnveloppe(charges, null).total).toBe(700);
+    expect(bilanEnveloppe(charges, { nature: 'cagnotte', budget: null }).total).toBe(700);
   });
 
   it('compte les dépenses et les mois traversés', () => {
-    const bilan = bilanEnveloppe(charges, null);
+    const bilan = bilanEnveloppe(charges, { nature: 'cagnotte', budget: null });
     expect(bilan.nombre).toBe(3);
     expect(bilan.mois).toBe(2);
   });
 
   it('situe le total par rapport au budget', () => {
-    const bilan = bilanEnveloppe(charges, 1000);
+    const bilan = bilanEnveloppe(charges, { nature: 'cagnotte', budget: 1000 });
     expect(bilan.reste).toBe(300);
     expect(bilan.part).toBe(70);
     expect(bilan.depasse).toBe(false);
   });
 
   it('annonce un dépassement sans faire sortir la barre de son cadre', () => {
-    const bilan = bilanEnveloppe(charges, 500);
+    const bilan = bilanEnveloppe(charges, { nature: 'cagnotte', budget: 500 });
     expect(bilan.depasse).toBe(true);
     expect(bilan.reste).toBe(-200);
     expect(bilan.part, 'la barre déborderait').toBe(100);
   });
 
   it('sans budget, ne compare rien', () => {
-    const bilan = bilanEnveloppe(charges, null);
+    const bilan = bilanEnveloppe(charges, { nature: 'cagnotte', budget: null });
     expect(bilan.reste).toBeNull();
     expect(bilan.part).toBeNull();
     expect(bilan.depasse).toBe(false);
   });
 
   it('ne lève pas sur une liste vide', () => {
-    expect(bilanEnveloppe([], 500).total).toBe(0);
+    expect(bilanEnveloppe([], { nature: 'cagnotte', budget: 500 }).total).toBe(0);
     expect(bilanEnveloppe(null, null).nombre).toBe(0);
   });
 });

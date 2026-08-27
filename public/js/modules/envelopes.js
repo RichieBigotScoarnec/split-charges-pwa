@@ -16,11 +16,14 @@ import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
-import { formatDate } from '../utils/date.js';
+import { formatDate, dateDuJour } from '../utils/date.js';
 import {
   normaliserEnveloppes,
   chargesDeLEnveloppeTousMois,
   bilanEnveloppe,
+  resteParJour,
+  NATURES,
+  RANGS,
   enveloppesOuvertes,
   enveloppeParId,
   budgetLisible,
@@ -174,10 +177,76 @@ let _enEdition = null;
  * @returns {Array<Object>}
  */
 function chargesDuMois() {
+  // La période est estampillée ici, et ce n'est pas décoratif : `chargesRetenues`
+  // cadre une enveloppe mensuelle sur `charge.periode`, que l'état ne porte pas
+  // — les charges y sont déjà celles du mois courant, la clé est implicite.
+  // Passées telles quelles au bilan, elles seraient toutes écartées et une
+  // enveloppe mensuelle afficherait zéro dépense un mois où elle en a. Le piège
+  // n'attend que le prochain appelant ; il est refermé à la source.
+  const periode = getState('currentPeriod');
   return [
     ...(getState('fixedCharges') || []),
     ...(getState('variableCharges') || [])
-  ];
+  ].map(charge => (charge && charge.periode ? charge : { ...charge, periode }));
+}
+
+/**
+ * L'ordre des rangs, et ce qu'il raconte
+ *
+ * Ce n'est pas alphabétique : c'est l'ordre dans lequel l'argent quitte le
+ * compte le jour de paie. Les charges fixes partent sans décision, les
+ * provisions au douzième ensuite, l'épargne avant les enveloppes mensuelles —
+ * et ce qui reste après devient le budget du mois. Une épargne alimentée par le
+ * reliquat n'est pas une épargne, c'est un hasard heureux, et une liste rangée
+ * dans cet ordre le rappelle à chaque ouverture.
+ *
+ * « À classer » ferme la marche plutôt que d'être caché : une enveloppe sans
+ * rang est un choix qui reste à faire, et l'escamoter reviendrait à décider à
+ * la place de quelqu'un.
+ */
+const ORDRE_DES_RANGS = [
+  { cle: RANGS.FIXE, titre: 'Fixe', aide: 'montant connu, date connue' },
+  { cle: RANGS.PROVISION, titre: 'Provisions', aide: 's\'accumulent vers une date connue' },
+  { cle: RANGS.EPARGNE, titre: 'Épargne & projets', aide: 's\'accumulent sans date' },
+  { cle: RANGS.MENSUEL, titre: 'Mensuel', aide: 'se rechargent le 1er' },
+  { cle: RANGS.RESERVE, titre: 'Réserve', aide: 'pour l\'imprévu' },
+  { cle: null, titre: 'À classer', aide: 'sans rang déclaré' }
+];
+
+/**
+ * Range les enveloppes par rang, en gardant leur position d'origine
+ *
+ * L'index passé aux boutons doit rester celui de la liste réelle : c'est lui
+ * qui désigne l'enveloppe à éditer ou à supprimer. Grouper à l'affichage sans
+ * le conserver ferait supprimer la mauvaise.
+ *
+ * @param {Array<Object>} enveloppes
+ * @param {Array<Object>} charges
+ * @returns {string} Fragment échappé
+ */
+function grouperParRang(enveloppes, charges) {
+  const avecRang = enveloppes.map((enveloppe, index) => ({ enveloppe, index }));
+
+  return ORDRE_DES_RANGS.map(({ cle, titre, aide }) => {
+    const dedans = avecRang.filter(({ enveloppe }) => (enveloppe.rang || null) === cle);
+    if (dedans.length === 0) return '';
+
+    const corps = dedans.map(({ enveloppe, index }) => (
+      index === _enEdition
+        ? formulaireEdition(enveloppe, index)
+        : ligneEnveloppe(enveloppe, index, charges)
+    )).join('');
+
+    return `
+      <div class="envelope-rang">
+        <h3 class="envelope-rang-titre">
+          ${escapeHtml(titre)}
+          <small class="envelope-rang-aide">${escapeHtml(aide)}</small>
+        </h3>
+        ${corps}
+      </div>
+    `;
+  }).join('');
 }
 
 /**
@@ -201,11 +270,7 @@ function showManageEnvelopesModal() {
 
   const lignes = enveloppes.length === 0
     ? '<p class="empty-state">Aucune enveloppe. Créez-en une pour regrouper des dépenses qui vont ensemble — des vacances, un déménagement.</p>'
-    : enveloppes.map((enveloppe, index) => (
-      index === _enEdition
-        ? formulaireEdition(enveloppe, index)
-        : ligneEnveloppe(enveloppe, index, charges)
-    )).join('');
+    : grouperParRang(enveloppes, charges);
 
   modal.innerHTML = `
     <div class="modal manage-lists-modal">
@@ -238,8 +303,41 @@ function showManageEnvelopesModal() {
           </div>
           <div class="envelope-add-details">
             <div class="envelope-field">
-              <label for="envelopeNewBudget">Budget (€, facultatif)</label>
+              <label for="envelopeNewNature">Nature</label>
+              <select id="envelopeNewNature">
+                <option value="cagnotte">Cagnotte — s'accumule</option>
+                <option value="mensuelle">Mensuelle — se recharge le 1er</option>
+              </select>
+            </div>
+            <div class="envelope-field">
+              <label for="envelopeNewRang">Rang</label>
+              <select id="envelopeNewRang">
+                <option value="">— à classer —</option>
+                <option value="fixe">Fixe</option>
+                <option value="mensuel">Mensuel</option>
+                <option value="provision">Provision</option>
+                <option value="epargne">Épargne</option>
+                <option value="reserve">Réserve</option>
+              </select>
+            </div>
+            <div class="envelope-field">
+              <label for="envelopeNewBudget" id="envelopeNewBudgetLabel">Objectif (€, facultatif)</label>
               <input type="text" id="envelopeNewBudget" placeholder="Ex : 1200" inputmode="decimal" maxlength="10" />
+            </div>
+            <div class="envelope-field envelope-field--report" id="envelopeNewReportChamp" hidden>
+              <label for="envelopeNewReport">Reporter le non-dépensé</label>
+              <select id="envelopeNewReport">
+                <option value="non">Non — repart à plein chaque mois</option>
+                <option value="oui">Oui — le reliquat s'ajoute</option>
+              </select>
+            </div>
+            <div class="envelope-field">
+              <label for="envelopeNewPerimetre">Pour qui</label>
+              <select id="envelopeNewPerimetre">
+                <option value="commun">Le foyer</option>
+                <option value="vous">Moi seul</option>
+                <option value="conjointe">Ma conjointe seule</option>
+              </select>
             </div>
             <div class="envelope-field">
               <label for="envelopeNewDebut">Du (facultatif)</label>
@@ -296,8 +394,33 @@ function formulaireEdition(enveloppe, index) {
       </div>
       <div class="envelope-add-details">
         <div class="envelope-field">
-          <label for="envelopeEditBudget">Budget (€, facultatif)</label>
+          <label for="envelopeEditNature">Nature</label>
+          <select id="envelopeEditNature">
+            <option value="cagnotte"${enveloppe.nature === 'cagnotte' ? ' selected' : ''}>Cagnotte — s'accumule</option>
+            <option value="mensuelle"${enveloppe.nature === 'mensuelle' ? ' selected' : ''}>Mensuelle — se recharge le 1er</option>
+          </select>
+        </div>
+        <div class="envelope-field">
+          <label for="envelopeEditRang">Rang</label>
+          <select id="envelopeEditRang">
+            ${['', 'fixe', 'mensuel', 'provision', 'epargne', 'reserve'].map(valeur => `
+              <option value="${valeur}"${(enveloppe.rang || '') === valeur ? ' selected' : ''}>${
+                { '': '— à classer —', fixe: 'Fixe', mensuel: 'Mensuel', provision: 'Provision', epargne: 'Épargne', reserve: 'Réserve' }[valeur]
+              }</option>`).join('')}
+          </select>
+        </div>
+        <div class="envelope-field">
+          <label for="envelopeEditBudget" id="envelopeEditBudgetLabel">${
+            enveloppe.nature === 'mensuelle' ? 'Allocation par mois (€, facultatif)' : 'Objectif (€, facultatif)'
+          }</label>
           <input type="text" id="envelopeEditBudget" value="${enveloppe.budget ?? ''}" inputmode="decimal" maxlength="10" />
+        </div>
+        <div class="envelope-field envelope-field--report" id="envelopeEditReportChamp"${enveloppe.nature === 'mensuelle' ? '' : ' hidden'}>
+          <label for="envelopeEditReport">Reporter le non-dépensé</label>
+          <select id="envelopeEditReport">
+            <option value="non"${enveloppe.report ? '' : ' selected'}>Non — repart à plein chaque mois</option>
+            <option value="oui"${enveloppe.report ? ' selected' : ''}>Oui — le reliquat s'ajoute</option>
+          </select>
         </div>
         <div class="envelope-field">
           <label for="envelopeEditDebut">Du (facultatif)</label>
@@ -326,8 +449,20 @@ function formulaireEdition(enveloppe, index) {
  */
 function ligneEnveloppe(enveloppe, index, charges) {
   const total = totalEnveloppe(charges, enveloppe.id);
-  const budget = enveloppe.budget
+  const mensuelle = enveloppe.nature === NATURES.MENSUELLE;
+
+  // Le budget ne se compare au total du mois que sur une mensuelle : c'est là
+  // que l'allocation *est* mensuelle. Sur une cagnotte, le budget est un
+  // objectif total — l'afficher à côté d'un mois seul ferait lire « 240 sur
+  // 1 200 » comme une marge confortable alors que onze mois manquent au compte.
+  const budget = mensuelle && enveloppe.budget
     ? ` / ${formatCurrency(enveloppe.budget)}`
+    : '';
+  const natureTag = mensuelle
+    ? `<span class="envelope-nature">mensuelle${enveloppe.report ? ', reportée' : ''}</span>`
+    : '';
+  const persoTag = enveloppe.perimetre === 'solo'
+    ? '<span class="envelope-perso">perso</span>'
     : '';
   const fenetre = decrireFenetre(enveloppe);
 
@@ -335,7 +470,7 @@ function ligneEnveloppe(enveloppe, index, charges) {
     <div class="manage-list-item envelope-item${enveloppe.cloturee ? ' envelope-close' : ''}" data-index="${index}">
       <span class="manage-item-icon">${escapeHtml(enveloppe.icon)}</span>
       <span class="manage-item-label">
-        ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}
+        ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}${natureTag}${persoTag}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>
         <small class="envelope-detail envelope-detail--indice">🔍 pour le total sur toute sa durée</small>
       </span>
@@ -392,6 +527,25 @@ function decrireFenetre(enveloppe) {
 function brancherEcran(modal) {
   let emojiChoisi = '🧳';
 
+  // La nature décide de deux choses à l'écran, et il vaut mieux qu'elles
+  // suivent le choix plutôt que de rester à côté : le même champ « budget »
+  // veut dire « par mois » sur une mensuelle et « en tout » sur une cagnotte,
+  // et le report n'a de sens que sur la première.
+  const champNature = modal.querySelector('#envelopeNewNature');
+  const accorderALaNature = () => {
+    const mensuelle = champNature.value === NATURES.MENSUELLE;
+    const etiquette = modal.querySelector('#envelopeNewBudgetLabel');
+    if (etiquette) {
+      etiquette.textContent = mensuelle
+        ? 'Allocation par mois (€, facultatif)'
+        : 'Objectif (€, facultatif)';
+    }
+    const champReport = modal.querySelector('#envelopeNewReportChamp');
+    if (champReport) champReport.hidden = !mensuelle;
+  };
+  champNature.addEventListener('change', accorderALaNature);
+  accorderALaNature();
+
   const boutonEmoji = modal.querySelector('#envelopeEmojiBtn');
   const planche = modal.querySelector('#envelopeEmojiPicker');
   const champLibelle = modal.querySelector('#envelopeNewLabel');
@@ -429,6 +583,15 @@ function brancherEcran(modal) {
       return;
     }
 
+    // Le périmètre et son propriétaire sortent du même select : les deux
+    // valeurs nominatives disent à la fois « solo » et « de qui ». Un couple de
+    // champs séparés aurait permis « solo » sans propriétaire, que
+    // `normaliserEnveloppe` refuse de rattacher à quelqu'un.
+    const pourQui = modal.querySelector('#envelopeNewPerimetre').value;
+    const nature = modal.querySelector('#envelopeNewNature').value === NATURES.MENSUELLE
+      ? NATURES.MENSUELLE
+      : NATURES.CAGNOTTE;
+
     const enveloppe = {
       id: identifiantDepuisLibelle(libelle, existantes),
       label: libelle,
@@ -436,7 +599,15 @@ function brancherEcran(modal) {
       budget: budgetLisible(modal.querySelector('#envelopeNewBudget').value),
       debut,
       fin,
-      cloturee: false
+      cloturee: false,
+      nature,
+      // Le report n'existe que sur une mensuelle : une cagnotte reporte par
+      // nature, et deux façons de dire la même chose finissent par diverger.
+      report: nature === NATURES.MENSUELLE
+        && modal.querySelector('#envelopeNewReport').value === 'oui',
+      rang: modal.querySelector('#envelopeNewRang').value || null,
+      perimetre: pourQui === 'commun' ? 'commun' : 'solo',
+      proprietaire: pourQui === 'commun' ? null : pourQui
     };
 
     if (!await enregistrer([...existantes, enveloppe], existantes)) return;
@@ -502,6 +673,22 @@ function brancherEcran(modal) {
     });
   }
 
+  // Le même accord qu'à la création : le champ « budget » veut dire « par
+  // mois » ou « en tout » selon la nature, et le report n'existe que sur une
+  // mensuelle.
+  const natureEdition = modal.querySelector('#envelopeEditNature');
+  natureEdition?.addEventListener('change', () => {
+    const mensuelle = natureEdition.value === NATURES.MENSUELLE;
+    const etiquette = modal.querySelector('#envelopeEditBudgetLabel');
+    if (etiquette) {
+      etiquette.textContent = mensuelle
+        ? 'Allocation par mois (€, facultatif)'
+        : 'Objectif (€, facultatif)';
+    }
+    const champReport = modal.querySelector('#envelopeEditReportChamp');
+    if (champReport) champReport.hidden = !mensuelle;
+  });
+
   modal.querySelector('#envelopeEditValider')?.addEventListener('click', async () => {
     const index = _enEdition;
     const avant = getEnveloppes();
@@ -530,13 +717,25 @@ function brancherEcran(modal) {
       return;
     }
 
+    // Le `...enveloppe` garde ce que le formulaire ne montre pas — le
+    // périmètre, le propriétaire, l'état clos. Ce qu'il montre, en revanche,
+    // doit être relu : sans ces trois lignes, changer la nature d'une enveloppe
+    // aurait été impossible, et le select l'aurait pourtant laissé croire.
+    const natureChoisie = modal.querySelector('#envelopeEditNature').value === NATURES.MENSUELLE
+      ? NATURES.MENSUELLE
+      : NATURES.CAGNOTTE;
+
     const apres = avant.map((enveloppe, rang) => (rang === index ? {
       ...enveloppe,
       label: libelle,
       icon: emojiEdition ? emojiEdition.textContent.trim() : enveloppe.icon,
       budget: budgetLisible(modal.querySelector('#envelopeEditBudget').value),
       debut,
-      fin
+      fin,
+      nature: natureChoisie,
+      report: natureChoisie === NATURES.MENSUELLE
+        && modal.querySelector('#envelopeEditReport').value === 'oui',
+      rang: modal.querySelector('#envelopeEditRang').value || null
     } : enveloppe));
 
     if (!await enregistrer(apres, avant)) return;
@@ -636,7 +835,10 @@ async function ouvrirLaVueEnveloppe(id) {
     return;
   }
 
-  const bilan = bilanEnveloppe(charges, enveloppe.budget);
+  // Le mois affiché, que la nature de l'enveloppe cadrera : une cagnotte
+  // l'ignore et regarde tout, une mensuelle s'y tient.
+  const moisConsulte = getState('currentPeriod');
+  const bilan = bilanEnveloppe(charges, enveloppe, moisConsulte);
 
   let modal = document.getElementById('modalVueEnveloppe');
   if (!modal) {
@@ -658,7 +860,7 @@ async function ouvrirLaVueEnveloppe(id) {
       <div class="enveloppe-total">
         <div class="enveloppe-total-montant">${formatCurrency(bilan.total)}</div>
         <div class="enveloppe-total-detail">${resumeDuBilan(bilan)}</div>
-        ${jaugeBudget(bilan, enveloppe.budget)}
+        ${jaugeBudget(bilan, moisConsulte)}
       </div>
 
       <div class="enveloppe-depenses">
@@ -701,21 +903,42 @@ function resumeDuBilan(bilan) {
  * @param {number|null} budget
  * @returns {string} Fragment échappé, ou chaîne vide
  */
-function jaugeBudget(bilan, budget) {
-  if (bilan.part === null) return '';
+function jaugeBudget(bilan, moisConsulte) {
+  if (bilan.allocation === null) return '';
 
   const etat = bilan.depasse ? 'depasse' : (bilan.part >= 80 ? 'proche' : 'ok');
   const reste = bilan.depasse
     ? `${formatCurrency(Math.abs(bilan.reste))} de plus que prévu`
     : `${formatCurrency(bilan.reste)} restants`;
 
+  // Le chiffre qui fait ralentir, et le seul.
+  //
+  // « Il vous reste 180 € » ne dit pas s'il faut lever le pied ; « 20 € par
+  // jour pendant 9 jours » le dit. Un pot d'envies vidé le 15 du mois se serait
+  // annoncé dès le 8 par ce chiffre. Il ne paraît que sur une mensuelle du mois
+  // en cours, où la division a un sens.
+  const cadence = resteParJour(bilan, moisConsulte, dateDuJour());
+  const ligneCadence = cadence
+    ? `<div class="enveloppe-jauge-cadence">${escapeHtml(
+        `${formatCurrency(cadence.parJour)} par jour sur les ${cadence.jours} restants`
+      )}</div>`
+    : '';
+
+  // La barre dit ce qui **reste**, et non ce qui a été dépensé : c'est la
+  // différence entre un relevé et un budget. Une exception, et elle compte :
+  // en dépassement, `partRestante` vaut 0 et la barre s'effacerait — or une
+  // barre vide se lit « pas de données », pas « vous avez dépassé ». Elle est
+  // donc rendue pleine, en rouge, où elle ne peut être prise pour rien.
+  const largeur = bilan.depasse ? 100 : bilan.partRestante;
+
   return `
     <div class="enveloppe-jauge enveloppe-jauge--${etat}">
-      <div class="enveloppe-jauge-barre" style="width: ${bilan.part}%"></div>
+      <div class="enveloppe-jauge-barre" style="width: ${largeur}%"></div>
     </div>
     <div class="enveloppe-jauge-legende">
-      ${escapeHtml(reste)} sur ${formatCurrency(budget)}
+      ${escapeHtml(reste)} sur ${formatCurrency(bilan.allocation)}
     </div>
+    ${ligneCadence}
   `;
 }
 
