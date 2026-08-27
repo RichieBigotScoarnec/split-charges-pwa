@@ -199,6 +199,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -258,7 +261,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },
@@ -282,6 +285,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -341,7 +347,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },
@@ -586,6 +592,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -645,7 +654,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },
@@ -669,6 +678,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -728,7 +740,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },

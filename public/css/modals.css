@@ -1060,3 +1060,17 @@
   display: block;
   color: var(--text-muted);
 }
+
+/*
+   La phrase sous un panneau de saisie rapide.
+
+   « Perso » ne dit pas ce qu'il fait au solde, et c'est pourtant tout son
+   effet. Une ligne sous les trois boutons coûte moins qu'un solde inexpliqué
+   sur le téléphone d'en face.
+*/
+.quick-add-aide {
+  margin: var(--space-xs) 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}

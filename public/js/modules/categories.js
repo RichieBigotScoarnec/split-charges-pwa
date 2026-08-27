@@ -9,6 +9,7 @@
 // catégorie (modules/category-budgets.js).
 
 import { getState } from '../state.js';
+import { chargesCommunes } from '../utils/perimetre.js';
 
 /**
  * Analyse les données par catégorie
@@ -52,10 +53,13 @@ function analyzeCategoryType(charges, type) {
   // 3. Le payeur. `else` attribuait à la conjointe tout ce qui n'était pas
   //    `vous`, « partage » compris : 300 € partagés lui étaient comptés en
   //    entier.
+  // 4. Le périmètre. Une dépense solo consommerait un budget commun sans que
+  //    l'autre puisse l'expliquer, et déclencherait une alerte de dépassement
+  //    pour un achat qui n'en relève pas.
   //
   // Ces totaux alimentent `category-budgets.js`, donc le panneau « X dépensés
   // sur Y budgétés » et la détection de dépassement.
-  charges.filter(charge => charge && !charge.deleted).forEach(charge => {
+  chargesCommunes(charges).filter(charge => charge && !charge.deleted).forEach(charge => {
     const category = charge.category || 'Autre';
     const montant = Number.isFinite(charge.amount) ? charge.amount : 0;
 

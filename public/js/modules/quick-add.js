@@ -19,6 +19,7 @@ import { decrireLieu } from '../utils/lieu.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { categoriePourLieu } from '../utils/categorie-lieu.js';
 import { applicationPrete, quandApplicationPrete } from '../utils/attente-application.js';
+import { PERIMETRES, perimetreEcrivable } from '../utils/perimetre.js';
 import {
   categoriesFrequentes,
   categoriesAMontrer,
@@ -74,7 +75,7 @@ let _payeurChoisiALaMain = false;
 
 const quickAddState = {
   selectedCategory: null,  // { id, icon, label, color }
-  splitMode: 'prorata',    // 'prorata' | '50-50'
+  splitMode: 'prorata',    // 'prorata' | '50-50' | 'perso'
   paidBy: 'vous',          // 'vous' | 'conjointe' | 'partage'
   envelope: '',            // identifiant d'enveloppe, ou '' pour aucune
   gpsLocation: null        // { lat, lng, accuracy, timestamp, name? }
@@ -164,6 +165,11 @@ function surCinquanteCinquante() {
   updateSplitMode('50-50');
 }
 
+/** Bascule vers « perso » : la dépense sort du solde */
+function surPerso() {
+  updateSplitMode('perso');
+}
+
 /** Délégation : les libellés des payeurs changent avec les prénoms du foyer */
 function surPayeur(e) {
   const bouton = e.target.closest('button[data-payer]');
@@ -211,6 +217,7 @@ function setupEventListeners() {
   poserUnique(document.getElementById('quickAddDescription'), 'keypress', surEntree);
   poserUnique(document.getElementById('quickSplitProrata'), 'click', surProrata);
   poserUnique(document.getElementById('quickSplit5050'), 'click', surCinquanteCinquante);
+  poserUnique(document.getElementById('quickSplitPerso'), 'click', surPerso);
   poserUnique(document.getElementById('quickAddPayer'), 'click', surPayeur);
   poserUnique(document.getElementById('quickAddLocationDetach'), 'click', detachLocation);
   poserUnique(document.getElementById('quickAddPhrase'), 'click', surSegment);
@@ -879,8 +886,17 @@ function updateSplitMode(mode) {
 
   const prorataBtn = document.getElementById('quickSplitProrata');
   const fiftyBtn = document.getElementById('quickSplit5050');
+  const persoBtn = document.getElementById('quickSplitPerso');
   marquerLEtat(prorataBtn, mode === 'prorata');
   marquerLEtat(fiftyBtn, mode === '50-50');
+  marquerLEtat(persoBtn, mode === 'perso');
+
+  // Une dépense perso appartient à qui l'a payée : « Partagé » n'a plus de
+  // sens. Le payeur bascule sur celui qui tient l'appareil plutôt que de
+  // laisser un état que les règles refuseront à l'écriture.
+  if (mode === 'perso' && quickAddState.paidBy !== 'vous' && quickAddState.paidBy !== 'conjointe') {
+    updatePayer(payeurParDefaut());
+  }
 
   if (panneauOuvert === 'quickAddPanneauRepartition') ouvrirLePanneau(null);
   else dessinerLaPhrase();
@@ -1024,6 +1040,18 @@ async function soumettre() {
   const gps = quickAddState.gpsLocation;
   const splitMode = quickAddState.splitMode;
 
+  // Le même contrôle que les deux formulaires complets et que les règles
+  // Firebase : une dépense perso doit désigner son propriétaire. La saisie
+  // rapide y bascule d'elle-même le payeur, mais un état incohérent ne doit
+  // jamais partir à l'écriture — hors ligne, il grossirait la file d'attente
+  // pour être refusé plus tard, loin de la saisie.
+  const perimetreDemande = splitMode === 'perso' ? PERIMETRES.SOLO : PERIMETRES.COMMUN;
+  const perimetreValide = perimetreEcrivable(perimetreDemande, quickAddState.paidBy);
+  if (!perimetreValide.valide) {
+    toast.error(perimetreValide.erreur);
+    return;
+  }
+
   // La saisie prime sur toute déduction : elle seule sait ce qui a été acheté.
   // À défaut, on retombe sur le nom du lieu puis sur la catégorie, comme avant.
   const saisie = document.getElementById('quickAddDescription')?.value.trim();
@@ -1048,6 +1076,9 @@ async function soumettre() {
     // `null` pour le prorata : c'est l'absence de dérogation, donc le mode du
     // foyer, exactement comme dans `variable-charges.js`.
     splitOverride: splitMode === '50-50' ? { mode: '50-50' } : null,
+    // Le périmètre, troisième réponse du même segment. « perso » n'est pas une
+    // répartition : c'est la sortie du solde, et c'est ce champ-là qui la dit.
+    perimetre: perimetreDemande,
     // `null` plutôt que la chaîne vide : Firebase refuse `undefined`, et une
     // chaîne vide se lirait comme un identifiant d'enveloppe introuvable.
     envelope: quickAddState.envelope || null,
@@ -1083,7 +1114,11 @@ async function soumettre() {
     const { dbPush } = await import('../db.js');
     await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
 
-    const modeLabel = splitMode === 'prorata' ? 'Prorata' : '50-50';
+    // Les trois modes, pas deux : le ternaire annonçait « 50-50 » pour une
+    // dépense perso. L'application aurait dit avoir partagé ce qu'elle venait
+    // de sortir du solde — le même défaut que le `splitMode` qui n'était lu
+    // par personne, et que ce toast affichait pourtant.
+    const modeLabel = { prorata: 'Prorata', '50-50': '50-50', perso: 'Perso' }[splitMode] || 'Prorata';
     toast.success(`${category.icon} ${description} — ${amount.toFixed(2)} € (${modeLabel})`);
 
     // Refresh données

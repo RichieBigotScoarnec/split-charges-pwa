@@ -73,6 +73,7 @@ const STATIC_ASSETS = [
   './js/utils/members.js',
   './js/utils/miroir.js',
   './js/utils/montant.js',
+  './js/utils/perimetre.js',
   './js/utils/periodes.js',
   './js/utils/phrase-saisie.js',
   './js/utils/previsionnel.js',

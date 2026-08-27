@@ -17,6 +17,7 @@ import {
 import { toast } from '../components/toast.js';
 import { getDataPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { estSolo } from '../utils/perimetre.js';
 
 let database = null;
 
@@ -175,8 +176,13 @@ export async function fetchHistoricalData(months = 6) {
 function calculatePeriodTotal(charges) {
   if (!charges) return 0;
 
+  // `estSolo` autant que `deleted` : ces totaux nourrissent le taux d'effort,
+  // le reste à vivre et la part du fixe — trois chiffres du **foyer**. Une
+  // dépense solo les fausserait sans qu'aucun écran ne montre l'écart, et le
+  // module lit `periods` directement en base : aucun chargeur ne l'a filtrée
+  // en amont.
   return Object.values(charges)
-    .filter(charge => !charge.deleted)
+    .filter(charge => charge && !charge.deleted && !estSolo(charge))
     .reduce((sum, charge) => sum + (charge.amount || 0), 0);
 }
 
@@ -197,7 +203,9 @@ function totauxParCategorie(periodData) {
     if (!noeud || typeof noeud !== 'object') continue;
 
     for (const charge of Object.values(noeud)) {
-      if (!charge || charge.deleted) continue;
+      // Même raison qu'au-dessus : « la catégorie qui a le plus bougé » est
+      // une observation sur le foyer, pas sur l'un des deux.
+      if (!charge || charge.deleted || estSolo(charge)) continue;
 
       const categorie = typeof charge.category === 'string' && charge.category
         ? charge.category

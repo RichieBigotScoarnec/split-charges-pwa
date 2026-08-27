@@ -1121,3 +1121,17 @@
 .manage-proposition-texte strong {
   color: var(--text-primary);
 }
+
+/*
+   La phrase qui explique une bascule de formulaire.
+
+   « Dépense perso » ne dit pas ce qu'elle fait au solde, et c'est justement
+   tout son effet. Une ligne sous l'interrupteur coûte moins qu'un solde
+   inexpliqué.
+*/
+.form-aide {
+  margin: calc(-1 * var(--space-xs)) 0 var(--space-sm);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}

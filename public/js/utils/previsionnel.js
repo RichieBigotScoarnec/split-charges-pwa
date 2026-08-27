@@ -15,6 +15,7 @@
  */
 
 import { dateDuJour } from './date.js';
+import { chargesCommunes } from './perimetre.js';
 
 /**
  * Combien de charges à venir sont nommées
@@ -76,10 +77,19 @@ function dateDeclaree(charge) {
 export function previsionnelDuMois({ fixedCharges, variableCharges, aujourdhui } = {}) {
   const jour = typeof aujourdhui === 'string' && aujourdhui ? aujourdhui : dateDuJour();
 
-  const charges = [
+  // Les dépenses solo sont écartées, et pas seulement de la somme : ce panneau
+  // **nomme** les trois prochaines échéances, sous le solde du foyer. Une
+  // séance de sport payée par une seule personne n'a rien à faire dans cette
+  // liste — l'autre la lirait comme une sortie d'argent commune à venir.
+  //
+  // Trouvé par `tests/utils/perimetre-transversal.test.js` avant d'être écrit :
+  // le prévisionnel annonçait 1 817 € au lieu de 1 215 €, et nommait « Salle
+  // de sport » parmi les échéances. Le filtre était posé dans `computeSummary`
+  // et dans les virements, jamais ici.
+  const charges = chargesCommunes([
     ...(Array.isArray(fixedCharges) ? fixedCharges : []),
     ...(Array.isArray(variableCharges) ? variableCharges : [])
-  ].filter(charge => charge && !charge.deleted);
+  ]).filter(charge => charge && !charge.deleted);
 
   const aVenirCharges = [];
   let passe = 0;

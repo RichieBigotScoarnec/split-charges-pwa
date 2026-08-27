@@ -656,6 +656,21 @@
           </select>
         </div>
 
+        <!-- Périmètre : la dépense pèse-t-elle sur le solde ?
+             Placé sous « Payé par » parce que les deux sont liés : une dépense
+             perso appartient à celui qui l'a payée, elle ne peut donc pas être
+             partagée. `perimetre.js` refuse la combinaison, et les règles
+             Firebase la refusent aussi — côté serveur, où c'est vrai. -->
+        <div class="form-group form-group-toggle">
+          <label for="variableChargePerso">Dépense perso</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargePerso" data-on-change="toggleVariableChargePerso"
+                   aria-describedby="variableChargePersoAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="variableChargePersoAide" class="form-aide">Elle n'entre pas dans le solde du couple : personne ne doit rien à personne dessus.</p>
+
         <div class="form-group form-group-toggle">
           <label for="variableChargeSplitToggle">Répartition spéciale</label>
           <label class="toggle-switch">
@@ -730,6 +745,21 @@
             <option value="partage">Partagé</option>
           </select>
         </div>
+
+        <!-- Périmètre : la dépense pèse-t-elle sur le solde ?
+             Placé sous « Payé par » parce que les deux sont liés : une dépense
+             perso appartient à celui qui l'a payée, elle ne peut donc pas être
+             partagée. `perimetre.js` refuse la combinaison, et les règles
+             Firebase la refusent aussi — côté serveur, où c'est vrai. -->
+        <div class="form-group form-group-toggle">
+          <label for="fixedChargePerso">Dépense perso</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="fixedChargePerso" data-on-change="toggleFixedChargePerso"
+                   aria-describedby="fixedChargePersoAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="fixedChargePersoAide" class="form-aide">Elle n'entre pas dans le solde du couple : personne ne doit rien à personne dessus.</p>
 
         <div class="form-group">
           <label for="fixedChargeDestination">Destination virement</label>
@@ -910,7 +940,12 @@
         <div class="payer-toggle">
           <button type="button" id="quickSplitProrata" class="selected" aria-pressed="true"><span aria-hidden="true">📊</span> Prorata</button>
           <button type="button" id="quickSplit5050" aria-pressed="false"><span aria-hidden="true">⚖️</span> 50-50</button>
+          <!-- « Perso » est une troisième réponse à « comment ça se partage ? » :
+               pas du tout. Sa place est donc ici, et non dans un cinquième
+               segment qui encombrerait la phrase de tout le monde. -->
+          <button type="button" id="quickSplitPerso" aria-pressed="false"><span aria-hidden="true">👤</span> Perso</button>
         </div>
+        <p class="quick-add-aide">Une dépense perso n'entre pas dans le solde du couple.</p>
       </div>
 
       <div class="quick-add-panneau" id="quickAddPanneauCategorie">
