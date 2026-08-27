@@ -1155,3 +1155,71 @@
 .envelope-field--report[hidden] {
   display: none;
 }
+
+/* ===== CAGNOTTE : ALIMENTER LE POT ===== */
+/*
+   Un budget se vide, une cagnotte se remplit.
+
+   La jauge d'une cagnotte alimentée monte vers son objectif là où celle d'un
+   budget descend vers zéro. Même widget, sens opposé — et c'est correct : on
+   ne lit pas de la même façon « il me reste 120 € à dépenser » et « j'ai mis
+   700 € de côté sur les 1 000 visés ».
+*/
+.enveloppe-versements {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.enveloppe-versements-titre {
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.enveloppe-versement-ajout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.enveloppe-versement-ajout input[type="text"] { flex: 1 1 7rem; min-width: 0; }
+.enveloppe-versement-ajout select { flex: 1 1 8rem; min-width: 0; }
+.enveloppe-versement-ajout input[type="date"] { flex: 1 1 9rem; min-width: 0; }
+
+.enveloppe-versements-liste {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.enveloppe-versement {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.enveloppe-versement:last-child { border-bottom: none; }
+
+.enveloppe-versement-detail {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Le vert de ce qui entre : c'est le seul endroit de l'application où un
+   montant s'ajoute au lieu de se retrancher. */
+.enveloppe-versement-montant {
+  font-weight: 600;
+  color: var(--success-color);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Objectif atteint : la même satisfaction visuelle qu'un budget tenu, et
+   surtout pas l'ambre de « vous approchez » — ici, approcher est le but. */
+.enveloppe-jauge--atteint .enveloppe-jauge-barre { background: var(--success-color); }

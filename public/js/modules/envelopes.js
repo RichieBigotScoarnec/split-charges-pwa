@@ -17,6 +17,14 @@ import { log, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
 import { formatDate, dateDuJour } from '../utils/date.js';
+import { normaliserEmplacement } from '../utils/members.js';
+import {
+  normaliserVersements,
+  versementsActifs,
+  estAlimentee,
+  bilanCagnotte,
+  versementEcrivable
+} from '../utils/versements.js';
 import {
   normaliserEnveloppes,
   chargesDeLEnveloppeTousMois,
@@ -34,6 +42,16 @@ import {
 
 /** Nœud Firebase, sous la racine de l'espace de données */
 const CHEMIN = 'envelopes';
+
+/**
+ * Nœud des versements, à part de la liste des enveloppes
+ *
+ * Séparé à dessein : `envelopes` est relu à chaque ouverture de l'application,
+ * les versements seulement quand on ouvre le détail d'un pot. Les imbriquer
+ * ferait payer à tout le monde, à chaque démarrage, une donnée que presque
+ * personne ne regarde.
+ */
+const CHEMIN_VERSEMENTS = 'versements';
 
 /**
  * Initialise le module des enveloppes
@@ -807,6 +825,124 @@ function brancherEcran(modal) {
 // ===== VUE D'UNE ENVELOPPE, TOUS MOIS CONFONDUS =====
 
 /**
+ * L'auteur proposé pour un versement : celui qui tient l'appareil
+ *
+ * Le même raisonnement que pour le payeur d'une charge : proposer « vous » en
+ * dur attribuerait au conjoint chaque versement fait depuis le second
+ * téléphone, et le partage « vous avez mis 400, elle 300 » serait faux dès la
+ * première saisie.
+ *
+ * @returns {string} 'vous' ou 'conjointe'
+ */
+function auteurParDefaut() {
+  return normaliserEmplacement(getState('emplacementCourant'));
+}
+
+/**
+ * La jauge d'une cagnotte alimentée : elle monte
+ *
+ * L'inverse exact de celle d'un budget, et c'est voulu. Un budget se vide vers
+ * zéro ; un pot se remplit vers son objectif. Même widget, sens opposé — la
+ * nature de l'enveloppe suffit à savoir lequel lire.
+ *
+ * @param {Object} pot - Rendu par `bilanCagnotte`
+ * @returns {string} Fragment échappé, ou chaîne vide sans objectif
+ */
+function jaugeCagnotte(pot) {
+  if (pot.objectif === null) return '';
+
+  const etat = pot.aDecouvert ? 'depasse' : (pot.atteint ? 'atteint' : 'ok');
+  const phrase = pot.aDecouvert
+    ? `${formatCurrency(Math.abs(pot.dansLePot))} sortis de plus qu'il n'y en avait`
+    : (pot.atteint
+      ? `objectif atteint`
+      : `${formatCurrency(pot.manque)} avant l'objectif`);
+
+  // À découvert, la barre serait vide et se lirait « rien dedans » plutôt que
+  // « vous êtes en dessous de zéro ». Elle est rendue pleine, en rouge — la
+  // même parade que sur la jauge de budget en dépassement.
+  const largeur = pot.aDecouvert ? 100 : pot.partAtteinte;
+
+  return `
+    <div class="enveloppe-jauge enveloppe-jauge--${etat}">
+      <div class="enveloppe-jauge-barre" style="width: ${largeur}%"></div>
+    </div>
+    <div class="enveloppe-jauge-legende">
+      ${escapeHtml(phrase)} · objectif ${formatCurrency(pot.objectif)}
+    </div>
+  `;
+}
+
+/**
+ * Le bloc « Alimenter » d'une cagnotte : le formulaire et l'historique
+ *
+ * Absent d'une enveloppe mensuelle : on n'alimente pas un budget, on le fixe.
+ *
+ * @param {Array<Object>} versements
+ * @param {Object} enveloppe
+ * @returns {string} Fragment échappé
+ */
+function blocVersements(versements, enveloppe) {
+  const actifs = versementsActifs(versements);
+  const auteur = auteurParDefaut();
+
+  const lignes = actifs.length === 0
+    ? '<p class="empty-state">Rien versé pour l\'instant. Ce pot se lit encore comme un budget ; dès le premier versement, il dira ce qu\'il contient.</p>'
+    : actifs.map(ligneVersement).join('');
+
+  return `
+    <div class="enveloppe-versements" data-enveloppe="${escapeHtml(enveloppe.id)}">
+      <h3 class="enveloppe-versements-titre">Alimenter le pot</h3>
+
+      <div class="enveloppe-versement-ajout">
+        <label class="sr-only" for="versementMontant">Montant du versement</label>
+        <input type="text" id="versementMontant" placeholder="Ex : 100" inputmode="decimal" maxlength="10" />
+
+        <label class="sr-only" for="versementAuteur">Qui verse</label>
+        <select id="versementAuteur">
+          <option value="vous"${auteur === 'vous' ? ' selected' : ''}>Moi</option>
+          <option value="conjointe"${auteur === 'conjointe' ? ' selected' : ''}>Ma conjointe</option>
+        </select>
+
+        <label class="sr-only" for="versementDate">Date du versement</label>
+        <input type="date" id="versementDate" value="${escapeHtml(dateDuJour())}" />
+
+        <button type="button" class="btn btn-primary btn-sm" id="versementAjouter">Verser</button>
+      </div>
+
+      <p class="form-aide">Un versement ne touche pas le solde du couple : c'est de l'argent mis de côté, pas une dépense partagée.</p>
+
+      <div class="enveloppe-versements-liste">${lignes}</div>
+    </div>
+  `;
+}
+
+/**
+ * Une ligne d'historique de versement
+ *
+ * @param {Object} versement
+ * @returns {string} Fragment échappé
+ */
+function ligneVersement(versement) {
+  const quand = versement.date ? formatDate(versement.date) : '';
+  const qui = versement.auteur === 'conjointe'
+    ? 'conjointe'
+    : (versement.auteur === 'vous' ? 'vous' : 'auteur inconnu');
+
+  return `
+    <div class="enveloppe-versement">
+      <div class="enveloppe-versement-detail">
+        ${escapeHtml(qui)}${quand ? ` · ${escapeHtml(quand)}` : ''}
+      </div>
+      <div class="enveloppe-versement-montant">+ ${formatCurrency(versement.montant)}</div>
+      <button type="button" class="btn-icon btn-delete versement-retirer"
+              data-versement="${escapeHtml(versement.id)}"
+              aria-label="Retirer ce versement de ${formatCurrency(versement.montant)}">✕</button>
+    </div>
+  `;
+}
+
+/**
  * Ouvre le détail d'une enveloppe
  *
  * L'écran de gestion ne comptait que le mois consulté — « 320 € ce mois-ci » —
@@ -826,9 +962,17 @@ async function ouvrirLaVueEnveloppe(id) {
   if (!enveloppe) return;
 
   let charges;
+  let versements;
   try {
     const { dbGet } = await import('../db.js');
-    charges = chargesDeLEnveloppeTousMois(await dbGet('periods'), id);
+    // Les deux lectures ensemble : le détail est la seule vue coûteuse du
+    // module, autant n'y revenir qu'une fois.
+    const [periods, noeudVersements] = await Promise.all([
+      dbGet('periods'),
+      dbGet(`${CHEMIN_VERSEMENTS}/${id}`)
+    ]);
+    charges = chargesDeLEnveloppeTousMois(periods, id);
+    versements = normaliserVersements(noeudVersements);
   } catch (erreur) {
     logError('❌ Lecture des dépenses de l\'enveloppe impossible :', erreur);
     toast.error('Dépenses illisibles — réessayez');
@@ -839,6 +983,18 @@ async function ouvrirLaVueEnveloppe(id) {
   // l'ignore et regarde tout, une mensuelle s'y tient.
   const moisConsulte = getState('currentPeriod');
   const bilan = bilanEnveloppe(charges, enveloppe, moisConsulte);
+
+  // Un pot alimenté se lit par son contenu, pas par son objectif.
+  //
+  // Tant qu'aucun versement n'existe — le cas de toutes les cagnottes déjà en
+  // base — la lecture reste celle d'avant : un objectif dont on retranche les
+  // dépenses, jauge qui descend. Dès qu'on y met de l'argent, c'est
+  // `versé − dépensé` qui fait foi et la jauge monte : un budget se vide, une
+  // cagnotte se remplit.
+  const cagnotte = enveloppe.nature !== NATURES.MENSUELLE;
+  const pot = cagnotte && estAlimentee(versements)
+    ? bilanCagnotte(versements, bilan.total, enveloppe.budget)
+    : null;
 
   let modal = document.getElementById('modalVueEnveloppe');
   if (!modal) {
@@ -858,10 +1014,12 @@ async function ouvrirLaVueEnveloppe(id) {
       </h2>
 
       <div class="enveloppe-total">
-        <div class="enveloppe-total-montant">${formatCurrency(bilan.total)}</div>
-        <div class="enveloppe-total-detail">${resumeDuBilan(bilan)}</div>
-        ${jaugeBudget(bilan, moisConsulte)}
+        <div class="enveloppe-total-montant">${formatCurrency(pot ? pot.dansLePot : bilan.total)}</div>
+        <div class="enveloppe-total-detail">${pot ? 'dans le pot' : resumeDuBilan(bilan)}</div>
+        ${pot ? jaugeCagnotte(pot) : jaugeBudget(bilan, moisConsulte)}
       </div>
+
+      ${cagnotte ? blocVersements(versements, enveloppe) : ''}
 
       <div class="enveloppe-depenses">
         ${charges.length === 0
@@ -880,8 +1038,93 @@ async function ouvrirLaVueEnveloppe(id) {
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   });
 
+  brancherLesVersements(modal, id);
+
   modal.style.display = 'flex';
   requestAnimationFrame(() => modal.classList.add('active'));
+}
+
+/**
+ * Branche « Verser » et le retrait d'un versement
+ *
+ * Le balisage du détail est reconstruit à chaque ouverture : les écouteurs
+ * posés ici meurent avec lui, il n'y a rien à retirer. Chaque commande relit
+ * l'état au moment où on l'actionne plutôt que de le capturer au rendu — entre
+ * l'ouverture de la vue et le clic, l'autre téléphone a pu écrire.
+ *
+ * @param {HTMLElement} modal
+ * @param {string} id - Identifiant de l'enveloppe
+ * @returns {void}
+ */
+function brancherLesVersements(modal, id) {
+  const bouton = modal.querySelector('#versementAjouter');
+  if (!bouton) return;
+
+  const champMontant = modal.querySelector('#versementMontant');
+
+  const verser = async () => {
+    const auteur = modal.querySelector('#versementAuteur').value;
+
+    // Le même contrôle que les règles Firebase appliquent côté serveur. Les
+    // deux existent à dessein : le serveur pour que ce soit vrai, le client
+    // pour que le refus s'explique avant l'écriture — sans quoi la saisie
+    // partirait grossir la file hors ligne pour échouer plus tard.
+    const verdict = versementEcrivable(champMontant.value, auteur);
+    if (!verdict.valide) {
+      toast.error(verdict.erreur);
+      champMontant.focus();
+      return;
+    }
+
+    try {
+      const { dbPush } = await import('../db.js');
+      await dbPush(`${CHEMIN_VERSEMENTS}/${id}`, {
+        montant: verdict.montant,
+        auteur,
+        date: dateLisible(modal.querySelector('#versementDate').value) || '',
+        timestamp: Date.now(),
+        deleted: false
+      });
+    } catch (erreur) {
+      logError('❌ Versement impossible :', erreur);
+      toast.error('Versement non enregistré');
+      return;
+    }
+
+    toast.success(`${formatCurrency(verdict.montant)} versés`);
+    await ouvrirLaVueEnveloppe(id);
+  };
+
+  bouton.addEventListener('click', verser);
+
+  // Entrée depuis le montant vaut « c'est fini » : il ne reste que deux champs
+  // préremplis derrière.
+  champMontant.addEventListener('keydown', evenement => {
+    if (evenement.key !== 'Enter') return;
+    evenement.preventDefault();
+    verser();
+  });
+
+  modal.querySelectorAll('.versement-retirer').forEach(croix => {
+    croix.addEventListener('click', async () => {
+      const versement = croix.dataset.versement;
+      if (!versement) return;
+
+      // Suppression douce, comme partout ailleurs : l'entrée reste en base et
+      // le montant cesse de compter. Rien ne s'efface jamais tout à fait.
+      try {
+        const { dbUpdate } = await import('../db.js');
+        await dbUpdate(`${CHEMIN_VERSEMENTS}/${id}/${versement}`, { deleted: true });
+      } catch (erreur) {
+        logError('❌ Retrait du versement impossible :', erreur);
+        toast.error('Retrait non enregistré');
+        return;
+      }
+
+      toast.success('Versement retiré');
+      await ouvrirLaVueEnveloppe(id);
+    });
+  });
 }
 
 /**
