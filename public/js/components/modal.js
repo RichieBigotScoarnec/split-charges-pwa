@@ -6,6 +6,49 @@ import { log } from '../utils/debug.js';
 
 let _escapeHandler = null;
 
+/**
+ * Le dénouement de la confirmation en cours, s'il y en a une
+ *
+ * `showConfirmModal` rend une promesse, et son nettoyage — retrait des
+ * écouteurs, résolution — ne vivait que dans `onOk`, `onCancel` et `onEscape`.
+ * Or la boîte se ferme aussi par `closeModal`, que le clic hors de la boîte
+ * déclenche : `#modalConfirm` porte `.modal-overlay`, et
+ * `setupModalOverlayClose` y pose ce clic comme sur toutes les autres.
+ *
+ * Ce chemin-là retirait la classe `active` sans jamais nettoyer. L'écouteur
+ * `onOk` restait donc attaché au bouton, et la promesse pendante pour
+ * toujours. Chaque hésitation en ajoutait un.
+ *
+ * Le prix se payait plus tard, et ailleurs : on écarte d'un clic la
+ * confirmation « Remplacer toutes vos données par cette sauvegarde ? », puis
+ * on supprime une charge de 3,50 € une heure après — les deux `onOk` se
+ * déclenchent, et `dbSet(undefined, enveloppe.data)` écrase l'espace entier
+ * du foyer. Aucun attaquant n'est nécessaire ; le geste déclencheur est celui
+ * de l'hésitation, précisément devant les confirmations qui inquiètent.
+ *
+ * La couverture ne pouvait pas le voir : les deux chemins sont exercés, et à
+ * 100 % des instructions. C'est leur rencontre qui manquait.
+ */
+let _confirmEnCours = null;
+
+/**
+ * Dénoue la confirmation pendante, s'il y en a une
+ *
+ * Appelée par tout chemin de fermeture qui n'est pas déjà l'un des trois
+ * dénouements — aujourd'hui `closeModal`, et l'ouverture d'une confirmation
+ * suivante.
+ *
+ * @param {boolean} [reponse] - Ce que doit rendre la promesse ; refus par défaut
+ * @returns {boolean} Une confirmation était-elle pendante ?
+ */
+export function denouerConfirmation(reponse = false) {
+  if (!_confirmEnCours) return false;
+  const denouer = _confirmEnCours;
+  _confirmEnCours = null;
+  denouer(reponse);
+  return true;
+}
+
 // Sélecteurs des éléments focusables à l'intérieur d'une modale
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
@@ -97,6 +140,11 @@ export function showModal(modalId) {
  * @param {boolean} resetForm - Reset form fields
  */
 export function closeModal(modalId, resetForm = true) {
+  // Fermer la boîte de confirmation, c'est répondre « non ». Sans cette
+  // ligne, la question restait ouverte et sa réponse arrivait à la
+  // confirmation suivante — voir `_confirmEnCours`.
+  if (modalId === 'modalConfirm') denouerConfirmation(false);
+
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('active');
@@ -188,6 +236,10 @@ export function showConfirmModal(message) {
       return;
     }
 
+    // Une question déjà posée et laissée sans réponse est refusée avant d'en
+    // poser une nouvelle : deux confirmations ne partagent pas un bouton.
+    denouerConfirmation(false);
+
     msgEl.textContent = message;
     overlay.classList.add('active');
     cancelBtn.focus();
@@ -196,6 +248,7 @@ export function showConfirmModal(message) {
     const removeTrap = trapFocus(overlay);
 
     function cleanup(result) {
+      if (_confirmEnCours === cleanup) _confirmEnCours = null;
       overlay.classList.remove('active');
       removeTrap();
       okBtn.removeEventListener('click', onOk);
@@ -203,6 +256,8 @@ export function showConfirmModal(message) {
       document.removeEventListener('keydown', onEscape);
       resolve(result);
     }
+
+    _confirmEnCours = cleanup;
 
     function onOk() { cleanup(true); }
     function onCancel() { cleanup(false); }

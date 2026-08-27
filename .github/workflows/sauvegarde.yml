@@ -111,8 +111,23 @@ jobs:
           phrase="$RUNNER_TEMP/phrase"
           printf '%s' "$PHRASE_SECRETE" > "$phrase"
 
+          # Les paramètres de dérivation sont écrits, pas hérités.
+          #
+          # Sans eux, l'archive prenait les défauts de l'image du runner. Ils
+          # sont bons aujourd'hui — vérifié en rejouant la commande : S2K mode
+          # 3, SHA-512, 65 011 712 itérations — mais rien ne les tient, et une
+          # mise à jour d'image les changerait sans que rien ne le dise.
+          #
+          # Ce n'est pas un détail ici : le dépôt est public, donc l'artefact
+          # est téléchargeable par tout titulaire d'un compte GitHub, et 90
+          # jours de clichés quotidiens s'attaquent hors ligne, sans limite de
+          # tentatives. Toute la confidentialité de l'historique du foyer tient
+          # à l'entropie de SAUVEGARDE_PASSPHRASE et au coût de sa dérivation.
           gpg --batch --yes --symmetric \
             --cipher-algo AES256 \
+            --s2k-mode 3 \
+            --s2k-digest-algo SHA512 \
+            --s2k-count 65011712 \
             --passphrase-file "$phrase" \
             --output "$RUNNER_TEMP/sauvegarde.json.gpg" \
             "$RUNNER_TEMP/sauvegarde.json"

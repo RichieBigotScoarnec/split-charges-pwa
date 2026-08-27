@@ -39,6 +39,25 @@ jobs:
       - name: Lint
         run: npx eslint . --quiet
 
+      # `--quiet` supprime TOUS les avertissements, `no-unsanitized` compris.
+      # Mesuré : `eslint .` en rapporte 26, `eslint . --quiet` n'affiche rien.
+      # SECURITY.md §4 promet pourtant que le greffon « signale tout nouvel
+      # innerHTML dynamique pour relecture » — vrai de la configuration, faux
+      # du seul endroit où elle s'exécute toute seule. Un innerHTML non échappé
+      # ajouté demain passait au vert.
+      #
+      # Le plafond fige le nombre de sites existants, tous relus un par un lors
+      # de l'audit : ils restent des avertissements, mais un site de plus fait
+      # échouer la CI et impose une relecture. Portée à `public/js` seulement —
+      # ce qui est livré au navigateur — pour qu'un avertissement de test ne
+      # déplace pas le seuil.
+      #
+      # En abaisser la valeur en même temps qu'on retire un innerHTML fait
+      # partie du correctif : un plafond qui ne descend jamais finit par ne
+      # plus rien retenir.
+      - name: Aucun nouvel innerHTML dynamique
+        run: npx eslint public/js --max-warnings 22
+
       - name: Run unit tests
         run: npx vitest run
 

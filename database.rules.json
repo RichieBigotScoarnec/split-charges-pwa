@@ -4,7 +4,7 @@
     ".write": false,
     "household": {
       ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
-      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && newData.exists()",
       "salaries": {
         "vous": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
@@ -20,7 +20,8 @@
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "members": {
         "vous": {
@@ -31,15 +32,16 @@
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "shareMode": {
         "mode": {
-          ".validate": "newData.isString() && newData.val().length <= 20"
+          ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
         },
         "customPercents": {
           "mode": {
-            ".validate": "newData.isString() && newData.val().length <= 20"
+            ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
           },
           "vous": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
@@ -49,11 +51,13 @@
           },
           "$autre": {
             ".validate": false
-          }
+          },
+          ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "carryOverEnabled": {
         ".validate": "newData.isBoolean()"
@@ -61,7 +65,8 @@
       "categoryBudgets": {
         "$categorie": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "customCategories": {
         "$rang": {
@@ -81,7 +86,8 @@
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "customDestinations": {
         "$rang": {
@@ -101,7 +107,8 @@
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "envelopes": {
         "$rang": {
@@ -130,7 +137,8 @@
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "reminders": {
         "finMois": {
@@ -147,11 +155,12 @@
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "periods": {
         "$periode": {
-          ".validate": "$periode.matches(/^[0-9]{4}-[0-9]{2}$/)",
+          ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
           "salaries": {
             "vous": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
@@ -167,7 +176,8 @@
             },
             "$autre": {
               ".validate": false
-            }
+            },
+            ".validate": "newData.hasChildren()"
           },
           "fixedCharges": {
             "$id": {
@@ -187,7 +197,7 @@
                 ".validate": "newData.isString() && newData.val().length <= 20"
               },
               "paidBy": {
-                ".validate": "newData.isString() && newData.val().length <= 30"
+                ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
@@ -199,11 +209,11 @@
                 ".validate": "newData.isBoolean()"
               },
               "splitMode": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
               },
               "splitOverride": {
                 "mode": {
-                  ".validate": "newData.isString() && newData.val().length <= 20"
+                  ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
                 },
                 "vous": {
                   ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
@@ -213,10 +223,11 @@
                 },
                 "$autre": {
                   ".validate": false
-                }
+                },
+                ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
               },
               "date": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
               },
               "heure": {
                 ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
@@ -246,8 +257,10 @@
               },
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
-              }
-            }
+              },
+              ".validate": "newData.hasChildren(['amount'])"
+            },
+            ".validate": "newData.hasChildren()"
           },
           "variableCharges": {
             "$id": {
@@ -267,7 +280,7 @@
                 ".validate": "newData.isString() && newData.val().length <= 20"
               },
               "paidBy": {
-                ".validate": "newData.isString() && newData.val().length <= 30"
+                ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
@@ -279,11 +292,11 @@
                 ".validate": "newData.isBoolean()"
               },
               "splitMode": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
               },
               "splitOverride": {
                 "mode": {
-                  ".validate": "newData.isString() && newData.val().length <= 20"
+                  ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
                 },
                 "vous": {
                   ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
@@ -293,10 +306,11 @@
                 },
                 "$autre": {
                   ".validate": false
-                }
+                },
+                ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
               },
               "date": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
               },
               "heure": {
                 ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
@@ -326,13 +340,15 @@
               },
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
-              }
-            }
+              },
+              ".validate": "newData.hasChildren(['amount'])"
+            },
+            ".validate": "newData.hasChildren()"
           },
           "reimbursements": {
             "$id": {
               "direction": {
-                ".validate": "newData.isString() && newData.val().length <= 30"
+                ".validate": "newData.isString() && (newData.val() === 'vous-to-conjointe' || newData.val() === 'conjointe-to-vous')"
               },
               "amount": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
@@ -341,7 +357,7 @@
                 ".validate": "newData.isString() && newData.val().length <= 1000"
               },
               "date": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
               },
               "timestamp": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
@@ -351,21 +367,31 @@
               },
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
-              }
-            }
+              },
+              ".validate": "newData.hasChildren(['amount', 'direction'])"
+            },
+            ".validate": "newData.hasChildren()"
+          },
+          "reconductedFrom": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}$/)"
+          },
+          "shareMode": {
+            ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
           },
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "$autre": {
         ".validate": false
-      }
+      },
+      ".validate": "newData.hasChildren()"
     },
     "sandbox": {
       ".read": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com')",
-      ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com')",
+      ".write": "auth != null && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com') && newData.exists()",
       "salaries": {
         "vous": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
@@ -381,7 +407,8 @@
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "members": {
         "vous": {
@@ -392,15 +419,16 @@
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "shareMode": {
         "mode": {
-          ".validate": "newData.isString() && newData.val().length <= 20"
+          ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
         },
         "customPercents": {
           "mode": {
-            ".validate": "newData.isString() && newData.val().length <= 20"
+            ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
           },
           "vous": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
@@ -410,11 +438,13 @@
           },
           "$autre": {
             ".validate": false
-          }
+          },
+          ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "carryOverEnabled": {
         ".validate": "newData.isBoolean()"
@@ -422,7 +452,8 @@
       "categoryBudgets": {
         "$categorie": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "customCategories": {
         "$rang": {
@@ -442,7 +473,8 @@
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "customDestinations": {
         "$rang": {
@@ -462,7 +494,8 @@
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "envelopes": {
         "$rang": {
@@ -491,7 +524,8 @@
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "reminders": {
         "finMois": {
@@ -508,11 +542,12 @@
         },
         "$autre": {
           ".validate": false
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "periods": {
         "$periode": {
-          ".validate": "$periode.matches(/^[0-9]{4}-[0-9]{2}$/)",
+          ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
           "salaries": {
             "vous": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
@@ -528,7 +563,8 @@
             },
             "$autre": {
               ".validate": false
-            }
+            },
+            ".validate": "newData.hasChildren()"
           },
           "fixedCharges": {
             "$id": {
@@ -548,7 +584,7 @@
                 ".validate": "newData.isString() && newData.val().length <= 20"
               },
               "paidBy": {
-                ".validate": "newData.isString() && newData.val().length <= 30"
+                ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
@@ -560,11 +596,11 @@
                 ".validate": "newData.isBoolean()"
               },
               "splitMode": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
               },
               "splitOverride": {
                 "mode": {
-                  ".validate": "newData.isString() && newData.val().length <= 20"
+                  ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
                 },
                 "vous": {
                   ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
@@ -574,10 +610,11 @@
                 },
                 "$autre": {
                   ".validate": false
-                }
+                },
+                ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
               },
               "date": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
               },
               "heure": {
                 ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
@@ -607,8 +644,10 @@
               },
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
-              }
-            }
+              },
+              ".validate": "newData.hasChildren(['amount'])"
+            },
+            ".validate": "newData.hasChildren()"
           },
           "variableCharges": {
             "$id": {
@@ -628,7 +667,7 @@
                 ".validate": "newData.isString() && newData.val().length <= 20"
               },
               "paidBy": {
-                ".validate": "newData.isString() && newData.val().length <= 30"
+                ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
@@ -640,11 +679,11 @@
                 ".validate": "newData.isBoolean()"
               },
               "splitMode": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
               },
               "splitOverride": {
                 "mode": {
-                  ".validate": "newData.isString() && newData.val().length <= 20"
+                  ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
                 },
                 "vous": {
                   ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
@@ -654,10 +693,11 @@
                 },
                 "$autre": {
                   ".validate": false
-                }
+                },
+                ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
               },
               "date": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
               },
               "heure": {
                 ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
@@ -687,13 +727,15 @@
               },
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
-              }
-            }
+              },
+              ".validate": "newData.hasChildren(['amount'])"
+            },
+            ".validate": "newData.hasChildren()"
           },
           "reimbursements": {
             "$id": {
               "direction": {
-                ".validate": "newData.isString() && newData.val().length <= 30"
+                ".validate": "newData.isString() && (newData.val() === 'vous-to-conjointe' || newData.val() === 'conjointe-to-vous')"
               },
               "amount": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
@@ -702,7 +744,7 @@
                 ".validate": "newData.isString() && newData.val().length <= 1000"
               },
               "date": {
-                ".validate": "newData.isString() && newData.val().length <= 20"
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
               },
               "timestamp": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
@@ -712,17 +754,27 @@
               },
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
-              }
-            }
+              },
+              ".validate": "newData.hasChildren(['amount', 'direction'])"
+            },
+            ".validate": "newData.hasChildren()"
+          },
+          "reconductedFrom": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}$/)"
+          },
+          "shareMode": {
+            ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
           },
           "$autre": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "newData.hasChildren()"
       },
       "$autre": {
         ".validate": false
-      }
+      },
+      ".validate": "newData.hasChildren()"
     }
   }
 }

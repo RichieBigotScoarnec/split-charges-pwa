@@ -262,6 +262,37 @@ il rétrograderait `firebase-tools` d'une version majeure.
 
 ---
 
+### Le dépôt est public, et cela se paie
+
+Ce document affirmait « dépôt privé à usage familial ». C'était faux —
+l'API GitHub répond `"private": false` — et `sauvegarde.yml` disait l'inverse
+dans un commentaire. Deux fichiers du même dépôt se contredisaient, et c'est la
+prémisse sur laquelle reposent plusieurs décisions en aval.
+
+Ce qui en découle, et qui reste à trancher :
+
+- **La sauvegarde quotidienne est téléchargeable par tout titulaire d'un compte
+  GitHub.** Les artefacts d'un dépôt public le sont. L'archive porte
+  l'intégralité de `household`, chiffrée en AES-256 avec dérivation S2K au
+  compte maximal (paramètres désormais épinglés dans le workflow, plus hérités
+  du runner). Toute sa confidentialité tient donc à l'entropie de
+  `SAUVEGARDE_PASSPHRASE`, attaquée hors ligne, sans limite de tentatives, sur
+  90 jours de clichés. Une phrase choisie par un humain ne tient pas cette
+  charge. **Passer le dépôt en privé referme ce point d'un geste** ; à défaut,
+  déposer l'archive ailleurs, ou la chiffrer avec une clé aléatoire de 256 bits
+  gardée hors de GitHub.
+- **Les deux adresses du foyer sont publiées** dans `js/config.js` et dans les
+  règles, aux côtés de la clé API du projet. Ce sont donc des cibles nommées
+  pour `signInWithPassword`, et App Check — que le §6 présente comme le rempart
+  contre le martèlement — n'est pas en application forcée à ce jour.
+- **L'origine `github.io` est partagée** par tous les dépôts du compte servis
+  par Pages. Le miroir hors ligne et la session Firebase y vivent : le jour où
+  un second dépôt active Pages, sa page les lit, sans aucune injection.
+  Aujourd'hui `split-charges-pwa` est le seul (`has_pages: true`) — c'est une
+  contrainte à tenir, pas un état acquis.
+
 ## Signaler un problème
 
-Dépôt privé à usage familial : ouvrir une issue sur le dépôt.
+Le dépôt étant public, une issue l'est aussi : ne pas y décrire une faille
+exploitable avant qu'elle soit corrigée. Écrire à l'auteur, puis ouvrir l'issue
+une fois le correctif déployé.
