@@ -108,6 +108,23 @@ export async function applyRecurringCharges() {
       };
     }
 
+    // Le mois naissant fige le mode de partage qui lui est appliqué.
+    //
+    // `calculations.js` lit déjà `period.shareMode || shareMode` — « un mois
+    // peut avoir figé son propre mode de partage » — mais personne n'écrivait
+    // jamais ce champ, et les règles l'auraient refusé. Le repli était donc
+    // toujours pris : toute la chaîne de report se rejouait avec le mode du
+    // jour. Mesuré : un juillet réglé, remboursé et clos ressuscitait une
+    // dette de 125 € le jour où le foyer décidait de passer au 50-50 — pour
+    // l'avenir, croyait-il.
+    //
+    // L'empreinte part dans la même écriture atomique que les charges : un
+    // mois reconduit porte le mode sous lequel il l'a été.
+    const modeDuMois = getState('shareMode');
+    if (modeDuMois) {
+      updates[getDataPath(`periods/${target}/shareMode`)] = modeDuMois;
+    }
+
     // Rendre l'empreinte si la copie échoue.
     //
     // L'empreinte était posée avant la copie et n'était jamais reprise. Une

@@ -15,6 +15,58 @@
  * via window.* pour que la délégation puisse les appeler.
  */
 
+// ===== 0. LES SEULES ACTIONS QUE LA DÉLÉGATION ACCEPTE =====
+//
+// Les trois délégations ci-dessous résolvaient un nom de fonction directement
+// sur `window`, à partir d'un attribut du DOM. Quarante-sept fonctions étaient
+// ainsi joignables par leur nom — dont `settleBalance`, qui inscrit un
+// remboursement, `pickBackupFile`, dont la restauration écrase toute la base,
+// et les trois suppressions.
+//
+// La politique de sécurité de la page se passe de `'unsafe-inline'` sur
+// `script-src`, précisément pour qu'un balisage injecté ne puisse pas exécuter
+// de code. Mais l'application avait réimplémenté en JavaScript le mécanisme
+// que cette directive existe pour interdire : `data-action` est un gestionnaire
+// inline que la CSP ne voit pas et ne peut pas restreindre. Toute injection
+// HTML — y compris celle qui ne peut pas exécuter de script — devenait donc un
+// appel de fonction arbitraire, à un clic près. Et `data-on-input` n'exige même
+// pas le clic : la frappe suffit.
+//
+// Aucune injection n'est connue dans cette base de code. C'est un amplificateur,
+// pas une faille autonome — mais c'est exactement la défense en profondeur que
+// la CSP était censée fournir.
+//
+// La liste ci-dessous est l'inventaire exact de ce que le balisage déclenche,
+// HTML et gabarits JS confondus. Un nom absent ne fait plus rien.
+// `tests/actions-declarees.test.js` la compare au balisage réel et tombe dès
+// qu'un `data-action` la déborde — ou qu'elle garde un nom devenu inutile.
+const ACTIONS_AUTORISEES = new Set([
+  'changePeriod', 'clearSearch', 'closeModal', 'closeQuickAddModal',
+  'createAccount', 'deleteFixedCharge', 'deleteReimbursement',
+  'deleteVariableCharge', 'downloadBackup', 'editFixedCharge',
+  'editReimbursement', 'editVariableCharge', 'exportToCSV',
+  'exportToPDF', 'focusSalaries', 'handleQuickAddSubmit',
+  'navigatePeriod', 'pickBackupFile', 'requestNotificationPermission',
+  'restoreFromTrash', 'saveCategoryBudgets', 'saveMembers',
+  'saveReminderSettings', 'selectShareMode', 'settleBalance',
+  'showBackup', 'showBudgetEditor', 'showManageCategoriesModal',
+  'showManageDestinationsModal', 'showManageEnvelopesModal',
+  'showMapModal', 'showQuickAddModal', 'showTrash', 'signInWithEmail',
+  'signInWithGoogle', 'signOut', 'toggleBudgetInput', 'toggleCarryOver',
+  'toggleFixedChargeSplit', 'toggleFixedChargeSplitMode', 'toggleRemindersPanel', 'toggleTrends',
+  'toggleVariableChargeSplit', 'toggleVariableChargeSplitMode'
+]);
+
+/**
+ * La fonction visée par un attribut, si elle a le droit d'être appelée
+ * @param {string} nom - Contenu de data-action / data-on-change / data-on-input
+ * @returns {Function|null}
+ */
+function actionAutorisee(nom) {
+  if (!ACTIONS_AUTORISEES.has(nom)) return null;
+  return typeof window[nom] === 'function' ? window[nom] : null;
+}
+
 // ===== 1. DÉLÉGATION CLICK (data-action) =====
 document.addEventListener('click', function (e) {
   const btn = e.target.closest('[data-action]');
@@ -23,9 +75,10 @@ document.addEventListener('click', function (e) {
   const action = btn.dataset.action;
   const arg = btn.dataset.arg;
 
-  if (typeof window[action] === 'function') {
+  const fn = actionAutorisee(action);
+  if (fn) {
     e.preventDefault();
-    window[action](arg);
+    fn(arg);
   } else {
     // Fonction pas encore exposée (module pas encore initialisé) — ignorer silencieusement
     // console.warn('[Init] Action non trouvée sur window:', action);
@@ -39,10 +92,8 @@ document.addEventListener('change', function (e) {
 
   const fns = el.dataset.onChange.split(',');
   fns.forEach(function (fnName) {
-    const fn = fnName.trim();
-    if (typeof window[fn] === 'function') {
-      window[fn](el.value, el);
-    }
+    const fn = actionAutorisee(fnName.trim());
+    if (fn) fn(el.value, el);
   });
 });
 
@@ -53,10 +104,8 @@ document.addEventListener('input', function (e) {
 
   const fns = el.dataset.onInput.split(',');
   fns.forEach(function (fnName) {
-    const fn = fnName.trim();
-    if (typeof window[fn] === 'function') {
-      window[fn](el.value, el);
-    }
+    const fn = actionAutorisee(fnName.trim());
+    if (fn) fn(el.value, el);
   });
 });
 

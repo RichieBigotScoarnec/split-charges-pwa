@@ -136,14 +136,46 @@ describe('analyzeCategoriesData', () => {
     expect(result.fixed['Loyer'].percentage).toBeCloseTo(100);
   });
 
-  it('paidByPartner compte toutes les valeurs non-vous', () => {
+  it('une charge partagée est répartie, pas attribuée en entier à la conjointe', () => {
     setState('variableCharges', [
       { id: '1', amount: 50, category: 'A', paidBy: 'conjointe' },
-      { id: '2', amount: 30, category: 'A', paidBy: 'joint' } // joint → paidByPartner
+      { id: '2', amount: 30, category: 'A', paidBy: 'joint' }
     ]);
     const result = analyzeCategoriesData();
-    // paidBy !== 'vous' → paidByPartner
-    expect(result.variable['A'].paidByPartner).toBe(80);
+
+    // Ce test attendait 80 : `else` versait à la conjointe tout ce qui n'était
+    // pas `vous`, les 30 € partagés compris. Il verrouillait le défaut au lieu
+    // de le voir.
+    expect(result.variable['A'].paidByPartner).toBe(65);
+    expect(result.variable['A'].paidByYou).toBe(15);
+    // Rien ne se perd ni ne s'invente en chemin.
+    expect(result.variable['A'].paidByYou + result.variable['A'].paidByPartner)
+      .toBe(result.variable['A'].total);
+  });
+
+  it('une charge supprimée ne consomme plus son budget de catégorie', () => {
+    setState('variableCharges', [
+      { id: '1', amount: 100, category: 'Courses', paidBy: 'vous' },
+      { id: '2', amount: 400, category: 'Courses', paidBy: 'vous', deleted: true }
+    ]);
+    const result = analyzeCategoriesData();
+
+    expect(result.variable['Courses'].total).toBe(100);
+    expect(result.variable['Courses'].count).toBe(1);
+  });
+
+  it('une charge sans montant ne rend pas la catégorie entière NaN', () => {
+    // Les règles acceptent une charge sans `amount` : éprouvé contre le
+    // moteur réel, l'écriture passe. La garde doit donc vivre ici aussi, et
+    // pas seulement dans `calculations.js` où elle avait été posée seule.
+    setState('variableCharges', [
+      { id: '1', amount: 100, category: 'Courses', paidBy: 'vous' },
+      { id: '2', category: 'Courses', paidBy: 'vous' }
+    ]);
+    const result = analyzeCategoriesData();
+
+    expect(Number.isFinite(result.variable['Courses'].total)).toBe(true);
+    expect(result.variable['Courses'].total).toBe(100);
   });
 });
 

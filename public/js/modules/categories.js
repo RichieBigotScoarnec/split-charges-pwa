@@ -39,9 +39,25 @@ export function analyzeCategoriesData() {
 function analyzeCategoryType(charges, type) {
   const categoryData = {};
 
-  // Grouper par catégorie
-  charges.forEach(charge => {
+  // Trois gardes que le bilan porte depuis longtemps, et qui manquaient ici.
+  //
+  // 1. La suppression. Aucun filtre sur `deleted` : une charge mise à la
+  //    corbeille continuait de consommer son budget de catégorie. Mesuré :
+  //    100 € + 400 € supprimés donnaient « 500 € sur 2 charges ».
+  // 2. Le montant. `total += charge.amount` sans garde, alors que les règles
+  //    acceptent une charge sans `amount` (vérifié contre le moteur réel) :
+  //    une seule suffisait à rendre toute la catégorie `NaN`, donc le panneau
+  //    entier. C'est le défaut consigné « ✅ RÉSOLU 2026-08-24 » — la
+  //    correction avait été posée dans `calculations.js`, et là seulement.
+  // 3. Le payeur. `else` attribuait à la conjointe tout ce qui n'était pas
+  //    `vous`, « partage » compris : 300 € partagés lui étaient comptés en
+  //    entier.
+  //
+  // Ces totaux alimentent `category-budgets.js`, donc le panneau « X dépensés
+  // sur Y budgétés » et la détection de dépassement.
+  charges.filter(charge => charge && !charge.deleted).forEach(charge => {
     const category = charge.category || 'Autre';
+    const montant = Number.isFinite(charge.amount) ? charge.amount : 0;
 
     if (!categoryData[category]) {
       categoryData[category] = {
@@ -57,13 +73,19 @@ function analyzeCategoryType(charges, type) {
     }
 
     categoryData[category].charges.push(charge);
-    categoryData[category].total += charge.amount;
+    categoryData[category].total += montant;
     categoryData[category].count++;
 
     if (charge.paidBy === 'vous') {
-      categoryData[category].paidByYou += charge.amount;
+      categoryData[category].paidByYou += montant;
+    } else if (charge.paidBy === 'conjointe') {
+      categoryData[category].paidByPartner += montant;
     } else {
-      categoryData[category].paidByPartner += charge.amount;
+      // Une charge partagée n'a pas été payée par une seule personne : la
+      // moitié à chacun est une approximation, mais elle ne ment pas de tout
+      // le montant.
+      categoryData[category].paidByYou += montant / 2;
+      categoryData[category].paidByPartner += montant / 2;
     }
   });
 

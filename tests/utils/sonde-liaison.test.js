@@ -78,7 +78,7 @@ describe('Le renouvellement du jeton', () => {
 });
 
 describe('La lecture HTTPS authentifiée', () => {
-  it('demande le chemin voulu, avec le jeton', async () => {
+  it('demande le chemin voulu, et porte le jeton en en-tête', async () => {
     const recuperer = vi.fn(async () => ({ status: 200 }));
 
     await lireEnHttps({
@@ -88,11 +88,33 @@ describe('La lecture HTTPS authentifiée', () => {
       recuperer
     });
 
-    const adresse = recuperer.mock.calls[0][0];
+    const [adresse, options] = recuperer.mock.calls[0];
     expect(adresse).toContain('https://base.exemple/household/shareMode.json');
-    expect(adresse).toContain('auth=JETON');
     // On veut un code de réponse, pas des montants.
     expect(adresse).toContain('shallow=true');
+    expect(options.headers.Authorization).toBe('Bearer JETON');
+  });
+
+  it('ne met jamais le jeton dans l\'adresse', async () => {
+    // Ce test attendait l'inverse. `?auth=` est le mécanisme hérité des
+    // *database secrets* : une query string ressort par
+    // `performance.getEntriesByType('resource')`, lisible par tout script de
+    // l'origine et conservée après coup, et par les journaux de tout proxy qui
+    // déchiffre le TLS. Or la sonde ne part que si la liaison est rompue,
+    // c'est-à-dire d'abord derrière un tunnel d'entreprise.
+    const recuperer = vi.fn(async () => ({ status: 200 }));
+
+    await lireEnHttps({
+      base: 'https://base.exemple',
+      chemin: 'household/shareMode',
+      jeton: 'JETON-SECRET',
+      recuperer
+    });
+
+    const [adresse, options] = recuperer.mock.calls[0];
+    expect(adresse).not.toContain('JETON-SECRET');
+    expect(adresse).not.toContain('auth=');
+    expect(options.referrerPolicy).toBe('no-referrer');
   });
 
   it('rapporte une absence de réponse sans lever', async () => {

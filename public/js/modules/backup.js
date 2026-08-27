@@ -234,6 +234,23 @@ export async function restoreBackup(fichier) {
     return;
   }
 
+  // Une restauration ne se diffère pas.
+  //
+  // Hors ligne, `dbSet` mettait l'écrasement de toute la racine en file et
+  // rendait la main sans lever : l'application annonçait « Sauvegarde
+  // restaurée », rechargeait, et l'écrasement réel survenait à la reconnexion
+  // — bien plus tard, éventuellement sous la session de l'autre compte, et
+  // par-dessus les dépenses qu'il avait saisies entre-temps.
+  //
+  // C'est le cas nominal, pas un cas tordu : on va chercher « Restaurer une
+  // sauvegarde » précisément quand l'application paraît cassée, c'est-à-dire
+  // quand la base est injoignable.
+  const { liaisonRompue } = await import('../db.js');
+  if (liaisonRompue()) {
+    toast.error('Restauration impossible hors ligne — la base doit être joignable');
+    return;
+  }
+
   const confirme = await showConfirmModal(
     `Remplacer toutes vos données par cette sauvegarde (${describeBackup(enveloppe)}) ? ` +
     'Une copie de l\'état actuel sera téléchargée avant le remplacement.'

@@ -72,12 +72,39 @@ export function decrireLieu(reponse) {
   if (!etiquette) return null;
 
   return {
-    nom,
-    commune,
+    nom: borner(nom),
+    commune: borner(commune),
     codePostal,
-    ville,
-    etiquette,
+    ville: borner(ville),
+    etiquette: borner(etiquette),
     type: premierTexte([reponse.type]),
-    adresseComplete: premierTexte([reponse.display_name])
+    adresseComplete: borner(premierTexte([reponse.display_name]))
   };
+}
+
+/**
+ * Longueur maximale d'un texte de lieu, alignée sur `database.rules.json`
+ *
+ * Les règles plafonnent `location.name` à 200 caractères, et les champs
+ * annexes à 500. Rien ne bornait ce qui vient de Nominatim : un
+ * `display_name` est une adresse complète, du bâtiment jusqu'au pays, et rien
+ * n'empêche une contribution OpenStreetMap d'être bien plus longue. L'écriture
+ * était alors refusée par le serveur — et allait grossir la file hors ligne,
+ * où un refus définitif bloquait tout ce qui suivait.
+ *
+ * Tronquer au dernier espace évite de couper un mot en deux.
+ */
+const LONGUEUR_MAX = 200;
+
+/**
+ * Borne un texte de lieu à ce que les règles acceptent
+ * @param {string} texte
+ * @returns {string} Texte, tronqué proprement s'il dépassait
+ */
+function borner(texte) {
+  if (typeof texte !== 'string' || texte.length <= LONGUEUR_MAX) return texte;
+
+  const coupe = texte.slice(0, LONGUEUR_MAX);
+  const dernierEspace = coupe.lastIndexOf(' ');
+  return (dernierEspace > LONGUEUR_MAX / 2 ? coupe.slice(0, dernierEspace) : coupe).trimEnd();
 }

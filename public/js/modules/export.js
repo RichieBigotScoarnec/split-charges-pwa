@@ -22,6 +22,27 @@ export function initExport() {
 
 
 /**
+ * Somme des montants d'une liste de charges
+ *
+ * Troisième occurrence de la même garde, après `calculations.js` — où elle a
+ * été posée le 2026-08-24 — et `categories.js`. Les règles acceptent une
+ * charge sans `amount` (éprouvé contre le moteur réel), et `sum + undefined`
+ * donne `NaN`, qui se propage : le pied de tableau de l'export affichait
+ * « NaN € » dans le document qu'on garde ou qu'on transmet.
+ *
+ * Une seule lecture d'un montant stocké, et les trois chemins la partagent.
+ *
+ * @param {Array<Object>} charges
+ * @returns {number} Total en euros, jamais NaN
+ */
+export function totalDesCharges(charges) {
+  return (Array.isArray(charges) ? charges : []).reduce(
+    (somme, charge) => somme + (Number.isFinite(charge?.amount) ? charge.amount : 0),
+    0
+  );
+}
+
+/**
  * Met une valeur en forme pour une cellule CSV
  *
  * Deux défauts se corrigent au même endroit.
@@ -84,7 +105,7 @@ export function exportToCSV() {
     fixedCharges.forEach(charge => {
       csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(dateDeLaCharge(charge)))}\n`;
     });
-    csv += `\nTotal charges fixes: ${formatCurrency(fixedCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
+    csv += `\nTotal charges fixes: ${formatCurrency(totalDesCharges(fixedCharges))}\n`;
     csv += '\n';
 
     // Charges variables
@@ -96,7 +117,7 @@ export function exportToCSV() {
     variableCharges.forEach(charge => {
       csv += `${champCsv(charge.description)};${champCsv(charge.category)};${Number(charge.amount) || 0};${champCsv(formatPaidBy(charge.paidBy))};${champCsv(formatDate(dateDeLaCharge(charge)))};${champCsv(heureDeLaCharge(charge))}\n`;
     });
-    csv += `\nTotal charges variables: ${formatCurrency(variableCharges.reduce((sum, c) => sum + c.amount, 0))}\n`;
+    csv += `\nTotal charges variables: ${formatCurrency(totalDesCharges(variableCharges))}\n`;
     csv += '\n';
 
     // Remboursements
@@ -257,7 +278,7 @@ export function exportToPDF() {
             `).join('')}
             <tr class="total">
               <td colspan="2"><strong>Total</strong></td>
-              <td colspan="3"><strong>${formatCurrency(fixedCharges.reduce((sum, c) => sum + c.amount, 0))}</strong></td>
+              <td colspan="3"><strong>${formatCurrency(totalDesCharges(fixedCharges))}</strong></td>
             </tr>
           </table>
         </div>
@@ -283,7 +304,7 @@ export function exportToPDF() {
             `).join('')}
             <tr class="total">
               <td colspan="2"><strong>Total</strong></td>
-              <td colspan="3"><strong>${formatCurrency(variableCharges.reduce((sum, c) => sum + c.amount, 0))}</strong></td>
+              <td colspan="3"><strong>${formatCurrency(totalDesCharges(variableCharges))}</strong></td>
             </tr>
           </table>
         </div>

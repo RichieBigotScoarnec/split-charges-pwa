@@ -2,9 +2,30 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+
+  <!-- Refus d'encadrement, avant tout le reste.
+       `frame-ancestors` est ignorée en balise meta, et GitHub Pages ne pose
+       aucun en-tête : `js/utils/cadre.js` est donc le seul rempart. Mais il est
+       importé par `app.js`, chargé en module — donc différé jusqu'après
+       l'analyse complète du document. Toute l'interface, boutons compris, était
+       peinte avant que la garde ne vide la page ; et si `app.js` échouait à
+       charger, elle ne tournait pas du tout alors que le balisage, lui,
+       s'affichait.
+       Ces trois lignes ferment cette fenêtre : elles s'exécutent avant la
+       première feuille de style, donc avant le premier pixel. Le module garde
+       son rôle — afficher l'explication et le lien de sortie une fois le DOM
+       disponible. -->
+       Fichier externe, et non balise `<script>` en ligne : la politique se
+       passe d'`'unsafe-inline'` sur `script-src`, et ce n'est pas une
+       protection qu'on entame pour trois lignes. -->
+  <script src="js/anti-cadre.js"></script>
+
   <!-- Content Security Policy en balise meta : GitHub Pages ne permet pas de
        définir d'en-têtes HTTP, la politique de firebase.json n'y a donc jamais
-       été appliquée. Les origines localhost couvrent le mode ?emulator=1.
+       été appliquée. Les origines localhost n'y figurent plus : `?emulator=1`
+       est désormais refusé hors d'un hôte local (js/config.js), et les autoriser
+       ici revenait à laisser un lien piégé détourner la base vers un service
+       en écoute chez la victime.
        frame-ancestors et report-uri sont ignorés en meta : non utilisés ici.
        www.google.com couvre reCAPTCHA, dont App Check dépend : son script vient
        de là, son épreuve s'affiche dans un cadre de la même origine — et il y
@@ -29,7 +50,15 @@
        Ces origines sont contrôlées par tests/chargement-initial.test.js, qui
        compare cette politique à celle de firebase.json **dans les deux sens** :
        l'origine manquait ici et figurait là-bas, où elle ne s'applique pas. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com https://apis.google.com https://*.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app https://accounts.google.com https://www.google.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com/leaflet@1.9.4/ https://apis.google.com https://*.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://unpkg.com/leaflet@1.9.4/; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app https://accounts.google.com https://www.google.com" />
+  <!-- `unpkg.com` est borné au chemin exact de Leaflet, et ce n'est pas
+       cosmétique : ce CDN sert *n'importe quel* paquet npm. L'autoriser en
+       entier revenait à autoriser du script arbitraire, ce qui vidait de sa
+       substance l'absence d'`'unsafe-inline'` — une injection HTML n'avait
+       qu'à écrire <script src="https://unpkg.com/paquet-attaquant">. Un
+       préfixe de chemin, lui, ne laisse passer que ce qu'on charge vraiment.
+       (L'idéal reste de servir Leaflet depuis l'application, comme les
+       polices : plus d'origine tierce du tout, et Dependabot le suivrait.) -->
   <!-- Le géocodage inversé interroge Nominatim : sans politique explicite, les
        navigateurs anciens joignaient l'adresse complète de la page à la
        requête. L'origine seule suffit à ce que le service attend, et reste
@@ -717,7 +746,7 @@
         <div id="fixedChargeSplitOptions" class="split-override-options" style="display:none;">
           <div class="split-override-row">
             <label for="fixedChargeSplitMode" class="sr-only">Mode de partage de cette charge</label>
-            <select id="fixedChargeSplitMode">
+            <select id="fixedChargeSplitMode" data-on-change="toggleFixedChargeSplitMode">
               <option value="50-50">50 / 50</option>
               <option value="custom">Personnalisé</option>
             </select>

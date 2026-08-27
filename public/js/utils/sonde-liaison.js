@@ -146,9 +146,31 @@ export async function lireEnHttps({ base, chemin, jeton, delaiMs = DELAI_MS, rec
     // `shallow=true` : on veut un code de réponse, pas des données. Sur une
     // valeur simple il ne change rien ; sur un nœud il évite de rapatrier des
     // montants pour un diagnostic qui n'en a que faire.
+    // Le jeton voyage en en-tête, jamais dans l'adresse.
+    //
+    // `?auth=` est le mécanisme hérité des *database secrets* ; Realtime
+    // Database accepte `Authorization: Bearer` depuis longtemps, et rend le
+    // même code de réponse — le diagnostic garde donc exactement son pouvoir
+    // de discrimination.
+    //
+    // Le commentaire ci-dessus affirmait « L'adresse n'est ni journalisée ni
+    // conservée ». C'était vrai de l'application, et faux de l'environnement.
+    // Une query string ressort par deux endroits qu'on ne contrôle pas :
+    // `performance.getEntriesByType('resource')`, qui l'expose à tout script
+    // de l'origine et l'y laisse après coup, et les journaux de tout proxy
+    // qui déchiffre le TLS. Or cette sonde ne part *que* si la liaison est
+    // rompue — c'est-à-dire précisément dans le cas d'un tunnel d'entreprise,
+    // que `docs/compte-de-test.md` documente sur ces postes. Le jeton partait
+    // donc de préférence là où il risquait d'être lu.
     const reponse = await aller(
-      `${base}/${chemin}.json?shallow=true&auth=${encodeURIComponent(jeton)}`,
-      { method: 'GET', cache: 'no-store', signal: abandon ? abandon.signal : undefined }
+      `${base}/${chemin}.json?shallow=true`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${jeton}` },
+        referrerPolicy: 'no-referrer',
+        signal: abandon ? abandon.signal : undefined
+      }
     );
 
     return { statut: reponse.status, ms: Date.now() - debut, motif: null };
