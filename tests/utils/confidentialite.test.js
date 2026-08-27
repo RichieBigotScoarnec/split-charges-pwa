@@ -34,10 +34,10 @@ describe('emplacementOppose — désigner l\'autre, ou personne', () => {
 });
 
 describe('normaliserAval — l\'absence vaut refus', () => {
-  it('un nœud absent n\'est jamais un aval accordé', () => {
-    // Le seul défaut acceptable. Une lecture qui échoue ne doit pas ouvrir
-    // l'écriture privée : le serveur la refuserait, mais l'écran aurait promis
-    // ce que la base dément.
+  it('un nœud absent n\'est jamais un accès accordé', () => {
+    // Le seul défaut acceptable. Un nœud qu'on n'a pas pu lire ne doit jamais
+    // être pris pour un espace ouvert : l'écran annoncerait un partage qui
+    // n'existe pas, et le serveur refuserait la lecture qui suit.
     expect(normaliserAval(null).actif).toBe(false);
     expect(normaliserAval(undefined).actif).toBe(false);
     expect(normaliserAval({}).actif).toBe(false);
@@ -176,34 +176,33 @@ describe('resumeLu — « rien publié » n\'est pas « zéro dépense »', () =
   });
 });
 
-describe('depensePriveeEcrivable — sans aval, rien ne part', () => {
-  const accorde = { actif: true, accordeLe: 1, accordePar: 'conjointe' };
-
-  it('refuse d\'abord sur l\'aval, avant même de lire le montant', () => {
-    // L'ordre compte : un montant valide sans aval doit être refusé POUR
-    // l'aval, sinon le message parlerait du mauvais problème.
-    const verdict = depensePriveeEcrivable('45', { actif: false });
-    expect(verdict.valide).toBe(false);
-    expect(verdict.erreur).toMatch(/accord/i);
-  });
-
-  it.each([[null], [undefined], [{}], [{ actif: 'true' }]])(
-    'un aval illisible (%s) vaut refus',
-    (aval) => {
-      expect(depensePriveeEcrivable('45', aval).valide).toBe(false);
-    }
-  );
-
-  it('accepte un montant positif avec l\'aval', () => {
-    const verdict = depensePriveeEcrivable('45', accorde);
+describe('depensePriveeEcrivable — écrire chez soi ne demande rien', () => {
+  it('accepte un montant positif, sans qu\'aucun accord soit requis', () => {
+    // Le contrôle qui dit le sujet. Une version antérieure exigeait l'accord de
+    // la conjointe pour enregistrer ses PROPRES dépenses privées : elle
+    // demandait la permission d'avoir un jardin secret. Ce qui se demande,
+    // c'est l'accès au détail de l'autre — et cela se joue dans les règles, pas
+    // ici.
+    const verdict = depensePriveeEcrivable('45');
     expect(verdict.valide).toBe(true);
     expect(verdict.montant).toBe(45);
   });
 
+  it('n\'a plus de second paramètre, et l\'ignore si on lui en passe un', () => {
+    // La signature a changé. Un appelant resté sur l'ancienne forme — qui
+    // passerait un aval refusé — ne doit pas voir sa saisie bloquée en silence.
+    expect(depensePriveeEcrivable('45', { actif: false }).valide).toBe(true);
+    expect(depensePriveeEcrivable.length).toBe(1);
+  });
+
+  it('accepte la virgule décimale', () => {
+    expect(depensePriveeEcrivable('28,63').montant).toBeCloseTo(28.63, 6);
+  });
+
   it.each([['0'], ['-10'], [''], ['abc'], ['999999']])(
-    'refuse un montant « %s » même avec l\'aval',
+    'refuse un montant « %s », et le dit pour ce qu\'il est',
     (saisi) => {
-      const verdict = depensePriveeEcrivable(saisi, accorde);
+      const verdict = depensePriveeEcrivable(saisi);
       expect(verdict.valide).toBe(false);
       expect(verdict.erreur).toMatch(/montant/i);
     }

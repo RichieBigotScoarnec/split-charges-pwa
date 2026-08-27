@@ -11,8 +11,12 @@
   }
 
   /* Hide interactive elements (high specificity instead of !important) */
+  /* Les deux rangées d'outils remplacent `.export-actions`, dissoute par le
+     découpage en onglets. Leurs intitulés partent avec elles : un titre
+     « Vos listes » sans ses boutons n'annoncerait plus rien. */
   body .fab, body .btn, body button, body .modal-overlay,
-  body .export-actions, body .period-navigation, body .card-header button,
+  body .acces-rapides, body .outils-rangee, body .outils-titre,
+  body .period-navigation, body .card-header button,
   body .btn-delete, body .save-indicator {
     display: none;
   }

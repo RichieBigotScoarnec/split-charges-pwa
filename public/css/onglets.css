@@ -1,0 +1,235 @@
+/* ===== BARRE D'ONGLETS ET PANNEAUX =====
+   ---------------------------------------------------------------------------
+   Le problème mesuré : sur un téléphone, la page empilait cinq sections et une
+   rangée de dix boutons d'outils. Répondre à « qui doit combien à qui » et
+   corriger une charge de la semaine passée demandaient le même geste — faire
+   défiler jusqu'à trouver.
+
+   Le découpage suit la question qu'on se pose, pas le type de donnée :
+
+     📊 Bilan     — où on en est : solde, prévisionnel, budgets, tendances
+     🧾 Charges   — ce qu'on a dépensé : recherche et les trois listes
+     ⚙️ Réglages  — ce qui ne bouge presque jamais : revenus, règle de
+                    partage, rappels, outils
+
+   Trois destinations, chacune tenant sur un écran.
+
+   Point de rupture à 900 px, celui qui existait déjà : c'est là que la mise en
+   page passe en colonnes. Au-delà, les trois panneaux s'affichent ensemble et
+   la barre disparaît — il y a la place de tout montrer, et masquer les deux
+   tiers d'un grand écran serait une régression, pas un rangement.
+   --------------------------------------------------------------------------- */
+
+/*
+   La barre elle-même.
+
+   Posée en bas : c'est la zone que le pouce atteint sans changer la prise,
+   et l'idiome que toutes les applications bancaires — Sumeria comprise —
+   emploient. `env(safe-area-inset-bottom)` tient compte de la barre système
+   des téléphones sans bouton d'accueil.
+
+   `display: none` par défaut, révélée par la requête média plus bas : ainsi
+   l'impression et les grands écrans n'ont rien à défaire.
+*/
+.onglets {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .onglets {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    display: flex;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    /* L'ombre est portée vers le haut : la barre flotte au-dessus du contenu
+       qui passe dessous, et le liseré seul ne suffit pas à le dire. */
+    box-shadow: 0 -2px 12px rgba(60, 42, 28, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .onglet {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    /* 56 px : au-delà des 44 px des WCAG 2.5.5, parce que c'est la commande
+       la plus souvent visée de l'application. */
+    min-height: 56px;
+    padding: var(--space-sm) var(--space-xs);
+    border: none;
+    /* Le liseré du haut est le témoin d'activité : réservé dès le repos pour
+       qu'activer un onglet ne déplace jamais rien. */
+    border-top: 3px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+  }
+
+  .onglet-icone {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .onglet-nom {
+    /* Sur un écran de 320 px chaque onglet dispose d'environ 106 px : les
+       trois intitulés — Bilan, Charges, Réglages — y tiennent sans coupure. */
+    white-space: nowrap;
+  }
+
+  .onglet:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+  }
+
+  /*
+     L'onglet courant se marque par la couleur ET par le liseré : la couleur
+     seule ne suffit pas — WCAG 1.4.1 interdit d'en faire le seul véhicule
+     d'une information. `aria-current` porte la même chose pour un lecteur
+     d'écran, et c'est lui qu'on stylise : impossible de peindre un onglet
+     actif sans l'annoncer.
+  */
+  .onglet[aria-current="true"] {
+    color: var(--primary-color);
+    border-top-color: var(--primary-color);
+    background: var(--primary-soft);
+  }
+
+  .onglet:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+  }
+
+  /*
+     Les panneaux au repos.
+
+     `display: none` et non l'attribut `hidden` : la règle globale `[hidden]`
+     de base.css vaut pour tout l'écran, et un panneau masqué par attribut
+     resterait masqué au-delà de 900 px sans qu'on puisse le rouvrir
+     proprement depuis une requête média. Une classe se laisse annuler ;
+     `display: none` retire aussi le panneau de l'arbre d'accessibilité, ce
+     qui est exactement ce qu'on veut d'une section non affichée.
+  */
+  .panneau {
+    display: none;
+  }
+
+  .panneau--actif {
+    display: block;
+  }
+
+  /*
+     La place que la barre occupe.
+
+     Sans cette réserve, la dernière carte de chaque panneau passe sous la
+     barre et devient illisible — le défaut classique d'une barre fixe. Mesuré
+     avant correction : 32 px de contenu masqués, sur un écran de 390 × 844.
+
+     `body .container` et non `.container` : sous 600 px, `responsive.css`
+     applique `padding: var(--space-sm)`, un raccourci qui réécrit les quatre
+     côtés. À spécificité égale — une requête média n'en ajoute pas — c'est la
+     feuille chargée en dernier qui l'emporte, et c'est elle. Le sélecteur plus
+     précis garde la question ici, avec les onglets qui la posent, plutôt que
+     d'aller modifier une règle dont ce n'est pas le sujet.
+
+     56 px de barre + la marge basse + l'encoche des téléphones sans bouton.
+  */
+  body .container {
+    padding-bottom: calc(56px + var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /*
+     Le bouton flottant se hisse au-dessus de la barre.
+
+     Même précaution, et pour la même raison : `responsive.css` le pose à
+     88 px sous 600 px, et `components.css` à 24 px au-dessus. Le second se
+     serait posé sur les onglets. `body .fab` — et non `.container .fab` : le
+     bouton est un enfant direct de `<body>`, un sélecteur le supposant dans
+     le conteneur ne désignerait rien du tout.
+  */
+  body .fab {
+    bottom: calc(56px + var(--space-md) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/*
+   À l'impression, tout se montre.
+
+   `export.js` construit sa propre page dans une nouvelle fenêtre, donc l'export
+   PDF ne dépend pas de ceci. Mais un Ctrl+P sur la page vivante ne doit pas
+   rendre le seul onglet ouvert : une feuille de comptes amputée des deux tiers
+   sans le dire est pire qu'une impression refusée.
+*/
+@media print {
+  .onglets {
+    display: none;
+  }
+
+  .panneau {
+    display: block;
+  }
+
+  body .container {
+    padding-bottom: 0;
+  }
+}
+
+/* ===== LES OUTILS, RANGÉS PAR CE QU'ILS FONT ===== */
+/*
+   Huit boutons alignés à égalité se lisent un par un. Deux boutons sous un
+   intitulé se lisent d'un coup d'œil. Le gain n'est pas la place occupée —
+   c'est le nombre de choses à lire avant d'en viser une.
+*/
+.outils-titre {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.outils-titre:first-of-type {
+  margin-top: 0;
+}
+
+.outils-rangee {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.outils-rangee .btn {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* ===== LES ACCÈS QUOTIDIENS DU BILAN ===== */
+/*
+   Ce qui reste sur l'écran d'accueil : les enveloppes, ce qui est privé, et
+   la carte quand des dépenses sont localisées. Trois lectures du mois, à
+   côté du solde qu'elles complètent.
+*/
+.acces-rapides {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.acces-rapides .btn {
+  flex: 1;
+  min-width: 140px;
+}

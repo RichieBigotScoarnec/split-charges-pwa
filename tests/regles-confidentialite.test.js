@@ -5,14 +5,26 @@
  * exactement les mêmes accès à la base, et un drapeau « masqué » est un rideau.
  * Ces contrôles vérifient donc la seule chose qui compte — la forme des règles.
  *
- * Ils tournent en CI sans émulateur. Les mêmes règles ont été rejouées contre
- * le **moteur réel** : 22 écritures et lectures, dans les deux sens, toutes
- * conformes — dont les quatre qui définissent le mur :
+ * ## Ce que l'aval gouverne
  *
- *     Richard s'accorde son propre aval          → REFUSÉ
- *     Richard lit l'espace privé de Cindy        → REFUSÉ
- *     aval retiré → nouvelle écriture privée     → REFUSÉ
- *     aval retiré → Cindy lit le passé           → REFUSÉ
+ *     Écrire chez soi ne demande rien. Lire chez l'autre demande son accord.
+ *
+ * Chacun a le droit d'avoir des dépenses à soi sans avoir à les mendier :
+ * `/prive/{qui}` est écrivable par `{qui}`, sans condition. Ce qui est soumis à
+ * validation, c'est l'accès au **détail de l'autre** — et l'accord est donné
+ * par le propriétaire, sur ses propres données.
+ *
+ * Une version antérieure faisait l'inverse : elle exigeait l'accord de la
+ * conjointe pour enregistrer ses propres dépenses privées. Elle confondait
+ * « avoir un jardin secret » et « avoir la clé du sien ».
+ *
+ * ## Le point qui fait tenir l'ensemble
+ *
+ * **Personne ne peut s'accorder l'accès aux données de l'autre.**
+ * `/aval/{qui}` n'est écrivable que par `{qui}` : vouloir lire l'espace de sa
+ * conjointe en écrivant soi-même l'autorisation est refusé par le moteur de
+ * règles. C'est la même garantie que la version précédente, dans l'autre sens —
+ * on ne peut jamais se donner à soi-même la chose qui compte.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -44,36 +56,16 @@ describe('Les trois racines vivent HORS de `household`', () => {
   });
 });
 
-describe('Le mur : chacun est aveugle à l\'espace de l\'autre', () => {
-  it.each(FOYER)('`prive/$emplacement` n\'est lisible que par son propriétaire', ({ emplacement, proprietaire, autre }) => {
-    const lecture = regles.prive[emplacement]['.read'];
-    expect(lecture).toContain(proprietaire);
-    expect(lecture, 'l\'autre pourrait lire').not.toContain(autre);
-  });
-
-  it.each(FOYER)('`prive/$emplacement` n\'est écrivable que par son propriétaire', ({ emplacement, proprietaire, autre }) => {
+describe('Écrire chez soi ne demande rien', () => {
+  it.each(FOYER)('`prive/$emplacement` est écrivable par son propriétaire, sans condition', ({ emplacement, proprietaire, autre }) => {
+    // Le contrôle qui dit le sujet. Chacun a le droit d'avoir des dépenses à
+    // soi sans avoir à les mendier : conditionner l'écriture à l'accord de
+    // l'autre demanderait la permission d'avoir un jardin secret.
     const ecriture = regles.prive[emplacement]['.write'];
     expect(ecriture).toContain(proprietaire);
-    expect(ecriture).not.toContain(autre);
-  });
-
-  it.each(FOYER)('la lecture de `prive/$emplacement` ne dépend JAMAIS de l\'aval', ({ emplacement }) => {
-    // Le point le plus important du fichier. Si la lecture était conditionnée à
-    // l'aval, le retirer rendrait lisible ce qui a déjà été écrit — et « privé »
-    // n'aurait jamais été vrai, seulement différé.
-    expect(regles.prive[emplacement]['.read'], 'retirer l\'aval ouvrirait le passé')
+    expect(ecriture, 'l\'autre pourrait écrire chez soi').not.toContain(autre);
+    expect(ecriture, 'écrire ses propres dépenses ne doit dépendre d\'aucun aval')
       .not.toContain('aval');
-  });
-
-  it.each(FOYER)('l\'écriture dans `prive/$emplacement`, elle, exige l\'aval', ({ emplacement }) => {
-    expect(regles.prive[emplacement]['.write'])
-      .toContain(`root.child('aval/${emplacement}/actif').val() === true`);
-  });
-
-  it.each(FOYER)('mais on peut toujours effacer les siennes, aval ou non', ({ emplacement }) => {
-    // Sans cette branche, un aval retiré emprisonnerait ses propres données
-    // dans un espace qu'on ne pourrait plus vider.
-    expect(regles.prive[emplacement]['.write']).toContain('!newData.exists()');
   });
 
   it.each(FOYER)('`prive/$emplacement` refuse un champ que le code n\'écrit pas', ({ emplacement }) => {
@@ -83,18 +75,59 @@ describe('Le mur : chacun est aveugle à l\'espace de l\'autre', () => {
   });
 });
 
-describe('L\'aval : personne ne peut se l\'accorder', () => {
-  it.each(FOYER)('`aval/$emplacement` n\'est écrivable QUE par l\'autre', ({ emplacement, proprietaire, autre }) => {
-    // La ligne qui fait tout tenir. Ce n'est pas une politesse d'interface :
-    // c'est le moteur de règles qui refuse une auto-autorisation.
+describe('Lire chez l\'autre demande son accord', () => {
+  it.each(FOYER)('`prive/$emplacement` est toujours lisible par son propriétaire', ({ emplacement, proprietaire }) => {
+    // Sans condition, et surtout pas la sienne : quelqu'un qui n'aurait rien
+    // ouvert ne pourrait plus relire ses propres dépenses.
+    expect(regles.prive[emplacement]['.read']).toContain(proprietaire);
+  });
+
+  it.each(FOYER)('l\'autre ne lit `prive/$emplacement` QUE si le propriétaire l\'a ouvert', ({ emplacement, autre }) => {
+    // Le mur. L'autre apparaît dans la règle de lecture, mais jamais seul :
+    // toujours accompagné de la condition qui l'autorise.
+    const lecture = regles.prive[emplacement]['.read'];
+    expect(lecture).toContain(autre);
+    expect(lecture).toContain(`root.child('aval/${emplacement}/actif').val() === true`);
+
+    // Et la condition porte bien sur l'autre, pas sur le propriétaire : un
+    // parenthésage fautif rendrait la clause inopérante tout en la gardant
+    // présente dans le texte.
+    const clause = lecture.slice(lecture.indexOf(autre));
+    expect(clause, 'la condition ne s\'applique pas à l\'autre')
+      .toContain(`root.child('aval/${emplacement}/actif').val() === true`);
+  });
+
+  it.each(FOYER)('refermer l\'accès de `prive/$emplacement` referme aussi le passé', ({ emplacement }) => {
+    // Cohérent avec ce qu'est cet accord : une permission de **lecture**, pas
+    // un permis d'écrire déjà consommé. Ce que la règle exprime en n'ayant
+    // aucune branche qui survivrait au retrait.
+    const lecture = regles.prive[emplacement]['.read'];
+    expect(lecture.match(/aval/g), 'une seule condition d\'accès, pas deux chemins')
+      .toHaveLength(1);
+  });
+});
+
+describe('L\'accord : personne ne peut se l\'accorder', () => {
+  it.each(FOYER)('`aval/$emplacement` n\'est écrivable QUE par son propriétaire', ({ emplacement, proprietaire, autre }) => {
+    // La ligne qui fait tout tenir. `/aval/{qui}` ouvre l'espace de `{qui}` :
+    // laisser l'autre l'écrire reviendrait à se donner soi-même l'accès aux
+    // données d'en face. Ce n'est pas une politesse d'interface — c'est le
+    // moteur de règles qui refuse.
     const ecriture = regles.aval[emplacement]['.write'];
-    expect(ecriture).toContain(autre);
-    expect(ecriture, 'le propriétaire pourrait s\'auto-autoriser').not.toContain(proprietaire);
+    expect(ecriture).toContain(proprietaire);
+    expect(ecriture, 'l\'autre s\'accorderait l\'accès à cet espace').not.toContain(autre);
+  });
+
+  it.each(FOYER)('`aval/$emplacement` n\'enregistre que son propriétaire comme auteur', ({ emplacement }) => {
+    // Redondant avec la règle d'écriture, et voulu : la trace d'audit ne peut
+    // pas désigner quelqu'un qui n'avait pas le droit d'écrire ici.
+    expect(regles.aval[emplacement].accordePar['.validate'])
+      .toBe(`newData.isString() && newData.val() === '${emplacement}'`);
   });
 
   it.each(FOYER)('`aval/$emplacement` est lisible par les deux', ({ emplacement, proprietaire, autre }) => {
-    // Un pacte se lit dans les deux sens : celui qui le reçoit doit voir qu'il
-    // l'a, celui qui le donne doit voir qu'il l'a donné.
+    // Un accord se lit dans les deux sens : celui qui le reçoit doit voir
+    // qu'il l'a, celui qui le donne doit voir ce qu'il a ouvert.
     const lecture = regles.aval[emplacement]['.read'];
     expect(lecture).toContain(proprietaire);
     expect(lecture).toContain(autre);

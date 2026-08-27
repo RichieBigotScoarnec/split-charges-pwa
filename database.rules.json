@@ -870,8 +870,8 @@
     },
     "prive": {
       "vous": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'",
-        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' && (root.child('aval/vous/actif').val() === true || !newData.exists())",
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || (auth.token.email === 'cindypepe.cp95@gmail.com' && root.child('aval/vous/actif').val() === true))",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'",
         "periods": {
           "$periode": {
             "depenses": {
@@ -910,8 +910,8 @@
         }
       },
       "conjointe": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
-        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' && (root.child('aval/conjointe/actif').val() === true || !newData.exists())",
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'cindypepe.cp95@gmail.com' || (auth.token.email === 'bigot.richard@gmail.com' && root.child('aval/conjointe/actif').val() === true))",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
         "periods": {
           "$periode": {
             "depenses": {
@@ -953,23 +953,6 @@
     "aval": {
       "vous": {
         ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
-        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
-        "actif": {
-          ".validate": "newData.isBoolean()"
-        },
-        "accordeLe": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
-        },
-        "accordePar": {
-          ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
-        },
-        "$autre": {
-          ".validate": false
-        },
-        ".validate": "!newData.exists() || newData.hasChildren(['actif'])"
-      },
-      "conjointe": {
-        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'",
         "actif": {
           ".validate": "newData.isBoolean()"
@@ -978,7 +961,24 @@
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
         },
         "accordePar": {
-          ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
+          ".validate": "newData.isString() && newData.val() === 'vous'"
+        },
+        "$autre": {
+          ".validate": false
+        },
+        ".validate": "!newData.exists() || newData.hasChildren(['actif'])"
+      },
+      "conjointe": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
+        "actif": {
+          ".validate": "newData.isBoolean()"
+        },
+        "accordeLe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+        },
+        "accordePar": {
+          ".validate": "newData.isString() && newData.val() === 'conjointe'"
         },
         "$autre": {
           ".validate": false

@@ -803,6 +803,11 @@ test.describe('Mise en page', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
     test('les deux champs de salaire tiennent dans leur carte', async ({ page }) => {
+      // Sous 900 px, un panneau à la fois : les salaires sont dans l'onglet
+      // Réglages, et on l'ouvre comme on le ferait au doigt.
+      await page.locator('.onglet[data-panneau="panneauReglages"]').click();
+      await expect(page.locator('#panneauReglages')).toBeVisible();
+
       await resteDansLesBornes(page, '#salaireVous', '#salariesGrid');
       await resteDansLesBornes(page, '#salaireConjointe', '#salariesGrid');
     });

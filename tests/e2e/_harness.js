@@ -287,3 +287,32 @@ export async function waitForApp(page, { query = '' } = {}) {
   await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
   await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
 }
+
+/**
+ * Amène l'écran sur un panneau, par la barre d'onglets
+ *
+ * Sous 900 px l'application montre un panneau à la fois : le bilan, les
+ * charges ou les réglages. Un test qui vise un champ de salaire sur un écran
+ * de téléphone doit donc faire ce que fait la personne — toucher l'onglet.
+ *
+ * Passer par le vrai bouton, et non par `evaluate` : forcer la classe depuis
+ * le test rendrait un panneau visible même si la barre était cassée, et le
+ * contrôle donnerait raison à la panne. Ici, si l'onglet ne répond pas, le
+ * test qui suit tombe.
+ *
+ * Au-delà de 900 px la barre n'existe pas — les trois panneaux ont leurs
+ * colonnes — et l'appel ne fait rien : les suites qui tournent à la largeur
+ * par défaut n'ont pas à savoir que les onglets existent.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} id - Identifiant du panneau ('panneauBilan', 'panneauCharges', 'panneauReglages')
+ * @returns {Promise<boolean>} A-t-on réellement changé d'onglet ?
+ */
+export async function allerAuPanneau(page, id) {
+  const onglet = page.locator(`.onglet[data-panneau="${id}"]`);
+  if (!(await onglet.isVisible())) return false;
+
+  await onglet.click();
+  await page.waitForSelector(`#${id}.panneau--actif`, { state: 'visible', timeout: 5000 });
+  return true;
+}

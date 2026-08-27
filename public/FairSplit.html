@@ -112,6 +112,7 @@
   <link rel="stylesheet" href="css/auth.css">
   <link rel="stylesheet" href="css/summary.css">
   <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/onglets.css">
   <link rel="stylesheet" href="css/responsive.css">
 
 
@@ -248,8 +249,12 @@
     <div id="balanceBar" class="balance-bar" role="status" hidden></div>
 
     <!-- Summary Section -->
-    <!-- Colonne consultation : ce qu'on lit -->
-    <div class="col-bilan">
+    <!-- Colonne consultation : ce qu'on lit.
+         Sous 900 px elle devient le panneau « Bilan », premier onglet et écran
+         par défaut : l'application répond à une question, elle doit la poser
+         d'entrée. Au-delà, elle reprend sa colonne et la barre d'onglets
+         disparaît — il y a la place de tout montrer, cacher serait gratuit. -->
+    <div class="col-bilan panneau panneau--actif" id="panneauBilan">
     <section aria-labelledby="sectionResume">
     <div class="card">
       <div class="card-header">
@@ -288,119 +293,45 @@
         </div>
       </div>
 
-      <!-- Reminders / Notifications -->
-      <div class="reminders-section">
-        <button type="button" class="reminders-header" data-action="toggleRemindersPanel" aria-expanded="false" aria-controls="remindersBody">
-          <span class="reminders-header-left">
-            <span aria-hidden="true">🔔</span> Rappels et Notifications
-          </span>
-          <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
-        </button>
-        <div class="reminders-body" id="remindersBody">
-          <!-- Ce que ces trois bascules peuvent réellement faire est énoncé par
-               `notificationsStatus`, en bas du panneau : les rappels ne partent
-               que si l'application est ouverte. Une page web ne peut pas
-               prévenir quand elle est fermée sans un serveur d'envoi, que ce
-               projet n'a pas. Le laisser sous-entendre revenait à promettre. -->
-          <div class="reminder-toggle-row">
-            <div>
-              <div class="reminder-toggle-label">Fin de mois</div>
-              <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
-            </div>
-            <label class="reminder-toggle">
-              <input type="checkbox" id="reminderFinMois" aria-label="Rappel de fin de mois" data-on-change="saveReminderSettings" />
-              <span class="reminder-toggle-slider"></span>
-            </label>
-          </div>
-          <div class="reminder-toggle-row">
-            <div>
-              <div class="reminder-toggle-label">Budget dépassé</div>
-              <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
-            </div>
-            <label class="reminder-toggle">
-              <input type="checkbox" id="reminderBudget" aria-label="Alerte de budget dépassé" data-on-change="saveReminderSettings,toggleBudgetInput" />
-              <span class="reminder-toggle-slider"></span>
-            </label>
-          </div>
-          <div id="budgetInputRow" class="budget-input-row">
-            <label for="budgetAmount">Limite budget mensuel (€)</label>
-            <input type="text" id="budgetAmount" inputmode="decimal" placeholder="Ex: 3000" data-on-input="saveReminderSettings" />
-          </div>
-          <div class="reminder-toggle-row">
-            <div>
-              <div class="reminder-toggle-label">Remboursement en attente</div>
-              <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
-            </div>
-            <label class="reminder-toggle">
-              <input type="checkbox" id="reminderReimbursement" aria-label="Rappel de remboursement en attente" data-on-change="saveReminderSettings" />
-              <span class="reminder-toggle-slider"></span>
-            </label>
-          </div>
-          <!-- Ce bloc annonçait « Activez les notifications » quel que soit
-               l'état réel, sans offrir le moyen de le faire. Il est désormais
-               rempli par le module, qui connaît la permission accordée. -->
-          <div id="notificationsStatus" class="notifications-status"></div>
-        </div>
-      </div>
+      <!-- Le panneau des rappels a rejoint l'onglet Réglages : trois bascules
+           qu'on arme une fois n'ont rien à faire sur l'écran qu'on ouvre dix
+           fois par semaine. -->
 
-      <!-- Export Actions -->
-      <div class="export-actions">
-        <button type="button" class="btn btn-secondary" data-action="exportToCSV" title="Export compatible Excel">
-          <span aria-hidden="true">📊</span> Export CSV
-        </button>
-        <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
-          <span aria-hidden="true">📄</span> Imprimer PDF
-        </button>
-        <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
-             la carte se trouvait dans un panneau en display:none, ce qui la
-             rendait inatteignable. -->
-        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
-          <span aria-hidden="true">📍</span> Carte
-        </button>
-        <button type="button" class="btn btn-secondary" data-action="showBackup" title="Sauvegarder ou restaurer toutes les données">
-          <span aria-hidden="true">💾</span> Sauvegarde
-        </button>
-        <!-- Toujours visible : masqué, on le cherchait sans savoir s'il avait
-             disparu ou n'avait jamais existé. Sans compteur : la corbeille
-             couvre tout l'historique, un nombre qui ne ferait que croître
-             n'apprendrait rien. -->
-        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés, tous mois confondus">
-          <span aria-hidden="true">🗑️</span> Corbeille
-        </button>
-        <!-- L'écran de gestion des catégories existait, complet — liste,
-             sélecteur d'emoji, ajout, suppression, écriture en base — mais
-             aucun bouton ne l'ouvrait. `window.showManageCategoriesModal` était
-             exposé « pour compatibilité » et personne ne l'appelait : la seule
-             façon d'y accéder était la console du navigateur, c'est-à-dire pas
-             depuis un téléphone. Même famille que la carte, plus haut. -->
-        <button type="button" class="btn btn-secondary" data-action="showManageCategoriesModal" title="Ajouter, renommer ou retirer des catégories">
-          <span aria-hidden="true">🏷️</span> Catégories
-        </button>
-        <!-- Les destinations de virement des charges fixes : même angle mort
-             que les catégories, découvert le même jour. `showManageModal`
-             savait les afficher, rien ne l'exposait. -->
-        <button type="button" class="btn btn-secondary" data-action="showManageDestinationsModal" title="Ajouter, renommer ou retirer des destinations de virement">
-          <span aria-hidden="true">🏦</span> Destinations
-        </button>
+      <!-- Accès quotidiens.
+           Dix boutons se disputaient cette rangée : deux qu'on ouvre chaque
+           semaine et huit qu'on ouvre deux fois l'an. Rangés à égalité, il
+           fallait lire les dix pour en viser un.
+           Ne restent ici que les lectures du mois — les enveloppes, ce qui est
+           privé, et la carte si des dépenses sont localisées. Les huit autres
+           ont leur place dans l'onglet Réglages, groupés par ce qu'ils font. -->
+      <div class="acces-rapides">
         <!-- Les enveloppes transversales : un séjour, un déménagement, un
              chantier. Elles regroupent des dépenses par-delà les catégories et
              les mois, sans jamais toucher au solde. -->
+        <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
+          <span aria-hidden="true">🧳</span> Enveloppes
+        </button>
         <button type="button" class="btn btn-secondary" data-action="showPrivateExpensesModal" title="Vos dépenses privées, et l'accord mutuel qui les autorise">
           <span aria-hidden="true">🔒</span> Privé
         </button>
-        <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
-          <span aria-hidden="true">🧳</span> Enveloppes
+        <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
+             la carte se trouvait dans un panneau en display:none, ce qui la
+             rendait inatteignable. Elle reste ici, avec les lectures du mois :
+             la ranger dans les réglages la rendrait introuvable une fois de
+             plus, et c'est exactement le défaut qu'on a corrigé. -->
+        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
+          <span aria-hidden="true">📍</span> Carte
         </button>
       </div>
     </div>
     </section>
-
-    </div>
-    </section>
     </div>
 
-    <!-- Colonne saisie : ce qu'on alimente -->
-    <div class="col-listes">
+
+    <!-- Colonne saisie : ce qu'on alimente. Sous 900 px, l'onglet « Charges ».
+         La recherche vit ici et non dans le bilan : elle ne cherche que dans
+         ces trois listes, la poser ailleurs promettrait plus large. -->
+    <div class="col-listes panneau" id="panneauCharges">
     <!-- Search Bar -->
     <div class="search-bar-container" id="searchBarContainer" hidden>
       <div class="search-bar">
@@ -464,9 +395,71 @@
     </section>
     </div>
 
-    <!-- Colonne réglages : ce qu'on ajuste rarement. Au-delà de 1600 px
-         elle prend sa propre colonne ; en deçà elle suit le bilan. -->
-    <div class="col-reglages">
+    <!-- ==================== PANNEAU RÉGLAGES ==================== -->
+    <!-- Ce qu'on ajuste rarement : les revenus, la règle de partage, les
+         rappels, puis les outils. Au-delà de 1600 px il prend sa propre
+         colonne ; en deçà de 900 px il devient le troisième onglet. -->
+    <div class="col-reglages panneau" id="panneauReglages">
+
+    <!-- Rappels et notifications -->
+    <section aria-labelledby="sectionRappels">
+    <div class="card">
+      <div class="reminders-section">
+        <button type="button" class="reminders-header" id="sectionRappels" data-action="toggleRemindersPanel" aria-expanded="false" aria-controls="remindersBody">
+          <span class="reminders-header-left">
+            <span aria-hidden="true">🔔</span> Rappels et Notifications
+          </span>
+          <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
+        </button>
+        <div class="reminders-body" id="remindersBody">
+          <!-- Ce que ces trois bascules peuvent réellement faire est énoncé par
+               `notificationsStatus`, en bas du panneau : les rappels ne partent
+               que si l'application est ouverte. Une page web ne peut pas
+               prévenir quand elle est fermée sans un serveur d'envoi, que ce
+               projet n'a pas. Le laisser sous-entendre revenait à promettre. -->
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Fin de mois</div>
+              <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderFinMois" aria-label="Rappel de fin de mois" data-on-change="saveReminderSettings" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Budget dépassé</div>
+              <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderBudget" aria-label="Alerte de budget dépassé" data-on-change="saveReminderSettings,toggleBudgetInput" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div id="budgetInputRow" class="budget-input-row">
+            <label for="budgetAmount">Limite budget mensuel (€)</label>
+            <input type="text" id="budgetAmount" inputmode="decimal" placeholder="Ex: 3000" data-on-input="saveReminderSettings" />
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Remboursement en attente</div>
+              <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderReimbursement" aria-label="Rappel de remboursement en attente" data-on-change="saveReminderSettings" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <!-- Ce bloc annonçait « Activez les notifications » quel que soit
+               l'état réel, sans offrir le moyen de le faire. Il est désormais
+               rempli par le module, qui connaît la permission accordée. -->
+          <div id="notificationsStatus" class="notifications-status"></div>
+        </div>
+      </div>
+    </div>
+    </section>
+
     <!-- Salaries Section -->
     <section aria-labelledby="sectionSalaires">
     <div class="card">
@@ -563,6 +556,87 @@
         <span class="saved">✓ Sauvegardé</span>
       </div>
     </div>
+    </section>
+
+    <!-- Outils.
+         Les huit boutons qui se disputaient l'écran d'accueil, rangés par ce
+         qu'ils font plutôt qu'alignés à égalité. Un intitulé au-dessus de deux
+         boutons se lit d'un coup d'œil ; huit boutons en file se lisent un
+         par un. -->
+    <section aria-labelledby="sectionOutils">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionOutils"><span aria-hidden="true">🧰</span> Outils</h2>
+      </div>
+
+      <!-- L'écran de gestion des catégories existait, complet — liste,
+           sélecteur d'emoji, ajout, suppression, écriture en base — mais aucun
+           bouton ne l'ouvrait. Les destinations avaient le même angle mort. -->
+      <h3 class="outils-titre">Vos listes</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="showManageCategoriesModal" title="Ajouter, renommer ou retirer des catégories">
+          <span aria-hidden="true">🏷️</span> Catégories
+        </button>
+        <button type="button" class="btn btn-secondary" data-action="showManageDestinationsModal" title="Ajouter, renommer ou retirer des destinations de virement">
+          <span aria-hidden="true">🏦</span> Destinations
+        </button>
+      </div>
+
+      <!-- La corbeille reste toujours visible : masquée, on la cherchait sans
+           savoir si elle avait disparu ou n'avait jamais existé. Sans compteur :
+           elle couvre tout l'historique, un nombre qui ne ferait que croître
+           n'apprendrait rien. -->
+      <h3 class="outils-titre">Vos données</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="showBackup" title="Sauvegarder ou restaurer toutes les données">
+          <span aria-hidden="true">💾</span> Sauvegarde
+        </button>
+        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés, tous mois confondus">
+          <span aria-hidden="true">🗑️</span> Corbeille
+        </button>
+      </div>
+
+      <h3 class="outils-titre">Sortir les données</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="exportToCSV" title="Export compatible Excel">
+          <span aria-hidden="true">📊</span> Export CSV
+        </button>
+        <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
+          <span aria-hidden="true">📄</span> Imprimer PDF
+        </button>
+      </div>
+    </div>
+    </section>
+    </div>
+
+    <!-- ==================== BARRE D'ONGLETS ==================== -->
+    <!--
+      Trois destinations, pas dix boutons.
+
+      Elle ne paraît qu'en dessous de 900 px. Au-delà, les trois panneaux
+      reprennent leurs colonnes et s'affichent ensemble : il y a la place, et
+      cacher deux tiers de l'écran pour rien serait une régression.
+
+      Volontairement `data-panneau` et non `data-action` : la délégation de
+      `init.js` résout un nom de fonction sur `window`, surface que la liste
+      blanche des 43 actions borne. Un onglet n'a pas besoin d'appeler une
+      fonction nommée — il désigne un identifiant de panneau, que le module
+      vérifie être un `.panneau` réel. Rien à ajouter à la liste blanche.
+    -->
+    <nav class="onglets" id="onglets" aria-label="Sections de l'application">
+      <button type="button" class="onglet" data-panneau="panneauBilan" aria-current="true">
+        <span class="onglet-icone" aria-hidden="true">📊</span>
+        <span class="onglet-nom">Bilan</span>
+      </button>
+      <button type="button" class="onglet" data-panneau="panneauCharges">
+        <span class="onglet-icone" aria-hidden="true">🧾</span>
+        <span class="onglet-nom">Charges</span>
+      </button>
+      <button type="button" class="onglet" data-panneau="panneauReglages">
+        <span class="onglet-icone" aria-hidden="true">⚙️</span>
+        <span class="onglet-nom">Réglages</span>
+      </button>
+    </nav>
 
   </main>
 
