@@ -14,10 +14,10 @@
        Ces trois lignes ferment cette fenêtre : elles s'exécutent avant la
        première feuille de style, donc avant le premier pixel. Le module garde
        son rôle — afficher l'explication et le lien de sortie une fois le DOM
-       disponible. -->
-       Fichier externe, et non balise `<script>` en ligne : la politique se
-       passe d'`'unsafe-inline'` sur `script-src`, et ce n'est pas une
-       protection qu'on entame pour trois lignes. -->
+       disponible.
+       Fichier externe, et non script en ligne : la politique se passe
+       d'unsafe-inline sur script-src, et ce n'est pas une protection qu'on
+       entame pour trois lignes. -->
   <script src="js/anti-cadre.js"></script>
 
   <!-- Content Security Policy en balise meta : GitHub Pages ne permet pas de
