@@ -28,6 +28,7 @@ FairSplit/
 │   │   ├── auth.css            # Écran authentification
 │   │   ├── summary.css         # Bilan, catégories, tendances
 │   │   ├── map.css             # Carte Leaflet
+│   │   ├── onglets.css         # Barre d'onglets, panneaux, rangées d'outils
 │   │   └── responsive.css      # Media queries + print
 │   └── js/
 │       ├── app.js              # Entry point — init Firebase, auth, modules
@@ -37,7 +38,8 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 34 aides pures — dont miroir (ce que l'appareil
+│       └── utils/              # 35 aides pures — dont onglets (quel panneau
+│                               # l'écran montre, sous 900 px), miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
 │                               # montant (lecture d'une
@@ -305,6 +307,12 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Le total qui franchit le mur est **déclaratif** : aucune règle ne peut vérifier la somme de ce qu'elle n'a pas le droit de lire | `public/js/modules/prive.js` | ⚠️ INHÉRENT, ASSUMÉ — l'écran le dit en toutes lettres plutôt que de laisser croire à une garantie technique | C'est le prix du choix « détail privé, total public », pas un défaut |
 | Le plafond d'avertissements eslint a arrêté la livraison pour un `innerHTML` de plus | `.github/workflows/deploy.yml` | ✅ RÉSOLU 2026-08-27 — 22 → 23, après avoir vérifié que les 53 interpolations du fichier sont échappées | Le garde-fou a fait son travail : exiger une justification plutôt que laisser passer en silence |
 | **Un `-->` orphelin dans le commentaire de la garde anti-encadrement.** Trois lignes se retrouvaient hors commentaire, dont un `<script>` cité qui ouvrait un vrai élément : « Fichier externe, et non balise ` » s'affichait en haut de l'écran, et `anti-cadre.js`, avalé comme contenu de ce script, n'était jamais chargé — la garde était inerte tout en paraissant posée | `public/FairSplit.html`, `tests/balisage-sain.test.js` | ✅ RÉSOLU 2026-08-27 — commentaire refermé, et la page relue par un analyseur HTML réel | Introduit par le correctif précédent ; 5 assertions sur 9 tombent sur le balisage fautif |
+
+| **Dix boutons d'outils et cinq sections empilés sur un seul écran.** Sur un téléphone, lire le solde et corriger une charge de la semaine passée demandaient le même geste : faire défiler jusqu'à trouver. Les huit outils qu'on ouvre deux fois l'an étaient rangés à égalité avec les deux qu'on ouvre chaque semaine — il fallait lire les dix pour en viser un | `public/css/onglets.css`, `public/js/utils/onglets.js` | ✅ RÉSOLU 2026-08-27 — trois onglets sous 900 px : Bilan, Charges, Réglages ; les colonnes de bureau intactes au-delà, barre effacée | Le point de rupture est celui qui existait déjà |
+| Le balisage de `<main>` était déséquilibré depuis des mois : un `</section>` et un `</div>` orphelins, plus `.col-reglages` et sa section jamais refermées. L'analyseur HTML les ignore — rien ne se voyait, et rien ne l'aurait signalé avant qu'on touche à la structure | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-27 — équilibré, et le découpage en panneaux repose dessus | Trouvé en préparant le découpage, pas par un test |
+| Le bouton « Renseigner les salaires » vise un champ d'un autre panneau. Sous 900 px celui-ci est en `display: none` : `scrollIntoView` n'a nulle part où aller et `focus()` échoue en silence. Le bouton serait resté visible et inerte, là où l'application réclame une action | `public/js/modules/period.js` | ✅ RÉSOLU 2026-08-27 — l'onglet change avant que le champ soit visé | Trouvé sur une capture d'écran, pas dans le code |
+| `.container .fab` ne désignait rien : le bouton flottant est un enfant direct de `<body>`. La règle qui devait le hisser au-dessus de la barre d'onglets était morte, et seule la valeur héritée de `responsive.css` évitait le chevauchement | `public/css/onglets.css` | ✅ RÉSOLU 2026-08-27 — `body .fab`, et un test qui mesure le chevauchement | Le sélecteur avait l'air juste |
+| Sous 600 px, `responsive.css` applique `padding: var(--space-sm)` — un raccourci qui réécrit les quatre côtés et annulait la réserve gardée pour la barre fixe. Mesuré : 32 px de contenu masqués en bas de chaque panneau | `public/css/onglets.css` | ✅ RÉSOLU 2026-08-27 — `body .container`, spécificité supérieure | Trouvé par le test écrit pour ce cas précis |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

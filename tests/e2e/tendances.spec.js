@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Le graphe de tendances, éprouvé sur un écran de téléphone
@@ -21,10 +21,16 @@ async function ouvrirAvecSalaires({ page }) {
   await page.setViewportSize(PIXEL);
   await setupFirebaseMock(page);
   await waitForApp(page);
+
+  // 412 px : sous le point de rupture, l'application montre un panneau à la
+  // fois. Les salaires sont dans les réglages, le graphe dans le bilan — on
+  // fait donc l'aller-retour que la personne ferait.
+  await allerAuPanneau(page, 'panneauReglages');
   await page.locator('#salaireVous').fill('2500');
   await page.locator('#salaireConjointe').fill('1800');
   await page.locator('#salaireVous').blur();
   await page.waitForTimeout(200);
+  await allerAuPanneau(page, 'panneauBilan');
 }
 
 /** Pose des charges sur plusieurs mois, directement en base */

@@ -1,5 +1,5 @@
 import { test, expect, devices } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Vérification sur mobile émulé.
@@ -76,6 +76,7 @@ for (const { nom, profil } of APPAREILS) {
       // saisies des modales lui échappaient, et elles étaient restées à 40 px
       // quand tout le reste avait été agrandi. C'est pourtant là qu'on saisit
       // une dépense, au doigt, dans un magasin.
+      await allerAuPanneau(page, 'panneauCharges');
       await page.locator('#addVariableChargeBtn').click();
       await expect(page.locator('#modalAddVariableCharge')).toBeVisible();
 
@@ -102,12 +103,19 @@ for (const { nom, profil } of APPAREILS) {
     test('la saisie tactile d\'une charge aboutit', async ({ page }) => {
       // `tap` produit de vrais événements tactiles, là où `click` simule la
       // souris : un gestionnaire mal câblé passerait inaperçu autrement.
+      //
+      // Le trajet passe par deux onglets — les salaires vivent dans les
+      // réglages, la saisie dans les charges. C'est exactement ce que fait la
+      // personne sur son téléphone, et le contrôle vaut aussi pour la barre :
+      // un onglet muet ferait tomber ce test.
+      await allerAuPanneau(page, 'panneauReglages');
       await page.locator('#salaireVous').tap();
       await page.locator('#salaireVous').fill('2000');
       await page.locator('#salaireConjointe').tap();
       await page.locator('#salaireConjointe').fill('2000');
       await page.locator('#salaireConjointe').blur();
 
+      await allerAuPanneau(page, 'panneauCharges');
       await page.locator('#addVariableChargeBtn').tap();
       await page.locator('#variableChargeDescription').fill('Courses du samedi');
       await page.locator('#variableChargeAmount').fill('45');
@@ -123,6 +131,7 @@ for (const { nom, profil } of APPAREILS) {
       // Sur mobile, le clavier virtuel recouvre le bas de l'écran. Un champ
       // situé dans cette zone doit au moins être remonté par le navigateur ;
       // ce test vérifie qu'il n'est pas déjà hors cadre avant même le clavier.
+      await allerAuPanneau(page, 'panneauReglages');
       const champ = page.locator('#salaireConjointe');
       await champ.scrollIntoViewIfNeeded();
       await champ.tap();
@@ -135,11 +144,13 @@ for (const { nom, profil } of APPAREILS) {
     });
 
     test('la barre de solde reste visible au défilement', async ({ page }) => {
+      await allerAuPanneau(page, 'panneauReglages');
       await page.locator('#salaireVous').fill('2000');
       await page.locator('#salaireVous').blur();
       await page.locator('#salaireConjointe').fill('2000');
       await page.locator('#salaireConjointe').blur();
 
+      await allerAuPanneau(page, 'panneauCharges');
       await page.locator('#addVariableChargeBtn').tap();
       await page.locator('#variableChargeDescription').fill('Une charge');
       await page.locator('#variableChargeAmount').fill('100');

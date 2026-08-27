@@ -25,6 +25,7 @@ import { initDiagnostics, noter } from './utils/diagnostics.js';
 import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
 import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
 import { refuserLEncadrement } from './utils/cadre.js';
+import { initOnglets } from './utils/onglets.js';
 
 /**
  * Ouvre la saisie rapide si l'URL le demande
@@ -121,6 +122,12 @@ async function initApp() {
 
     // 3. Initialize UI components
     initModals();
+
+    // La barre d'onglets ne dépend ni de Firebase ni de l'authentification :
+    // elle ne fait que déplacer une classe entre trois panneaux du HTML. La
+    // brancher ici plutôt qu'après la connexion évite qu'un premier appui,
+    // donné pendant que les données arrivent, ne tombe dans le vide.
+    initOnglets();
 
     // 3 bis. Le raccourci ouvre la saisie tout de suite
     //

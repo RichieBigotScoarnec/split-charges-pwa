@@ -18,6 +18,7 @@ import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { listePeriodes } from '../utils/periodes.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+import { activerOnglet } from '../utils/onglets.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -411,10 +412,22 @@ function revealExtraIncomeIfUsed(salaries) {
  *
  * L'état vide du bilan énonçait une condition sans offrir le moyen de la
  * remplir, alors que le bloc Salaires se trouve plus bas dans la page.
+ *
+ * Depuis le découpage en onglets, ce bouton traverse une frontière : il est
+ * affiché dans le bilan, et le champ qu'il vise vit dans les réglages. Sous
+ * 900 px ce panneau est en `display: none` — `scrollIntoView` n'a alors rien
+ * où aller et `focus()` échoue en silence. Le bouton serait resté visible et
+ * inerte, exactement à l'endroit où l'application demande une action.
+ *
+ * Changer d'onglet **avant** de viser, donc. Au-delà de 900 px l'appel ne
+ * fait rien : les trois panneaux sont déjà là.
  */
 export function focusSalaries() {
   const input = document.getElementById('salaireVous');
   if (!input) return;
+
+  const panneau = input.closest('.panneau');
+  if (panneau) activerOnglet(panneau.id);
 
   input.closest('section, .card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   // Le focus après le défilement, sinon le navigateur saute sèchement
