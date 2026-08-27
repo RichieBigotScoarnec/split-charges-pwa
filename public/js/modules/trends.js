@@ -1,7 +1,6 @@
 // ===== MODULE : GRAPHIQUES DE TENDANCES =====
 // Fonctionnalités : visualisation évolution dépenses, comparaison périodes
 
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatPeriod, getCurrentPeriod } from '../utils/date.js';
@@ -15,11 +14,8 @@ import {
   categorieQuiABouge
 } from '../utils/tendances.js';
 import { toast } from '../components/toast.js';
-import { getDataPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { estSolo } from '../utils/perimetre.js';
-
-let database = null;
 
 /**
  * Les trois séries du graphique, couleur et libellé
@@ -52,7 +48,6 @@ function jetonCss(nom, defaut) {
 export function initTrends() {
   log('📦 Initialisation module tendances');
 
-  database = getFirebaseDatabase();
   setupTrendsUI();
 
   log('✅ Module tendances initialisé');
@@ -119,13 +114,21 @@ export async function fetchHistoricalData(months = 6) {
   }
 
   try {
-    const snapshot = await database.ref(getDataPath('periods')).once('value');
+    // Par `dbGet`, et non par un appel direct au SDK.
+    //
+    // Cette lecture était la seule du dépôt à contourner `db.js`. Elle
+    // n'obtenait donc ni le miroir hors ligne, ni la file d'attente, ni surtout
+    // le délai de garde — et Realtime Database ne rejette pas une lecture émise
+    // hors réseau : il la met en file. La promesse restait en attente, aucun
+    // `catch` ne se déclenchait, et le panneau des tendances restait ouvert sur
+    // rien, indéfiniment. C'est exactement la panne que `db.js` documente
+    // longuement avoir corrigée partout ailleurs.
+    const { dbGet } = await import('../db.js');
+    const allPeriods = await dbGet('periods');
 
-    if (!snapshot.exists()) {
+    if (!allPeriods || typeof allPeriods !== 'object') {
       return { periods: [], data: {} };
     }
-
-    const allPeriods = snapshot.val();
     // Mêmes clés que partout ailleurs : le nœud `periods` a hébergé des
     // écritures accidentelles (`periods/undefined`), que calculations.js écarte
     // déjà. Sans ce filtre, elles apparaissaient sur le graphique.
