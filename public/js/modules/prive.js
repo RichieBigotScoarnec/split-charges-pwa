@@ -1,19 +1,27 @@
-// ===== MODULE : DÉPENSES PRIVÉES ET AVAL =====
+// ===== MODULE : DÉPENSES PRIVÉES =====
 //
 // Le périmètre « solo » sort une dépense du solde. Il ne la rend pas privée :
 // les deux comptes lisent tout `household`, et une dépense perso s'y affiche
 // avec son montant et son libellé.
 //
-// Ce module ouvre le second axe. Une dépense privée vit dans `/prive/{qui}`,
-// dont les règles réservent la lecture à son seul propriétaire — le refus vient
-// du serveur, pas d'un drapeau. L'écriture, elle, exige l'aval de l'autre, et
-// **personne ne peut se l'accorder** : la règle de `/aval/{qui}` demande d'être
-// l'autre. Rejoué contre le moteur réel, 22 contrôles dans les deux sens.
+// Ce module ouvre le second axe, et il tient sur une phrase :
 //
-// Ce que l'autre voit : un total et un compte, jamais un libellé. Et ce total
-// est déclaratif — aucune règle ne peut vérifier la somme de ce qu'elle n'a pas
-// le droit de lire. C'est inhérent au choix « détail privé, total public », et
-// l'écran le dit.
+//     Écrire chez soi ne demande rien. Lire chez l'autre demande son accord.
+//
+// Une dépense privée vit dans `/prive/{qui}`, écrivable par `{qui}` **sans
+// aucune condition** : chacun a le droit d'avoir des dépenses à soi sans avoir
+// à les mendier. Ce qui se demande, c'est l'accès au détail de l'autre —
+// `/prive/{qui}` n'est lisible que par `{qui}`, sauf si `{qui}` a ouvert son
+// espace en posant `/aval/{qui}/actif` à vrai.
+//
+// **Personne ne peut s'accorder l'accès aux données de l'autre** :
+// `/aval/{qui}` n'est écrivable que par `{qui}`. Le refus vient du serveur,
+// pas de cet écran.
+//
+// Sans accord, l'autre voit tout de même un total et un compte, jamais un
+// libellé. Ce total est déclaratif — aucune règle ne peut vérifier la somme de
+// ce qu'elle n'a pas le droit de lire. C'est inhérent au choix « détail privé,
+// total public », et l'écran le dit.
 
 import { getState } from '../state.js';
 import { toast } from '../components/toast.js';
@@ -34,12 +42,12 @@ import {
 /**
  * Les trois racines, hors de `household` et non par commodité
  *
- * `.write` **cascade** dans les règles Firebase : une règle profonde peut
- * élargir un accès, jamais le restreindre. Sous `household`, dont l'écriture
- * est ouverte aux deux comptes, il aurait été impossible d'exiger d'être
- * l'autre pour accorder un aval — l'autorisation du foyer aurait déjà tout
- * ouvert avant qu'on arrive au nœud. D'où trois racines, chacune avec une seule
- * classe d'écrivain.
+ * `.read` comme `.write` **cascadent** dans les règles Firebase : une règle
+ * profonde peut élargir un accès, jamais le restreindre. Sous `household`,
+ * dont la lecture est ouverte aux deux comptes, il aurait été impossible de
+ * réserver `/prive/{qui}` à son propriétaire — l'autorisation du foyer aurait
+ * déjà tout ouvert avant qu'on arrive au nœud, et « privé » n'aurait jamais
+ * rien voulu dire. D'où trois racines, chacune avec ses propres accès.
  */
 const RACINE_PRIVE = 'prive';
 const RACINE_AVAL = 'aval';
@@ -60,11 +68,13 @@ function prenomDeLAutre() {
 }
 
 /**
- * Lit tout ce que l'écran doit montrer, en une passe
+ * Lit tout ce que l'écran doit montrer
  *
- * Quatre lectures, dont deux que le serveur peut refuser sans que ce soit une
- * erreur : `/prive/{autre}` est illisible par construction, et on ne le demande
- * donc jamais. Ce qu'on demande de l'autre, c'est son résumé publié.
+ * Deux passes, et il le faut. La première lit ce qui est toujours lisible :
+ * les deux avals, mes dépenses, le total publié par l'autre. La seconde ne
+ * part **que** si l'autre m'a ouvert son espace — sinon le serveur refuserait,
+ * et un refus attendu dans un `Promise.all` ferait échouer l'écran entier
+ * alors que tout va bien.
  *
  * @returns {Promise<Object|null>} Null si la lecture échoue
  */
@@ -78,24 +88,39 @@ async function lireLEtat() {
   try {
     const { dbGetAbsolu } = await import('../db.js');
 
-    const [monAval, avalDeLAutre, mesDepenses, sonResume] = await Promise.all([
-      // L'aval qu'on m'a accordé, et celui que j'ai accordé : l'écran montre
-      // les deux, parce qu'un pacte se lit dans les deux sens.
+    const [monPartage, sonPartage, mesDepenses, sonResume] = await Promise.all([
+      // Ce que **j'ouvre** à l'autre, et ce que l'autre **m'ouvre** : l'écran
+      // montre les deux, parce qu'un accord se lit dans les deux sens et
+      // qu'aucun des deux n'oblige l'autre.
       dbGetAbsolu(`${RACINE_AVAL}/${emplacement}`),
       dbGetAbsolu(`${RACINE_AVAL}/${autre}`),
       dbGetAbsolu(`${RACINE_PRIVE}/${emplacement}/periods/${periode}/depenses`),
       dbGetAbsolu(`${RACINE_TOTAUX}/${autre}/${periode}`)
     ]);
 
-    return {
+    const etat = {
       emplacement,
       autre,
       periode,
-      monAval: normaliserAval(monAval),
-      avalDeLAutre: normaliserAval(avalDeLAutre),
+      monPartage: normaliserAval(monPartage),
+      sonPartage: normaliserAval(sonPartage),
       mesDepenses: normaliserDepensesPrivees(mesDepenses),
-      sonResume: resumeLu(sonResume)
+      sonResume: resumeLu(sonResume),
+      sesDepenses: null
     };
+
+    if (etat.sonPartage.actif) {
+      try {
+        etat.sesDepenses = normaliserDepensesPrivees(
+          await dbGetAbsolu(`${RACINE_PRIVE}/${autre}/periods/${periode}/depenses`));
+      } catch (erreur) {
+        // L'accord vient peut-être d'être retiré depuis l'autre appareil. Le
+        // détail retombe alors sur le total publié, sans faire échouer l'écran.
+        logError('❌ Détail de l\'autre illisible malgré l\'accord :', erreur);
+      }
+    }
+
+    return etat;
   } catch (erreur) {
     logError('❌ Lecture de l\'espace privé impossible :', erreur);
     return null;
@@ -152,10 +177,10 @@ async function showPrivateExpensesModal() {
     <div class="modal prive-modal">
       <h2 class="modal-header" id="priveTitre">🔒 Dépenses privées</h2>
 
-      ${blocAvals(etat)}
+      ${blocPartage(etat)}
       ${blocSaisie(etat)}
       ${blocMesDepenses(etat)}
-      ${blocSonTotal(etat)}
+      ${blocSonCote(etat)}
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="priveFermer">Fermer</button>
@@ -170,57 +195,60 @@ async function showPrivateExpensesModal() {
 }
 
 /**
- * L'état des deux avals, et la bascule pour celui qu'on donne
+ * Les deux accords : celui qu'on donne, celui qu'on reçoit
  *
- * On ne peut agir que sur celui qu'on **accorde** : le sien se reçoit, il ne se
- * prend pas. C'est la règle serveur, et l'écran ne propose donc rien d'autre.
+ * On ne peut agir que sur le sien — ouvrir **ses** dépenses à l'autre. Celui
+ * qu'on reçoit ne se prend pas : c'est la règle serveur qui l'exige, pas une
+ * politesse d'interface. Les deux sont affichés parce qu'un accord se lit dans
+ * les deux sens, et qu'aucun des deux n'oblige l'autre : ouvrir ne donne aucun
+ * droit sur l'espace d'en face.
  *
  * @param {Object} etat
  * @returns {string} Fragment échappé
  */
-function blocAvals(etat) {
+function blocPartage(etat) {
   const prenom = prenomDeLAutre();
 
-  const recu = etat.monAval.actif
-    ? `<span class="prive-aval-etat prive-aval-etat--actif">accordé</span> par ${escapeHtml(prenom)}`
-    : `<span class="prive-aval-etat">non accordé</span> — ${escapeHtml(prenom)} ne vous l'a pas donné`;
-
-  const donne = etat.avalDeLAutre.actif ? 'accordé' : 'non accordé';
+  const recu = etat.sonPartage.actif
+    ? `<span class="prive-aval-etat prive-aval-etat--actif">ouvert</span> — vous voyez le détail de ${escapeHtml(prenom)}`
+    : `<span class="prive-aval-etat">fermé</span> — vous ne voyez que son total`;
 
   return `
     <div class="prive-avals">
       <div class="prive-aval">
-        <div class="prive-aval-titre">Votre accord</div>
-        <div class="prive-aval-detail">${recu}</div>
-      </div>
-
-      <div class="prive-aval">
-        <div class="prive-aval-titre">L'accord que vous donnez à ${escapeHtml(prenom)}</div>
+        <div class="prive-aval-titre">Ce que vous ouvrez à ${escapeHtml(prenom)}</div>
         <div class="prive-aval-ligne">
-          <span class="prive-aval-detail">${escapeHtml(donne)}</span>
+          <span class="prive-aval-detail">${etat.monPartage.actif ? 'le détail de vos dépenses privées' : 'votre total seulement'}</span>
           <label class="toggle-switch">
-            <input type="checkbox" id="priveAvalDonne"${etat.avalDeLAutre.actif ? ' checked' : ''}
-                   aria-label="Accorder à ${escapeHtml(prenom)} le droit aux dépenses privées">
+            <input type="checkbox" id="privePartage"${etat.monPartage.actif ? ' checked' : ''}
+                   aria-label="Ouvrir le détail de mes dépenses privées à ${escapeHtml(prenom)}">
             <span class="toggle-slider"></span>
           </label>
         </div>
       </div>
 
-      <p class="form-aide">Personne ne peut s'accorder cet aval à soi-même : c'est la base de données qui refuse, pas cet écran. Le retirer empêche les saisies futures et n'ouvre jamais celles déjà faites.</p>
+      <div class="prive-aval">
+        <div class="prive-aval-titre">Ce que ${escapeHtml(prenom)} vous ouvre</div>
+        <div class="prive-aval-detail">${recu}</div>
+      </div>
+
+      <p class="form-aide">Vos dépenses privées s'enregistrent librement : personne n'a à les autoriser. C'est l'accès au détail de l'autre qui se demande — et personne ne peut se l'accorder soi-même, c'est la base de données qui refuse.</p>
     </div>
   `;
 }
 
 /**
- * Le formulaire de saisie, ou l'explication de son absence
+ * Le formulaire de saisie
+ *
+ * Toujours présent. Une version antérieure le retirait tant que la conjointe
+ * n'avait rien accordé : elle demandait la permission d'avoir des dépenses à
+ * soi, ce qui inversait le sujet.
  *
  * @param {Object} etat
  * @returns {string} Fragment échappé
  */
 function blocSaisie(etat) {
-  if (!etat.monAval.actif) {
-    return `<p class="empty-state">Tant que ${escapeHtml(prenomDeLAutre())} ne vous a pas accordé cet aval, vous ne pouvez pas enregistrer de dépense privée. La base de données les refuserait.</p>`;
-  }
+  void etat;
 
   return `
     <div class="prive-saisie">
@@ -262,7 +290,9 @@ function blocMesDepenses(etat) {
         <span class="prive-total">${formatCurrency(resume.montant)}</span>
       </h3>
       ${lignes}
-      <p class="form-aide">C'est ce total — et le nombre de dépenses — que ${escapeHtml(prenomDeLAutre())} voit. Jamais les libellés.</p>
+      <p class="form-aide">${etat.monPartage.actif
+        ? `${escapeHtml(prenomDeLAutre())} voit ce détail : vous le lui avez ouvert.`
+        : `${escapeHtml(prenomDeLAutre())} ne voit que ce total et le nombre de dépenses. Jamais les libellés.`}</p>
     </div>
   `;
 }
@@ -270,10 +300,15 @@ function blocMesDepenses(etat) {
 /**
  * Une ligne de dépense privée
  *
+ * `modifiable` est faux pour celles de l'autre : la voir ne donne pas le droit
+ * de la retirer, et la règle serveur le refuserait de toute façon. Proposer une
+ * croix qui échoue serait promettre ce qu'on ne peut pas tenir.
+ *
  * @param {Object} depense
+ * @param {{modifiable?: boolean}} [options]
  * @returns {string} Fragment échappé
  */
-function ligneDepensePrivee(depense) {
+function ligneDepensePrivee(depense, { modifiable = true } = {}) {
   const quand = depense.date ? formatDate(depense.date) : '';
 
   return `
@@ -283,15 +318,18 @@ function ligneDepensePrivee(depense) {
         ${quand ? `<span class="prive-depense-date">${escapeHtml(quand)}</span>` : ''}
       </div>
       <span class="prive-depense-montant">${formatCurrency(depense.montant)}</span>
-      <button type="button" class="btn-icon btn-delete prive-retirer"
+      ${modifiable ? `<button type="button" class="btn-icon btn-delete prive-retirer"
               data-depense="${escapeHtml(depense.id)}"
-              aria-label="Supprimer ${escapeHtml(depense.description || 'cette dépense')}">✕</button>
+              aria-label="Supprimer ${escapeHtml(depense.description || 'cette dépense')}">✕</button>` : ''}
     </div>
   `;
 }
 
 /**
- * Ce que l'autre a publié — un total, jamais un détail
+ * Côté l'autre : le détail si elle l'a ouvert, le total sinon
+ *
+ * Les deux cas sont légitimes et l'écran ne fait pas de l'un le brouillon de
+ * l'autre. Sans accord, le total publié suffit à savoir de quoi on parle.
  *
  * L'absence de publication n'est pas « zéro dépense privée » : c'est « on n'en
  * sait rien ». L'écran se tait plutôt que d'affirmer.
@@ -299,11 +337,27 @@ function ligneDepensePrivee(depense) {
  * @param {Object} etat
  * @returns {string} Fragment échappé
  */
-function blocSonTotal(etat) {
+function blocSonCote(etat) {
   const prenom = prenomDeLAutre();
 
-  if (!etat.avalDeLAutre.actif) {
-    return `<div class="prive-autre"><p class="empty-state">Vous n'avez pas accordé cet aval à ${escapeHtml(prenom)}.</p></div>`;
+  // Accès ouvert : on lit le détail, et le total s'en déduit — plus besoin du
+  // chiffre déclaré, ni de la réserve qui l'accompagne.
+  if (etat.sonPartage.actif && Array.isArray(etat.sesDepenses)) {
+    const actives = depensesActives(etat.sesDepenses);
+    const resume = resumePublie(etat.sesDepenses);
+
+    return `
+      <div class="prive-autre">
+        <h3 class="prive-sous-titre">
+          Côté ${escapeHtml(prenom)}
+          <span class="prive-total">${formatCurrency(resume.montant)}</span>
+        </h3>
+        ${actives.length === 0
+          ? `<p class="empty-state">Aucune dépense privée ce mois-ci.</p>`
+          : actives.map(depense => ligneDepensePrivee(depense, { modifiable: false })).join('')}
+        <p class="form-aide">${escapeHtml(prenom)} vous a ouvert son détail. Elle peut le refermer quand elle veut.</p>
+      </div>
+    `;
   }
 
   if (!etat.sonResume.publie) {
@@ -318,7 +372,7 @@ function blocSonTotal(etat) {
         Côté ${escapeHtml(prenom)}
         <span class="prive-total">${formatCurrency(etat.sonResume.montant)}</span>
       </h3>
-      <p class="form-aide">${escapeHtml(compte)} ce mois-ci. Ce chiffre est déclaré par son application : aucune règle ne peut le vérifier sans lire ce qu'elle n'a pas le droit de lire.</p>
+      <p class="form-aide">${escapeHtml(compte)} ce mois-ci, sans le détail : ${escapeHtml(prenom)} ne l'a pas ouvert, et c'est son droit. Ce chiffre est déclaré par son application — aucune règle ne peut le vérifier sans lire ce qu'elle n'a pas le droit de lire.</p>
     </div>
   `;
 }
@@ -339,29 +393,30 @@ function brancherLEcran(modal, etat) {
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   });
 
-  // L'aval qu'on accorde à l'autre. Écrit sous SON emplacement : c'est bien son
-  // droit à elle qu'on ouvre, et la règle serveur exige que ce soit nous qui
-  // l'écrivions.
-  const bascule = modal.querySelector('#priveAvalDonne');
+  // L'accès qu'on ouvre sur SES PROPRES dépenses. Écrit sous notre propre
+  // emplacement : c'est notre espace qu'on ouvre, et la règle serveur exige
+  // que ce soit nous qui l'écrivions. Écrire sous celui de l'autre reviendrait
+  // à s'accorder l'accès à ses données — et la base le refuse.
+  const bascule = modal.querySelector('#privePartage');
   bascule?.addEventListener('change', async () => {
     const actif = bascule.checked;
     try {
       const { dbSetAbsolu } = await import('../db.js');
-      await dbSetAbsolu(`${RACINE_AVAL}/${etat.autre}`, {
+      await dbSetAbsolu(`${RACINE_AVAL}/${etat.emplacement}`, {
         actif,
         accordeLe: Date.now(),
         accordePar: etat.emplacement
       });
     } catch (erreur) {
-      logError('❌ Écriture de l\'aval impossible :', erreur);
+      logError('❌ Écriture de l\'accord impossible :', erreur);
       toast.error('Accord non enregistré');
       bascule.checked = !actif;
       return;
     }
 
     toast.success(actif
-      ? `Accord donné à ${prenomDeLAutre()}`
-      : `Accord retiré — les dépenses déjà enregistrées restent illisibles pour vous`);
+      ? `${prenomDeLAutre()} voit désormais le détail de vos dépenses privées`
+      : `Détail refermé — ${prenomDeLAutre()} ne voit plus que votre total`);
     await showPrivateExpensesModal();
   });
 
@@ -370,7 +425,7 @@ function brancherLEcran(modal, etat) {
     const champMontant = modal.querySelector('#priveMontant');
 
     const enregistrer = async () => {
-      const verdict = depensePriveeEcrivable(champMontant.value, etat.monAval);
+      const verdict = depensePriveeEcrivable(champMontant.value);
       if (!verdict.valide) {
         toast.error(verdict.erreur);
         champMontant.focus();

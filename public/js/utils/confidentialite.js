@@ -1,41 +1,50 @@
 /**
- * L'aval, le mur, et le seul chiffre qui le franchit
+ * Chacun écrit chez soi ; lire chez l'autre demande son accord
  *
  * Le périmètre « solo » a sorti une dépense du solde. Il ne l'a pas rendue
  * privée : les deux comptes lisent tout `household`, et une dépense perso s'y
  * affiche avec son montant et son libellé. « Ça ne se partage pas » n'est pas
  * « c'est à moi seul ».
  *
+ * ## Ce que l'aval gouverne — et ce qu'il ne gouverne pas
+ *
+ * **Écrire une dépense privée ne demande la permission de personne.** Chacun a
+ * le droit d'avoir des dépenses à soi, sans avoir à la mendier : `/prive/{qui}`
+ * est écrivable par `{qui}`, toujours, sans condition.
+ *
+ * Ce qui est soumis à validation, c'est l'**accès au détail de l'autre**.
+ * `/prive/{qui}` n'est lisible que par `{qui}` — sauf si `{qui}` a ouvert son
+ * espace, en posant `/aval/{qui}/actif` à vrai. L'aval est donc une permission
+ * de **lecture**, accordée par le propriétaire, sur ses propres données.
+ *
+ * ## Ce qui rend l'aval vrai
+ *
+ * **Personne ne peut s'accorder l'accès aux données de l'autre** :
+ * `/aval/{qui}` n'est écrivable que par `{qui}` lui-même. Vouloir lire l'espace
+ * de sa conjointe en écrivant soi-même l'autorisation est refusé par le moteur
+ * de règles, pas par cet écran. C'est la même garantie que la version
+ * précédente, dans l'autre sens : on ne peut jamais se donner à soi-même la
+ * chose qui compte.
+ *
+ * Le retirer referme l'accès, passé compris — ce qui est cohérent : c'est une
+ * permission de lecture, pas un permis d'écrire déjà consommé.
+ *
  * ## Pourquoi le mur ne peut pas être ici
  *
  * Une confidentialité écrite en JavaScript est du théâtre. L'autre personne a
  * exactement les mêmes accès à la base : un drapeau « masqué » est un rideau,
  * pas un mur — il suffit d'ouvrir la console Firebase pour lire à travers. Le
- * refus doit venir du **serveur**, et il en vient : `database.rules.json` donne
- * à `/prive/{emplacement}` une lecture réservée à son seul propriétaire.
- *
- * Ce fichier ne fait donc que du calcul. Il ne protège rien ; il met en forme
- * ce que les règles, elles, garantissent.
- *
- * ## L'aval, et ce qui le rend vrai
- *
- * Personne ne peut s'accorder son propre aval : la règle d'écriture de
- * `/aval/{emplacement}` exige d'être **l'autre**. Ce n'est pas une politesse
- * d'interface, c'est le moteur de règles qui refuse — rejoué contre lui, 22
- * contrôles dans les deux sens.
- *
- * Le retirer ferme les écritures futures et **n'ouvre jamais le passé** : la
- * lecture reste réservée au propriétaire, aval ou non. Sinon « privé » n'aurait
- * jamais été vrai, seulement différé.
+ * refus vient du **serveur**. Ce fichier ne fait que du calcul : il ne protège
+ * rien, il met en forme ce que les règles garantissent.
  *
  * ## La limite honnête du total publié
  *
- * Le total qui franchit le mur est **déclaratif**. L'application du
- * propriétaire l'écrit ; aucune règle serveur ne peut vérifier qu'il correspond
- * au détail, puisque le serveur n'a pas le droit d'additionner ce qu'il n'a pas
- * le droit de lire — c'est le principe même du mur. Il repose donc sur la
- * confiance, et cela tient au choix « détail privé, total public », pas à un
- * défaut de mise en œuvre.
+ * Sans accord, l'autre voit tout de même un total et un compte — jamais un
+ * libellé. Ce total est **déclaratif** : l'application du propriétaire l'écrit,
+ * et aucune règle serveur ne peut vérifier qu'il correspond au détail, puisque
+ * le serveur n'a pas le droit d'additionner ce qu'il n'a pas le droit de lire.
+ * C'est inhérent au choix « détail privé, total public », pas un défaut de mise
+ * en œuvre.
  */
 
 import { parseMontant } from './montant.js';
@@ -67,10 +76,14 @@ export function emplacementOppose(emplacement) {
 /**
  * Remet un aval lu en base dans une forme exploitable
  *
- * L'absence vaut refus. C'est le seul défaut acceptable : un aval qu'on n'a pas
- * pu lire ne doit jamais être pris pour un aval accordé, sinon une lecture qui
- * échoue ouvrirait l'écriture privée. Le serveur la refuserait quand même —
- * mais l'écran promettrait alors quelque chose que la base démentira.
+ * `/aval/{qui}` dit une seule chose : **`{qui}` a-t-il ouvert le détail de ses
+ * dépenses privées à l'autre ?**
+ *
+ * L'absence vaut refus, et c'est le seul défaut acceptable : un nœud qu'on n'a
+ * pas pu lire ne doit jamais être pris pour un accès accordé, sinon l'écran
+ * annoncerait un partage qui n'existe pas. `accordePar` vaut toujours
+ * l'emplacement propriétaire — c'est lui seul qui peut écrire ici, et le
+ * serveur le vérifie.
  *
  * @param {*} brut - Nœud `/aval/{emplacement}` tel que lu
  * @returns {{actif: boolean, accordeLe: number|null, accordePar: string|null}}
@@ -190,22 +203,18 @@ export function resumeLu(brut) {
  * Cette dépense privée est-elle écrivable ?
  *
  * Rejoue côté client ce que les règles appliquent côté serveur, pour que le
- * refus s'explique avant l'écriture. L'aval est vérifié ici aussi : sans lui,
- * la saisie partirait pour être rejetée plus tard — hors ligne, elle irait même
- * grossir la file d'attente, loin du geste qui l'a produite.
+ * refus s'explique avant l'écriture.
+ *
+ * **Aucun aval n'est demandé ici, et c'est le point.** Chacun a le droit
+ * d'avoir des dépenses à soi sans avoir à la mendier ; ce qui se demande, c'est
+ * l'accès au détail de l'autre. Une version antérieure exigeait l'accord de la
+ * conjointe pour écrire ses propres dépenses privées : elle inversait le sujet
+ * et rendait la fonction inutilisable tant que personne n'avait rien accordé.
  *
  * @param {*} montantSaisi
- * @param {Object} aval - Normalisé par `normaliserAval`
  * @returns {{valide: boolean, montant?: number, erreur?: string}}
  */
-export function depensePriveeEcrivable(montantSaisi, aval) {
-  if (!aval || aval.actif !== true) {
-    return {
-      valide: false,
-      erreur: 'Sans l\'accord de votre conjointe, aucune dépense privée ne peut être enregistrée'
-    };
-  }
-
+export function depensePriveeEcrivable(montantSaisi) {
   const montant = parseMontant(montantSaisi);
   if (!Number.isFinite(montant) || montant <= 0) {
     return { valide: false, erreur: 'Montant requis' };
