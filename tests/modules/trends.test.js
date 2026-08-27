@@ -18,6 +18,7 @@ vi.mock('../../public/js/db.js', () => ({
 }));
 
 import { setState, resetState } from '../../public/js/state.js';
+import { resolveSalaries } from '../../public/js/utils/salaries.js';
 import { initTrends, fetchHistoricalData } from '../../public/js/modules/trends.js';
 import { toast } from '../../public/js/components/toast.js';
 
@@ -123,10 +124,26 @@ describe('fetchHistoricalData — calcul des totaux', () => {
     expect(result.data['2026-03'].total).toBe(150);
   });
 
-  it('retourne les salaires de chaque période', async () => {
+  it('retourne les salaires de chaque période, résolus comme partout ailleurs', async () => {
+    // `resolveSalaries` et non l'instantané brut : c'est la même fabrique
+    // d'assiette que le bilan, et elle normalise les revenus complémentaires.
+    // Ce module en était la seule lecture d'argent à se passer — un instantané
+    // partiel y mettait les autres revenus à zéro, quand le bilan les fait
+    // retomber sur la valeur globale.
     const result = await fetchHistoricalData();
-    expect(result.data['2026-01'].salaries).toEqual({ vous: 3000, conjointe: 2000 });
-    expect(result.data['2026-03'].salaries).toEqual({ vous: 3500, conjointe: 2500 });
+    expect(result.data['2026-01'].salaries).toEqual({
+      vous: 3000, conjointe: 2000, extraVous: 0, extraConjointe: 0
+    });
+    expect(result.data['2026-03'].salaries).toEqual({
+      vous: 3500, conjointe: 2500, extraVous: 0, extraConjointe: 0
+    });
+  });
+
+  it('un instantané partiel retombe sur les revenus globaux, pas sur zéro', () => {
+    // Le défaut mesuré : taux d'effort divisant par 2 600 € au lieu de 4 400 €,
+    // et « 2 600 € de revenus » annoncés en toutes lettres sur la carte.
+    const { salaries } = resolveSalaries({ vous: 2600 }, { vous: 2600, conjointe: 1800 });
+    expect(salaries.conjointe).toBe(1800);
   });
 });
 

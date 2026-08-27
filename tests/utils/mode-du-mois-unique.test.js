@@ -10,7 +10,7 @@ vi.mock('../../public/js/components/modal.js', () => ({
 
 import { setState, resetState } from '../../public/js/state.js';
 import { calculateSummary } from '../../public/js/modules/summary.js';
-import { computeBalanceChain, resolveShareMode } from '../../public/js/utils/calculations.js';
+import { computeBalanceChain, resolveShareMode, resolvePercents } from '../../public/js/utils/calculations.js';
 
 /**
  * Un mois se calcule sous UN seul mode de partage — écran et report compris
@@ -159,4 +159,60 @@ describe('Témoin négatif — le contrôle sait échouer', () => {
     setState('shareModeDuMois', null);
     return calculateSummary().balance;
   }
+});
+
+describe('resolvePercents — figer le mode ne suffisait pas', () => {
+  it('les pourcentages du mois l\'emportent sur ceux du foyer', () => {
+    expect(resolvePercents({ vous: 70, conjointe: 30 }, { vous: 60, conjointe: 40 }))
+      .toEqual({ vous: 70, conjointe: 30 });
+  });
+
+  it('sans pourcentages figés, ceux du foyer s\'appliquent', () => {
+    expect(resolvePercents(null, { vous: 60, conjointe: 40 })).toEqual({ vous: 60, conjointe: 40 });
+  });
+
+  it('une paire à moitié lisible n\'est pas un instantané', () => {
+    // La leçon de `salaries.js` : une clé absente y mettait l'autre à zéro.
+    expect(resolvePercents({ vous: 70 }, { vous: 60, conjointe: 40 })).toEqual({ vous: 60, conjointe: 40 });
+  });
+});
+
+describe('Un mois « custom » figé ne bouge plus quand le foyer change ses parts', () => {
+  /** Juillet soldé : loyer 1 000 € avancé par vous, 700 € de part, 300 € remboursés */
+  const JUILLET = {
+    salaries: { vous: 2000, conjointe: 2000 },
+    shareMode: 'custom',
+    fixedCharges: { l: { amount: 1000, paidBy: 'vous', description: 'Loyer', deleted: false } },
+    reimbursements: { r: { amount: 300, direction: 'conjointe-to-vous', deleted: false } }
+  };
+
+  const chaine = (periods, parts) => computeBalanceChain(periods, {
+    shareMode: 'custom',
+    customPercents: parts,
+    globalSalaries: { vous: 2000, conjointe: 2000 }
+  }).get('2026-07');
+
+  it('nominal : en 70/30, juillet est soldé', () => {
+    expect(chaine({ '2026-07': JUILLET }, { vous: 70, conjointe: 30 }).total).toBeCloseTo(0, 6);
+  });
+
+  it('avec ses parts figées, passer le foyer à 60/40 ne le rouvre pas', () => {
+    const fige = { '2026-07': { ...JUILLET, customPercents: { vous: 70, conjointe: 30 } } };
+    expect(chaine(fige, { vous: 60, conjointe: 40 }).total).toBeCloseTo(0, 6);
+  });
+
+  it('TÉMOIN NÉGATIF : sans parts figées, 100 € de dette ressuscitent', () => {
+    // C'est l'état des mois déjà en base, écrits avant cette correction : elle
+    // protège les mois à venir, elle ne réécrit pas le passé.
+    expect(chaine({ '2026-07': JUILLET }, { vous: 60, conjointe: 40 }).total).toBeCloseTo(100, 6);
+  });
+
+  it('et la dette ressuscitée se reporte sur les mois suivants', () => {
+    const deuxMois = { '2026-07': JUILLET, '2026-08': { salaries: { vous: 2000, conjointe: 2000 } } };
+    const aout = computeBalanceChain(deuxMois, {
+      shareMode: 'custom', customPercents: { vous: 60, conjointe: 40 },
+      globalSalaries: { vous: 2000, conjointe: 2000 }
+    }).get('2026-08');
+    expect(aout.carry).toBeCloseTo(100, 6);
+  });
 });

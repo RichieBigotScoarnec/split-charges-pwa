@@ -270,3 +270,45 @@ describe('analyserCsv — ce qui passe, et ce qui est rejeté avec son motif', (
     expect(lignes[0].description).toHaveLength(100);
   });
 });
+
+describe('Une ligne ambiguë est rejetée, jamais tronquée en silence', () => {
+  it('un fichier à virgules avec des montants à virgule ne perd pas ses centimes', () => {
+    // Le piège : « Courses,vous,84,30 » se découpe en QUATRE champs pour trois
+    // colonnes. La colonne « Montant » attrapait « 84 », « 30 » tombait dans le
+    // vide, et 84,00 € partait en base — sans rejet, et l'aperçu affichait
+    // 84,00 € comme si de rien n'était. Trente centimes par ligne, sur un
+    // relevé entier.
+    const r = analyserCsv('Description,Payé par,Montant\nCourses,vous,84,30');
+
+    expect(r.lignes).toHaveLength(0);
+    expect(r.rejets).toHaveLength(1);
+    expect(r.rejets[0].motif).toMatch(/4 champs pour 3 colonnes/);
+  });
+
+  it('le même contenu en point-virgule passe, et garde ses centimes', () => {
+    // Le témoin : c'est bien l'ambiguïté du séparateur qu'on refuse, pas le
+    // montant à virgule, qui est la forme française normale.
+    const r = analyserCsv('Description;Payé par;Montant\nCourses;vous;84,30');
+
+    expect(r.rejets).toHaveLength(0);
+    expect(r.lignes[0].amount).toBeCloseTo(84.3, 6);
+  });
+
+  it('un champ entre guillemets contenant le séparateur reste accepté', () => {
+    // `decouperLigne` respecte les guillemets : le compte de champs est juste,
+    // et la ligne ne doit pas être rejetée.
+    const r = analyserCsv('Description,Payé par,Montant\n"Courses, Leclerc",vous,84.30');
+
+    expect(r.rejets).toHaveLength(0);
+    expect(r.lignes[0].description).toBe('Courses, Leclerc');
+    expect(r.lignes[0].amount).toBeCloseTo(84.3, 6);
+  });
+
+  it('moins de champs que de colonnes reste accepté : une colonne finale vide', () => {
+    // Beaucoup de tableurs omettent la dernière colonne quand elle est vide.
+    const r = analyserCsv('Description;Payé par;Montant;Date\nCourses;vous;84,30');
+
+    expect(r.rejets).toHaveLength(0);
+    expect(r.lignes[0].amount).toBeCloseTo(84.3, 6);
+  });
+});

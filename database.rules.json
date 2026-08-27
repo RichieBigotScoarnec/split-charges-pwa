@@ -424,6 +424,18 @@
           "shareMode": {
             ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
           },
+          "customPercents": {
+            "vous": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "conjointe": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "$autre": {
+              ".validate": false
+            },
+            ".validate": "newData.hasChildren(['vous', 'conjointe']) && newData.child('vous').val() + newData.child('conjointe').val() === 100"
+          },
           "$autre": {
             ".validate": false
           }
@@ -856,6 +868,18 @@
           },
           "shareMode": {
             ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+          },
+          "customPercents": {
+            "vous": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "conjointe": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "$autre": {
+              ".validate": false
+            },
+            ".validate": "newData.hasChildren(['vous', 'conjointe']) && newData.child('vous').val() + newData.child('conjointe').val() === 100"
           },
           "$autre": {
             ".validate": false

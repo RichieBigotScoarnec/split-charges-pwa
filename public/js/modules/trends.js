@@ -4,7 +4,7 @@
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatPeriod, getCurrentPeriod } from '../utils/date.js';
-import { resolveIncomeBase } from '../utils/salaries.js';
+import { resolveIncomeBase, resolveSalaries } from '../utils/salaries.js';
 import {
   mediane,
   ecartAuHabituel,
@@ -124,7 +124,12 @@ export async function fetchHistoricalData(months = 6) {
     // rien, indéfiniment. C'est exactement la panne que `db.js` documente
     // longuement avoir corrigée partout ailleurs.
     const { dbGet } = await import('../db.js');
-    const allPeriods = await dbGet('periods');
+    const [allPeriods, salairesGlobaux] = await Promise.all([
+      dbGet('periods'),
+      // Le repli des mois sans instantané complet. Sans lui, ce module est la
+      // seule lecture d'argent du dépôt à ne pas passer par `resolveSalaries`.
+      dbGet('salaries')
+    ]);
 
     if (!allPeriods || typeof allPeriods !== 'object') {
       return { periods: [], data: {} };
@@ -150,7 +155,19 @@ export async function fetchHistoricalData(months = 6) {
         fixedCharges: calculatePeriodTotal(periodData.fixedCharges),
         variableCharges: calculatePeriodTotal(periodData.variableCharges),
         reimbursements: calculatePeriodTotal(periodData.reimbursements),
-        salaries: periodData.salaries || { vous: 0, conjointe: 0 },
+        // `resolveSalaries`, et non l'instantané brut.
+        //
+        // C'était la seule lecture d'argent du dépôt à s'en passer. Un
+        // instantané partiel — une clé de revenu absente, ce qui arrive dès
+        // qu'on corrige un seul salaire — mettait les autres à zéro ici, alors
+        // que le bilan les fait retomber sur la valeur globale. Mesuré : le
+        // taux d'effort divisait par 2 600 € quand l'écran divisait par
+        // 4 400 €, et la carte annonçait « 2 600 € de revenus » en toutes
+        // lettres. Deux chiffres pour un même mois, dans la même application.
+        //
+        // C'est le jumeau exact du défaut `normalizePair`, et son remède est
+        // le même : une seule fabrique d'assiette.
+        salaries: resolveSalaries(periodData.salaries, salairesGlobaux).salaries,
         // Le détail par catégorie ne coûte rien : le nœud entier est déjà lu,
         // et il n'était jusqu'ici écrasé qu'en un total. C'est lui qui permet
         // de dire « Courses : +85 € » plutôt que « total +231 % ».

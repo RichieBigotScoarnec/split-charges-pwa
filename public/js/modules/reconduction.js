@@ -148,6 +148,26 @@ export async function applyRecurringCharges({ historique } = {}) {
     const modeDuMois = getState('shareMode');
     if (modeDuMois) {
       updates[getDataPath(`periods/${target}/shareMode`)] = modeDuMois;
+
+      // Les pourcentages FONT PARTIE du mode « custom ».
+      //
+      // Figer le mode seul ne protégeait rien sur celui-là : les pourcentages
+      // restaient globaux, donc au présent. Passer de 70/30 à 60/40 « pour
+      // l'avenir » rouvrait un mois déjà soldé et remboursé — 100 € mesurés,
+      // reportés ensuite de mois en mois.
+      //
+      // Le prorata n'en a pas besoin (ses paramètres sont les salaires, que
+      // `backfillPeriodSalaries` fige déjà) et le 50-50 n'a rien à figer.
+      if (modeDuMois === 'custom') {
+        const parts = getState('customPercents');
+        const vous = Number(parts?.vous);
+        const conjointe = Number(parts?.conjointe);
+        // Les règles exigent une somme de 100 : une paire hors-somme serait
+        // refusée APRÈS le toast de succès, et rendrait l'empreinte.
+        if (Number.isFinite(vous) && Number.isFinite(conjointe) && vous + conjointe === 100) {
+          updates[getDataPath(`periods/${target}/customPercents`)] = { vous, conjointe };
+        }
+      }
     }
 
     // Rendre l'empreinte si la copie échoue.

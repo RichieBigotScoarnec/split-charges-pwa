@@ -141,6 +141,37 @@ export function resolveShareMode(modeDuMois, modeGlobal) {
   return modeDuMois || modeGlobal || 'prorata';
 }
 
+/**
+ * Les pourcentages sous lesquels un mois donné se calcule
+ *
+ * Jumelle de `resolveShareMode`, et elle existe parce que figer le mode ne
+ * suffisait pas : `custom` est le seul mode qui porte des **paramètres**, et
+ * ils restaient globaux, donc au présent.
+ *
+ * Le prorata n'a pas ce problème — ses paramètres sont les salaires, et
+ * `backfillPeriodSalaries` les fige par période depuis longtemps. Le 50-50 n'a
+ * rien à figer. Seul `custom` était resté à découvert.
+ *
+ * Mesuré : juillet reconduit en custom 70/30, loyer 1 000 € avancé par vous,
+ * remboursement de 300 € — le mois est soldé à 0 €. Le foyer passe à 60/40
+ * « pour l'avenir » : juillet ressuscite **100 € de dette**, reportés ensuite
+ * de mois en mois. Le mode était bien figé ; ses pourcentages, non.
+ *
+ * @param {Object|undefined} pourcentsDuMois - `periods/{mois}/customPercents`
+ * @param {Object|undefined} pourcentsGlobaux - Le réglage courant du foyer
+ * @returns {Object} Les pourcentages à appliquer à ce mois
+ */
+export function resolvePercents(pourcentsDuMois, pourcentsGlobaux) {
+  const vous = Number(pourcentsDuMois?.vous);
+  const conjointe = Number(pourcentsDuMois?.conjointe);
+
+  // Les deux, ou aucun : un instantané à moitié lisible n'est pas un instantané.
+  // C'est la leçon de `salaries.js`, où une clé absente mettait l'autre à zéro.
+  return (Number.isFinite(vous) && Number.isFinite(conjointe))
+    ? { vous, conjointe }
+    : pourcentsGlobaux;
+}
+
 export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver = 0 }) {
   // Le prorata porte sur l'ensemble des revenus, pas sur le seul salaire :
   // allocations, loyers perçus et activité annexe font partie de ce dont
@@ -399,7 +430,9 @@ export function computeBalanceChain(periods, { shareMode, customPercents, global
       // Un mois peut avoir figé son propre mode de partage (reconduction).
       // Même fabrique que l'écran, pour qu'ils ne puissent plus diverger.
       shareMode: resolveShareMode(period.shareMode, shareMode),
-      customPercents
+      // Et ses pourcentages avec, sans quoi figer le mode ne servait à rien
+      // sur le seul mode qui en porte.
+      customPercents: resolvePercents(period.customPercents, customPercents)
     });
 
     const total = own + carry;

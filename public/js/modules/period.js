@@ -198,6 +198,8 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     // depuis toujours ; l'écran, jamais — et les deux annonçaient alors deux
     // soldes différents pour le même mois reconduit.
     const periodShareMode = moisAffiche?.shareMode ?? null;
+    // Et ses pourcentages : ils font partie du mode « custom ».
+    const periodPercents = moisAffiche?.customPercents ?? null;
 
     const { salaries } = resolveSalaries(periodSalaries, globalSalaries);
     setState('salaries', salaries);
@@ -206,6 +208,7 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     // l'écran des réglages lit et écrit. Les confondre ferait enregistrer le
     // mode d'un vieux mois comme nouveau réglage global.
     setState('shareModeDuMois', periodShareMode || null);
+    setState('customPercentsDuMois', periodPercents || null);
 
     // Les quatre champs de revenus reprennent l'instantané du mois affiché.
     restoreIncomeFields();
