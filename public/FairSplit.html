@@ -14,18 +14,35 @@
        Ces trois lignes ferment cette fenêtre : elles s'exécutent avant la
        première feuille de style, donc avant le premier pixel. Le module garde
        son rôle — afficher l'explication et le lien de sortie une fois le DOM
-       disponible. -->
-       Fichier externe, et non balise `<script>` en ligne : la politique se
-       passe d'`'unsafe-inline'` sur `script-src`, et ce n'est pas une
-       protection qu'on entame pour trois lignes. -->
+       disponible.
+       Fichier externe, et non script en ligne : la politique se passe
+       d'unsafe-inline sur script-src, et ce n'est pas une protection qu'on
+       entame pour trois lignes. -->
   <script src="js/anti-cadre.js"></script>
 
   <!-- Content Security Policy en balise meta : GitHub Pages ne permet pas de
        définir d'en-têtes HTTP, la politique de firebase.json n'y a donc jamais
-       été appliquée. Les origines localhost n'y figurent plus : `?emulator=1`
-       est désormais refusé hors d'un hôte local (js/config.js), et les autoriser
-       ici revenait à laisser un lien piégé détourner la base vers un service
-       en écoute chez la victime.
+       été appliquée.
+
+       ⚠️ Cette balise doit rester DANS `<head>`. Une politique posée dans
+       `<body>` est purement ignorée — mesuré sous Chromium : script bloqué
+       quand la balise est en tête, exécuté quand elle a glissé dans le corps.
+       Or un commentaire mal fermé suffit à l'y pousser : du texte nu en tête
+       ferme `<head>` et ouvre `<body>`, emportant tout ce qui suit. C'est
+       arrivé le 2026-08-27, et le site a tourné sans aucune politique jusqu'à
+       ce qu'on s'en aperçoive. `tests/balisage-sain.test.js` le vérifie
+       désormais avec un analyseur HTML réel.
+
+       Les origines localhost figurent dans `connect-src`, et là seulement :
+       c'est le mode `?emulator=1`, dont vivent les tests d'intégration et le
+       développement local. Ce qui empêche un lien piégé de détourner la base
+       vers un service en écoute chez la victime, ce n'est pas leur absence
+       ici — une balise meta ne sait pas être conditionnelle — mais le fait que
+       `USE_EMULATOR` (js/config.js) exige désormais un hôte local. Sur
+       github.io, l'application n'ouvre aucune connexion locale, quoi que la
+       politique autorise. Les deux décisions sont attachées par un test : si
+       la garde d'hôte disparaît, les origines doivent disparaître aussi.
+
        frame-ancestors et report-uri sont ignorés en meta : non utilisés ici.
        www.google.com couvre reCAPTCHA, dont App Check dépend : son script vient
        de là, son épreuve s'affiche dans un cadre de la même origine — et il y
@@ -40,7 +57,7 @@
        un tunnel, un mode avion, une seconde de réseau perdue — le SDK écrit
        `previous_websocket_failure` dans `localStorage` et bascule au tour
        suivant sur le long-polling. Ce transport-là n'est pas du `fetch` : il
-       injecte des balises `<script>` vers l'hôte de la base, dans une iframe
+       injecte des balises de script vers l'hôte de la base, dans une iframe
        qu'il fabrique. Sans cette origine, il est refusé — et la bascule est
        sans retour, le drapeau survivant à tous les rechargements. La base
        devenait injoignable pour toujours sur un réseau parfaitement sain, et
@@ -50,13 +67,17 @@
        Ces origines sont contrôlées par tests/chargement-initial.test.js, qui
        compare cette politique à celle de firebase.json **dans les deux sens** :
        l'origine manquait ici et figurait là-bas, où elle ne s'applique pas. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com/leaflet@1.9.4/ https://apis.google.com https://*.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://unpkg.com/leaflet@1.9.4/; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app https://accounts.google.com https://www.google.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com/leaflet@1.9.4/ https://apis.google.com https://*.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://unpkg.com/leaflet@1.9.4/; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app https://accounts.google.com https://www.google.com" />
   <!-- `unpkg.com` est borné au chemin exact de Leaflet, et ce n'est pas
        cosmétique : ce CDN sert *n'importe quel* paquet npm. L'autoriser en
        entier revenait à autoriser du script arbitraire, ce qui vidait de sa
        substance l'absence d'`'unsafe-inline'` — une injection HTML n'avait
-       qu'à écrire <script src="https://unpkg.com/paquet-attaquant">. Un
-       préfixe de chemin, lui, ne laisse passer que ce qu'on charge vraiment.
+       qu'à pointer une balise de script vers un paquet quelconque de ce CDN.
+       Un préfixe de chemin, lui, ne laisse passer que ce qu'on charge vraiment.
+       (Aucune balise n'est citée ici, et c'est délibéré : une balise de script
+       écrite dans un commentaire ouvre un vrai élément dès que le commentaire
+       se ferme un caractère trop tôt. C'est exactement ce qui est arrivé le
+       2026-08-27 — cf. `tests/balisage-sain.test.js`.)
        (L'idéal reste de servir Leaflet depuis l'application, comme les
        polices : plus d'origine tierce du tout, et Dependabot le suivrait.) -->
   <!-- Le géocodage inversé interroge Nominatim : sans politique explicite, les

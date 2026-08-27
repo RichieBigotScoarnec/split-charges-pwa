@@ -281,6 +281,7 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | L'estampillage du service worker n'était jamais vérifié : `grep -n` affichait sans échouer, et le contrôle de publication rejouait le même `sed` | `.github/workflows/deploy.yml` | ✅ RÉSOLU 2026-08-27 — `grep -q` sur la valeur substituée, échec franc | Les deux côtés auraient été identiquement non estampillés |
 | Les hôtes d'émulateur n'étaient pas exclus du service worker : les lectures locales étaient mises en cache et resservies comme fraîches | `public/sw.js` | ✅ RÉSOLU 2026-08-27 — `estEmulateurLocal()` | Exactement le symptôme que cette liste existe pour empêcher |
 | Sauvegarde et migration tournaient sur Node 20 quand `engines` exige ≥ 22 | `sauvegarde.yml`, `migration-repartition.yml` | ✅ RÉSOLU 2026-08-27 — Node 22 partout | Les deux workflows qui touchent la production |
+| **Un `-->` orphelin dans le commentaire de la garde anti-encadrement.** Trois lignes se retrouvaient hors commentaire, dont un `<script>` cité qui ouvrait un vrai élément : « Fichier externe, et non balise ` » s'affichait en haut de l'écran, et `anti-cadre.js`, avalé comme contenu de ce script, n'était jamais chargé — la garde était inerte tout en paraissant posée | `public/FairSplit.html`, `tests/balisage-sain.test.js` | ✅ RÉSOLU 2026-08-27 — commentaire refermé, et la page relue par un analyseur HTML réel | Introduit par le correctif précédent ; 5 assertions sur 9 tombent sur le balisage fautif |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
