@@ -101,6 +101,28 @@ describe('FairSplit.html — le balisage dit ce qu\'il a l\'air de dire', () => 
     expect(enLigne.map(s => s.textContent.trim().slice(0, 60))).toEqual([]);
   });
 
+  it('aucun commentaire ne cite une balise exécutable', () => {
+    // La mine qui a explosé, et qu'on désamorce à la source.
+    //
+    // Un commentaire qui contient le mot `script` entre chevrons est inoffensif
+    // tant qu'il est bien fermé — et devient un vrai élément à la seconde où un
+    // `-->` se place un caractère trop tôt. Le coût d'écrire « balise de
+    // script » au lieu de la citer est nul ; le coût de l'oubli s'est mesuré
+    // sur un téléphone.
+    //
+    // Contrôle sur le texte brut, et non sur l'arbre : une fois analysé, il est
+    // trop tard pour distinguer le commentaire de ce qu'il a laissé échapper.
+    const source = readFileSync(join(process.cwd(), 'public', 'FairSplit.html'), 'utf-8');
+    const commentaires = [...source.matchAll(/<!--([\s\S]*?)-->/g)].map(m => m[1]);
+
+    expect(commentaires.length).toBeGreaterThan(20);
+
+    const mines = commentaires.flatMap(contenu =>
+      [...contenu.matchAll(/<\s*(script|iframe|object|embed|style)\b/gi)].map(m => m[0]));
+
+    expect(mines).toEqual([]);
+  });
+
   it('aucun gestionnaire on* dans le balisage', () => {
     // Même raison : la CSP les bloquerait, donc un bouton qui en porterait un
     // serait mort sans que rien ne le dise.

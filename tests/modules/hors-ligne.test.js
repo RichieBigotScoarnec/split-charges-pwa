@@ -51,6 +51,7 @@ function baseFactice(contenuInitial = {}) {
   let muette = false;
   let rangDeCle = 0;
   let refusA = null;
+  let refusDefinitif = false;
 
   const lire = (chemin) => {
     let courant = contenu;
@@ -78,19 +79,26 @@ function baseFactice(contenuInitial = {}) {
   // met en file — et l'`await` de l'appelant reste suspendu.
   const jamais = () => new Promise(() => {});
 
+  const erreurRefus = () => {
+    if (!refusDefinitif) return new Error('permission refusee');
+    const echec = new Error('PERMISSION_DENIED: Permission denied');
+    echec.code = 'PERMISSION_DENIED';
+    return echec;
+  };
+
   const ref = (chemin) => ({
     key: chemin.split('/').filter(Boolean).pop() || null,
     once: () => (muette ? jamais() : Promise.resolve({ val: () => lire(chemin) })),
     set: (valeur) => {
       if (muette) return jamais();
-      if (refusA && chemin.includes(refusA)) return Promise.reject(new Error('permission refusée'));
+      if (refusA && chemin.includes(refusA)) return Promise.reject(erreurRefus());
       journal.push({ type: 'set', chemin, donnees: valeur });
       poser(chemin, valeur);
       return Promise.resolve();
     },
     update: (lot) => {
       if (muette) return jamais();
-      if (refusA && chemin.includes(refusA)) return Promise.reject(new Error('permission refusée'));
+      if (refusA && chemin.includes(refusA)) return Promise.reject(erreurRefus());
       journal.push({ type: 'update', chemin, donnees: lot });
       Object.keys(lot).forEach(cle => poser(`${chemin}/${cle}`, lot[cle]));
       return Promise.resolve();
@@ -102,8 +110,19 @@ function baseFactice(contenuInitial = {}) {
     ref, journal, contenu,
     couper() { muette = true; },
     retablir() { muette = false; },
-    refuser(fragment) { refusA = fragment; },
-    accepter() { refusA = null; }
+    refuser(fragment) { refusA = fragment; refusDefinitif = false; },
+    /**
+     * Un refus tel que Firebase le formule vraiment
+     *
+     * `estRefusDefinitif` reconnaît le code et le message de Realtime
+     * Database : un refus factice en français passerait pour une panne
+     * transitoire, et le test ne prouverait rien.
+     */
+    refuserDefinitivement(fragment) {
+      refusA = fragment;
+      refusDefinitif = true;
+    },
+    accepter() { refusA = null; refusDefinitif = false; }
   };
 }
 
@@ -780,5 +799,77 @@ describe('Sortir du hors ligne sans attendre Firebase', () => {
     await vi.advanceTimersByTimeAsync(400000);
 
     expect(liaisonRompue()).toBe(false);
+  });
+});
+
+describe('Une saisie que le serveur refusera toujours ne bloque plus la file', () => {
+  it('elle est écartée, annoncée, et la suivante passe', async () => {
+    // La boucle s'arrête au premier échec — c'est le bon choix, « la file est
+    // un ordre, pas un sac ». Mais rien ne séparait le transitoire du
+    // définitif : une écriture que les règles rejetteront toujours restait en
+    // tête, et tout ce qui avait été saisi ensuite s'empilait derrière sans
+    // jamais partir.
+    //
+    // Le déclencheur est dans la CI elle-même : `deploy-rules` redéploie les
+    // règles à chaque fusion sur main. Une saisie mise en file avant un
+    // durcissement de `.validate` est refusée après.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    await dbSet('periods/2026-08/variableCharges/refusee', { description: 'Abîmée', amount: 1 });
+    await dbSet('periods/2026-08/variableCharges/saine', { description: 'Café', amount: 3 });
+    expect(saisiesEnAttente()).toBe(2);
+
+    signalerLiaison(true);
+    base.refuserDefinitivement('refusee');
+
+    const bilan = await rejouerFileDAttente();
+
+    // L'opération fautive est partie de la file, la suivante est passée.
+    expect(bilan.refusees).toHaveLength(1);
+    expect(bilan.refusees[0].chemin).toContain('refusee');
+    expect(bilan.envoyees).toBe(1);
+    expect(saisiesEnAttente()).toBe(0);
+    expect(base.contenu.household.periods['2026-08'].variableCharges.saine)
+      .toEqual({ description: 'Café', amount: 3 });
+  });
+
+  it('une panne passagère, elle, retient toujours la file', async () => {
+    // Le pendant du précédent : distinguer les deux natures d'échec ne doit pas
+    // faire jeter une saisie qu'une reconnexion aurait suffi à envoyer.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    await dbSet('periods/2026-08/variableCharges/premiere', { description: 'Pain', amount: 2 });
+    await dbSet('periods/2026-08/variableCharges/seconde', { description: 'Lait', amount: 1 });
+
+    signalerLiaison(true);
+    base.refuser('premiere'); // refus quelconque, non reconnu comme définitif
+
+    const bilan = await rejouerFileDAttente();
+
+    expect(bilan.refusees).toHaveLength(0);
+    expect(bilan.envoyees).toBe(0);
+    expect(saisiesEnAttente()).toBe(2);
+    expect(bilan.erreur).toBeTruthy();
+  });
+
+  it('la file repart entièrement quand le refus définitif est levé', async () => {
+    // Un refus définitif écarte UNE opération, pas la file.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    await dbSet('periods/2026-08/variableCharges/refusee', { description: 'Abîmée', amount: 1 });
+    await dbSet('periods/2026-08/variableCharges/a', { description: 'A', amount: 1 });
+    await dbSet('periods/2026-08/variableCharges/b', { description: 'B', amount: 2 });
+
+    signalerLiaison(true);
+    base.refuserDefinitivement('refusee');
+
+    const bilan = await rejouerFileDAttente();
+
+    expect(bilan.envoyees).toBe(2);
+    expect(bilan.refusees).toHaveLength(1);
+    expect(saisiesEnAttente()).toBe(0);
   });
 });

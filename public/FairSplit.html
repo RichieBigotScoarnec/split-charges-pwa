@@ -40,7 +40,7 @@
        un tunnel, un mode avion, une seconde de réseau perdue — le SDK écrit
        `previous_websocket_failure` dans `localStorage` et bascule au tour
        suivant sur le long-polling. Ce transport-là n'est pas du `fetch` : il
-       injecte des balises `<script>` vers l'hôte de la base, dans une iframe
+       injecte des balises de script vers l'hôte de la base, dans une iframe
        qu'il fabrique. Sans cette origine, il est refusé — et la bascule est
        sans retour, le drapeau survivant à tous les rechargements. La base
        devenait injoignable pour toujours sur un réseau parfaitement sain, et
@@ -55,8 +55,12 @@
        cosmétique : ce CDN sert *n'importe quel* paquet npm. L'autoriser en
        entier revenait à autoriser du script arbitraire, ce qui vidait de sa
        substance l'absence d'`'unsafe-inline'` — une injection HTML n'avait
-       qu'à écrire <script src="https://unpkg.com/paquet-attaquant">. Un
-       préfixe de chemin, lui, ne laisse passer que ce qu'on charge vraiment.
+       qu'à pointer une balise de script vers un paquet quelconque de ce CDN.
+       Un préfixe de chemin, lui, ne laisse passer que ce qu'on charge vraiment.
+       (Aucune balise n'est citée ici, et c'est délibéré : une balise de script
+       écrite dans un commentaire ouvre un vrai élément dès que le commentaire
+       se ferme un caractère trop tôt. C'est exactement ce qui est arrivé le
+       2026-08-27 — cf. `tests/balisage-sain.test.js`.)
        (L'idéal reste de servir Leaflet depuis l'application, comme les
        polices : plus d'origine tierce du tout, et Dependabot le suivrait.) -->
   <!-- Le géocodage inversé interroge Nominatim : sans politique explicite, les
