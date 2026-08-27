@@ -142,6 +142,17 @@ const NOEUDS_CONNUS = [
   // — « des données que l'application ne connaît pas » — et le foyer aurait
   // perdu la restauration de ses propres sauvegardes récentes.
   'envelopes',
+  // Le contenu des cagnottes, arrivé le 2026-08-27. Il a reproduit mot pour mot
+  // la panne que le commentaire ci-dessus raconte : toute sauvegarde prise
+  // depuis ce jour-là contenait `versements`, et toute restauration de ces
+  // fichiers était refusée. On ne l'apprend que le jour où l'on en a besoin.
+  //
+  // Ajouter une ligne ne suffisait pas — c'était la deuxième fois. Les règles
+  // font autorité sur ce qui peut exister sous la racine, et
+  // `tests/sauvegarde-noeuds-declares.test.js` compare désormais les deux
+  // listes dans les deux sens : un nœud neuf ne peut plus être déclaré d'un
+  // côté sans l'autre.
+  'versements',
   'reminders',
   'periods'
 ];
