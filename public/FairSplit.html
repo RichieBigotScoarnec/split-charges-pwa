@@ -358,7 +358,23 @@
         <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
         <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
       </div>
+
+      <!-- La portée de la recherche.
+           Elle ne voyait que le mois affiché — et pour cause : elle masquait
+           des lignes déjà rendues, et les autres mois ne sont pas dans la page.
+           « Quand a-t-on acheté la machine à laver ? » restait sans réponse
+           alors que la donnée est là. Décochée par défaut : le mois courant
+           reste le cas ordinaire, et l'historique se lit à la demande. -->
+      <label class="search-portee">
+        <input type="checkbox" id="searchTousMois" />
+        <span>Chercher dans tous les mois</span>
+      </label>
+
       <div class="search-results-info" id="searchResultsInfo"></div>
+
+      <!-- Les résultats des autres mois. Le filtrage des listes ne peut pas
+           les montrer : ils n'y sont pas. -->
+      <div class="search-historique" id="searchHistorique" hidden></div>
     </div>
 
     <!-- Variable Charges Section -->

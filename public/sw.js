@@ -83,6 +83,7 @@ const STATIC_ASSETS = [
   './js/utils/previsionnel.js',
   './js/utils/provisions.js',
   './js/utils/raccourci.js',
+  './js/utils/recherche-historique.js',
   './js/utils/recherche-lieu.js',
   './js/utils/recherche-texte.js',
   './js/utils/recurrence.js',

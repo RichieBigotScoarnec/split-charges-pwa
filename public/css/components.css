@@ -82,6 +82,134 @@
   display: block;
 }
 
+/* ===== LA PORTÉE DE LA RECHERCHE ===== */
+/*
+   La recherche ne voyait que le mois affiché — et pour cause : elle masquait
+   des lignes déjà rendues, et les autres mois ne sont pas dans la page.
+
+   La case reste décochée : le mois courant est le cas ordinaire, et une
+   lecture de tout l'historique ne doit pas se déclencher sans qu'on l'ait
+   demandée.
+*/
+.search-portee {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md) 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.search-portee input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+/* ===== LES RÉSULTATS DES AUTRES MOIS ===== */
+/*
+   Ils ont leur propre panneau, et il le faut : le filtrage des listes ne peut
+   pas les montrer, ils n'y sont pas.
+*/
+.search-historique {
+  margin-top: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-sm);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.search-historique-attente {
+  margin: var(--space-sm) 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.search-mois {
+  margin-bottom: var(--space-sm);
+}
+
+/*
+   L'en-tête emmène au mois : trouver « Machine à laver, juin 2026 » sans
+   pouvoir s'y rendre laisserait le travail à moitié fait.
+*/
+.search-mois-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.search-mois-entete:hover,
+.search-mois-entete:focus-visible {
+  background: var(--primary-soft);
+}
+
+.search-mois-nom {
+  text-transform: capitalize;
+}
+
+.search-mois-compte {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.search-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-ligne:last-child {
+  border-bottom: none;
+}
+
+.search-ligne-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.search-ligne-titre {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-ligne-detail {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.search-ligne-montant {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
 /* ===== PERIOD NAVIGATION ===== */
 .period-navigation {
   background: var(--card-bg);
