@@ -68,8 +68,22 @@ jobs:
       # nombre déjà échappé au niveau supérieur. La modale suit exactement le
       # patron des autres ; l'avertissement est celui que la règle émet sur
       # toute affectation d'`innerHTML`, faute de pouvoir prouver l'échappement.
+      #
+      # 23 → 22 le 2026-08-27 : `modules/search.js` écrivait deux lignes de
+      # texte pur en `innerHTML`, ce qui obligeait à échapper la requête pour
+      # un gain nul. Passées en `textContent`, deux sites disparaissent — le
+      # plafond descend avec eux, comme il le doit.
+      #
+      # 22 → 24 le 2026-08-27, pour l'écran d'import CSV (`modules/import.js`),
+      # qui en ouvre deux : la coque de la modale et l'aperçu des lignes.
+      # Vérifié interpolation par interpolation avant de le déplacer — le
+      # libellé, la catégorie, le payeur, la date et le motif de rejet passent
+      # tous par `escapeHtml` ; le reste est soit un nombre, soit un montant
+      # déjà formaté par `formatCurrency`. Aucune donnée de fichier n'atteint
+      # le DOM sans être échappée, et c'est bien le point : le contenu vient
+      # ici d'un fichier que l'utilisateur n'a pas nécessairement écrit.
       - name: Aucun nouvel innerHTML dynamique
-        run: npx eslint public/js --max-warnings 23
+        run: npx eslint public/js --max-warnings 24
 
       - name: Run unit tests
         run: npx vitest run

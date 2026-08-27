@@ -50,7 +50,7 @@ const ACTIONS_AUTORISEES = new Set([
   'restoreFromTrash', 'saveCategoryBudgets', 'saveMembers',
   'saveReminderSettings', 'selectShareMode', 'settleBalance',
   'showBackup', 'showBudgetEditor', 'showManageCategoriesModal',
-  'showManageDestinationsModal', 'showManageEnvelopesModal', 'showPrivateExpensesModal',
+  'showImportModal', 'showManageDestinationsModal', 'showManageEnvelopesModal', 'showPrivateExpensesModal',
   'showMapModal', 'showQuickAddModal', 'showTrash', 'signInWithEmail',
   'signInWithGoogle', 'signOut', 'toggleBudgetInput', 'toggleCarryOver',
   'toggleFixedChargeSplit', 'toggleFixedChargePerso', 'toggleFixedChargeSplitMode', 'toggleRemindersPanel', 'toggleTrends',
