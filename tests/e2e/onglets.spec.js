@@ -208,6 +208,111 @@ test.describe('Ce que chaque onglet porte', () => {
   });
 });
 
+test.describe('L\'en-tête, et ce qu\'il coûte', () => {
+  test.use({ viewport: TELEPHONE });
+
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+  });
+
+  /** La hauteur d'un élément, marges comprises — nulle s'il est masqué */
+  async function hauteurDe(page, selecteur) {
+    return page.evaluate((s) => {
+      const el = document.querySelector(s);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      if (r.height === 0) return 0;
+      const style = getComputedStyle(el);
+      return Math.round(r.height + parseFloat(style.marginTop) + parseFloat(style.marginBottom));
+    }, selecteur);
+  }
+
+  test('l\'en-tête tient sur une ligne, sous la barre des 100 px', async ({ page }) => {
+    // Mesuré avant correction : 159 px pour une marque et un nom de compte,
+    // sur trois rangées centrées. Le seuil est large à dessein — ce qui est
+    // verrouillé, c'est « une ligne », pas un pixel précis.
+    const entete = await hauteurDe(page, '#mainApp > header');
+    expect(entete, `l'en-tête mesure ${entete} px`).toBeLessThan(100);
+  });
+
+  test('moins d\'un quart de l\'écran avant le premier contenu', async ({ page }) => {
+    // Mesuré avant correction : 294 px sur 844, soit 35 % — et ce péage se
+    // repaie à chaque changement d'onglet, qui remonte en haut.
+    const { avant, fenetre } = await page.evaluate(() => ({
+      avant: Math.round(document.querySelector('#panneauBilan .card').getBoundingClientRect().top),
+      fenetre: window.innerHeight
+    }));
+    const part = avant / fenetre;
+    expect(part, `${avant} px sur ${fenetre}, soit ${Math.round(part * 100)} %`).toBeLessThan(0.25);
+  });
+
+  test('au défilement, le mois reste épinglé en haut', async ({ page }) => {
+    // Le défaut que cela corrige : passé le premier écran, plus rien ne disait
+    // quel mois on lisait.
+    await allerAuPanneau(page, 'panneauCharges');
+    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.waitForTimeout(400);
+
+    const bandeau = await page.locator('.bandeau-colle').boundingBox();
+    expect(bandeau, 'le bandeau a disparu').not.toBeNull();
+    expect(bandeau.y, 'le bandeau est parti avec la page').toBeLessThanOrEqual(1);
+    await expect(page.locator('#periodSelect')).toBeInViewport();
+  });
+
+  test('le bandeau épinglé reste mince', async ({ page }) => {
+    await allerAuPanneau(page, 'panneauCharges');
+    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.waitForTimeout(500);
+
+    const bandeau = await page.locator('.bandeau-colle').boundingBox();
+    expect(bandeau.height, `le bandeau épinglé mesure ${Math.round(bandeau.height)} px`)
+      .toBeLessThan(120);
+  });
+
+  test('le badge « période actuelle » s\'efface au défilement, et revient', async ({ page }) => {
+    // Il répond à une question qu'on se pose en arrivant, pas à la douzième
+    // charge — mais il doit revenir quand on remonte.
+    await allerAuPanneau(page, 'panneauCharges');
+    await expect(page.locator('#periodInfo')).toBeVisible();
+
+    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.waitForTimeout(500);
+    await expect(page.locator('#periodInfo')).toBeHidden();
+    expect(await page.evaluate(() => document.body.dataset.defile)).toBe('true');
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+    await expect(page.locator('#periodInfo')).toBeVisible();
+    expect(await page.evaluate(() => document.body.dataset.defile)).toBeUndefined();
+  });
+
+  test('le solde s\'empile sous le mois, sans le recouvrir', async ({ page }) => {
+    // Les deux sont collés ensemble plutôt que chacun de son côté : décalés à
+    // la main, il aurait fallu un nombre exact que l'état compact fait mentir.
+    await allerAuPanneau(page, 'panneauReglages');
+    await page.locator('#salaireVous').fill('2000');
+    await page.locator('#salaireVous').blur();
+    await page.locator('#salaireConjointe').fill('2000');
+    await page.locator('#salaireConjointe').blur();
+    await page.waitForTimeout(600);
+
+    await allerAuPanneau(page, 'panneauCharges');
+    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.waitForTimeout(500);
+
+    const chevauchement = await page.evaluate(() => {
+      const mois = document.querySelector('.period-navigation').getBoundingClientRect();
+      const solde = document.getElementById('balanceBar').getBoundingClientRect();
+      if (solde.height === 0) return null;
+      return Math.round(mois.bottom - solde.top);
+    });
+    if (chevauchement !== null) {
+      expect(chevauchement, 'le solde recouvre le sélecteur de mois').toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 test.describe('Sur grand écran — la barre s\'efface', () => {
   test.use({ viewport: ORDINATEUR });
 

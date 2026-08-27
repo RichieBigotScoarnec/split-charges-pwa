@@ -204,9 +204,13 @@
     align-items: start;
   }
 
+  /* Le sélecteur de mois et le solde vivent désormais dans `.bandeau-colle`,
+     qui s'efface ici en `display: contents` (voir onglets.css) : ils
+     redeviennent enfants de la grille, mais ne sont plus enfants directs du
+     conteneur au sens des sélecteurs. D'où le chemin par le bandeau. */
   .container > header,
-  .container > nav,
-  .container > #balanceBar {
+  .bandeau-colle > nav,
+  .bandeau-colle > #balanceBar {
     grid-column: 1 / -1;
   }
 

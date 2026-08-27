@@ -28,7 +28,8 @@ FairSplit/
 │   │   ├── auth.css            # Écran authentification
 │   │   ├── summary.css         # Bilan, catégories, tendances
 │   │   ├── map.css             # Carte Leaflet
-│   │   ├── onglets.css         # Barre d'onglets, panneaux, rangées d'outils
+│   │   ├── onglets.css         # Barre d'onglets, panneaux, en-tête compact,
+│   │   │                       # rangées d'outils
 │   │   └── responsive.css      # Media queries + print
 │   └── js/
 │       ├── app.js              # Entry point — init Firebase, auth, modules
@@ -38,8 +39,10 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 22 modules fonctionnels
-│       └── utils/              # 35 aides pures — dont onglets (quel panneau
-│                               # l'écran montre, sous 900 px), miroir (ce que l'appareil
+│       └── utils/              # 36 aides pures — dont onglets (quel panneau
+│                               # l'écran montre, sous 900 px), entete (l'en-tête
+│                               # se compacte une fois sorti de l'écran),
+│                               # miroir (ce que l'appareil
 │                               # garde hors réseau : dernière valeur lue de
 │                               # chaque chemin, file des écritures à rejouer),
 │                               # montant (lecture d'une
@@ -317,6 +320,9 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Le bouton « Renseigner les salaires » vise un champ d'un autre panneau. Sous 900 px celui-ci est en `display: none` : `scrollIntoView` n'a nulle part où aller et `focus()` échoue en silence. Le bouton serait resté visible et inerte, là où l'application réclame une action | `public/js/modules/period.js` | ✅ RÉSOLU 2026-08-27 — l'onglet change avant que le champ soit visé | Trouvé sur une capture d'écran, pas dans le code |
 | `.container .fab` ne désignait rien : le bouton flottant est un enfant direct de `<body>`. La règle qui devait le hisser au-dessus de la barre d'onglets était morte, et seule la valeur héritée de `responsive.css` évitait le chevauchement | `public/css/onglets.css` | ✅ RÉSOLU 2026-08-27 — `body .fab`, et un test qui mesure le chevauchement | Le sélecteur avait l'air juste |
 | Sous 600 px, `responsive.css` applique `padding: var(--space-sm)` — un raccourci qui réécrit les quatre côtés et annulait la réserve gardée pour la barre fixe. Mesuré : 32 px de contenu masqués en bas de chaque panneau | `public/css/onglets.css` | ✅ RÉSOLU 2026-08-27 — `body .container`, spécificité supérieure | Trouvé par le test écrit pour ce cas précis |
+
+| **L'en-tête et le sélecteur de mois occupaient 294 px sur 844 — 35 % du premier écran** — et le découpage en onglets a alourdi ce péage : changer d'onglet remonte en haut, donc on le repaie à chaque fois. Rien ne restait épinglé au défilement : passé le premier écran, plus moyen de savoir quel mois on lisait | `public/css/onglets.css`, `public/js/utils/entete.js` | ✅ RÉSOLU 2026-08-27 — en-tête sur une ligne (159 → 70 px), sélecteur collé qui se compacte, badge effacé au défilement. Mesuré : **294 → 193 px, 35 % → 23 %**, et 54 px épinglés qui portent le mois | Rien de tout cela au-delà de 900 px |
+| Coller le mois et le solde chacun de son côté aurait exigé de décaler le second de la hauteur exacte du premier — une valeur qui change entre l'état compact et l'état de repos, donc un nombre en dur qui ment un cas sur deux | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-27 — un seul conteneur `.bandeau-colle`, où les deux s'empilent d'eux-mêmes ; `display: contents` le rend à la grille au-delà de 900 px | Un test mesure le recouvrement plutôt que de le supposer |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

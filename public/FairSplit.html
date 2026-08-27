@@ -227,6 +227,20 @@
       </div>
     </header>
 
+    <!-- ==================== BANDEAU COLLÉ ====================
+      Le mois et le solde, gardés sous les yeux pendant le défilement.
+
+      Les deux sont réunis dans un seul conteneur collant plutôt que collés
+      chacun de son côté : empilés indépendamment, il aurait fallu donner au
+      solde un décalage égal à la hauteur du sélecteur — une valeur qui change
+      selon que le bandeau est compact ou non, et qu'un nombre écrit en dur
+      aurait fait mentir dans un cas sur deux. Réunis, ils s'empilent d'eux-mêmes.
+
+      Au-delà de 900 px le conteneur s'efface (`display: contents`) et rend ses
+      deux enfants à la grille, qui les place comme avant.
+    -->
+    <div class="bandeau-colle">
+
     <!-- Period Navigation -->
     <nav aria-label="Navigation des périodes">
     <div class="card period-navigation">
@@ -245,8 +259,12 @@
     </nav>
 
     <!-- Solde net, maintenu visible pendant le défilement. Rempli par
-         summary.js ; masqué tant qu'aucun bilan n'est calculable. -->
+         summary.js ; masqué tant qu'aucun bilan n'est calculable, et replié
+         par `barre-solde.js` tant que le bilan dit déjà la même chose. -->
     <div id="balanceBar" class="balance-bar" role="status" hidden></div>
+
+    </div>
+    <!-- ==================== fin du bandeau collé ==================== -->
 
     <!-- Summary Section -->
     <!-- Colonne consultation : ce qu'on lit.
