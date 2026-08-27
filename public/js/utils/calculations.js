@@ -5,6 +5,36 @@ import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 // Extraites de summary.js pour permettre les tests unitaires
 
 /**
+ * Les deux pourcentages d'un partage personnalisé, jamais NaN
+ *
+ * Un `splitOverride` partiel — `{ mode: 'custom' }` sans les deux chiffres, ce
+ * que les règles acceptent puisqu'elles n'exigent la somme que si les deux
+ * clés sont présentes — faisait tomber la lecture sur `customPercents`. Or
+ * celui-ci peut être vide : `pcts.vous` valait alors `undefined`, et la part
+ * de chacun `NaN`, qui se propageait à tout le bilan.
+ *
+ * Le repli est le partage en deux : c'est ce que « personnalisé » veut dire
+ * quand personne n'a rien personnalisé.
+ *
+ * @param {Object} charge
+ * @param {Object} customPercents - Pourcentages globaux
+ * @returns {{vous: number, conjointe: number}}
+ */
+function pourcentages(charge, customPercents) {
+  const source = (charge.splitOverride && charge.splitOverride.vous !== undefined)
+    ? charge.splitOverride
+    : customPercents;
+
+  const vous = Number(source?.vous);
+  const conjointe = Number(source?.conjointe);
+
+  if (!Number.isFinite(vous) || !Number.isFinite(conjointe)) {
+    return { vous: 50, conjointe: 50 };
+  }
+  return { vous, conjointe };
+}
+
+/**
  * Calcule la part théorique d'une charge pour chaque personne
  * @param {Object} charge - { amount, splitOverride }
  * @param {string} shareMode - Mode global ('prorata', '50-50', 'custom')
@@ -22,9 +52,7 @@ export function calculateChargeShares(charge, shareMode, salaries, totalSalaries
   }
 
   if (effectiveMode === 'custom') {
-    const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined)
-      ? charge.splitOverride
-      : customPercents;
+    const pcts = pourcentages(charge, customPercents);
     return {
       yourShare: amount * (pcts.vous / 100),
       partnerShare: amount * (pcts.conjointe / 100)
@@ -58,10 +86,7 @@ export function calculateJointPayment(charge, shareMode, salaries, totalSalaries
   if (effectiveMode === '50-50') {
     yourJointRatio = 0.5;
   } else if (effectiveMode === 'custom') {
-    const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined)
-      ? charge.splitOverride
-      : customPercents;
-    yourJointRatio = pcts.vous / 100;
+    yourJointRatio = pourcentages(charge, customPercents).vous / 100;
   } else if (totalSalaries > 0) {
     yourJointRatio = salaries.vous / totalSalaries;
   }
@@ -240,9 +265,7 @@ export function computeVirementsByDestination(fixedCharges, params) {
     if (effectiveMode === '50-50') {
       partnerShare = amount * 0.5;
     } else if (effectiveMode === 'custom') {
-      const pcts = (charge.splitOverride && charge.splitOverride.conjointe !== undefined)
-        ? charge.splitOverride
-        : customPercents;
+      const pcts = pourcentages(charge, customPercents);
       partnerShare = amount * (pcts.conjointe / 100);
     } else {
       partnerShare = totalSalaries > 0

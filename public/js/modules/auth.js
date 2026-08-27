@@ -543,12 +543,23 @@ function diagnostiquerSiLaBaseManque() {
 async function ecoulerLesSaisiesGardees() {
   if (saisiesEnAttente() === 0) return;
 
-  const { envoyees, restantes, erreur } = await rejouerFileDAttente();
+  const { envoyees, restantes, erreur, refusees = [] } = await rejouerFileDAttente();
 
   if (envoyees > 0) {
     toast.success(envoyees === 1
       ? '1 saisie hors ligne enregistrée'
       : `${envoyees} saisies hors ligne enregistrées`);
+  }
+
+  // Une saisie que le serveur refusera toujours ne « reste » pas : elle est
+  // perdue, et le dire est la seule chose honnête à faire. La confondre avec
+  // une saisie en attente promettait un envoi qui n'arriverait jamais — et
+  // elle bloquait au passage toutes les suivantes.
+  if (refusees.length > 0) {
+    toast.error(refusees.length === 1
+      ? '1 saisie refusée par la base — à ressaisir'
+      : `${refusees.length} saisies refusées par la base — à ressaisir`);
+    warn('⚠️ Saisies refusées définitivement :', refusees);
   }
 
   if (restantes > 0 && erreur) {
@@ -604,7 +615,11 @@ export function initAuth() {
 
     // Vérification whitelist — refuser tout compte non autorisé
     if (user && !ALLOWED_EMAILS.includes(user.email)) {
-      warn('[Auth] ⛔ Accès refusé pour :', user.email);
+      // L'adresse ne va pas dans la console : `debug.js` laisse passer
+      // `warn` en production, et la règle du projet est « jamais de donnée
+      // personnelle dans les journaux ». Le journal de diagnostic, lui, la
+      // garde — il ne s'ouvre que par ?diag=1.
+      warn('[Auth] ⛔ Accès refusé : compte hors liste blanche');
       const authErrorEl = document.getElementById('authError');
       if (authErrorEl) authErrorEl.textContent = 'Accès non autorisé. Ce compte n\'est pas autorisé à utiliser cette application.';
       await auth.signOut();
@@ -618,7 +633,7 @@ export function initAuth() {
     // depuis l'écran. Le bac à sable n'est pas concerné : le compte de test
     // s'authentifie par mot de passe et n'a pas d'adresse à prouver.
     if (user && resolveDataRoot(user.email) === 'household' && user.emailVerified === false) {
-      warn('[Auth] ⛔ Adresse non vérifiée :', user.email);
+      warn('[Auth] ⛔ Accès refusé : adresse non vérifiée');
       const authErrorEl = document.getElementById('authError');
       if (authErrorEl) {
         authErrorEl.textContent = 'Adresse non vérifiée. Vérifiez votre adresse e-mail, ou connectez-vous avec Google.';

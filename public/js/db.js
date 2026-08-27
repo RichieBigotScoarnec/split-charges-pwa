@@ -383,9 +383,14 @@ export async function rejouerFileDAttente() {
   rejeuEnCours = true;
   let envoyees = 0;
   let erreur = null;
+  /** L'opération en cours d'envoi, pour savoir laquelle a bloqué */
+  let bloquee = null;
+  /** Ce qui a été écarté parce que le serveur ne l'acceptera jamais */
+  const refusees = [];
 
   try {
     for (const operation of operations) {
+      bloquee = operation;
       // Ce que la file porte n'est pas ce que l'application y a mis.
       //
       // `empiler()` contrôle le type et le chemin *à la mise en file*, et le
@@ -430,15 +435,65 @@ export async function rejouerFileDAttente() {
     }
   } catch (echec) {
     erreur = echec?.message || String(echec);
-    warn('[DB] Rejeu interrompu :', erreur);
+
+    // Un refus définitif n'est pas une panne : le distinguer, ou la file se
+    // bloque pour toujours.
+    //
+    // La boucle s'arrête au premier échec, et c'est le bon choix — « la file
+    // est un ordre, pas un sac ». Mais rien ne séparait le transitoire du
+    // définitif : une écriture que les règles rejetteront toujours restait en
+    // tête, et tout ce qui avait été saisi ensuite s'empilait derrière sans
+    // jamais partir. L'utilisateur voyait « N saisies restent sur cet
+    // appareil » à chaque reconnexion, sans aucun moyen de voir laquelle
+    // bloque, ni de l'abandonner — sauf effacer les données du site, ce qui
+    // emporte tout.
+    //
+    // Le déclencheur est dans la CI elle-même : `deploy-rules` redéploie les
+    // règles à chaque fusion sur main. Une saisie mise en file avant un
+    // durcissement de `.validate` est refusée après. Ce n'est pas un cas de
+    // laboratoire, c'est le fonctionnement normal du dépôt.
+    if (bloquee && estRefusDefinitif(echec)) {
+      warn('[DB] Saisie refusée définitivement, écartée de la file :', bloquee.chemin);
+      noter('hors-ligne', 'saisie refusée définitivement', {
+        chemin: bloquee.chemin || '(racine)',
+        type: bloquee.type,
+        motif: erreur
+      });
+      // Le miroir la porte encore : la valeur reste à l'écran, et l'appelant
+      // apprend qu'elle n'ira pas plus loin.
+      retirerOperation(dataRoot, bloquee.id);
+      refusees.push({ chemin: bloquee.chemin, motif: erreur });
+    } else {
+      warn('[DB] Rejeu interrompu :', erreur);
+    }
   } finally {
     rejeuEnCours = false;
   }
 
   const restantes = saisiesEnAttente();
   signalerFile();
-  noter('hors-ligne', 'rejeu de la file', { envoyees, restantes, erreur: erreur || undefined });
-  return { envoyees, restantes, erreur };
+  noter('hors-ligne', 'rejeu de la file', {
+    envoyees, restantes, refusees: refusees.length, erreur: erreur || undefined
+  });
+  return { envoyees, restantes, erreur, refusees };
+}
+
+/**
+ * Les motifs de refus dont il est inutile de réessayer
+ *
+ * Un jeton expiré ou une coupure se rattrapent à la reconnexion suivante ;
+ * une donnée que les règles refusent ne passera jamais, quel que soit le
+ * nombre de tentatives.
+ *
+ * @param {*} echec - Erreur rendue par Firebase
+ * @returns {boolean}
+ */
+function estRefusDefinitif(echec) {
+  const code = String(echec?.code || '').toLowerCase();
+  const message = String(echec?.message || echec || '').toLowerCase();
+  return code.includes('permission_denied')
+    || message.includes('permission_denied')
+    || message.includes('permission denied');
 }
 
 /**

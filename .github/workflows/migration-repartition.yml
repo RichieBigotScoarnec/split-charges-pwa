@@ -36,11 +36,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      # `npm ci` n'est PAS lancé : ce workflow détient le compte de service
+      # Firebase et écrit dans la base de production. Exécuter les scripts
+      # d'installation de 973 dépendances à côté de ce secret était une surface
+      # gratuite. `migration-repartition.mjs` n'a aucune dépendance.
+      - name: Installer firebase-tools, et lui seul
+        run: npm install --no-save --ignore-scripts firebase-tools@15.11.0
 
       # Les deux secrets sont exigés même en simulation : sans la phrase
       # secrète, une exécution en simulation réussirait, on l'enchaînerait en
@@ -189,12 +193,18 @@ jobs:
             suite="**Rien n'a été écrit.** Relancer avec « Écrire réellement en base » coché pour appliquer."
           fi
 
+          # Le résumé d'exécution est public comme le dépôt. Il recopiait
+          # `rapport.txt` en entier, dont une ligne par mois portant les totaux
+          # en euros du foyer. Le détail reste, mais dans les journaux du job.
           {
             echo "$titre"
             echo ""
             echo "$suite"
             echo ""
-            echo '```'
-            cat "$RUNNER_TEMP/rapport.txt"
-            echo '```'
+            echo "Le détail par période figure dans les journaux de cette étape :"
+            echo "le résumé, lui, est lisible par qui peut lire le dépôt."
           } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::group::Rapport détaillé (journaux du job)"
+          cat "$RUNNER_TEMP/rapport.txt"
+          echo "::endgroup::"

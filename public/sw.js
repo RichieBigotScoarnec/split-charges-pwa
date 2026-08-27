@@ -43,7 +43,8 @@ const STATIC_ASSETS = [
   './css/responsive.css',
   './css/summary.css',
   './css/variables.css',
-  // Socle : délégation, configuration, état, accès aux données
+  // Socle : refus d'encadrement, délégation, configuration, état, données
+  './js/anti-cadre.js',
   './js/init.js',
   './js/app.js',
   './js/config.js',
@@ -117,16 +118,57 @@ const STATIC_ASSETS = [
   './js/modules/variable-charges.js'
 ];
 
+// Le socle sans lequel l'application ne démarre pas hors ligne.
+//
+// `addAll` est atomique : une seule réponse dégradée fait échouer les cent
+// fichiers. L'échec était avalé, l'installation déclarée réussie — et
+// `skipWaiting()`, appelé avant même de savoir si le cache s'était rempli,
+// avait déjà engagé le remplacement. Le nouveau service worker prenait la main
+// avec un cache vide, `activate` venait de supprimer l'ancien, et rien ne
+// recomplétait jamais : hors ligne, l'application ne démarrait plus, jusqu'au
+// déploiement suivant. Un portail captif au mauvais moment suffisait.
+const SOCLE = [
+  './FairSplit.html',
+  './js/anti-cadre.js',
+  './js/init.js',
+  './js/app.js',
+  './js/config.js',
+  './js/db.js',
+  './js/state.js',
+  './js/utils/calculations.js'
+];
+
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Cache ouvert, installation en cours...');
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Certains assets non cachés :', err);
-      });
-    })
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+
+    // Fichier par fichier : ce qui manque manque seul, au lieu d'emporter tout
+    // le reste. Le compte des absents se lit dans la console.
+    const echecs = [];
+    await Promise.all(STATIC_ASSETS.map(async (ressource) => {
+      try {
+        const reponse = await fetch(ressource, { cache: 'reload' });
+        if (!reponse || !reponse.ok) throw new Error(`HTTP ${reponse && reponse.status}`);
+        await cache.put(ressource, reponse);
+      } catch (err) {
+        echecs.push(ressource);
+        console.warn('[SW] Non mis en cache :', ressource, err);
+      }
+    }));
+
+    // Le socle, lui, ne se négocie pas : sans lui, prendre la main reviendrait
+    // à remplacer une application qui fonctionne par une qui ne démarre pas.
+    // Refuser l'installation laisse l'ancien service worker en place.
+    const socleManquant = echecs.filter((ressource) => SOCLE.includes(ressource));
+    if (socleManquant.length > 0) {
+      throw new Error(`[SW] Socle incomplet, installation refusée : ${socleManquant.join(', ')}`);
+    }
+
+    console.log(`[SW] Cache prêt (${STATIC_ASSETS.length - echecs.length}/${STATIC_ASSETS.length})`);
+
+    // Après le remplissage, et pas avant.
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -188,6 +230,23 @@ const HOSTS_JAMAIS_INTERCEPTES = [
   'openstreetmap.org'       // géocodage : une réponse mise en cache serait fausse
 ];
 
+/**
+ * L'hôte est-il un émulateur local ?
+ *
+ * Les mêmes raisons que pour la base réelle : une lecture mise en cache puis
+ * resservie comme fraîche est exactement le symptôme que cette liste existe
+ * pour empêcher. Traité à part parce qu'un émulateur se reconnaît à son hôte,
+ * pas à son domaine.
+ *
+ * @param {URL} url
+ * @returns {boolean}
+ */
+function estEmulateurLocal(url) {
+  return url.hostname === 'localhost'
+    || url.hostname === '127.0.0.1'
+    || url.hostname === '[::1]';
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -196,7 +255,8 @@ self.addEventListener('fetch', (event) => {
   // isHost vérifie le suffixe et exige un point avant lui : includes() sur un
   // nom d'hôte acceptait « firebaseio.com.exemple.net », et un simple endsWith
   // accepterait « notfirebaseio.com ».
-  if (HOSTS_JAMAIS_INTERCEPTES.some((domaine) => isHost(url.hostname, domaine))) {
+  if (HOSTS_JAMAIS_INTERCEPTES.some((domaine) => isHost(url.hostname, domaine))
+      || estEmulateurLocal(url)) {
     return;
   }
 

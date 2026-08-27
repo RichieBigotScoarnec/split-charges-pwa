@@ -1293,10 +1293,20 @@ async function processGPSPosition(gpsData, locationEl) {
  */
 async function reverseGeocode(lat, lng) {
   try {
+    // Quatre décimales, soit une dizaine de mètres.
+    //
+    // `position.coords` était interpolé brut : un `Number` en imprime une
+    // quinzaine de décimales, une précision notationnelle sous le millimètre.
+    // Chaque saisie faite à la maison envoyait donc à un service tiers un
+    // point qui désigne le domicile — pour obtenir un nom de commerce, qui
+    // n'en demande pas tant. La position complète reste sur la charge, dans
+    // la base du foyer : c'est le tiers qui n'a pas à la connaître.
+    const arrondi = (valeur) => Number(valeur).toFixed(4);
+
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}` +
+      `https://nominatim.openstreetmap.org/reverse?lat=${arrondi(lat)}&lon=${arrondi(lng)}` +
       '&format=json&addressdetails=1&zoom=18&accept-language=fr',
-      { headers: { 'User-Agent': 'FairSplit/1.0' } }
+      { headers: { 'User-Agent': 'FairSplit/1.0' }, referrerPolicy: 'no-referrer' }
     );
     if (!response.ok) return null;
 

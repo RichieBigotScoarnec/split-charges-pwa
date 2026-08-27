@@ -125,8 +125,23 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      # `npm ci` n'est PAS lancé dans ce job.
+      #
+      # Il exécute les scripts d'installation de 973 dépendances, et ce job
+      # détient le compte de service Firebase — rôle « Realtime Database
+      # Admin », qui ignore les règles et lit comme écrit tout. Un script
+      # `postinstall` hostile dans n'importe quelle dépendance transitive
+      # n'aurait qu'à lire l'environnement, ou attendre le fichier.
+      #
+      # SECURITY.md pose déjà ce raisonnement pour un autre secret : « Ne pas
+      # remonter ce droit au niveau du workflow : il s'appliquerait aussi aux
+      # jobs qui exécutent le code des dépendances. » Il valait pour le plus
+      # puissant des deux.
+      #
+      # `firebase-tools` est donc installé seul, épinglé, sans toucher au
+      # `package.json` du dépôt.
+      - name: Installer firebase-tools, et lui seul
+        run: npm install --no-save --ignore-scripts firebase-tools@15.11.0
 
       # Déploiement systématique, sans condition sur la modification du
       # fichier. Une condition mal posée ne casse rien de visible : elle saute
@@ -182,7 +197,17 @@ jobs:
       - name: Stamp service worker cache version
         run: |
           sed -i "s/__CACHE_VERSION__/${GITHUB_SHA::12}/" public/sw.js
-          grep -n "CACHE_VERSION =" public/sw.js
+
+          # `grep -n` affichait la ligne sans jamais échouer. Si le marqueur
+          # disparaissait — une refonte de sw.js, une faute de frappe — la
+          # substitution ne faisait rien, le job restait vert, et le cache
+          # n'était plus jamais invalidé. Le contrôle de publication, lui,
+          # rejoue le même sed sur sa propre copie : les deux côtés seraient
+          # identiquement non substitués, et la comparaison passerait aussi.
+          grep -q "CACHE_VERSION = '${GITHUB_SHA::12}'" public/sw.js || {
+            echo "::error title=Service worker non estampillé::Le marqueur __CACHE_VERSION__ est absent de public/sw.js"
+            exit 1
+          }
 
       # publish_dir: public — seul ce dossier est publié. Auparavant la racine
       # entière l'était, filtrée par une liste d'exclusion de 26 entrées : tout
@@ -298,6 +323,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          ETIQUETTE="alerte-deploiement"
           TITRE="⚠️ Déploiement en échec sur main"
           CORPS="Le workflow de déploiement a échoué sur \`main\` (commit \`${GITHUB_SHA::12}\`).
 
@@ -307,11 +333,21 @@ jobs:
 
           # Un ticket par panne, pas un par exécution : deux fusions coup sur
           # coup en ouvriraient deux pour la même cause.
-          EXISTANT=$(gh issue list --repo "$DEPOT" --state open --search "$TITRE in:title" --json number --jq '.[0].number // empty')
+          # Le ticket est retrouvé par LABEL, et parmi ceux que le workflow a
+          # lui-même ouverts. La recherche portait sur le titre seul : le dépôt
+          # étant public, n'importe qui pouvait ouvrir un ticket portant ce
+          # titre et détourner vers lui toutes les alertes de panne, avec leurs
+          # liens d'exécution.
+          gh label create "$ETIQUETTE" --repo "$DEPOT" --color B60205 \
+            --description "Ouvert automatiquement par la CI" 2>/dev/null || true
+
+          EXISTANT=$(gh issue list --repo "$DEPOT" --state open \
+            --label "$ETIQUETTE" --author app/github-actions \
+            --json number --jq '.[0].number // empty')
 
           if [ -n "$EXISTANT" ]; then
             gh issue comment "$EXISTANT" --repo "$DEPOT" --body "$CORPS"
             echo "Ticket #$EXISTANT complété."
           else
-            gh issue create --repo "$DEPOT" --title "$TITRE" --body "$CORPS"
+            gh issue create --repo "$DEPOT" --title "$TITRE" --body "$CORPS" --label "$ETIQUETTE"
           fi
