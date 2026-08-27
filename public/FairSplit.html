@@ -782,6 +782,22 @@
         </div>
         <p id="variableChargePersoAide" class="form-aide">Elle n'entre pas dans le solde du couple : personne ne doit rien à personne dessus.</p>
 
+        <!-- Reconduite d'un mois sur l'autre, sans son montant.
+             Décochée par défaut, et il le faut : une charge variable est par
+             définition d'un montant qui change. La recopier avec son chiffre
+             inventerait de l'argent dans une application dont tout l'objet est
+             un solde exact — la ligne repart donc à zéro, prête à recevoir le
+             montant du mois. -->
+        <div class="form-group form-group-toggle">
+          <label for="variableChargeRecurring">Reconduire chaque mois</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargeRecurring"
+                   aria-describedby="variableChargeRecurringAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="variableChargeRecurringAide" class="form-aide">La ligne réapparaît chaque mois, sans montant : à vous d'y mettre celui du mois.</p>
+
         <div class="form-group form-group-toggle">
           <label for="variableChargeSplitToggle">Répartition spéciale</label>
           <label class="toggle-switch">
