@@ -262,37 +262,46 @@ il rétrograderait `firebase-tools` d'une version majeure.
 
 ---
 
-### Le dépôt est public, et cela se paie
+### Le dépôt est privé depuis le 2026-08-27 — ce que cela ferme, et ce que non
 
-Ce document affirmait « dépôt privé à usage familial ». C'était faux —
-l'API GitHub répond `"private": false` — et `sauvegarde.yml` disait l'inverse
-dans un commentaire. Deux fichiers du même dépôt se contredisaient, et c'est la
-prémisse sur laquelle reposent plusieurs décisions en aval.
+Ce document a d'abord affirmé « dépôt privé à usage familial » alors qu'il était
+public, puis a été corrigé. Le dépôt est **effectivement passé en privé le
+2026-08-27** (vérifié : `"private": true`, et la recherche `is:public` ne le
+rend plus). GitHub Pages continue de publier, le compte étant sur un plan
+payant — sur le plan gratuit, ce passage aurait décroché le site.
 
-Ce qui en découle, et qui reste à trancher :
+Ce que le passage en privé **referme** :
 
-- **La sauvegarde quotidienne est téléchargeable par tout titulaire d'un compte
-  GitHub.** Les artefacts d'un dépôt public le sont. L'archive porte
-  l'intégralité de `household`, chiffrée en AES-256 avec dérivation S2K au
-  compte maximal (paramètres désormais épinglés dans le workflow, plus hérités
-  du runner). Toute sa confidentialité tient donc à l'entropie de
-  `SAUVEGARDE_PASSPHRASE`, attaquée hors ligne, sans limite de tentatives, sur
-  90 jours de clichés. Une phrase choisie par un humain ne tient pas cette
-  charge. **Passer le dépôt en privé referme ce point d'un geste** ; à défaut,
-  déposer l'archive ailleurs, ou la chiffrer avec une clé aléatoire de 256 bits
-  gardée hors de GitHub.
-- **Les deux adresses du foyer sont publiées** dans `js/config.js` et dans les
-  règles, aux côtés de la clé API du projet. Ce sont donc des cibles nommées
-  pour `signInWithPassword`, et App Check — que le §6 présente comme le rempart
+- **La sauvegarde quotidienne n'est plus téléchargeable par un tiers.** Les
+  artefacts suivent la visibilité du dépôt. L'archive porte l'intégralité de
+  `household`, chiffrée en AES-256 avec dérivation S2K au compte maximal
+  (paramètres épinglés dans le workflow, plus hérités du runner) ; sa
+  confidentialité ne repose donc plus sur la seule entropie de
+  `SAUVEGARDE_PASSPHRASE` attaquée hors ligne sur 90 jours de clichés. C'était
+  le point le plus cher de cette section, et il est clos.
+- **Les tickets ouverts par la CI ne sont plus lisibles publiquement**, non plus
+  que les liens d'exécution qu'ils portent.
+
+Ce que le passage en privé **ne referme pas** — et c'est contre-intuitif :
+
+- **Les deux adresses du foyer restent publiées.** Elles sont dans
+  `public/js/config.js`, aux côtés de la clé API du projet, et ce fichier est
+  **servi par le site**. Or un site Pages issu d'un dépôt privé reste
+  publiquement accessible : le contrôle d'accès aux pages est réservé aux
+  formules Enterprise. Rendre le dépôt privé cache le code source, pas ce que le
+  site publie. Ces adresses restent donc des cibles nommées pour
+  `signInWithPassword`, et App Check — que le §6 présente comme le rempart
   contre le martèlement — n'est pas en application forcée à ce jour.
-- **L'origine `github.io` est partagée** par tous les dépôts du compte servis
-  par Pages. Le miroir hors ligne et la session Firebase y vivent : le jour où
-  un second dépôt active Pages, sa page les lit, sans aucune injection.
-  Aujourd'hui `split-charges-pwa` est le seul (`has_pages: true`) — c'est une
-  contrainte à tenir, pas un état acquis.
+- **L'origine `github.io` est toujours partagée** par tous les dépôts du compte
+  servis par Pages, la visibilité n'y change rien. Le miroir hors ligne et la
+  session Firebase y vivent : le jour où un second dépôt active Pages, sa page
+  les lit, sans aucune injection. Aujourd'hui `split-charges-pwa` est le seul —
+  c'est une contrainte à tenir, pas un état acquis. Un nom de domaine propre
+  reste le seul remède définitif.
 
 ## Signaler un problème
 
-Le dépôt étant public, une issue l'est aussi : ne pas y décrire une faille
-exploitable avant qu'elle soit corrigée. Écrire à l'auteur, puis ouvrir l'issue
-une fois le correctif déployé.
+Le dépôt est privé : une issue n'y est lisible que par qui y a accès. La
+prudence reste de mise sur ce qu'une issue décrit avant correction — le site,
+lui, est public, et une faille exploitable depuis la page l'est par n'importe
+qui.
