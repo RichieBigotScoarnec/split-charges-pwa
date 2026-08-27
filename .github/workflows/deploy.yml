@@ -55,8 +55,21 @@ jobs:
       # En abaisser la valeur en même temps qu'on retire un innerHTML fait
       # partie du correctif : un plafond qui ne descend jamais finit par ne
       # plus rien retenir.
+      #
+      # 22 → 23 le 2026-08-27, pour la modale des dépenses privées
+      # (`modules/prive.js`). Le plafond a joué son rôle : il a arrêté la
+      # livraison et exigé une justification, plutôt que de laisser un site
+      # d'injection s'ajouter en silence. Le déplacer est donc l'usage prévu,
+      # pas un contournement — à condition de dire pourquoi.
+      #
+      # Vérifié avant de le déplacer : les 53 interpolations de ce fichier
+      # passent toutes par `escapeHtml` ou `formatCurrency`, à l'exception de
+      # chemins de base de données — qui ne touchent jamais le DOM — et d'un
+      # nombre déjà échappé au niveau supérieur. La modale suit exactement le
+      # patron des autres ; l'avertissement est celui que la règle émet sur
+      # toute affectation d'`innerHTML`, faute de pouvoir prouver l'échappement.
       - name: Aucun nouvel innerHTML dynamique
-        run: npx eslint public/js --max-warnings 22
+        run: npx eslint public/js --max-warnings 23
 
       - name: Run unit tests
         run: npx vitest run

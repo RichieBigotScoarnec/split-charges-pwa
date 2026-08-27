@@ -726,6 +726,77 @@ function delaiEcriture() {
   return premierContact() ? PREMIER_CONTACT_ECRITURE_MS : WRITE_TIMEOUT_MS;
 }
 
+// ===== ACCÈS ABSOLUS — hors de l'espace de données =====
+//
+// `dbGet` et ses voisines préfixent tout par `DATA_ROOT` (`household/`, ou
+// `sandbox/`). Trois racines échappent à ce préfixe, et ce n'est pas une
+// commodité : `.write` **cascade** dans les règles Firebase — une règle
+// profonde peut élargir un accès, jamais le restreindre. Sous `household`,
+// dont l'écriture est ouverte aux deux comptes, il aurait été impossible
+// d'exiger d'être l'autre pour accorder un aval, ou de réserver une lecture à
+// une seule personne.
+//
+// Ces quatre fonctions ne passent **ni par le miroir, ni par la file hors
+// ligne**, et c'est délibéré :
+//
+//   1. La file vit dans `localStorage`, sur une origine que partagent tous les
+//      dépôts Pages du compte — l'audit a montré qu'on pouvait y écrire depuis
+//      un autre dépôt. Y déposer le détail d'une dépense privée la mettrait
+//      exactement là où elle ne doit pas être.
+//   2. Le miroir garde la dernière valeur lue de chaque chemin, au même
+//      endroit et avec le même défaut.
+//
+// Hors ligne, une écriture privée échoue donc franchement plutôt que
+// d'attendre. C'est le bon compromis : la confidentialité vaut mieux qu'une
+// saisie différée.
+
+/**
+ * Lecture à un chemin absolu, sans préfixe d'espace
+ * @param {string} chemin - Chemin depuis la racine de la base
+ * @returns {Promise<*>}
+ */
+export async function dbGetAbsolu(chemin) {
+  if (!database) throw new Error('Database not initialized');
+  const snapshot = await withTimeout(
+    database.ref(chemin).once('value'), chemin, delaiLecture());
+  return snapshot.val();
+}
+
+/**
+ * Écriture à un chemin absolu
+ * @param {string} chemin
+ * @param {*} donnees
+ * @returns {Promise<void>}
+ */
+export async function dbSetAbsolu(chemin, donnees) {
+  if (!database) throw new Error('Database not initialized');
+  await withTimeout(database.ref(chemin).set(donnees), chemin, delaiEcriture());
+}
+
+/**
+ * Mise à jour partielle à un chemin absolu
+ * @param {string} chemin
+ * @param {Object} modifications
+ * @returns {Promise<void>}
+ */
+export async function dbUpdateAbsolu(chemin, modifications) {
+  if (!database) throw new Error('Database not initialized');
+  await withTimeout(database.ref(chemin).update(modifications), chemin, delaiEcriture());
+}
+
+/**
+ * Ajout sous clé poussée, à un chemin absolu
+ * @param {string} chemin
+ * @param {*} donnees
+ * @returns {Promise<string>} La clé créée
+ */
+export async function dbPushAbsolu(chemin, donnees) {
+  if (!database) throw new Error('Database not initialized');
+  const reference = database.ref(chemin).push();
+  await withTimeout(reference.set(donnees), `${chemin}/${reference.key}`, delaiEcriture());
+  return reference.key;
+}
+
 /**
  * Get data from path
  * @param {string} path - Chemin relatif à l'espace de données
