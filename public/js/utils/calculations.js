@@ -1,4 +1,5 @@
 import { resolveIncomeBase, resolveSalaries } from './salaries.js';
+import { chargesCommunes } from './perimetre.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 
 // ===== FONCTIONS DE CALCUL PURES (testables) =====
@@ -134,8 +135,20 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0, carryOver: 0 };
   }
 
-  const activeFixed = fixedCharges.filter(c => !c.deleted);
-  const activeVariable = variableCharges.filter(c => !c.deleted);
+  // Une dépense solo n'entre pas ici, et la garde est posée dans l'entonnoir
+  // plutôt qu'à l'appel.
+  //
+  // Le filtre existe déjà en amont : les chargeurs rangent les solo dans un
+  // état séparé, si bien qu'en usage normal `chargesCommunes` ne retire rien.
+  // Il est répété ici parce que `computeSummary` est aussi appelée par
+  // `computeBalanceChain`, qui lit `periods` **directement en base** et ne
+  // passe par aucun chargeur : sans cette ligne, la chaîne de report compterait
+  // les solo que l'écran ignore, et les deux lectures divergeraient d'un mois
+  // sur l'autre en s'accumulant. C'est exactement l'écart qu'avait produit
+  // `normalizePair` sur les revenus complémentaires — 100 € nés de rien, et
+  // cumulés, parce qu'aucun écran ne montrait les deux chiffres côte à côte.
+  const activeFixed = chargesCommunes(fixedCharges).filter(c => !c.deleted);
+  const activeVariable = chargesCommunes(variableCharges).filter(c => !c.deleted);
   const activeReimbs = reimbursements.filter(r => !r.deleted);
 
   // Un montant inexploitable vaut zéro, jamais NaN.
@@ -248,7 +261,11 @@ export function computeVirementsByDestination(fixedCharges, params) {
   const { shareMode, salaries, totalSalaries, customPercents } = params;
   const grouped = {};
 
-  fixedCharges.forEach(charge => {
+  // Même garde que le bilan, et pour la même raison : ce panneau dit combien
+  // virer à sa conjointe. Une dépense solo n'a rien à y faire — elle ne lui
+  // doit rien. Le bilan avait déjà été blindé sans que ce calcul le soit, et
+  // c'est ce décalage qui avait affiché « NaN € » à virer sous un bilan juste.
+  chargesCommunes(fixedCharges).forEach(charge => {
     const dest = charge.destination || '';
     if (!dest) return;
 

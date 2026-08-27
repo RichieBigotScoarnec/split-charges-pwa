@@ -23,6 +23,7 @@ import { parseMontant } from '../utils/montant.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+import { estSolo, totauxParPerimetre, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -60,6 +61,12 @@ export function showAddFixedChargeModal() {
     splitToggle.checked = false;
     document.getElementById('fixedChargeSplitOptions').style.display = 'none';
   }
+
+  // `form.reset()` décoche la case perso, mais ne rouvre ni l'option
+  // « Partagé » ni le groupe « Répartition spéciale » que la bascule avait
+  // fermés : sans ce rappel, une saisie perso rendrait toutes les suivantes
+  // impossibles à partager, jusqu'au rechargement de la page.
+  window.toggleFixedChargePerso?.();
 
   accorderModaleFixed(false);
 
@@ -107,6 +114,44 @@ export function initFixedCharges() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
+  /**
+   * Bascule « dépense perso », et ce qu'elle rend impossible
+   *
+   * Une dépense perso appartient à qui l'a payée : « Partagé » n'a plus de
+   * sens, et une répartition spéciale non plus — il n'y a rien à répartir.
+   * Plutôt que de laisser saisir un état que `perimetre.js` et les règles
+   * Firebase refuseront ensuite, la bascule ferme elle-même ces deux portes,
+   * et les rouvre en se relevant.
+   */
+  window.toggleFixedChargePerso = function() {
+    const perso = document.getElementById('fixedChargePerso');
+    const payeur = document.getElementById('fixedChargePaidBy');
+    const partage = payeur ? payeur.querySelector('option[value="partage"]') : null;
+    const splitToggle = document.getElementById('fixedChargeSplitToggle');
+    const splitGroupe = splitToggle ? splitToggle.closest('.form-group') : null;
+    const splitOptions = document.getElementById('fixedChargeSplitOptions');
+    if (!perso) return;
+
+    if (perso.checked) {
+      if (partage) partage.disabled = true;
+      // Un payeur qui ne désigne personne devient celui qui tient l'appareil :
+      // le formulaire ne peut pas rester dans un état qu'il refusera.
+      if (payeur && payeur.value !== 'vous' && payeur.value !== 'conjointe') {
+        payeur.value = payeurParDefaut();
+      }
+      if (splitToggle) {
+        splitToggle.checked = false;
+        splitToggle.disabled = true;
+      }
+      if (splitOptions) splitOptions.style.display = 'none';
+      if (splitGroupe) splitGroupe.hidden = true;
+    } else {
+      if (partage) partage.disabled = false;
+      if (splitToggle) splitToggle.disabled = false;
+      if (splitGroupe) splitGroupe.hidden = false;
+    }
+  };
+
   window.toggleFixedChargeSplit = function() {
     const toggle = document.getElementById('fixedChargeSplitToggle');
     const options = document.getElementById('fixedChargeSplitOptions');
@@ -211,6 +256,10 @@ async function enregistrerFixedCharge() {
   const amount = parseMontant(document.getElementById('fixedChargeAmount').value);
   const category = document.getElementById('fixedChargeCategory').value;
   const paidBy = document.getElementById('fixedChargePaidBy').value;
+  // Le périmètre : commun par défaut, c'est-à-dire le comportement d'avant.
+  const perimetre = document.getElementById('fixedChargePerso')?.checked === true
+    ? PERIMETRES.SOLO
+    : PERIMETRES.COMMUN;
   const destination = document.getElementById('fixedChargeDestination')?.value || '';
   // Chaîne vide plutôt que `null` quand aucune enveloppe n'est choisie :
   // Firebase supprime la clé sur `null`, et une édition qui détache une charge
@@ -262,12 +311,23 @@ async function enregistrerFixedCharge() {
     return;
   }
 
+  // Le même contrôle que les règles Firebase appliquent côté serveur. Les deux
+  // existent à dessein : le serveur pour que ce soit vrai même hors de cette
+  // application, le client pour que le refus s'explique avant l'écriture
+  // plutôt qu'après — sans quoi la saisie partirait grossir la file hors ligne.
+  const perimetreValide = perimetreEcrivable(perimetre, paidBy);
+  if (!perimetreValide.valide) {
+    toast.error(perimetreValide.erreur);
+    return;
+  }
+
   try {
     const chargeData = {
       description,
       amount,
       category,
       paidBy,
+      perimetre,
       destination,
       envelope,
       date,
@@ -323,6 +383,12 @@ export function editFixedCharge(chargeId) {
   document.getElementById('fixedChargeAmount').value = charge.amount;
   document.getElementById('fixedChargeCategory').value = charge.category;
   document.getElementById('fixedChargePaidBy').value = charge.paidBy;
+  // La case, puis le couplage qu'elle entraîne — sinon rouvrir une dépense
+  // perso proposerait « Partagé » et la répartition spéciale, deux choix que
+  // l'enregistrement refuserait.
+  const persoEl = document.getElementById('fixedChargePerso');
+  if (persoEl) persoEl.checked = estSolo(charge);
+  window.toggleFixedChargePerso?.();
   const destEl = document.getElementById('fixedChargeDestination');
   if (destEl) destEl.value = charge.destination || '';
   // Repeupler plutôt que fixer la valeur : c'est ce qui permet de rattacher
@@ -409,6 +475,27 @@ export async function deleteFixedCharge(chargeId) {
 }
 
 /**
+ * Le pied de liste : le total commun, et le perso seulement s'il existe
+ *
+ * Sans dépense solo, la phrase est celle d'avant — c'est le cas de tous les
+ * mois déjà en base. Avec, elle nomme les deux, parce qu'un total unique
+ * contredirait le bilan affiché juste au-dessus.
+ *
+ * `textContent` et non `innerHTML` : la politique de sécurité du dépôt plafonne
+ * les sites d'injection, et un total n'a aucune raison d'en ouvrir un de plus.
+ *
+ * @param {HTMLElement|null} element - Le `<span>` du total
+ * @param {Array<Object>} charges - Les charges affichées
+ */
+function afficherTotal(element, charges) {
+  if (!element) return;
+  const { commun, solo } = totauxParPerimetre(charges);
+  element.textContent = solo > 0
+    ? `${formatCurrency(commun)} + ${formatCurrency(solo)} perso`
+    : formatCurrency(commun);
+}
+
+/**
  * Affiche la liste des charges fixes dans le DOM
  */
 export function renderFixedCharges() {
@@ -426,7 +513,7 @@ export function renderFixedCharges() {
 
   if (charges.length === 0) {
     listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période</p>';
-    if (totalElement) totalElement.textContent = formatCurrency(0);
+    afficherTotal(totalElement, []);
     return;
   }
 
@@ -439,10 +526,7 @@ export function renderFixedCharges() {
   const groupes = grouperParCategorie(charges);
 
   // Afficher par catégorie
-  let total = 0;
   groupes.forEach(({ categorie: category, charges: categoryCharges, total: categoryTotal }) => {
-    total += categoryTotal;
-
     const categoryDiv = document.createElement('div');
     categoryDiv.className = 'charge-category';
     categoryDiv.innerHTML = `
@@ -472,9 +556,14 @@ export function renderFixedCharges() {
       const splitTag = charge.splitOverride
         ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
         : '';
+      // Une dépense perso se voit dans la liste, sinon elle se confond avec
+      // une charge commune et son absence du bilan devient inexplicable.
+      const perimetreTag = estSolo(charge)
+        ? '<span class="charge-perimetre-tag">perso</span>'
+        : '';
       chargeDiv.innerHTML = `
         <div class="charge-info">
-          <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}</span>
+          <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}${perimetreTag}</span>
           <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))} ${destinationTag}</span>
           ${etiquetteEnveloppe(charge)}
           ${etiquetteEnveloppe(charge)}
@@ -496,10 +585,8 @@ export function renderFixedCharges() {
     listElement.appendChild(categoryDiv);
   });
 
-  // Afficher le total
-  if (totalElement) {
-    totalElement.textContent = formatCurrency(total);
-  }
+  // Afficher le total — commun d'abord, perso à part.
+  afficherTotal(totalElement, charges);
 }
 
 /**

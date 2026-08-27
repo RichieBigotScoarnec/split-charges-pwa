@@ -112,7 +112,7 @@
       },
       "envelopes": {
         "$rang": {
-          ".validate": "newData.hasChildren(['id', 'label'])",
+          ".validate": "newData.hasChildren(['id', 'label']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.hasChild('proprietaire')) && (!newData.hasChild('proprietaire') || newData.child('perimetre').val() === 'solo')",
           "id": {
             ".validate": "newData.isString() && newData.val().length <= 100"
           },
@@ -133,6 +133,21 @@
           },
           "cloturee": {
             ".validate": "newData.isBoolean()"
+          },
+          "nature": {
+            ".validate": "newData.isString() && (newData.val() === 'mensuelle' || newData.val() === 'cagnotte')"
+          },
+          "report": {
+            ".validate": "newData.isBoolean()"
+          },
+          "rang": {
+            ".validate": "newData.isString() && (newData.val() === 'fixe' || newData.val() === 'mensuel' || newData.val() === 'provision' || newData.val() === 'epargne' || newData.val() === 'reserve')"
+          },
+          "perimetre": {
+            ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+          },
+          "proprietaire": {
+            ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
           },
           "$autre": {
             ".validate": false
@@ -199,6 +214,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -258,7 +276,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },
@@ -282,6 +300,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -341,7 +362,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },
@@ -499,7 +520,7 @@
       },
       "envelopes": {
         "$rang": {
-          ".validate": "newData.hasChildren(['id', 'label'])",
+          ".validate": "newData.hasChildren(['id', 'label']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.hasChild('proprietaire')) && (!newData.hasChild('proprietaire') || newData.child('perimetre').val() === 'solo')",
           "id": {
             ".validate": "newData.isString() && newData.val().length <= 100"
           },
@@ -520,6 +541,21 @@
           },
           "cloturee": {
             ".validate": "newData.isBoolean()"
+          },
+          "nature": {
+            ".validate": "newData.isString() && (newData.val() === 'mensuelle' || newData.val() === 'cagnotte')"
+          },
+          "report": {
+            ".validate": "newData.isBoolean()"
+          },
+          "rang": {
+            ".validate": "newData.isString() && (newData.val() === 'fixe' || newData.val() === 'mensuel' || newData.val() === 'provision' || newData.val() === 'epargne' || newData.val() === 'reserve')"
+          },
+          "perimetre": {
+            ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+          },
+          "proprietaire": {
+            ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
           },
           "$autre": {
             ".validate": false
@@ -586,6 +622,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -645,7 +684,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },
@@ -669,6 +708,9 @@
               "paidBy": {
                 ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
               },
+              "perimetre": {
+                ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+              },
               "destination": {
                 ".validate": "newData.isString() && newData.val().length <= 100"
               },
@@ -728,7 +770,7 @@
               "$autre": {
                 ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
               },
-              ".validate": "newData.hasChildren(['amount'])"
+              ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')"
             },
             ".validate": "newData.hasChildren()"
           },

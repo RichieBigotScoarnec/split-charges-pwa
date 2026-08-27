@@ -752,6 +752,25 @@
   box-sizing: border-box;
 }
 
+/*
+   La marque « perso » : une dépense qui ne pèse pas sur le solde.
+   Le lavis d'information plutôt que l'ambre de `charge-ponctuel` — ce n'est
+   pas un avertissement, c'est une nature. Et le distinguer visuellement du
+   tag de répartition, à côté duquel il s'affiche, importe : les deux touchent
+   au partage, mais l'un le modifie et l'autre le supprime.
+*/
+.charge-perimetre-tag {
+  display: inline-block;
+  background: var(--info-soft);
+  color: var(--info-color);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 500;
+  vertical-align: middle;
+}
+
 .charge-ponctuel {
   display: inline-block;
   background: var(--warning-soft);

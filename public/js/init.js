@@ -53,8 +53,8 @@ const ACTIONS_AUTORISEES = new Set([
   'showManageDestinationsModal', 'showManageEnvelopesModal',
   'showMapModal', 'showQuickAddModal', 'showTrash', 'signInWithEmail',
   'signInWithGoogle', 'signOut', 'toggleBudgetInput', 'toggleCarryOver',
-  'toggleFixedChargeSplit', 'toggleFixedChargeSplitMode', 'toggleRemindersPanel', 'toggleTrends',
-  'toggleVariableChargeSplit', 'toggleVariableChargeSplitMode'
+  'toggleFixedChargeSplit', 'toggleFixedChargePerso', 'toggleFixedChargeSplitMode', 'toggleRemindersPanel', 'toggleTrends',
+  'toggleVariableChargePerso', 'toggleVariableChargeSplit', 'toggleVariableChargeSplitMode'
 ]);
 
 /**

@@ -22,6 +22,55 @@ import { parseMontant } from './montant.js';
  * s'occupe de la base et de l'écran.
  */
 
+/**
+ * Les deux natures d'enveloppe, et pourquoi il en faut deux
+ *
+ * Elles répondent à deux questions différentes, et leur reliquat n'a pas le
+ * même statut :
+ *
+ *   mensuelle — « combien me reste-t-il **ce mois-ci** ? » Se recharge le 1er.
+ *               Le reliquat est une *information* : il dit qu'on a bien visé,
+ *               pas qu'on a de l'argent en plus. Courses, transports, loisirs.
+ *
+ *   cagnotte  — « combien ai-je **mis de côté** ? » Ne se recharge pas, traverse
+ *               les mois. Le reliquat *est* de l'argent, et doit survivre au
+ *               changement de mois. Travaux, Noël, vacances, épargne.
+ *
+ * Tout ramener à une seule nature perd de l'information dans les deux sens :
+ * en tout mensuel, une provision de 28,63 € repart de zéro chaque 1er et
+ * disparaît de l'écran ; en tout cumulatif, un budget courses de 600 € affiche
+ * le total dépensé depuis toujours, ce qui ne dit jamais si *ce* mois est tenu.
+ *
+ * **L'absence vaut `cagnotte`**, et ce n'est pas un choix arbitraire : c'est
+ * exactement ce que faisait l'enveloppe jusqu'ici — elle traverse les mois et
+ * se compare à un budget total. Toutes celles déjà en base gardent donc leur
+ * comportement, au centime près.
+ */
+export const NATURES = Object.freeze({
+  MENSUELLE: 'mensuelle',
+  CAGNOTTE: 'cagnotte'
+});
+
+/**
+ * Le rang d'une enveloppe : sa place dans le budget, décidée par son rythme
+ *
+ * Le classement se fait par rythme de trésorerie, jamais par sujet. « Noël » et
+ * « Loisirs » se ressemblent — deux plaisirs — mais leur argent ne se comporte
+ * pas pareil : l'un s'accumule vers une date connue, l'autre se dépense dans
+ * le mois. Les ranger ensemble, c'est laisser la provision de décembre financer
+ * un samedi soir de août.
+ */
+export const RANGS = Object.freeze({
+  FIXE: 'fixe',
+  MENSUEL: 'mensuel',
+  PROVISION: 'provision',
+  EPARGNE: 'epargne',
+  RESERVE: 'reserve'
+});
+
+/** Les personnes qui peuvent posséder une enveloppe solo */
+const PERSONNES = Object.freeze(['vous', 'conjointe']);
+
 /** Longueur maximale d'un libellé, alignée sur les règles de sécurité */
 const LONGUEUR_LIBELLE = 100;
 
@@ -53,6 +102,14 @@ export function normaliserEnveloppe(brut) {
   const label = typeof brut.label === 'string' ? brut.label.trim() : '';
   if (!id || !label) return null;
 
+  // Le périmètre d'abord : le propriétaire n'a de sens que sur une solo, et
+  // une solo sans propriétaire lisible n'appartient à personne plutôt qu'à
+  // quelqu'un choisi au hasard — la même règle que pour une charge.
+  const perimetre = brut.perimetre === 'solo' ? 'solo' : 'commun';
+  const proprietaire = perimetre === 'solo' && PERSONNES.includes(brut.proprietaire)
+    ? brut.proprietaire
+    : null;
+
   return {
     id,
     label: label.slice(0, LONGUEUR_LIBELLE),
@@ -60,7 +117,18 @@ export function normaliserEnveloppe(brut) {
     budget: budgetLisible(brut.budget),
     debut: dateLisible(brut.debut),
     fin: dateLisible(brut.fin),
-    cloturee: brut.cloturee === true
+    cloturee: brut.cloturee === true,
+    // Seule la chaîne exacte bascule en mensuelle : une valeur absente, vide,
+    // mal orthographiée ou d'un autre type retombe sur `cagnotte`, qui est le
+    // comportement historique.
+    nature: brut.nature === NATURES.MENSUELLE ? NATURES.MENSUELLE : NATURES.CAGNOTTE,
+    // Le report du non-dépensé, sur une mensuelle seulement. Faux par défaut :
+    // c'est la remise à zéro sèche qui fait d'un budget une contrainte. Une
+    // cagnotte n'a pas besoin du drapeau — elle reporte par nature.
+    report: brut.nature === NATURES.MENSUELLE && brut.report === true,
+    rang: Object.values(RANGS).includes(brut.rang) ? brut.rang : null,
+    perimetre,
+    proprietaire
   };
 }
 
@@ -239,32 +307,209 @@ export function chargesDeLEnveloppeTousMois(periods, id) {
 }
 
 /**
- * Ce qu'a coûté une enveloppe, et où elle en est de son budget
+ * Combien de mois séparent deux clés AAAA-MM, bornes comprises
+ *
+ * Les clés sont comparées par leurs nombres et non par soustraction de dates :
+ * une `Date` fabriquée ici introduirait un fuseau dont ce calcul n'a que faire.
+ *
+ * @param {string} depuis - AAAA-MM ou AAAA-MM-JJ
+ * @param {string} jusqua - AAAA-MM ou AAAA-MM-JJ
+ * @returns {number} Au moins 1 ; 0 si l'une des bornes est illisible
+ */
+export function moisEcoules(depuis, jusqua) {
+  const lire = valeur => {
+    if (typeof valeur !== 'string') return null;
+    const trouve = valeur.match(/^(\d{4})-(0[1-9]|1[0-2])/);
+    return trouve ? { annee: Number(trouve[1]), mois: Number(trouve[2]) } : null;
+  };
+
+  const a = lire(depuis);
+  const b = lire(jusqua);
+  if (!a || !b) return 0;
+
+  const ecart = (b.annee - a.annee) * 12 + (b.mois - a.mois) + 1;
+  return ecart > 0 ? ecart : 1;
+}
+
+/**
+ * Les charges qui comptent pour l'état courant de l'enveloppe
+ *
+ * C'est ici que les deux natures divergent, et c'est la divergence qui donne
+ * son sens à chacune :
+ *
+ *   cagnotte              — tout, depuis toujours. Le pot ne se vide pas au
+ *                           changement de mois.
+ *   mensuelle sans report — le seul mois consulté. Ce qui n'a pas été dépensé
+ *                           en août ne rend pas septembre plus riche.
+ *   mensuelle avec report — de son début au mois consulté. Le reliquat suit,
+ *                           parce que la dépense, elle, est irrégulière.
+ *
+ * @param {Array<Object>} charges - Charges de l'enveloppe, portant leur `periode`
+ * @param {Object} enveloppe - Enveloppe normalisée
+ * @param {string} moisConsulte - Clé AAAA-MM du mois affiché
+ * @returns {Array<Object>}
+ */
+export function chargesRetenues(charges, enveloppe, moisConsulte) {
+  const liste = Array.isArray(charges) ? charges : [];
+  const nature = enveloppe?.nature === NATURES.MENSUELLE ? NATURES.MENSUELLE : NATURES.CAGNOTTE;
+
+  if (nature === NATURES.CAGNOTTE) return liste;
+  if (!CLE_PERIODE.test(String(moisConsulte))) return liste;
+
+  if (!enveloppe?.report) {
+    return liste.filter(charge => charge?.periode === moisConsulte);
+  }
+
+  const depuis = premierMois(enveloppe, liste, moisConsulte);
+  return liste.filter(charge =>
+    typeof charge?.periode === 'string'
+    && charge.periode >= depuis
+    && charge.periode <= moisConsulte);
+}
+
+/**
+ * Depuis quel mois une enveloppe mensuelle à report accumule
+ *
+ * Sa date de début si elle en déclare une — c'est la seule réponse que
+ * l'utilisateur a donnée lui-même. À défaut, le mois de sa plus ancienne
+ * dépense : une enveloppe qui a servi en juin existait en juin. À défaut
+ * encore, le mois consulté, ce qui la ramène au cas sans report.
+ *
+ * La conséquence à connaître : sans date de début déclarée, rattacher après
+ * coup une dépense plus ancienne recule le point de départ, donc augmente
+ * l'allocation cumulée. C'est cohérent — l'enveloppe existait bien — mais cela
+ * fait bouger un chiffre sans qu'on ait touché à l'allocation. Déclarer un
+ * début fige ce point.
+ *
+ * @param {Object} enveloppe
+ * @param {Array<Object>} charges
+ * @param {string} moisConsulte
+ * @returns {string} Clé AAAA-MM
+ */
+function premierMois(enveloppe, charges, moisConsulte) {
+  if (typeof enveloppe?.debut === 'string' && /^\d{4}-\d{2}/.test(enveloppe.debut)) {
+    return enveloppe.debut.slice(0, 7);
+  }
+
+  const periodes = charges
+    .map(charge => charge?.periode)
+    .filter(periode => typeof periode === 'string' && CLE_PERIODE.test(periode))
+    .sort();
+
+  return periodes[0] || moisConsulte;
+}
+
+/**
+ * Ce que l'enveloppe s'est vu allouer jusqu'au mois consulté
+ *
+ * Une mensuelle à report a reçu son allocation autant de fois qu'il s'est
+ * écoulé de mois : 200 €/mois depuis mars, consultée en août, disposent de
+ * 1 200 €. Les deux autres cas n'ont qu'une allocation, celle qui est déclarée.
+ *
+ * @param {Object} enveloppe - Enveloppe normalisée
+ * @param {Array<Object>} charges
+ * @param {string} moisConsulte - Clé AAAA-MM
+ * @returns {number|null} En euros, ou null si aucune allocation n'est déclarée
+ */
+export function allocationCumulee(enveloppe, charges, moisConsulte) {
+  const budget = Number.isFinite(enveloppe?.budget) && enveloppe.budget > 0
+    ? enveloppe.budget
+    : null;
+  if (budget === null) return null;
+
+  if (enveloppe.nature !== NATURES.MENSUELLE || !enveloppe.report) return budget;
+  if (!CLE_PERIODE.test(String(moisConsulte))) return budget;
+
+  const depuis = premierMois(enveloppe, Array.isArray(charges) ? charges : [], moisConsulte);
+  return budget * moisEcoules(depuis, moisConsulte);
+}
+
+/**
+ * Ce qu'a coûté une enveloppe, et ce qu'il lui reste
+ *
+ * La lecture est inversée par rapport à ce qu'elle était : la jauge disait
+ * combien on avait dépensé, elle dit désormais combien il reste. C'est la
+ * différence entre un relevé et un budget — « 480 € dépensés » se constate,
+ * « 120 € restants » se décide. `partRestante` est la grandeur à afficher,
+ * et elle descend.
  *
  * @param {Array<Object>} charges - Charges de l'enveloppe, tous mois confondus
- * @param {number|null} budget - Budget déclaré, ou null
- * @returns {{total: number, nombre: number, mois: number, reste: number|null, part: number|null, depasse: boolean}}
+ * @param {Object} enveloppe - Enveloppe normalisée
+ * @param {string} [moisConsulte] - Clé AAAA-MM du mois affiché
+ * @returns {{total: number, nombre: number, mois: number, allocation: number|null,
+ *   reste: number|null, partRestante: number|null, part: number|null,
+ *   depasse: boolean, nature: string, report: boolean}}
  */
-export function bilanEnveloppe(charges, budget) {
-  const liste = Array.isArray(charges) ? charges : [];
+export function bilanEnveloppe(charges, enveloppe, moisConsulte) {
+  const retenues = chargesRetenues(charges, enveloppe, moisConsulte);
 
-  const total = liste.reduce(
+  const total = retenues.reduce(
     (somme, charge) => somme + (Number.isFinite(charge.amount) ? charge.amount : 0),
     0
   );
 
-  const mois = new Set(liste.map(charge => charge.periode).filter(Boolean)).size;
+  const mois = new Set(retenues.map(charge => charge.periode).filter(Boolean)).size;
+  const allocation = allocationCumulee(enveloppe, charges, moisConsulte);
 
-  const budgetUtile = Number.isFinite(budget) && budget > 0 ? budget : null;
+  const reste = allocation === null ? null : allocation - total;
 
   return {
     total,
-    nombre: liste.length,
+    nombre: retenues.length,
     mois,
-    reste: budgetUtile === null ? null : budgetUtile - total,
-    // Bornée à 100 % pour la barre : au-delà, c'est le dépassement qui le dit,
-    // pas une barre qui sortirait de son cadre.
-    part: budgetUtile === null ? null : Math.min(100, Math.round((total / budgetUtile) * 100)),
-    depasse: budgetUtile !== null && total > budgetUtile
+    allocation,
+    reste,
+    // Ce qu'il reste, en pourcentage de l'allocation. Bornée à [0, 100] : la
+    // barre ne doit ni disparaître dans le négatif ni sortir de son cadre —
+    // c'est `depasse` qui dit le dépassement, pas une géométrie impossible.
+    partRestante: allocation === null
+      ? null
+      : Math.max(0, Math.min(100, Math.round((reste / allocation) * 100))),
+    // La part consommée reste rendue : la couleur de la jauge s'y accroche, et
+    // c'est elle qui dit « on approche ».
+    part: allocation === null
+      ? null
+      : Math.min(100, Math.round((total / allocation) * 100)),
+    depasse: allocation !== null && total > allocation,
+    nature: enveloppe?.nature === NATURES.MENSUELLE ? NATURES.MENSUELLE : NATURES.CAGNOTTE,
+    report: enveloppe?.report === true
   };
+}
+
+/**
+ * Ce qu'il reste par jour jusqu'à la fin du mois
+ *
+ * Le nombre qui change un comportement, et le seul. « Il vous reste 180 € »
+ * ne dit pas s'il faut ralentir ; « 20 € par jour pendant 9 jours » le dit.
+ * Un pot d'envies vidé le 15 du mois se serait annoncé dès le 8 par ce chiffre.
+ *
+ * `null` plutôt que zéro quand il n'y a rien à dire : sans allocation, sur une
+ * cagnotte — qui n'a pas d'échéance mensuelle — ou sur un mois révolu, la
+ * division n'a pas de sens et un « 0 €/jour » se lirait comme une alerte.
+ *
+ * @param {Object} bilan - Sortie de `bilanEnveloppe`
+ * @param {string} moisConsulte - Clé AAAA-MM
+ * @param {string} aujourdhui - AAAA-MM-JJ, le jour de l'appareil
+ * @returns {{parJour: number, jours: number}|null}
+ */
+export function resteParJour(bilan, moisConsulte, aujourdhui) {
+  if (!bilan || bilan.reste === null || bilan.nature !== NATURES.MENSUELLE) return null;
+  if (!CLE_PERIODE.test(String(moisConsulte))) return null;
+  if (typeof aujourdhui !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(aujourdhui)) return null;
+
+  // Seulement pour le mois en cours : un mois passé n'a plus de jours devant
+  // lui, un mois à venir n'a pas encore commencé à se dépenser.
+  if (aujourdhui.slice(0, 7) !== moisConsulte) return null;
+
+  const [annee, mois] = moisConsulte.split('-').map(Number);
+  const dernierJour = new Date(annee, mois, 0).getDate();
+  const jourCourant = Number(aujourdhui.slice(8, 10));
+
+  // Le jour même compte : ce qui reste doit tenir jusqu'à la fin de la journée
+  // en cours comprise, sinon le dernier jour du mois donnerait une division
+  // par zéro.
+  const jours = dernierJour - jourCourant + 1;
+  if (jours <= 0) return null;
+
+  return { parJour: bilan.reste / jours, jours };
 }

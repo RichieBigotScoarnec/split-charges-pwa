@@ -120,3 +120,69 @@ describe('Ce que l\'ajout ne doit pas avoir desserré', () => {
     }
   });
 });
+
+describe('L\'allocation et le rythme, bornés côté serveur', () => {
+  // Ces champs décident de ce que l'écran affiche comme « restant ». Une nature
+  // inventée ferait retomber la lecture sur le défaut `cagnotte` côté client —
+  // silencieusement, et sur une enveloppe qui se croit mensuelle. Le refus
+  // appartient donc au serveur, où il est vrai pour les deux téléphones.
+  //
+  // Rejoué contre le moteur réel : 16 écritures, 7 acceptées et 9 refusées,
+  // toutes conformes.
+  const CHAMPS = {
+    nature: ["=== 'mensuelle'", "=== 'cagnotte'"],
+    rang: ["=== 'fixe'", "=== 'mensuel'", "=== 'provision'", "=== 'epargne'", "=== 'reserve'"],
+    perimetre: ["=== 'commun'", "=== 'solo'"],
+    proprietaire: ["=== 'vous'", "=== 'conjointe'"]
+  };
+
+  for (const [champ, valeurs] of Object.entries(CHAMPS)) {
+    it(`\`${champ}\` n'accepte que ses valeurs connues, dans les deux espaces`, () => {
+      for (const espace of ESPACES) {
+        const regle = regles[espace].envelopes.$rang[champ];
+        expect(regle, `${champ} manque sous ${espace}`).toBeDefined();
+        expect(regle['.validate']).toContain('isString()');
+        for (const valeur of valeurs) {
+          expect(regle['.validate']).toContain(valeur);
+        }
+      }
+    });
+  }
+
+  it('`report` est un booléen, pas une chaîne « oui »', () => {
+    for (const espace of ESPACES) {
+      expect(regles[espace].envelopes.$rang.report['.validate']).toBe('newData.isBoolean()');
+    }
+  });
+
+  it('une enveloppe solo doit désigner son propriétaire', () => {
+    // Sans cet invariant, une enveloppe pourrait sortir du commun sans qu'on
+    // sache à qui elle est — le jumeau exact du contrôle posé sur les charges.
+    for (const espace of ESPACES) {
+      const v = regles[espace].envelopes.$rang['.validate'];
+      expect(v).toContain("perimetre').val() !== 'solo'");
+      expect(v).toContain("hasChild('proprietaire')");
+    }
+  });
+
+  it('et un propriétaire n\'a de sens que sur une solo', () => {
+    // L'invariant réciproque : « commune, appartenant à Richard » est
+    // contradictoire, et la contradiction se lirait différemment selon l'écran.
+    for (const espace of ESPACES) {
+      const v = regles[espace].envelopes.$rang['.validate'];
+      expect(v).toContain("!newData.hasChild('proprietaire')");
+      expect(v).toContain("child('perimetre').val() === 'solo'");
+    }
+  });
+
+  it('l\'exigence d\'origine tient toujours : un identifiant et un libellé', () => {
+    // L'invariant a été ajouté à un `.validate` qui portait déjà cette
+    // exigence. La remplacer plutôt que la compléter aurait ouvert l'écriture
+    // d'une enveloppe anonyme, que `normaliserEnveloppe` écarte ensuite — donc
+    // une entrée en base que plus rien n'affiche ni ne supprime.
+    for (const espace of ESPACES) {
+      expect(regles[espace].envelopes.$rang['.validate'])
+        .toContain("hasChildren(['id', 'label'])");
+    }
+  });
+});

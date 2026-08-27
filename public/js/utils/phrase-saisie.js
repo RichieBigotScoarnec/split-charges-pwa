@@ -109,6 +109,10 @@ export function libellePayeur(paidBy, members) {
  * @returns {string}
  */
 export function libelleRepartition(splitMode) {
+  // « Perso » n'est pas une répartition mais son absence, et la phrase doit le
+  // dire en toutes lettres : c'est le seul choix des trois qui retire la
+  // dépense du solde, et le seul dont l'effet est invisible ailleurs.
+  if (splitMode === 'perso') return 'Perso, hors solde';
   return splitMode === '50-50' ? 'Partagé 50-50' : 'Au prorata';
 }
 

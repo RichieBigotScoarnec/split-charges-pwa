@@ -8,6 +8,7 @@ import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate, dateDeLaCharge, formatDateEtHeure, heureDeLaCharge } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { log, error as logError } from '../utils/debug.js';
+import { chargesCommunes } from '../utils/perimetre.js';
 
 /**
  * Initialise le module d'export
@@ -77,8 +78,14 @@ export function exportToCSV() {
   }
 
   try {
-    const fixedCharges = (getState('fixedCharges') || []).filter(c => !c.deleted);
-    const variableCharges = (getState('variableCharges') || []).filter(c => !c.deleted);
+    // Les dépenses solo sortent des deux exports, lignes **et** totaux.
+    //
+    // Les garder en lignes en les ôtant du total donnerait un document qui se
+    // contredit — on additionne les colonnes et on ne retombe pas sur le pied
+    // de page. Et un export est ce qui se garde ou se transmet : c'est le
+    // relevé de ce que le foyer partage, pas celui de ce que chacun dépense.
+    const fixedCharges = chargesCommunes(getState('fixedCharges') || []).filter(c => !c.deleted);
+    const variableCharges = chargesCommunes(getState('variableCharges') || []).filter(c => !c.deleted);
     const reimbursements = (getState('reimbursements') || []).filter(r => !r.deleted);
     const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
 
@@ -164,8 +171,14 @@ export function exportToPDF() {
 
   try {
     // Créer une nouvelle fenêtre avec les données formatées pour impression
-    const fixedCharges = (getState('fixedCharges') || []).filter(c => !c.deleted);
-    const variableCharges = (getState('variableCharges') || []).filter(c => !c.deleted);
+    // Les dépenses solo sortent des deux exports, lignes **et** totaux.
+    //
+    // Les garder en lignes en les ôtant du total donnerait un document qui se
+    // contredit — on additionne les colonnes et on ne retombe pas sur le pied
+    // de page. Et un export est ce qui se garde ou se transmet : c'est le
+    // relevé de ce que le foyer partage, pas celui de ce que chacun dépense.
+    const fixedCharges = chargesCommunes(getState('fixedCharges') || []).filter(c => !c.deleted);
+    const variableCharges = chargesCommunes(getState('variableCharges') || []).filter(c => !c.deleted);
     const reimbursements = (getState('reimbursements') || []).filter(r => !r.deleted);
     const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
 
