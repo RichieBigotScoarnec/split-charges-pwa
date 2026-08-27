@@ -61,18 +61,42 @@ function populatePeriodDropdown() {
 /**
  * Relève les mois présents en base, pour que le sélecteur les propose
  *
- * Lecture des seules clés : le nœud complet des périodes pèse toutes les
- * charges de tous les mois, et le sélecteur n'a besoin que de leurs noms.
- * Realtime Database ne sait pas ne rendre que les clés — on lit donc le nœud
- * une fois, au démarrage, comme le font déjà le report et la corbeille.
+ * Le sélecteur n'a besoin que des NOMS des mois, et le nœud complet pèse
+ * toutes les charges de tous les mois. L'API REST de Realtime Database sait
+ * d'ailleurs ne rendre que les clés (`?shallow=true`, dont ce dépôt se sert
+ * déjà dans `sonde-liaison.js`) — le commentaire qui affirmait le contraire
+ * était faux, et justifiait la lecture la plus gratuite de l'application.
  *
+ * On ne s'en sert pas pour autant : ce serait un appel HTTP hors de `db.js`,
+ * donc sans miroir, sans file d'attente et surtout sans délai de garde —
+ * exactement le défaut que `trends.js` porte. La bonne réponse est de ne pas
+ * relire du tout : l'initialisation vient de lire ce nœud, elle passe sa
+ * valeur.
+ *
+ * @param {Object} [instantane] - Le nœud `periods` déjà lu dans cette même
+ *   séquence d'initialisation. Omis, la fonction lit elle-même : c'est le
+ *   comportement historique, et le repli quand l'étape amont a échoué.
  * @returns {Promise<void>}
  */
-export async function chargerLesPeriodesConnues() {
+export async function chargerLesPeriodesConnues(instantane) {
   try {
-    const { dbGet } = await import('../db.js');
-    const periods = await dbGet('periods');
+    let periods = instantane;
+    if (periods === undefined) {
+      const { dbGet } = await import('../db.js');
+      periods = await dbGet('periods');
+    }
+
     const cles = periods && typeof periods === 'object' ? Object.keys(periods) : [];
+
+    // Le mois affiché, toujours.
+    //
+    // L'instantané est lu AVANT `applyRecurringCharges`, qui peut créer le mois
+    // courant en y reconduisant les charges fixes. Une liste bâtie sur le seul
+    // instantané perdrait donc ce mois-là — celui qu'on est précisément en
+    // train de regarder. L'ajouter est sans risque : un mois affiché est par
+    // définition navigable, et c'est ce qu'une relecture aurait rendu.
+    const affiche = getState('currentPeriod');
+    if (affiche && !cles.includes(affiche)) cles.push(affiche);
 
     setState('periodesConnues', cles);
     populatePeriodDropdown();
@@ -139,21 +163,41 @@ export function navigatePeriod(direction) {
  * Load period data from Firebase
  * Loads both salaries (global) and period-specific data
  */
-export async function loadPeriodData() {
+export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
   // Même repli que saveSalaries : jamais lire sous `periods/undefined`
   const currentPeriod = getState('currentPeriod') || getCurrentPeriod();
 
   try {
     // 1. Salaires : l'instantané de la période fait foi, à défaut les globaux
     const { dbGet } = await import('../db.js');
-    const [periodSalaries, globalSalaries, periodShareMode] = await Promise.all([
-      dbGet(`periods/${currentPeriod}/salaries`),
-      dbGet('salaries'),
-      // Le mode figé du mois, s'il en a un. `computeBalanceChain` le lisait
-      // depuis toujours ; l'écran, jamais — et les deux annonçaient alors deux
-      // soldes différents pour le même mois reconduit.
-      dbGet(`periods/${currentPeriod}/shareMode`)
+
+    // Un instantané par GESTE.
+    //
+    // L'initialisation nous en confie un ; un changement de mois, non — et ce
+    // geste-là appelait `refreshCarryOver` puis `applyRecurringCharges`, qui
+    // relisaient chacune le nœud `periods` entier, à quelques millisecondes
+    // d'écart. Mesuré : 2 × 113 Ko par changement de mois à douze mois de
+    // données, 2 × 568 Ko à cinq ans.
+    //
+    // Ce n'est pas de la fraîcheur, c'est un doublon : les deux lectures
+    // tombent dans le même geste. On lit donc une fois ici et l'on passe la
+    // valeur. Relire à chaque geste reste correct — il a pu s'écouler une
+    // heure entre deux changements de mois.
+    const [instantane, globalSalaries] = await Promise.all([
+      historique === undefined ? dbGet('periods') : Promise.resolve(historique),
+      salairesGlobaux === undefined ? dbGet('salaries') : Promise.resolve(salairesGlobaux)
     ]);
+
+    // Le mois affiché est dans l'instantané : ses deux champs s'y lisent, au
+    // lieu de deux allers-retours supplémentaires. `?? null` et non `|| null` —
+    // un mois présent mais sans instantané de salaires n'est pas un mois absent.
+    const moisAffiche = instantane && typeof instantane === 'object'
+      ? instantane[currentPeriod] : null;
+    const periodSalaries = moisAffiche?.salaries ?? null;
+    // Le mode figé du mois, s'il en a un. `computeBalanceChain` le lisait
+    // depuis toujours ; l'écran, jamais — et les deux annonçaient alors deux
+    // soldes différents pour le même mois reconduit.
+    const periodShareMode = moisAffiche?.shareMode ?? null;
 
     const { salaries } = resolveSalaries(periodSalaries, globalSalaries);
     setState('salaries', salaries);
@@ -188,15 +232,19 @@ export async function loadPeriodData() {
     // Le report d'un mois ne dépend que des mois qui le précèdent : il se
     // recalcule au changement de période, pas à chaque charge ajoutée.
     const { refreshCarryOver } = await import('./carry-over.js');
-    await refreshCarryOver();
+    await refreshCarryOver({ historique: instantane, salairesGlobaux: globalSalaries });
 
     // Calculate summary (rendering is done by individual loaders)
     calculateSummary();
 
     // Reconduction des charges récurrentes : silencieuse si le mois n'est pas
     // neuf, et ne s'exécute qu'une fois par mois cible.
+    //
+    // Elle vient APRÈS les deux lectures ci-dessus, et elle écrit : l'instantané
+    // qu'elle reçoit est donc le dernier à pouvoir l'être. Ce qui la suit —
+    // `chargerLesPeriodesConnues` — en tient compte.
     const { applyRecurringCharges } = await import('./reconduction.js');
-    await applyRecurringCharges();
+    await applyRecurringCharges({ historique: instantane });
 
     log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
 
@@ -349,19 +397,26 @@ export async function saveSalaries(cleModifiee = null) {
  * Idempotente : n'écrit que là où l'instantané manque, donc sans effet dès la
  * deuxième exécution.
  *
+ * @param {Object} [options]
+ * @param {Object} [options.historique] - Le nœud `periods` déjà lu. Omis, la
+ *   fonction lit elle-même. **Les mois complétés y sont reportés** : le
+ *   consommateur suivant reçoit un instantané exact plutôt qu'un instantané
+ *   d'avant l'écriture.
+ * @param {Object} [options.salairesGlobaux] - Le nœud `salaries` déjà lu
  * @returns {Promise<number>} Nombre de périodes complétées
  */
-export async function backfillPeriodSalaries() {
+export async function backfillPeriodSalaries({ historique, salairesGlobaux } = {}) {
   try {
     const { dbGet, dbSet } = await import('../db.js');
 
-    const globalSalaries = normalizeSalaries(await dbGet('salaries'));
+    const globalSalaries = normalizeSalaries(
+      salairesGlobaux === undefined ? await dbGet('salaries') : salairesGlobaux);
     if (!globalSalaries) {
       log('💤 Backfill salaires ignoré : aucun salaire global défini');
       return 0;
     }
 
-    const periods = await dbGet('periods');
+    const periods = historique === undefined ? await dbGet('periods') : historique;
     if (!periods || typeof periods !== 'object') return 0;
 
     const missing = Object.keys(periods).filter(p => !periods[p]?.salaries);
@@ -369,6 +424,16 @@ export async function backfillPeriodSalaries() {
 
     for (const period of missing) {
       await dbSet(`periods/${period}/salaries`, globalSalaries);
+
+      // Reporter l'écriture dans l'instantané qu'on nous a confié.
+      //
+      // Sans ce report, le consommateur suivant — la chaîne de report — verrait
+      // ces mois sans instantané de salaires et retomberait sur les salaires
+      // globaux, c'est-à-dire sur la valeur qu'on vient précisément d'écrire.
+      // Le résultat serait le même au centime près, mais par coïncidence
+      // arithmétique et non par construction. On ne fonde pas un calcul
+      // d'argent sur une coïncidence.
+      if (historique && periods[period]) periods[period].salaries = globalSalaries;
     }
 
     log(`🧬 Instantané de salaires ajouté à ${missing.length} période(s) : ${missing.join(', ')}`);
@@ -460,10 +525,23 @@ export function initPeriod() {
   // observait alors une liste de mois vide *et* des salaires qui ne
   // s'enregistrent pas — deux symptômes, une seule cause. Attacher d'abord
   // rend chaque panne indépendante et bien plus lisible.
-  const periodSelect = exigerElement('periodSelect', 'changer de mois');
-  if (periodSelect) {
-    ecouterUneFois(periodSelect, 'change', changePeriod);
-  }
+  // Le sélecteur de mois n'a PAS d'écouteur direct : il porte
+  // `data-on-change="changePeriod"`, et `init.js` s'en charge.
+  //
+  // Il en avait un, en plus de la délégation. Deux mécanismes indépendants,
+  // tous deux actifs : chaque changement de mois exécutait donc `loadPeriodData`
+  // DEUX fois — deux lectures de l'historique, deux lectures des salaires, deux
+  // chargements de chacune des trois listes, et deux rendus. `ecouterUneFois`
+  // ne pouvait rien y voir : il garantit qu'un écouteur n'est posé qu'une fois,
+  // pas qu'un geste n'est traité qu'une fois.
+  //
+  // La délégation est gardée plutôt que l'écouteur : c'est le mécanisme déclaré
+  // du dépôt, et `tests/actions-declarees.test.js` le tient au balisage dans les
+  // deux sens. L'écouteur direct, lui, n'était vu par rien.
+  //
+  // `exigerElement` reste : il journalise l'absence du sélecteur, et c'est cette
+  // trace qui rend une panne lisible depuis un téléphone.
+  exigerElement('periodSelect', 'changer de mois');
 
   // Les quatre champs de revenus déclenchent la même sauvegarde.
   for (const champ of CHAMPS_REVENUS) {

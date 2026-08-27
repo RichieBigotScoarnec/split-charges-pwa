@@ -45,9 +45,12 @@ export function initReconduction() {
  * que les charges. Sans cette empreinte, supprimer une charge reconduite la
  * ferait réapparaître à la prochaine ouverture du mois.
  *
+ * @param {Object} [options]
+ * @param {Object} [options.historique] - Le nœud `periods` lu dans la MÊME
+ *   séquence. Omis, la fonction lit elle-même.
  * @returns {Promise<number>} Nombre de charges reconduites
  */
-export async function applyRecurringCharges() {
+export async function applyRecurringCharges({ historique } = {}) {
   // La référence est obtenue ici plutôt que d'être héritée d'initReconduction.
   // Celle-ci s'exécutait après le chargement du mois : `database` était encore
   // nulle au moment de l'appel, la fonction sortait sans rien dire, et la
@@ -62,7 +65,7 @@ export async function applyRecurringCharges() {
 
   try {
     const { dbGet } = await import('../db.js');
-    const periods = await dbGet('periods');
+    const periods = historique === undefined ? await dbGet('periods') : historique;
 
     const plan = planRecurrence({
       target,
