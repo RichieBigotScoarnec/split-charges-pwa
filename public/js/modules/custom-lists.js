@@ -155,9 +155,14 @@ async function saveCategories(categories, base) {
   try {
     const fusionnees = await fusionnerListe('customCategories', categories, base);
     setState('categories', fusionnees);
+    return true;
   } catch (error) {
     logError('❌ Erreur sauvegarde catégories :', error);
     toast.error('Erreur de sauvegarde');
+    // L'échec était avalé : l'appelant enchaînait sur « "X" ajouté », et deux
+    // messages contradictoires se succédaient — le dernier disant que tout
+    // allait bien.
+    return false;
   }
 }
 
@@ -168,9 +173,11 @@ async function saveDestinations(destinations, base) {
   try {
     const fusionnees = await fusionnerListe('customDestinations', destinations, base);
     setState('destinations', fusionnees);
+    return true;
   } catch (error) {
     logError('❌ Erreur sauvegarde destinations :', error);
     toast.error('Erreur de sauvegarde');
+    return false;
   }
 }
 
@@ -550,16 +557,15 @@ function showManageModal(listType) {
   // Add item
   const addItem = async () => {
     const label = newLabelInput.value.trim();
-    if (!label) {
-      toast.error('Nom requis');
-      return;
-    }
-
     const currentItems = isCategories ? getCategories() : getDestinations();
 
-    // Check doublon
-    if (currentItems.some(item => item.label.toLowerCase() === label.toLowerCase())) {
-      toast.error('Ce nom existe déjà');
+    // Le même validateur que le renommage, et non une seconde copie de ses
+    // règles : c'est ainsi que le contrôle des caractères interdits par
+    // Realtime Database — `. $ # [ ] /`, qui rendent tous les budgets
+    // insauvegardables — avait manqué d'un côté tout en existant de l'autre.
+    const verdict = libelleAcceptable(label, currentItems, -1);
+    if (!verdict.valide) {
+      toast.error(verdict.erreur);
       return;
     }
 
@@ -579,11 +585,13 @@ function showManageModal(listType) {
 
     // `currentItems` est la liste d'avant l'ajout : elle sert de référence
     // pour distinguer ce que l'autre personne a ajouté entre-temps.
-    if (isCategories) {
-      await saveCategories(updatedItems, currentItems);
-    } else {
-      await saveDestinations(updatedItems, currentItems);
-    }
+    const enregistre = isCategories
+      ? await saveCategories(updatedItems, currentItems)
+      : await saveDestinations(updatedItems, currentItems);
+
+    // L'échec a déjà son message : en ajouter un second, contradictoire et
+    // affiché après, apprend à ne plus lire ni l'un ni l'autre.
+    if (!enregistre) return;
 
     toast.success(`"${label}" ajouté`);
     populateAllSelects();

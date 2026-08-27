@@ -44,12 +44,23 @@
 3. Menu **APIs & Services** → **Credentials**
 4. Cliquez sur le **OAuth 2.0 Client ID** pour "Web client (auto created by Google Service)"
 5. Dans **Authorized JavaScript origins**, vérifiez que vous avez :
-   - `http://localhost`
-   - `http://localhost:5500` (ou le port que Live Server utilise)
-   - `http://127.0.0.1:5500`
+   - `https://richiebigotscoarnec.github.io` — l'origine de production, la
+     seule dont l'application a besoin au quotidien
+   - `http://localhost:5500` (ou le port que Live Server utilise), **le temps
+     d'un dépannage local seulement**
 6. Dans **Authorized redirect URIs**, vérifiez que vous avez :
-   - `http://localhost`
    - `https://fairsplit-foyer.firebaseapp.com/__/auth/handler`
+
+> **Retirer les origines locales une fois le dépannage fini.**
+> Ce document prescrivait d'ajouter `http://localhost` sans port ni date de
+> péremption. Une origine autorisée l'est durablement, et celle-là désigne la
+> machine de quiconque ouvre l'application : elle élargit la surface pour tout
+> le monde, au bénéfice d'un poste. Les ajouter pour déboguer est légitime ;
+> les laisser ne l'est pas.
+>
+> Même raison côté application : `?emulator=1` n'est plus honoré que sur un
+> hôte local (`js/config.js`), et les origines `localhost` ont été retirées de
+> la politique de sécurité publiée.
 7. Si manquant, ajoutez-les et cliquez sur **Save**
 
 ---

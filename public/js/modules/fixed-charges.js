@@ -115,6 +115,19 @@ export function initFixedCharges() {
     }
   };
 
+  // Le jumeau côté variable existait ; celui-ci manquait, et le `<select>`
+  // n'avait donc aucun gestionnaire. Choisir « Personnalisé » ne révélait
+  // jamais les deux champs de pourcentage : ils restaient masqués à 50/50, et
+  // `handleFixedChargeSubmit` enregistrait quand même `mode: 'custom'`. On
+  // demandait une répartition sur mesure, on obtenait un partage en deux,
+  // sans qu'un seul élément de l'écran le dise.
+  window.toggleFixedChargeSplitMode = function(value) {
+    const customRow = document.getElementById('fixedChargeSplitCustom');
+    if (customRow) {
+      customRow.style.display = value === 'custom' ? 'block' : 'none';
+    }
+  };
+
   log('✅ Module charges fixes initialisé');
 }
 

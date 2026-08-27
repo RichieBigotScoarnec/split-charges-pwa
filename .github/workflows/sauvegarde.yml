@@ -32,11 +32,16 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      # `npm ci` n'est PAS lancé : ce workflow détient le compte de service
+      # Firebase et la phrase secrète, et n'a besoin que de `firebase-tools`.
+      # Exécuter les scripts d'installation de 973 dépendances à côté de ces
+      # deux secrets était une surface gratuite. `enveloppe-sauvegarde.mjs`
+      # n'a aucune dépendance.
+      - name: Installer firebase-tools, et lui seul
+        run: npm install --no-save --ignore-scripts firebase-tools@15.11.0
 
       # Contrairement au déploiement des règles, l'absence de secret échoue ici.
       # Un déploiement manqué se rattrape à la fusion suivante ; une sauvegarde
@@ -111,8 +116,23 @@ jobs:
           phrase="$RUNNER_TEMP/phrase"
           printf '%s' "$PHRASE_SECRETE" > "$phrase"
 
+          # Les paramètres de dérivation sont écrits, pas hérités.
+          #
+          # Sans eux, l'archive prenait les défauts de l'image du runner. Ils
+          # sont bons aujourd'hui — vérifié en rejouant la commande : S2K mode
+          # 3, SHA-512, 65 011 712 itérations — mais rien ne les tient, et une
+          # mise à jour d'image les changerait sans que rien ne le dise.
+          #
+          # Ce n'est pas un détail ici : le dépôt est public, donc l'artefact
+          # est téléchargeable par tout titulaire d'un compte GitHub, et 90
+          # jours de clichés quotidiens s'attaquent hors ligne, sans limite de
+          # tentatives. Toute la confidentialité de l'historique du foyer tient
+          # à l'entropie de SAUVEGARDE_PASSPHRASE et au coût de sa dérivation.
           gpg --batch --yes --symmetric \
             --cipher-algo AES256 \
+            --s2k-mode 3 \
+            --s2k-digest-algo SHA512 \
+            --s2k-count 65011712 \
             --passphrase-file "$phrase" \
             --output "$RUNNER_TEMP/sauvegarde.json.gpg" \
             "$RUNNER_TEMP/sauvegarde.json"
@@ -167,6 +187,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          ETIQUETTE="alerte-sauvegarde"
           TITRE="⚠️ Sauvegarde quotidienne en échec"
           CORPS="La sauvegarde chiffrée de l'historique du foyer a échoué.
 
@@ -176,11 +197,21 @@ jobs:
 
           # Un ticket par panne, pas un par nuit : sans cela, une cause qui dure
           # en ouvrirait un chaque matin.
-          EXISTANT=$(gh issue list --repo "$DEPOT" --state open --search "$TITRE in:title" --json number --jq '.[0].number // empty')
+          # Le ticket est retrouvé par LABEL, et parmi ceux que le workflow a
+          # lui-même ouverts. La recherche portait sur le titre seul : le dépôt
+          # étant public, n'importe qui pouvait ouvrir un ticket portant ce
+          # titre et détourner vers lui toutes les alertes de panne, avec leurs
+          # liens d'exécution.
+          gh label create "$ETIQUETTE" --repo "$DEPOT" --color B60205 \
+            --description "Ouvert automatiquement par la CI" 2>/dev/null || true
+
+          EXISTANT=$(gh issue list --repo "$DEPOT" --state open \
+            --label "$ETIQUETTE" --author app/github-actions \
+            --json number --jq '.[0].number // empty')
 
           if [ -n "$EXISTANT" ]; then
             gh issue comment "$EXISTANT" --repo "$DEPOT" --body "$CORPS"
             echo "Ticket #$EXISTANT complété."
           else
-            gh issue create --repo "$DEPOT" --title "$TITRE" --body "$CORPS"
+            gh issue create --repo "$DEPOT" --title "$TITRE" --body "$CORPS" --label "$ETIQUETTE"
           fi

@@ -106,8 +106,21 @@ export const DATA_ROOT = IS_SANDBOX ? 'sandbox' : 'household';
 // Activé uniquement via ?emulator=1 dans l'URL : brancher l'émulateur
 // automatiquement sur localhost casserait `npm run serve` quand il n'est
 // pas lancé.
+// Et jamais ailleurs que sur la machine de développement.
+//
+// `?emulator=1` se lisait sur la seule chaîne de requête, donc aussi sur le
+// site publié. Un lien suffisait à faire parler l'application à ce qui écoute
+// sur la machine de la victime — et `auth.useEmulator()` désactive toute
+// vérification de signature de jeton : la session devient ce que l'hôte local
+// prétend. Sur un poste où l'émulateur tourne, l'application affiche des
+// données d'essai avec l'apparence exacte de la production, et les dépenses
+// saisies n'atteignent jamais la vraie base. Le bandeau de bac à sable ne dit
+// rien : `IS_SANDBOX` et `USE_EMULATOR` sont deux drapeaux distincts.
+const HOTE_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/;
+
 export const USE_EMULATOR =
   typeof location !== 'undefined' &&
+  HOTE_LOCAL.test(location.hostname) &&
   new URLSearchParams(location.search).get('emulator') === '1';
 
 export const EMULATOR_PORTS = { database: 9010, auth: 9099 };

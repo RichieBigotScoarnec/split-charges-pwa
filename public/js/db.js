@@ -383,9 +383,38 @@ export async function rejouerFileDAttente() {
   rejeuEnCours = true;
   let envoyees = 0;
   let erreur = null;
+  /** L'opération en cours d'envoi, pour savoir laquelle a bloqué */
+  let bloquee = null;
+  /** Ce qui a été écarté parce que le serveur ne l'acceptera jamais */
+  const refusees = [];
 
   try {
     for (const operation of operations) {
+      bloquee = operation;
+      // Ce que la file porte n'est pas ce que l'application y a mis.
+      //
+      // `empiler()` contrôle le type et le chemin *à la mise en file*, et le
+      // rejeu reprenait ensuite l'enregistrement tel quel. Or la file vit en
+      // clair dans `localStorage`, sur une origine que GitHub Pages partage
+      // entre tous les dépôts d'un même compte : une autre page du compte y
+      // écrit sans la moindre injection, et une extension de navigateur aussi.
+      //
+      // La charge utile tenait en une entrée : `{ type: 'set', chemin: '',
+      // donnees: null }`. `getDataPath('')` rend `household` — l'espace
+      // entier —, et le rejeu partait seul à la reconnexion, sous la session
+      // légitime du foyer, sans rien redemander. Les règles refusent désormais
+      // d'effacer la racine, mais une file n'a de toute façon aucune raison de
+      // porter autre chose que des saisies.
+      if (!operationRejouable(operation)) {
+        warn('[DB] Opération écartée du rejeu :', operation?.chemin ?? '(racine)');
+        noter('hors-ligne', 'opération écartée du rejeu', {
+          chemin: operation?.chemin ?? '(racine)',
+          type: operation?.type
+        });
+        retirerOperation(dataRoot, operation.id);
+        continue;
+      }
+
       const reference = database.ref(getDataPath(operation.chemin));
       await borner(
         operation.type === 'update'
@@ -406,15 +435,96 @@ export async function rejouerFileDAttente() {
     }
   } catch (echec) {
     erreur = echec?.message || String(echec);
-    warn('[DB] Rejeu interrompu :', erreur);
+
+    // Un refus définitif n'est pas une panne : le distinguer, ou la file se
+    // bloque pour toujours.
+    //
+    // La boucle s'arrête au premier échec, et c'est le bon choix — « la file
+    // est un ordre, pas un sac ». Mais rien ne séparait le transitoire du
+    // définitif : une écriture que les règles rejetteront toujours restait en
+    // tête, et tout ce qui avait été saisi ensuite s'empilait derrière sans
+    // jamais partir. L'utilisateur voyait « N saisies restent sur cet
+    // appareil » à chaque reconnexion, sans aucun moyen de voir laquelle
+    // bloque, ni de l'abandonner — sauf effacer les données du site, ce qui
+    // emporte tout.
+    //
+    // Le déclencheur est dans la CI elle-même : `deploy-rules` redéploie les
+    // règles à chaque fusion sur main. Une saisie mise en file avant un
+    // durcissement de `.validate` est refusée après. Ce n'est pas un cas de
+    // laboratoire, c'est le fonctionnement normal du dépôt.
+    if (bloquee && estRefusDefinitif(echec)) {
+      warn('[DB] Saisie refusée définitivement, écartée de la file :', bloquee.chemin);
+      noter('hors-ligne', 'saisie refusée définitivement', {
+        chemin: bloquee.chemin || '(racine)',
+        type: bloquee.type,
+        motif: erreur
+      });
+      // Le miroir la porte encore : la valeur reste à l'écran, et l'appelant
+      // apprend qu'elle n'ira pas plus loin.
+      retirerOperation(dataRoot, bloquee.id);
+      refusees.push({ chemin: bloquee.chemin, motif: erreur });
+    } else {
+      warn('[DB] Rejeu interrompu :', erreur);
+    }
   } finally {
     rejeuEnCours = false;
   }
 
   const restantes = saisiesEnAttente();
   signalerFile();
-  noter('hors-ligne', 'rejeu de la file', { envoyees, restantes, erreur: erreur || undefined });
-  return { envoyees, restantes, erreur };
+  noter('hors-ligne', 'rejeu de la file', {
+    envoyees, restantes, refusees: refusees.length, erreur: erreur || undefined
+  });
+  return { envoyees, restantes, erreur, refusees };
+}
+
+/**
+ * Les motifs de refus dont il est inutile de réessayer
+ *
+ * Un jeton expiré ou une coupure se rattrapent à la reconnexion suivante ;
+ * une donnée que les règles refusent ne passera jamais, quel que soit le
+ * nombre de tentatives.
+ *
+ * @param {*} echec - Erreur rendue par Firebase
+ * @returns {boolean}
+ */
+function estRefusDefinitif(echec) {
+  const code = String(echec?.code || '').toLowerCase();
+  const message = String(echec?.message || echec || '').toLowerCase();
+  return code.includes('permission_denied')
+    || message.includes('permission_denied')
+    || message.includes('permission denied');
+}
+
+/**
+ * Une opération de la file est-elle rejouable telle quelle ?
+ *
+ * Les mêmes contrôles qu'à la mise en file, refaits au rejeu — parce qu'entre
+ * les deux, le dossier a passé du temps dans un stockage que l'application ne
+ * possède pas seule.
+ *
+ * Deux refus, et ils suffisent : une saisie vise toujours un chemin nommé, et
+ * n'efface jamais un nœud entier. Ce que l'application écrit légitimement à la
+ * racine — la restauration d'une sauvegarde — n'a rien à faire dans une file :
+ * elle est différée, annoncée comme réussie, et rejouée bien plus tard,
+ * éventuellement sous la session de l'autre compte.
+ *
+ * @param {*} operation - Enregistrement relu du stockage, donc non fiable
+ * @returns {boolean}
+ */
+export function operationRejouable(operation) {
+  if (!operation || typeof operation !== 'object') return false;
+  if (operation.type !== 'set' && operation.type !== 'update') return false;
+  if (typeof operation.chemin !== 'string') return false;
+
+  // Un chemin vide vise la racine de l'espace de données.
+  const segments = operation.chemin.split('/').filter(Boolean);
+  if (segments.length === 0) return false;
+
+  // `set(null)` supprime le nœud visé ; une saisie ne fait jamais cela.
+  if (operation.type === 'set' && operation.donnees === null) return false;
+
+  return true;
 }
 
 /**
@@ -426,6 +536,19 @@ export async function rejouerFileDAttente() {
  * @returns {boolean} L'appareil a-t-il accepté de la garder ?
  */
 function mettreEnFile(type, chemin, donnees) {
+  // Le même contrôle qu'au rejeu, mais posé ici, où l'on peut encore le dire.
+  // Différer l'écrasement de tout un espace en l'annonçant comme réussi est
+  // pire que de le refuser : la restauration d'une sauvegarde partait en file,
+  // « Sauvegarde restaurée » s'affichait, et l'écrasement réel survenait à la
+  // reconnexion — après que l'autre téléphone a pu saisir entre-temps.
+  if (!operationRejouable({ type, chemin, donnees })) {
+    noter('hors-ligne', 'saisie NON gardée — opération non différable', {
+      chemin: chemin || '(racine)',
+      type
+    });
+    return false;
+  }
+
   const gardee = Boolean(empiler(dataRoot, { type, chemin, donnees }));
   noter('hors-ligne', gardee ? 'saisie mise en file' : 'saisie NON gardée', {
     chemin: chemin || '(racine)',

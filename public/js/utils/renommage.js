@@ -74,11 +74,48 @@ export function planRenommage({ periods, champ, ancien, nouveau }) {
 }
 
 /**
+ * Les six caractères que Realtime Database refuse dans une clé
+ *
+ * Écrits en toutes lettres plutôt qu'en classe d'expression régulière : une
+ * classe s'écrit vite de travers — un tiret mal placé y devient un intervalle,
+ * et la règle se met à rejeter l'espace, donc « Frais bancaires ».
+ */
+const CARACTERES_INTERDITS = ['.', '$', '#', '[', ']', '/'];
+
+/**
+ * Le premier caractère interdit d'un libellé, s'il y en a un
+ *
+ * Les caractères de contrôle sont joints aux six : invisibles à l'écran, ils
+ * provoqueraient la même panne sans qu'on puisse la relier au nom saisi. Ils
+ * sont rendus comme chaîne vide, faute de pouvoir les montrer.
+ *
+ * @param {string} texte
+ * @returns {string|null} Le caractère fautif, ou null s'il n'y en a pas
+ */
+function caractereInterdit(texte) {
+  for (const caractere of texte) {
+    if (CARACTERES_INTERDITS.includes(caractere)) return caractere;
+    const point = caractere.codePointAt(0);
+    if (point < 0x20 || point === 0x7f) return '';
+  }
+  return null;
+}
+
+/**
  * Le nouveau libellé est-il acceptable ?
  *
  * La comparaison ignore la casse : deux catégories « Courses » et « courses »
  * seraient deux entrées distinctes dans la liste et une seule à l'œil, et les
  * charges de l'une n'apparaîtraient pas sous l'autre.
+ *
+ * Le libellé n'est pas qu'un affichage : `category-budgets.js` s'en sert comme
+ * **clé** de l'objet écrit sous `categoryBudgets`. Or Realtime Database refuse
+ * `.` `$` `#` `[` `]` `/` dans une clé, et le SDK lève à l'écriture. Une
+ * catégorie nommée « Eau/Gaz » ou « Frais 2.5 % » — rien d'exotique — rendait
+ * donc **tous** les budgets insauvegardables, avec pour seul message
+ * « Enregistrement impossible » : rien ne reliait la panne au nom choisi.
+ * L'identifiant, lui, était nettoyé depuis longtemps ; le libellé ne l'était
+ * pas.
  *
  * @param {string} nouveau - Libellé voulu
  * @param {Array<Object>} existants - Entrées de la liste
@@ -89,6 +126,12 @@ export function libelleAcceptable(nouveau, existants, index) {
   const net = typeof nouveau === 'string' ? nouveau.trim() : '';
   if (!net) return { valide: false, erreur: 'Nom requis' };
   if (net.length > 30) return { valide: false, erreur: 'Nom trop long (30 caractères)' };
+
+  const interdit = caractereInterdit(net);
+  if (interdit !== null) {
+    const montre = interdit ? `« ${interdit} »` : 'un caractère invisible';
+    return { valide: false, erreur: `Le nom ne peut pas contenir ${montre} — ni . $ # [ ] /` };
+  }
 
   const liste = Array.isArray(existants) ? existants : [];
   const doublon = liste.some((item, rang) =>

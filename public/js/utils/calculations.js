@@ -1,9 +1,38 @@
-import { resolveIncomeBase } from './salaries.js';
+import { resolveIncomeBase, resolveSalaries } from './salaries.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
-import { parseMontant } from './montant.js';
 
 // ===== FONCTIONS DE CALCUL PURES (testables) =====
 // Extraites de summary.js pour permettre les tests unitaires
+
+/**
+ * Les deux pourcentages d'un partage personnalisé, jamais NaN
+ *
+ * Un `splitOverride` partiel — `{ mode: 'custom' }` sans les deux chiffres, ce
+ * que les règles acceptent puisqu'elles n'exigent la somme que si les deux
+ * clés sont présentes — faisait tomber la lecture sur `customPercents`. Or
+ * celui-ci peut être vide : `pcts.vous` valait alors `undefined`, et la part
+ * de chacun `NaN`, qui se propageait à tout le bilan.
+ *
+ * Le repli est le partage en deux : c'est ce que « personnalisé » veut dire
+ * quand personne n'a rien personnalisé.
+ *
+ * @param {Object} charge
+ * @param {Object} customPercents - Pourcentages globaux
+ * @returns {{vous: number, conjointe: number}}
+ */
+function pourcentages(charge, customPercents) {
+  const source = (charge.splitOverride && charge.splitOverride.vous !== undefined)
+    ? charge.splitOverride
+    : customPercents;
+
+  const vous = Number(source?.vous);
+  const conjointe = Number(source?.conjointe);
+
+  if (!Number.isFinite(vous) || !Number.isFinite(conjointe)) {
+    return { vous: 50, conjointe: 50 };
+  }
+  return { vous, conjointe };
+}
 
 /**
  * Calcule la part théorique d'une charge pour chaque personne
@@ -23,9 +52,7 @@ export function calculateChargeShares(charge, shareMode, salaries, totalSalaries
   }
 
   if (effectiveMode === 'custom') {
-    const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined)
-      ? charge.splitOverride
-      : customPercents;
+    const pcts = pourcentages(charge, customPercents);
     return {
       yourShare: amount * (pcts.vous / 100),
       partnerShare: amount * (pcts.conjointe / 100)
@@ -59,10 +86,7 @@ export function calculateJointPayment(charge, shareMode, salaries, totalSalaries
   if (effectiveMode === '50-50') {
     yourJointRatio = 0.5;
   } else if (effectiveMode === 'custom') {
-    const pcts = (charge.splitOverride && charge.splitOverride.vous !== undefined)
-      ? charge.splitOverride
-      : customPercents;
-    yourJointRatio = pcts.vous / 100;
+    yourJointRatio = pourcentages(charge, customPercents).vous / 100;
   } else if (totalSalaries > 0) {
     yourJointRatio = salaries.vous / totalSalaries;
   }
@@ -164,12 +188,23 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   // Les deux branches étaient inversées. Exemple mesuré : loyer de 1 000 €
   // payé par vous, salaires égaux — elle vous doit 500 €. Après qu'elle vous
   // ait remboursé ces 500 €, le solde affichait 1 000 € au lieu de zéro.
+  //
+  // Le `else` valait pour tout ce qui n'était pas « vous → conjointe » :
+  // un champ absent, vide ou mal orthographié était donc compté comme un
+  // transfert de la conjointe vers vous. Mesuré : un remboursement de 500 €
+  // sans champ `direction` donnait exactement le même solde qu'un
+  // « conjointe → vous », soit 1 000 € d'écart avec l'autre lecture possible.
+  // Les règles acceptent n'importe quelle chaîne de 30 caractères et
+  // n'exigent même pas le champ : la donnée existe donc.
+  //
+  // Un sens qu'on ne reconnaît pas ne désigne personne : la seule réponse
+  // juste est de ne pas déplacer le solde, plutôt que de choisir un camp.
   let reimbursementAdjustment = 0;
   activeReimbs.forEach(reimb => {
     const montant = Number.isFinite(reimb.amount) ? reimb.amount : 0;
     if (reimb.direction === REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER) {
       reimbursementAdjustment += montant;
-    } else {
+    } else if (reimb.direction === REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU) {
       reimbursementAdjustment -= montant;
     }
   });
@@ -230,9 +265,7 @@ export function computeVirementsByDestination(fixedCharges, params) {
     if (effectiveMode === '50-50') {
       partnerShare = amount * 0.5;
     } else if (effectiveMode === 'custom') {
-      const pcts = (charge.splitOverride && charge.splitOverride.conjointe !== undefined)
-        ? charge.splitOverride
-        : customPercents;
+      const pcts = pourcentages(charge, customPercents);
       partnerShare = amount * (pcts.conjointe / 100);
     } else {
       partnerShare = totalSalaries > 0
@@ -305,7 +338,16 @@ export function computeBalanceChain(periods, { shareMode, customPercents, global
     const period = periods[key] || {};
 
     // L'instantané de la période fait foi ; à défaut, les salaires courants.
-    const salaries = normalizePair(period.salaries) || normalizePair(globalSalaries) || { vous: 0, conjointe: 0 };
+    //
+    // `resolveSalaries`, et non une normalisation locale : la chaîne lisait
+    // `vous` et `conjointe` seulement, quand l'écran passe par
+    // `resolveIncomeBase`, qui ajoute les revenus complémentaires. Deux
+    // formules pour un même chiffre, donc deux réponses. Mesuré : mêmes
+    // données, l'écran annonçait 400 € et le report en inscrivait 500 —
+    // 100 € nés de rien, et cumulés chaque mois puisque la chaîne repart de
+    // son propre total. Aucun écran ne montrant les deux côte à côte, l'écart
+    // n'avait aucun moyen d'être remarqué.
+    const { salaries } = resolveSalaries(period.salaries, globalSalaries);
 
     const { balance: own } = computeSummary({
       salaries,
@@ -325,16 +367,8 @@ export function computeBalanceChain(periods, { shareMode, customPercents, global
   return chain;
 }
 
-/**
- * Normalise un couple de salaires venant de la base
- * @param {*} raw - Valeur brute
- * @returns {{vous: number, conjointe: number}|null} null si inexploitable
- */
-function normalizePair(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-  const toNumber = (value) => {
-    const n = parseMontant(value);
-    return Number.isFinite(n) && n >= 0 ? n : 0;
-  };
-  return { vous: toNumber(raw.vous), conjointe: toNumber(raw.conjointe) };
-}
+// `normalizePair` vivait ici : une seconde lecture des revenus, qui ignorait
+// `extraVous` et `extraConjointe`. C'est par elle que la chaîne de report
+// divergeait de l'écran. Une seule fabrique d'assiette désormais —
+// `resolveSalaries` puis `resolveIncomeBase` — et `tests/utils/report-solde.js`
+// verrouille l'égalité des deux chiffres.
