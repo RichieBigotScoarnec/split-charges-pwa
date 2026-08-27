@@ -867,6 +867,156 @@
         ".validate": false
       },
       ".validate": "newData.hasChildren()"
+    },
+    "prive": {
+      "vous": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' && (root.child('aval/vous/actif').val() === true || !newData.exists())",
+        "periods": {
+          "$periode": {
+            "depenses": {
+              "$id": {
+                "montant": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                },
+                "description": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "category": {
+                  ".validate": "newData.isString() && newData.val().length <= 100"
+                },
+                "date": {
+                  ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                },
+                "timestamp": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                },
+                "deleted": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "$autre": {
+                  ".validate": false
+                },
+                ".validate": "newData.hasChildren(['montant'])"
+              }
+            },
+            "$autre": {
+              ".validate": false
+            }
+          }
+        },
+        "$autre": {
+          ".validate": false
+        }
+      },
+      "conjointe": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' && (root.child('aval/conjointe/actif').val() === true || !newData.exists())",
+        "periods": {
+          "$periode": {
+            "depenses": {
+              "$id": {
+                "montant": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                },
+                "description": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "category": {
+                  ".validate": "newData.isString() && newData.val().length <= 100"
+                },
+                "date": {
+                  ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                },
+                "timestamp": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                },
+                "deleted": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "$autre": {
+                  ".validate": false
+                },
+                ".validate": "newData.hasChildren(['montant'])"
+              }
+            },
+            "$autre": {
+              ".validate": false
+            }
+          }
+        },
+        "$autre": {
+          ".validate": false
+        }
+      }
+    },
+    "aval": {
+      "vous": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
+        "actif": {
+          ".validate": "newData.isBoolean()"
+        },
+        "accordeLe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+        },
+        "accordePar": {
+          ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
+        },
+        "$autre": {
+          ".validate": false
+        },
+        ".validate": "!newData.exists() || newData.hasChildren(['actif'])"
+      },
+      "conjointe": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'",
+        "actif": {
+          ".validate": "newData.isBoolean()"
+        },
+        "accordeLe": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+        },
+        "accordePar": {
+          ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
+        },
+        "$autre": {
+          ".validate": false
+        },
+        ".validate": "!newData.exists() || newData.hasChildren(['actif'])"
+      }
+    },
+    "totauxPrives": {
+      "vous": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'",
+        "$periode": {
+          "montant": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+          },
+          "nombre": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      },
+      "conjointe": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
+        "$periode": {
+          "montant": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+          },
+          "nombre": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "$autre": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

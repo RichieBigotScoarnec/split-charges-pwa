@@ -374,6 +374,15 @@ async function initializeAppData() {
     populateAllEnvelopeSelects();
   }, failures);
 
+  // Les dépenses privées n'entrent dans aucun calcul du foyer : le module ne
+  // fait qu'exposer son écran. Il est initialisé ici pour que le bouton « 🔒
+  // Privé » réponde dès la première peinture — un bouton visible et inerte se
+  // lit comme une panne.
+  await runStep('dépenses privées', async () => {
+    const { initPrive } = await import('./prive.js');
+    initPrive();
+  }, failures);
+
   // Le mode de partage et le report sont des entrées de tout calcul de solde :
   // ils précèdent le chargement des données du mois. Chargé après, le mode de
   // partage laissait le premier bilan se calculer au prorata par défaut.

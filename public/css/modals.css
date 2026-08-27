@@ -1223,3 +1223,99 @@
 /* Objectif atteint : la même satisfaction visuelle qu'un budget tenu, et
    surtout pas l'ambre de « vous approchez » — ici, approcher est le but. */
 .enveloppe-jauge--atteint .enveloppe-jauge-barre { background: var(--success-color); }
+
+/* ===== DÉPENSES PRIVÉES ET AVAL ===== */
+/*
+   L'écran le plus sensible de l'application, et celui qui doit le plus dire ce
+   qu'il fait. Deux avals s'y lisent — celui qu'on reçoit, celui qu'on donne —
+   parce qu'un pacte se lit dans les deux sens, et qu'un seul des deux affiché
+   laisserait croire à une réciprocité qui n'existe peut-être pas.
+*/
+.prive-avals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.prive-aval-titre {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.prive-aval-detail { font-size: 14px; }
+
+.prive-aval-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+/* Accordé : le vert de ce qui est acquis. Non accordé reste neutre plutôt que
+   rouge — ne pas avoir donné son accord n'est pas une anomalie. */
+.prive-aval-etat {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.prive-aval-etat--actif { color: var(--success-color); }
+
+.prive-saisie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) 0;
+}
+
+.prive-saisie-ligne {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+.prive-saisie-ligne input[type="text"] { flex: 1 1 8rem; min-width: 0; }
+.prive-saisie-ligne input[type="date"] { flex: 1 1 9rem; min-width: 0; }
+
+.prive-sous-titre {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.prive-total {
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.prive-depense {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.prive-depense:last-of-type { border-bottom: none; }
+
+.prive-depense-info { flex: 1; min-width: 0; }
+.prive-depense-titre { display: block; }
+.prive-depense-date { font-size: 12px; color: var(--text-secondary); }
+.prive-depense-montant { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.prive-autre {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
