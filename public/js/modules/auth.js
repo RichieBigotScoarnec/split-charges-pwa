@@ -486,7 +486,11 @@ async function initializeAppData() {
 
   await runStep('bilan', () => {
     initSummary();
-    calculateSummary();
+    // L'instantané est passé ici aussi : cette étape rend le bilan APRÈS
+    // `loadPeriodData`, donc c'est son rendu qui reste à l'écran. L'oublier
+    // n'affichait rien de faux — la veille se serait simplement tue, ce qui
+    // est son mode de dégradation — mais elle ne serait jamais apparue.
+    calculateSummary({ historique: instantanePeriods });
   }, failures);
 
   await runStep('recherche', () => initSearch(), failures);

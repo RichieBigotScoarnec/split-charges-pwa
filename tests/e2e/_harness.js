@@ -93,14 +93,23 @@ export const REACTIVE_FIREBASE_MOCK = `
               });
             },
             set: function(data) {
-              window.__db[path] = data;
+              // Realtime Database SUPPRIME la clé quand on y écrit null : c'est
+              // ainsi qu'une écriture multi-chemins efface. Ce double la
+              // conservait à null, si bien qu'un nœud vidé se relisait avec ses
+              // clés mortes — et qu'un déplacement de budget paraissait laisser
+              // l'ancien nom derrière lui alors que la vraie base l'ôte.
+              var efface = data === null;
+              if (efface) delete window.__db[path];
+              else window.__db[path] = data;
+
               // Sync parent path if it exists as a nested object
               var segs = path.split('/');
               if (segs.length > 1) {
                 var parentPath = segs.slice(0, -1).join('/');
                 var childKey = segs[segs.length - 1];
                 if (window.__db[parentPath] && typeof window.__db[parentPath] === 'object') {
-                  window.__db[parentPath][childKey] = data;
+                  if (efface) delete window.__db[parentPath][childKey];
+                  else window.__db[parentPath][childKey] = data;
                 }
               }
               _notify(path);

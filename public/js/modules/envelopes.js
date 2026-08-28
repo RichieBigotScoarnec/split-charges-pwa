@@ -14,7 +14,7 @@ import { getState, setState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
-import { identifiantDepuisLibelle } from '../utils/identifiant.js';
+import { identifiantEnveloppe } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
 import { formatDate, dateDuJour } from '../utils/date.js';
 import { normaliserEmplacement } from '../utils/members.js';
@@ -678,7 +678,12 @@ function brancherEcran(modal) {
       : NATURES.CAGNOTTE;
 
     const enveloppe = {
-      id: identifiantDepuisLibelle(libelle, existantes),
+      // `identifiantEnveloppe`, et non `identifiantDepuisLibelle` : un
+      // identifiant entièrement dérivé du libellé faisait hériter une
+      // « Vacances » recréée de tout ce qui renvoyait à la précédente — ses
+      // versements et ses charges. Mesuré : « 300,00 € dans le pot » sur une
+      // enveloppe vide.
+      id: identifiantEnveloppe(libelle, existantes),
       label: libelle,
       icon: emojiChoisi,
       budget: budgetLisible(modal.querySelector('#envelopeNewBudget').value),

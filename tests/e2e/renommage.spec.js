@@ -74,6 +74,47 @@ test.describe('Renommer une catégorie', () => {
       .toEqual(['Restos', 'Restos']);
   });
 
+  test('le budget de la catégorie suit, dans la même écriture', async ({ page }) => {
+    // `category-budgets.js` indexe les budgets PAR LIBELLÉ : la clé EST le nom.
+    // Le renommage emportait les charges et laissait le budget derrière, sous
+    // un nom que plus rien ne portait — mesuré : « 0,00 € dépensés sur
+    // 600,00 € budgétés », et 600 € orphelins, invisibles et inatteignables.
+    await page.evaluate(async () => {
+      const { dbSet } = await import('/js/db.js');
+      await dbSet('categoryBudgets', { Restaurant: 600, Essence: 100 });
+      const { initCategoryBudgets } = await import('/js/modules/category-budgets.js');
+      await initCategoryBudgets();
+    });
+
+    await poserDeuxCharges(page, 'Restaurant');
+
+    await page.evaluate(() => window.showManageCategoriesModal());
+    await page.locator('.manage-list-item', { hasText: 'Restaurant' }).first()
+      .locator('.manage-item-editer').click();
+    await page.locator('#manageEditLabel').fill('Restos');
+    await page.locator('.manage-item-valider').click();
+    await page.waitForTimeout(600);
+
+    const budgets = await page.evaluate(async () => {
+      const { dbGet } = await import('/js/db.js');
+      return await dbGet('categoryBudgets');
+    });
+
+    expect(budgets.Restos, 'le budget n\'a pas suivi le renommage').toBe(600);
+    expect(budgets, 'l\'ancien nom garde un budget orphelin')
+      .not.toHaveProperty('Restaurant');
+    // Les catégories voisines ne bougent pas.
+    expect(budgets.Essence).toBe(100);
+
+    // L'écran doit lire la même chose que la base, sans relecture : le repli
+    // de `initCategoryBudgets` viderait le panneau si on la lui demandait.
+    const affiche = await page.evaluate(async () => {
+      const { getState } = await import('/js/state.js');
+      return getState('categoryBudgets');
+    });
+    expect(affiche).toEqual(budgets);
+  });
+
   test('refuse un nom déjà pris', async ({ page }) => {
     await page.evaluate(() => window.showManageCategoriesModal());
     await page.locator('.manage-list-item', { hasText: 'Restaurant' }).first()
