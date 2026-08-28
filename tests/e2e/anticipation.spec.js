@@ -167,3 +167,38 @@ test.describe('Ce que l\'écran ne montre pas', () => {
     expect(await page.locator('.summary-veille').count()).toBe(0);
   });
 });
+
+test.describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
+  /** Trois mois révolus où Netflix est saisi à la main, jamais déclaré fixe */
+  function abonnements() {
+    const p = moisCourant();
+    const db = {
+      'household/salaries': { vous: 2500, conjointe: 1800 },
+      [`household/periods/${p}/salaries`]: { vous: 2500, conjointe: 1800 }
+    };
+
+    for (let recul = 3; recul >= 1; recul--) {
+      const mois = decaler(p, -recul);
+      db[`household/periods/${mois}/variableCharges/n`] = {
+        description: 'Netflix', amount: 13.49, category: 'Loisirs',
+        paidBy: 'vous', date: `${mois}-04`, deleted: false
+      };
+      db[`household/periods/${mois}/fixedCharges/l`] = {
+        description: 'Loyer', amount: 950, category: 'Maison',
+        paidBy: 'vous', date: `${mois}-05`, deleted: false
+      };
+    }
+    return db;
+  }
+
+  test('la carte donne le mois et l\'année, sans répéter les charges fixes', async ({ page }) => {
+    await ouvrir(page, abonnements());
+
+    const veille = page.locator('.summary-veille');
+    await expect(veille).toBeVisible();
+    await expect(veille).toContainText('Netflix');
+    await expect(veille).toContainText('161.88');          // 13,49 × 12
+    // Le panneau des charges fixes porte déjà le loyer : le répéter serait du bruit.
+    await expect(veille).not.toContainText('Loyer');
+  });
+});

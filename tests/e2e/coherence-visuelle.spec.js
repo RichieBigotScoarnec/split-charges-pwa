@@ -107,12 +107,28 @@ for (const { nom, viewport } of LARGEURS) {
             return s.position === 'fixed' || s.position === 'sticky';
           };
 
+          // Une commande rangée dans un dépliant FERMÉ n'est pas à l'écran.
+          //
+          // Chromium ne lui donne pas pour autant un rectangle nul : un
+          // `<details>` replié masque son contenu par `content-visibility`, et
+          // `getBoundingClientRect` continue d'y répondre. Le filtre de taille
+          // ne suffit donc pas.
+          //
+          // Le trou est resté invisible tant que « Voir le détail » ne
+          // contenait que des `<div>` : ce contrôle ne collecte que des
+          // commandes, et une division n'en est pas une. Le jour où ces lignes
+          // sont devenues cliquables — donc des boutons —, elles ont été
+          // comptées comme superposées au panneau des budgets, qui occupe
+          // réellement ces pixels. Aucun défaut de disposition : un défaut de
+          // définition de « visible ».
+          const replie = (el) => el.closest('details:not([open])') !== null;
+
           const commandes = [...document.querySelectorAll('button, a[href], select, input:not([type="hidden"])')]
             .filter((el) => {
               const r = el.getBoundingClientRect();
               const s = getComputedStyle(el);
               return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.opacity !== '0'
-                && r.bottom > 0 && r.top < window.innerHeight && !flottant(el);
+                && r.bottom > 0 && r.top < window.innerHeight && !flottant(el) && !replie(el);
             });
 
           const resultats = [];

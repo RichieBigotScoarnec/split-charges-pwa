@@ -1094,3 +1094,58 @@
 .veille-reste .veille-liste {
   margin-top: var(--space-xs);
 }
+
+/*
+   Une ligne du bilan qui ouvre son détail
+
+   Un bouton, et non une division cliquable : la commande est alors atteignable
+   au clavier et annoncée comme telle. Reste à lui retirer l'apparence de bouton
+   que le navigateur lui donne, et à lui rendre celle de la ligne qu'elle était.
+*/
+.summary-row--ouvrable {
+  /*
+     Pas de `width: 100%`. `.summary-row` déborde de son conteneur par une
+     marge négative de part et d'autre, et compte sur `width: auto` pour le
+     faire symétriquement. Fixer la largeur sur-contraint l'équation
+     `marge gauche + largeur + marge droite = largeur du conteneur` : le
+     navigateur recalcule alors la marge droite, et le bouton s'arrête 16 px
+     avant le bord que les lignes voisines atteignent. Les montants des lignes
+     « a payé » ne s'alignaient plus sur ceux du reste du bilan.
+  */
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* La cible tactile que toute action de cette application respecte. */
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration) var(--ease);
+}
+
+.summary-row--ouvrable:hover,
+.summary-row--ouvrable:focus-visible {
+  background: var(--primary-soft);
+}
+
+/*
+   Le chevron dit que la ligne mène quelque part. Sans lui, rien ne distingue
+   une ligne qui s'ouvre d'une ligne qui informe, et personne n'essaie.
+*/
+.summary-row--ouvrable > span::after {
+  content: " ›";
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/*
+   L'entrée du rapport : sous le détail, jamais au-dessus du solde.
+   Le premier écran appartient au chiffre qu'on vient chercher ; le rapport se
+   consulte une fois le mois écoulé, pas à chaque ouverture.
+*/
+.rapport-ouvrir {
+  width: 100%;
+  margin-top: var(--space-md);
+  min-height: 44px;
+}

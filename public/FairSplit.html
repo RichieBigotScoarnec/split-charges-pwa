@@ -408,6 +408,10 @@
         <span>Total des charges fixes</span>
         <strong id="fixedChargesTotal">—</strong>
       </div>
+      <!-- Un loyer se lit par mois, un abonnement se comprend par an : 9,99 €
+           ne se remarquent jamais, 119,88 € se discutent. Rempli par
+           `modules/fixed-charges.js`, vide s'il n'y a rien à dire. -->
+      <p class="list-annuel" id="fixedChargesAnnuel" hidden></p>
     </div>
     </section>
 
@@ -720,6 +724,11 @@
           <select id="variableChargeCategory" required>
             <option value="">-- Sélectionner --</option>
           </select>
+          <!-- Ce que l'application a proposé, et sur quoi elle se fonde. Une
+               catégorie qui se pose toute seule sans un mot se lit comme un
+               bogue ; dire d'où elle vient la rend corrigeable. Rempli par
+               `modules/variable-charges.js`, vide le reste du temps. -->
+          <p class="form-hint form-hint--proposee" id="variableChargeCategoryHint" hidden></p>
         </div>
 
         <!-- Le lieu ne s'écrivait que par le GPS, au moment de la saisie rapide.

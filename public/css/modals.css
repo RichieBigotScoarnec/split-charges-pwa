@@ -1480,3 +1480,229 @@
   color: var(--text-secondary);
   line-height: 1.6;
 }
+
+/* ===== LE DÉTAIL DERRIÈRE UN CHIFFRE DU BILAN ===== */
+/*
+   Même langage visuel que la vue d'enveloppe, qui répond à la même question
+   pour un autre critère : un titre, un total, les dépenses qui le composent.
+*/
+.detail-total {
+  text-align: center;
+  padding: var(--space-md) 0 var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-md);
+}
+
+.detail-total-montant {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-total-info {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.detail-lignes {
+  max-height: 55vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detail-ligne {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "titre montant"
+    "info  montant";
+  gap: 2px var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.detail-ligne-titre {
+  grid-area: titre;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.detail-ligne-info {
+  grid-area: info;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.detail-ligne-montant {
+  grid-area: montant;
+  align-self: center;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/*
+   Une charge partagée n'entre dans le total du payeur que pour la part qu'il a
+   avancée. Le taire ferait une liste dont les montants ne s'additionnent pas
+   jusqu'à son propre total — et c'est le total qu'on mettrait en doute.
+*/
+.detail-part {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: normal;
+}
+
+/* ===== LE MOIS ÉCOULÉ, EN UNE PAGE ===== */
+/*
+   Un rapport se PARCOURT : on cherche d'abord si le mois est ordinaire, et
+   seulement ensuite pourquoi il ne l'est pas. La hiérarchie suit cet ordre —
+   le total, la comparaison, le solde, puis les trois chiffres qui l'expliquent.
+
+   Chaque case peut manquer, et disparaît alors de la grille : `auto-fit` la
+   referme au lieu de laisser un trou.
+*/
+.rapport-tete {
+  text-align: center;
+  padding: var(--space-md) 0 var(--space-md);
+}
+
+.rapport-total {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.rapport-total-info {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.rapport-comparaison {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  margin-bottom: var(--space-sm);
+}
+
+.rapport-comparaison--hausse {
+  background: var(--warning-soft);
+  border-color: var(--warning-edge);
+}
+
+.rapport-comparaison--baisse {
+  background: var(--success-soft);
+  border-color: var(--success-edge);
+}
+
+.rapport-comparaison-phrase {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/*
+   Le fondement du chiffre, toujours affiché : un repère dont on ignore d'où il
+   sort se lit comme un budget imposé par l'application.
+*/
+.rapport-comparaison-fonde,
+.rapport-bouge-fonde {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rapport-comparaison--muette {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.rapport-solde {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.rapport-solde--regle {
+  color: var(--success-color);
+}
+
+.rapport-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.rapport-case {
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  text-align: center;
+}
+
+.rapport-case-valeur {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rapport-case-etiquette {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.rapport-case-precision {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rapport-bloc-titre {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-xs);
+}
+
+.rapport-bouge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.rapport-bouge--hausse { color: var(--danger-color); }
+.rapport-bouge--baisse { color: var(--success-color); }
+
+.rapport-bouge strong { color: var(--text-primary); }
+
+.rapport-bouge-fonde {
+  flex-basis: 100%;
+}

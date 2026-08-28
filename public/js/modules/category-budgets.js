@@ -62,7 +62,15 @@ function el(tag, className, text) {
  * @returns {HTMLElement} La ligne prête à insérer
  */
 function renderLigne(ligne) {
-  const bloc = el('div', `budget-row budget-${ligne.status}`);
+  // Un bouton, et non une division : la ligne ouvre le détail des dépenses de
+  // la catégorie. Le rendre atteignable au clavier et annoncé comme une
+  // commande vaut mieux qu'un `role` posé sur un élément qui n'en est pas une.
+  const bloc = el('button', `budget-row budget-${ligne.status} budget-row--ouvrable`);
+  bloc.type = 'button';
+  bloc.dataset.action = 'ouvrirDetailCategorie';
+  // Par propriété et non par attribut : un nom de catégorie peut contenir des
+  // guillemets, et il ne transite ici par aucune analyse HTML.
+  bloc.dataset.arg = ligne.category;
 
   const entete = el('div', 'budget-row-header');
   entete.appendChild(el('span', 'budget-row-name', ligne.category));

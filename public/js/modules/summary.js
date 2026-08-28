@@ -10,8 +10,9 @@ import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
 import { anticiper } from '../utils/anticipation.js';
+import { rapportDuMois } from '../utils/rapport-mensuel.js';
 import { chargesDeLEnveloppeTousMois, totalEnveloppe } from '../utils/enveloppes.js';
-import { jourEtMois } from '../utils/date.js';
+import { jourEtMois, getCurrentPeriod } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
@@ -65,6 +66,10 @@ export function calculateSummary({ historique } = {}) {
     // Le solde publié dans l'état sert aux rappels, qui ne peuvent pas
     // importer ce module sans créer un cycle.
     setState('dernierSolde', 0);
+    // Sans bilan, pas de rapport — et surtout pas celui du mois précédent, que
+    // l'état porterait encore. Le bouton n'est de toute façon pas rendu sur ce
+    // chemin, mais un état périmé finit toujours par trouver un lecteur.
+    setState('rapportDuMois', null);
 
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
@@ -102,6 +107,7 @@ export function calculateSummary({ historique } = {}) {
   renderSummary({
     previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
     observations: observationsDuMois(historique),
+    rapport: rapportDuMoisAffiche(historique, summary, salaries),
     totalCharges: summary.total,
     yourTheoricalShare: summary.yourShare,
     partnerTheoricalShare: summary.partnerShare,
@@ -120,6 +126,109 @@ export function calculateSummary({ historique } = {}) {
     partnerShare: summary.partnerShare,
     balance: summary.balance
   };
+}
+
+/**
+ * L'historique sur lequel le rapport peut se fonder
+ *
+ * `calculateSummary` est appelée depuis treize endroits, et deux seulement lui
+ * passent un instantané : le chargement du mois et le règlement du solde. Tous
+ * les autres suivent une ÉCRITURE — ajouter une charge, en corriger une, vider
+ * la corbeille. Sans cette fabrique, le bouton « Le mois en un coup d'œil »
+ * paraissait à l'ouverture puis disparaissait à la première saisie, et ne
+ * revenait qu'au changement de mois. Une commande qui va et vient s'apprend
+ * comme une commande à laquelle on ne peut pas se fier.
+ *
+ * Recharger `periods` à chaque rendu était exclu : quatre lectures du nœud
+ * entier par ouverture représentaient 96 % de ce que l'application téléchargeait
+ * — c'est très exactement ce qu'on vient de corriger.
+ *
+ * Ce qui est conservé est donc le seul historique, celui des mois RÉVOLUS, que
+ * la saisie en cours ne touche jamais. Le mois affiché, lui, est reconstruit à
+ * chaque appel depuis l'état vivant : les charges qu'on vient d'écrire. Aucun
+ * chiffre périmé ne peut donc entrer dans le rapport — ce qui change est relu,
+ * ce qui est conservé ne change pas.
+ *
+ * @param {Object} [historique] - Instantané frais, quand l'appelant en a un
+ * @returns {Object|null} Nœud `periods` utilisable, ou `null`
+ */
+function historiqueUtilisable(historique) {
+  if (historique && typeof historique === 'object') {
+    // Un instantané frais fait toujours autorité, et devient la référence des
+    // rendus qui suivront cette écriture.
+    setState('historiquePourLeRapport', historique);
+    return historique;
+  }
+
+  const conserve = getState('historiquePourLeRapport');
+  if (!conserve || typeof conserve !== 'object') return null;
+
+  const mois = getState('currentPeriod');
+  if (!mois) return null;
+
+  const parIdentifiant = (charges) => Object.fromEntries(
+    (Array.isArray(charges) ? charges : [])
+      .filter(charge => charge && charge.id)
+      .map(charge => [charge.id, charge])
+  );
+
+  return {
+    ...conserve,
+    [mois]: {
+      ...(conserve[mois] || {}),
+      salaries: getState('salaries') || (conserve[mois] || {}).salaries,
+      fixedCharges: parIdentifiant(getState('fixedCharges')),
+      variableCharges: parIdentifiant(getState('variableCharges'))
+    }
+  };
+}
+
+/**
+ * Le rapport du mois, déposé dans l'état pour la modale qui l'ouvrira
+ *
+ * Le bilan est passé tel quel : ce module ne réadditionne rien. C'est la même
+ * règle que partout ailleurs ici — un second calcul du même nombre finit par
+ * diverger du premier, et l'écran se met alors à expliquer un chiffre qu'il
+ * n'affiche pas.
+ *
+ * L'historique est OPTIONNEL, comme pour la veille : sans lui il n'y a ni mois
+ * ordinaire ni catégorie qui a bougé, c'est-à-dire presque rien à dire. Le
+ * rapport vaut alors `null` et le bouton n'est pas rendu — plutôt qu'un bouton
+ * qui ouvre une page à moitié vide.
+ *
+ * @param {Object} [historique] - Nœud `periods`, lu dans le même geste
+ * @param {Object} bilan - Sortie de `computeSummary` pour le mois affiché
+ * @param {Object} salaries - Instantané de revenus du mois
+ * @returns {Object|null}
+ */
+function rapportDuMoisAffiche(historique, bilan, salaries) {
+  const periods = historiqueUtilisable(historique);
+
+  if (!periods) {
+    setState('rapportDuMois', null);
+    return null;
+  }
+
+  try {
+    const rapport = rapportDuMois({
+      periods,
+      mois: getState('currentPeriod'),
+      // Le mois du calendrier : c'est lui qui dit si le mois rapporté est
+      // encore en cours, donc incomplet, donc incomparable à des mois entiers.
+      moisReel: getCurrentPeriod(),
+      bilan,
+      salaries
+    });
+
+    setState('rapportDuMois', rapport);
+    return rapport;
+  } catch (erreur) {
+    // Un rapport n'est jamais indispensable : son échec ne doit pas emporter le
+    // bilan, qui, lui, l'est.
+    warn('⚠️ Rapport du mois indisponible :', erreur);
+    setState('rapportDuMois', null);
+    return null;
+  }
 }
 
 /**
@@ -159,6 +268,11 @@ function observationsDuMois(historique) {
       listeEnveloppes: getState('envelopes') || [],
       periods: historique,
       moisCourant: getState('currentPeriod'),
+      // Le mois du CALENDRIER, distinct de celui du sélecteur. Le jour et la
+      // durée qui suivent viennent de l'horloge : sans ce rapprochement, la
+      // projection du mois s'appliquerait au mois affiché quel qu'il soit, et
+      // prévoirait la fin d'un mois clos depuis trois mois.
+      moisReel: getCurrentPeriod(),
       jourDuMois: aujourdhui.getDate(),
       joursDuMois: new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() + 1, 0).getDate()
     });
@@ -281,6 +395,7 @@ function renderSummary(summary) {
   const {
     previsionnel,
     observations,
+    rapport,
     totalCharges,
     yourTheoricalShare,
     partnerTheoricalShare,
@@ -391,14 +506,16 @@ function renderSummary(summary) {
         <div class="summary-divider"></div>
 
         <div class="summary-section-label">Paiements réels</div>
-        <div class="summary-row">
+        <button type="button" class="summary-row summary-row--ouvrable"
+                data-action="ouvrirDetailPayeur" data-arg="vous">
           <span>${escapeHtml(nomVous)} a payé</span>
           <strong>${formatCurrency(yourActualPayments)}</strong>
-        </div>
-        <div class="summary-row">
+        </button>
+        <button type="button" class="summary-row summary-row--ouvrable"
+                data-action="ouvrirDetailPayeur" data-arg="conjointe">
           <span>${escapeHtml(memberLabel('conjointe', getState('members')))} a payé</span>
           <strong>${formatCurrency(partnerActualPayments)}</strong>
-        </div>
+        </button>
 
         ${reimbursementAdjustment !== 0 ? `
           <div class="summary-divider"></div>
@@ -408,6 +525,12 @@ function renderSummary(summary) {
           </div>
         ` : ''}
       </details>
+
+      ${rapport && !rapport.vide
+        ? `<button type="button" class="btn btn-secondary rapport-ouvrir" data-action="ouvrirRapportDuMois">
+             📄 Le mois en un coup d'œil
+           </button>`
+        : ''}
     </div>
 
     ${renderBudgetGauge(totalCharges)}

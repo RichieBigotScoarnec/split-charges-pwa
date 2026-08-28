@@ -39,7 +39,7 @@ const CLE_MOIS = /^(\d{4})-(0[1-9]|1[0-2])$/;
  * pas un. En dessous de ce seuil, l'application se tait plutôt que d'alerter
  * sur du bruit.
  */
-const JOURS_AVANT_DE_JUGER = 5;
+export const JOURS_AVANT_DE_JUGER = 5;
 
 /**
  * Sur combien de mois on cherche une charge devenue absente

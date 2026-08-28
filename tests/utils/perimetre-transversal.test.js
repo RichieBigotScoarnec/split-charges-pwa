@@ -29,6 +29,10 @@ import {
   computeBalanceChain
 } from '../../public/js/utils/calculations.js';
 import { previsionnelDuMois } from '../../public/js/utils/previsionnel.js';
+import { coutDesChargesFixes } from '../../public/js/utils/cout-annuel.js';
+import { detailDuPayeur, detailDeLaCategorie } from '../../public/js/utils/detail.js';
+import { rapportDuMois } from '../../public/js/utils/rapport-mensuel.js';
+import { rythmeDuMois } from '../../public/js/utils/anticipation.js';
 
 /** Un foyer ordinaire : salaires inégaux, prorata, une charge de chaque sorte */
 const SALAIRES = { vous: 2000, conjointe: 3000 };
@@ -56,6 +60,12 @@ const SOLOS = [
   { id: 's3', description: 'Livre', amount: 22, paidBy: 'vous', perimetre: 'solo', category: 'Loisirs', date: '2026-08-31' },
   { id: 's4', description: 'Solo sans propriétaire', amount: 500, paidBy: 'partage', perimetre: 'solo', category: 'Loisirs', destination: 'Compte joint', date: '2026-08-20' }
 ];
+
+/** Trois mois révolus identiques, pour que la projection ait un repère */
+const MOIS_ORDINAIRE = {
+  salaries: SALAIRES,
+  variableCharges: { v1: { description: 'Vie', amount: 300, paidBy: 'vous' } }
+};
 
 /**
  * Chaque fonction d'argent, appelée deux fois : sans les solo, puis avec.
@@ -90,6 +100,49 @@ const FONCTIONS = [
       fixedCharges: fixes,
       variableCharges: variables,
       aujourdhui: '2026-08-27'
+    })
+  },
+  {
+    nom: 'coutDesChargesFixes — ce que le fixe coûte à l\'année',
+    appel: (fixes) => coutDesChargesFixes(fixes)
+  },
+  {
+    nom: 'detailDuPayeur — ce que chacun a réellement avancé',
+    appel: (fixes, variables) => detailDuPayeur({
+      fixedCharges: fixes, variableCharges: variables, qui: 'vous',
+      shareMode: 'prorata', salaries: SALAIRES, customPercents: { vous: 50, conjointe: 50 }
+    })
+  },
+  {
+    nom: 'detailDeLaCategorie — ce qu\'une catégorie contient',
+    appel: (fixes, variables) => detailDeLaCategorie({
+      fixedCharges: fixes, variableCharges: variables, categorie: 'Loisirs',
+      shareMode: 'prorata', salaries: SALAIRES, customPercents: { vous: 50, conjointe: 50 }
+    })
+  },
+  {
+    nom: 'rapportDuMois — le mois en une page',
+    appel: (fixes, variables) => rapportDuMois({
+      periods: { '2026-08': {
+        salaries: SALAIRES,
+        fixedCharges: Object.fromEntries(fixes.map(c => [c.id, c])),
+        variableCharges: Object.fromEntries(variables.map(c => [c.id, c]))
+      } },
+      mois: '2026-08', bilan: null, salaries: SALAIRES
+    })
+  },
+  {
+    nom: 'rythmeDuMois — à ce rythme, combien coûtera le mois',
+    appel: (fixes, variables) => rythmeDuMois({
+      periods: {
+        '2026-05': MOIS_ORDINAIRE, '2026-06': MOIS_ORDINAIRE, '2026-07': MOIS_ORDINAIRE,
+        '2026-08': {
+          salaries: SALAIRES,
+          fixedCharges: Object.fromEntries(fixes.map(c => [c.id, c])),
+          variableCharges: Object.fromEntries(variables.map(c => [c.id, c]))
+        }
+      },
+      moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31
     })
   }
 ];

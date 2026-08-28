@@ -19,6 +19,8 @@ import { parseMontant } from '../utils/montant.js';
 import { listePeriodes } from '../utils/periodes.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { activerOnglet } from '../utils/onglets.js';
+import { apprendre } from '../utils/memoire-libelle.js';
+import { haussesDepuisLAnDernier } from '../utils/cout-annuel.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -229,6 +231,17 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
 
     const salaries = appliquerLesTermesDuMois(moisAffiche, globalSalaries);
 
+    // Ce que le foyer range où, appris de son propre historique. Construit sur
+    // l'instantané que ce geste a DÉJÀ lu : aucune lecture supplémentaire.
+    setState('memoireLibelles', apprendre(instantane));
+
+    // Ce qui a augmenté depuis l'an dernier — même instantané, aucune lecture
+    // de plus. `null` tant que le mois d'il y a un an manque : on ne compare
+    // pas à ce qu'on n'a pas.
+    setState('haussesChargesFixes', haussesDepuisLAnDernier({
+      periods: instantane, moisCourant: currentPeriod
+    }));
+
     // Les quatre champs de revenus reprennent l'instantané du mois affiché.
     restoreIncomeFields();
 
@@ -269,7 +282,39 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     // qu'elle reçoit est donc le dernier à pouvoir l'être. Ce qui la suit —
     // `chargerLesPeriodesConnues` — en tient compte.
     const { applyRecurringCharges } = await import('./reconduction.js');
-    await applyRecurringCharges({ historique: instantane });
+    const reconduites = await applyRecurringCharges({ historique: instantane });
+
+    // La comparaison à l'an dernier a été calculée AVANT la reconduction, sur
+    // un mois qui ne portait encore aucune charge fixe : elle rendait donc
+    // `null`, et « 2 ont augmenté depuis l'an dernier » ne paraissait jamais à
+    // la PREMIÈRE ouverture d'un mois — précisément celle où le foyer découvre
+    // ses charges reconduites.
+    //
+    // Elle est refaite ici sur le mois désormais rempli, et seulement s'il
+    // s'est passé quelque chose. Aucune lecture de plus : les charges viennent
+    // de l'état que `loadFixedCharges` vient de rafraîchir, le reste de
+    // l'instantané est celui du geste.
+    if (reconduites > 0) {
+      const parIdentifiant = Object.fromEntries(
+        (getState('fixedCharges') || [])
+          .filter(charge => charge && charge.id)
+          .map(charge => [charge.id, charge])
+      );
+
+      setState('haussesChargesFixes', haussesDepuisLAnDernier({
+        periods: {
+          ...instantane,
+          [currentPeriod]: {
+            ...(instantane[currentPeriod] || {}),
+            fixedCharges: parIdentifiant
+          }
+        },
+        moisCourant: currentPeriod
+      }));
+
+      const { renderFixedCharges } = await import('./fixed-charges.js');
+      renderFixedCharges();
+    }
 
     log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
 

@@ -27,6 +27,7 @@ import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+import { categorieProposee } from '../utils/memoire-libelle.js';
 import { estSolo, totauxParPerimetre, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 
 /**
@@ -41,6 +42,9 @@ export function showAddVariableChargeModal() {
 
   if (chargeIdEl) chargeIdEl.value = '';
   if (formEl) formEl.reset();
+
+  // Formulaire vierge : les propositions de catégorie reprennent.
+  reinitialiserLaProposition(false);
 
   // Repeuplée à l'ouverture : une enveloppe créée depuis le début de la session
   // doit être proposée sans avoir à recharger l'application.
@@ -99,6 +103,109 @@ function accorderModaleVariable(edition) {
   if (bouton) bouton.textContent = edition ? 'Enregistrer' : 'Ajouter';
 }
 
+/**
+ * La catégorie du formulaire a-t-elle été choisie à la main ?
+ *
+ * Tant que non, l'application peut proposer. Dès que l'utilisateur touche au
+ * sélecteur, elle se tait pour cette saisie : reposer une proposition sur un
+ * choix explicite, ce serait le défaire — et personne ne verrait pourquoi.
+ *
+ * Remis à faux à chaque ouverture du formulaire, et posé à vrai à l'édition
+ * d'une charge : celle-là porte déjà la catégorie que le foyer lui a donnée.
+ */
+let _categorieChoisie = false;
+
+/**
+ * Écarte la proposition et cesse d'en faire pour cette saisie
+ * @returns {void}
+ */
+function oublierLaProposition() {
+  const indice = document.getElementById('variableChargeCategoryHint');
+  if (indice) {
+    indice.hidden = true;
+    indice.textContent = '';
+  }
+}
+
+/**
+ * Rouvre la porte aux propositions — à l'ouverture d'un formulaire vierge
+ * @param {boolean} [dejaRenseignee] - Vrai à l'édition d'une charge existante
+ * @returns {void}
+ */
+function reinitialiserLaProposition(dejaRenseignee = false) {
+  _categorieChoisie = dejaRenseignee;
+  oublierLaProposition();
+}
+
+/**
+ * Propose la catégorie que le libellé appelle, s'il en appelle une
+ *
+ * L'application ne devine pas : elle relit ce que le foyer a lui-même saisi.
+ * Et elle le DIT — une catégorie qui se pose toute seule sans un mot se lit
+ * comme un bogue, là où « d'après vos 4 saisies » se corrige d'un geste.
+ *
+ * @returns {void}
+ */
+function proposerLaCategorie() {
+  const champ = document.getElementById('variableChargeDescription');
+  const select = document.getElementById('variableChargeCategory');
+  const indice = document.getElementById('variableChargeCategoryHint');
+  if (!champ || !select) return;
+
+  if (_categorieChoisie) return;
+
+  const vu = categorieProposee(champ.value, getState('memoireLibelles'));
+  if (!vu) {
+    // La proposition précédente ne vaut plus : le libellé a changé.
+    //
+    // La garde était `if (!select.value)`, c'est-à-dire l'inverse de son
+    // intention : une proposition posée REMPLIT le sélecteur, donc elle ne
+    // s'effaçait jamais. Écrire « Intermarché » puis le remplacer par « Cinéma »
+    // laissait « Courses » en place, avec l'indice « d'après vos 2 saisies de ce
+    // libellé » — une justification portant sur un libellé qui n'est plus là.
+    //
+    // La catégorie n'est retirée QUE si l'indice est visible, c'est-à-dire si
+    // c'est bien l'application qui l'a posée. `_categorieChoisie` protège déjà
+    // du choix manuel ; ceci protège de la charge qu'on vient de rouvrir, dont
+    // la catégorie vient de la base et non d'une proposition.
+    const indiceVisible = indice && !indice.hidden;
+    if (indiceVisible) select.value = '';
+    oublierLaProposition();
+    return;
+  }
+
+  // Une catégorie supprimée depuis reste dans l'historique : la proposer
+  // poserait une valeur que le sélecteur ne porte pas, donc rien du tout.
+  const existe = [...select.options].some(option => option.value === vu.categorie);
+  if (!existe) return;
+
+  select.value = vu.categorie;
+
+  if (indice) {
+    indice.textContent = vu.exact
+      ? `Proposée d'après vos ${vu.saisies} saisies de ce libellé`
+      : `Proposée d'après ${vu.saisies} saisies commençant ainsi`;
+    indice.hidden = false;
+  }
+}
+
+/**
+ * Branche la proposition de catégorie sur le formulaire complet
+ * @returns {void}
+ */
+function brancherLaProposition() {
+  const champ = document.getElementById('variableChargeDescription');
+  if (champ) ecouterUneFois(champ, 'input', proposerLaCategorie);
+
+  const select = document.getElementById('variableChargeCategory');
+  if (select) {
+    ecouterUneFois(select, 'change', () => {
+      _categorieChoisie = true;
+      oublierLaProposition();
+    });
+  }
+}
+
 export function initVariableCharges() {
   log('📦 Initialisation module charges variables');
 
@@ -118,6 +225,8 @@ export function initVariableCharges() {
   if (saveBtn) {
     ecouterUneFois(saveBtn, 'click', saveVariableCharge);
   }
+
+  brancherLaProposition();
 
   // Avant tout remplissage, comme les deux écouteurs ci-dessus : si
   // `populateCategorySelect` lève, `runStep` rattrape l'étape entière et le
@@ -419,6 +528,11 @@ export function editVariableCharge(chargeId) {
     toast.error('Charge introuvable');
     return;
   }
+
+  // Une charge rouverte porte DÉJÀ la catégorie que le foyer lui a donnée :
+  // la remplacer par une proposition défairait un choix explicite, et sur une
+  // simple correction de libellé personne ne verrait pourquoi.
+  reinitialiserLaProposition(true);
 
   // Pré-remplir le formulaire
   document.getElementById('variableChargeId').value = charge.id;
