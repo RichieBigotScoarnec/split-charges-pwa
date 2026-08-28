@@ -5,7 +5,7 @@ import { getState, setState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
-import { computeSummary, exigeLesSalaires, computeVirementsByDestination } from '../utils/calculations.js';
+import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolveShareMode, resolvePercents } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
@@ -34,8 +34,17 @@ export function calculateSummary() {
   const fixedCharges = getState('fixedCharges') || [];
   const variableCharges = getState('variableCharges') || [];
   const reimbursements = getState('reimbursements') || [];
-  const shareMode = getState('shareMode') || 'prorata';
-  const customPercents = getState('customPercents') || { vous: 50, conjointe: 50 };
+  // Le mois affiché peut avoir figé son mode (reconduction) : c'est celui-là
+  // qui décide, exactement comme dans `computeBalanceChain`. Même fabrique des
+  // deux côtés — sans quoi l'écran et le report annoncent deux chiffres pour
+  // le même mois.
+  const shareMode = resolveShareMode(getState('shareModeDuMois'), getState('shareMode'));
+  // Les pourcentages figés du mois, s'il en a. Figer le mode sans ses
+  // paramètres ne protégeait rien sur « custom », le seul mode qui en porte.
+  const customPercents = resolvePercents(
+    getState('customPercentsDuMois'),
+    getState('customPercents') || { vous: 50, conjointe: 50 }
+  );
 
   // Le prorata porte sur l'ensemble des revenus, salaires et revenus
   // complémentaires confondus : c'est cette assiette qui décide des parts.

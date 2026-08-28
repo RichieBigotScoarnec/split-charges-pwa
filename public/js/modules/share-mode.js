@@ -41,10 +41,40 @@ export function selectShareMode(mode) {
 
   saveShareMode();
 
-  // Recalculate summary
-  calculateSummary();
+  // Le report AVANT le bilan : il dépend du mode, lui aussi.
+  recalculerApresChangementDeMode();
 
   log(`💰 Mode de partage : ${mode}`);
+}
+
+/**
+ * Recalcule ce que le changement de mode invalide — le report, puis le bilan
+ *
+ * `calculateSummary()` lit `getState('carryOver')`, une valeur produite par
+ * `computeBalanceChain` **sous l'ancien mode**. Changer de mode recalculait donc
+ * le mois affiché mais laissait son report tel quel : le solde mêlait deux
+ * modes de partage.
+ *
+ * Mesuré — deux mois à 900 € payés par « vous », salaires 3 000/1 000, passage
+ * du prorata au 50-50 : l'écran annonçait 675 € là où la chaîne recalculée
+ * donne 900 €. 225 € d'écart, sans un mot, jusqu'au prochain changement de mois
+ * ou rechargement de l'application.
+ *
+ * L'ordre compte : le report d'abord, le bilan ensuite. L'inverse afficherait
+ * brièvement le solde faux avant de le corriger.
+ *
+ * @returns {Promise<void>}
+ */
+async function recalculerApresChangementDeMode() {
+  try {
+    const { refreshCarryOver } = await import('./carry-over.js');
+    await refreshCarryOver();
+  } catch (error) {
+    // Un report indisponible ne doit pas priver du bilan : `refreshCarryOver`
+    // retombe déjà sur zéro et le journalise. On rend la main au bilan.
+    logError('❌ Report non recalculé après changement de mode :', error);
+  }
+  calculateSummary();
 }
 
 /**
@@ -73,8 +103,9 @@ export function validateCustomPercents() {
 
     saveShareMode();
 
-    // Recalculate summary
-    calculateSummary();
+    // Même raison qu'au-dessus : les pourcentages entrent dans le calcul du
+    // report exactement comme le mode.
+    recalculerApresChangementDeMode();
   } else {
     validationEl.textContent = `Total: ${total}% (doit être 100%)`;
     validationEl.className = 'share-mode-validation invalid';

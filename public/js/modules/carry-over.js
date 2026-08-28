@@ -98,9 +98,15 @@ export async function toggleCarryOver() {
  * le recalculer au changement de période, pas à chaque charge ajoutée. Une
  * seule lecture suffit — le nœud `periods` porte l'historique complet.
  *
+ * @param {Object} [options]
+ * @param {Object} [options.historique] - Le nœud `periods` lu dans la MÊME
+ *   séquence. Toute autre provenance — un cache, `state.js`, la lecture d'un
+ *   autre écran — est un défaut : la chaîne se calculerait sur un historique
+ *   périmé, et le solde serait faux tout en se présentant comme juste.
+ * @param {Object} [options.salairesGlobaux] - Le nœud `salaries` déjà lu
  * @returns {Promise<number>} Le report appliqué, nul si la fonction est inactive
  */
-export async function refreshCarryOver() {
+export async function refreshCarryOver({ historique, salairesGlobaux } = {}) {
   if (!getState('carryOverEnabled')) {
     setState('carryOver', 0);
     return 0;
@@ -115,8 +121,8 @@ export async function refreshCarryOver() {
   try {
     const { dbGet } = await import('../db.js');
     const [periods, globalSalaries] = await Promise.all([
-      dbGet('periods'),
-      dbGet('salaries')
+      historique === undefined ? dbGet('periods') : Promise.resolve(historique),
+      salairesGlobaux === undefined ? dbGet('salaries') : Promise.resolve(salairesGlobaux)
     ]);
 
     const chain = computeBalanceChain(periods, {

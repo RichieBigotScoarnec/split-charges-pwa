@@ -104,9 +104,15 @@ jobs:
       - name: Envelopper au format FairSplit
         run: node tools/enveloppe-sauvegarde.mjs "$RUNNER_TEMP/vidage.json" "$RUNNER_TEMP/sauvegarde.json"
 
-      # Le dépôt est public : ses artefacts sont téléchargeables par qui peut le
-      # lire, c'est-à-dire tout le monde. Le contenu part donc chiffré. La phrase
-      # secrète passe par un fichier, jamais par la ligne de commande.
+      # Le contenu part chiffré, et le restera.
+      #
+      # Le dépôt est privé depuis le 2026-08-27, donc ses artefacts ne sont plus
+      # téléchargeables que par qui a accès au dépôt. Le chiffrement n'en devient
+      # pas facultatif pour autant : une archive de toutes les finances du foyer
+      # ne doit pas reposer sur un seul réglage de visibilité, qui se change d'un
+      # clic et s'est déjà trouvé dans l'autre position.
+      #
+      # La phrase secrète passe par un fichier, jamais par la ligne de commande.
       - name: Chiffrer
         env:
           PHRASE_SECRETE: ${{ secrets.SAUVEGARDE_PASSPHRASE }}

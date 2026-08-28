@@ -1,11 +1,10 @@
 // ===== MODULE : GRAPHIQUES DE TENDANCES =====
 // Fonctionnalités : visualisation évolution dépenses, comparaison périodes
 
-import { getFirebaseDatabase } from '../firebase-init.js';
 import { getState } from '../state.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { formatPeriod, getCurrentPeriod } from '../utils/date.js';
-import { resolveIncomeBase } from '../utils/salaries.js';
+import { resolveIncomeBase, resolveSalaries } from '../utils/salaries.js';
 import {
   mediane,
   ecartAuHabituel,
@@ -15,11 +14,8 @@ import {
   categorieQuiABouge
 } from '../utils/tendances.js';
 import { toast } from '../components/toast.js';
-import { getDataPath } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { estSolo } from '../utils/perimetre.js';
-
-let database = null;
 
 /**
  * Les trois séries du graphique, couleur et libellé
@@ -52,7 +48,6 @@ function jetonCss(nom, defaut) {
 export function initTrends() {
   log('📦 Initialisation module tendances');
 
-  database = getFirebaseDatabase();
   setupTrendsUI();
 
   log('✅ Module tendances initialisé');
@@ -119,13 +114,26 @@ export async function fetchHistoricalData(months = 6) {
   }
 
   try {
-    const snapshot = await database.ref(getDataPath('periods')).once('value');
+    // Par `dbGet`, et non par un appel direct au SDK.
+    //
+    // Cette lecture était la seule du dépôt à contourner `db.js`. Elle
+    // n'obtenait donc ni le miroir hors ligne, ni la file d'attente, ni surtout
+    // le délai de garde — et Realtime Database ne rejette pas une lecture émise
+    // hors réseau : il la met en file. La promesse restait en attente, aucun
+    // `catch` ne se déclenchait, et le panneau des tendances restait ouvert sur
+    // rien, indéfiniment. C'est exactement la panne que `db.js` documente
+    // longuement avoir corrigée partout ailleurs.
+    const { dbGet } = await import('../db.js');
+    const [allPeriods, salairesGlobaux] = await Promise.all([
+      dbGet('periods'),
+      // Le repli des mois sans instantané complet. Sans lui, ce module est la
+      // seule lecture d'argent du dépôt à ne pas passer par `resolveSalaries`.
+      dbGet('salaries')
+    ]);
 
-    if (!snapshot.exists()) {
+    if (!allPeriods || typeof allPeriods !== 'object') {
       return { periods: [], data: {} };
     }
-
-    const allPeriods = snapshot.val();
     // Mêmes clés que partout ailleurs : le nœud `periods` a hébergé des
     // écritures accidentelles (`periods/undefined`), que calculations.js écarte
     // déjà. Sans ce filtre, elles apparaissaient sur le graphique.
@@ -147,7 +155,19 @@ export async function fetchHistoricalData(months = 6) {
         fixedCharges: calculatePeriodTotal(periodData.fixedCharges),
         variableCharges: calculatePeriodTotal(periodData.variableCharges),
         reimbursements: calculatePeriodTotal(periodData.reimbursements),
-        salaries: periodData.salaries || { vous: 0, conjointe: 0 },
+        // `resolveSalaries`, et non l'instantané brut.
+        //
+        // C'était la seule lecture d'argent du dépôt à s'en passer. Un
+        // instantané partiel — une clé de revenu absente, ce qui arrive dès
+        // qu'on corrige un seul salaire — mettait les autres à zéro ici, alors
+        // que le bilan les fait retomber sur la valeur globale. Mesuré : le
+        // taux d'effort divisait par 2 600 € quand l'écran divisait par
+        // 4 400 €, et la carte annonçait « 2 600 € de revenus » en toutes
+        // lettres. Deux chiffres pour un même mois, dans la même application.
+        //
+        // C'est le jumeau exact du défaut `normalizePair`, et son remède est
+        // le même : une seule fabrique d'assiette.
+        salaries: resolveSalaries(periodData.salaries, salairesGlobaux).salaries,
         // Le détail par catégorie ne coûte rien : le nœud entier est déjà lu,
         // et il n'était jusqu'ici écrasé qu'en un total. C'est lui qui permet
         // de dire « Courses : +85 € » plutôt que « total +231 % ».

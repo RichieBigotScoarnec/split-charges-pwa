@@ -45,9 +45,12 @@ export function initReconduction() {
  * que les charges. Sans cette empreinte, supprimer une charge reconduite la
  * ferait réapparaître à la prochaine ouverture du mois.
  *
+ * @param {Object} [options]
+ * @param {Object} [options.historique] - Le nœud `periods` lu dans la MÊME
+ *   séquence. Omis, la fonction lit elle-même.
  * @returns {Promise<number>} Nombre de charges reconduites
  */
-export async function applyRecurringCharges() {
+export async function applyRecurringCharges({ historique } = {}) {
   // La référence est obtenue ici plutôt que d'être héritée d'initReconduction.
   // Celle-ci s'exécutait après le chargement du mois : `database` était encore
   // nulle au moment de l'appel, la fonction sortait sans rien dire, et la
@@ -62,7 +65,7 @@ export async function applyRecurringCharges() {
 
   try {
     const { dbGet } = await import('../db.js');
-    const periods = await dbGet('periods');
+    const periods = historique === undefined ? await dbGet('periods') : historique;
 
     const plan = planRecurrence({
       target,
@@ -145,6 +148,26 @@ export async function applyRecurringCharges() {
     const modeDuMois = getState('shareMode');
     if (modeDuMois) {
       updates[getDataPath(`periods/${target}/shareMode`)] = modeDuMois;
+
+      // Les pourcentages FONT PARTIE du mode « custom ».
+      //
+      // Figer le mode seul ne protégeait rien sur celui-là : les pourcentages
+      // restaient globaux, donc au présent. Passer de 70/30 à 60/40 « pour
+      // l'avenir » rouvrait un mois déjà soldé et remboursé — 100 € mesurés,
+      // reportés ensuite de mois en mois.
+      //
+      // Le prorata n'en a pas besoin (ses paramètres sont les salaires, que
+      // `backfillPeriodSalaries` fige déjà) et le 50-50 n'a rien à figer.
+      if (modeDuMois === 'custom') {
+        const parts = getState('customPercents');
+        const vous = Number(parts?.vous);
+        const conjointe = Number(parts?.conjointe);
+        // Les règles exigent une somme de 100 : une paire hors-somme serait
+        // refusée APRÈS le toast de succès, et rendrait l'empreinte.
+        if (Number.isFinite(vous) && Number.isFinite(conjointe) && vous + conjointe === 100) {
+          updates[getDataPath(`periods/${target}/customPercents`)] = { vous, conjointe };
+        }
+      }
     }
 
     // Rendre l'empreinte si la copie échoue.

@@ -420,11 +420,39 @@ async function initializeAppData() {
     initBackup();
   }, failures);
 
+  // L'historique, lu UNE fois pour toute l'initialisation.
+  //
+  // Quatre étapes en avaient besoin et le relisaient chacune : le complément
+  // des salaires, la chaîne de report, la reconduction et le sélecteur de mois.
+  // Mesuré à douze mois de données : 4 × 113 Ko, soit 96 % de tout ce que
+  // l'ouverture télécharge — et à cinq ans, 4 × 568 Ko.
+  //
+  // Rien n'est mis en cache : cette valeur vit dans cette fonction et disparaît
+  // avec elle. Il n'y a donc aucune règle d'invalidation à écrire ni à se
+  // rappeler. Chaque destinataire garde son paramètre OPTIONNEL : l'oublier
+  // coûte une lecture, jamais un chiffre faux.
+  let instantanePeriods;
+  let salairesGlobaux;
+
+  // Les trois listes du mois sont chargées par `loadPeriodData` ; les étapes
+  // suivantes les rechargeaient derrière lui. Ce drapeau les en dispense —
+  // sauf si l'étape a échoué, auquel cas le filet de `runStep` doit jouer et
+  // chacune se recharge d'elle-même.
+  let periodeChargee = false;
+
   await runStep('salaires de la période', async () => {
+    const { dbGet } = await import('../db.js');
+    [instantanePeriods, salairesGlobaux] = await Promise.all([
+      dbGet('periods'),
+      dbGet('salaries')
+    ]);
+
     // Fige les salaires des périodes antérieures aux instantanés, avant tout
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.
-    await backfillPeriodSalaries();
-    await loadPeriodData();
+    // Les mois complétés sont reportés dans `instantanePeriods`.
+    await backfillPeriodSalaries({ historique: instantanePeriods, salairesGlobaux });
+    await loadPeriodData({ historique: instantanePeriods, salairesGlobaux });
+    periodeChargee = true;
   }, failures);
 
   await runStep('mois disponibles', async () => {
@@ -432,22 +460,28 @@ async function initializeAppData() {
     // moyen de naviguer : au-delà d'un an, les données restaient en base sans
     // qu'aucun chemin ne puisse les afficher. Cette étape lui apprend ce que
     // la base contient réellement.
-    await chargerLesPeriodesConnues();
+    //
+    // `instantanePeriods` vaut `undefined` si l'étape amont a échoué : la
+    // fonction lit alors d'elle-même, et le sélecteur est peuplé quand même.
+    await chargerLesPeriodesConnues(instantanePeriods);
   }, failures);
 
   await runStep('charges variables', async () => {
     initVariableCharges();
-    await loadVariableCharges();
+    if (!periodeChargee)
+      await loadVariableCharges();
   }, failures);
 
   await runStep('charges fixes', async () => {
     initFixedCharges();
-    await loadFixedCharges();
+    if (!periodeChargee)
+      await loadFixedCharges();
   }, failures);
 
   await runStep('remboursements', async () => {
     initReimbursements();
-    await loadReimbursements();
+    if (!periodeChargee)
+      await loadReimbursements();
   }, failures);
 
   await runStep('bilan', () => {

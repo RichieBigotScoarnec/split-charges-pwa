@@ -193,7 +193,8 @@ export function analyserCsv(texte, { payeurParDefaut = null } = {}) {
   if (brutes.length < 2) return vide;
 
   const separateur = separateurDe(brutes[0]);
-  const colonnes = reconnaitreLesColonnes(decouperLigne(brutes[0], separateur));
+  const enTete = decouperLigne(brutes[0], separateur);
+  const colonnes = reconnaitreLesColonnes(enTete);
 
   // Sans ces deux-là, il n'y a pas de charge : un libellé et un montant.
   if (colonnes.description === undefined || colonnes.amount === undefined) {
@@ -207,6 +208,28 @@ export function analyserCsv(texte, { payeurParDefaut = null } = {}) {
   brutes.slice(1).forEach((brute, index) => {
     const numero = index + 2;                    // 1 pour l'en-tête, 1 pour l'humain
     const champs = decouperLigne(brute, separateur);
+
+    // Plus de champs que l'en-tête n'en déclare : la ligne est ambiguë.
+    //
+    // Le cas qui l'a révélé : un fichier séparé par des VIRGULES dont les
+    // montants sont eux aussi à virgule. « Courses,vous,84,30 » se découpe en
+    // quatre champs pour trois colonnes ; la colonne « Montant » attrape « 84 »,
+    // « 30 » tombe dans le vide, et 84,00 € part en base — sans rejet, sans
+    // avertissement, et l'aperçu affiche 84,00 € comme si de rien n'était.
+    // Trente centimes perdus par ligne, sur un relevé entier.
+    //
+    // On rejette plutôt que de deviner où couper : c'est le principe de cet
+    // écran, déjà tenu pour le payeur. Moins de champs reste accepté — une
+    // colonne finale vide est simplement omise par beaucoup de tableurs.
+    if (champs.length > enTete.length) {
+      rejets.push({
+        ligne: numero,
+        motif: `${champs.length} champs pour ${enTete.length} colonnes — séparateur « ${separateur} » ambigu, montant à virgule ?`,
+        contenu: brute.slice(0, 60)
+      });
+      return;
+    }
+
     const lire = (champ) => (colonnes[champ] === undefined ? '' : (champs[colonnes[champ]] || ''));
 
     const description = lire('description').slice(0, 100);

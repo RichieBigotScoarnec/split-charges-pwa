@@ -116,6 +116,62 @@ export function exigeLesSalaires(shareMode) {
   return shareMode !== '50-50' && shareMode !== 'custom';
 }
 
+/**
+ * Le mode de partage sous lequel un mois donné se calcule
+ *
+ * Un mois reconduit fige le mode qui lui a été appliqué (`reconduction.js`
+ * l'écrit dans la même écriture atomique que les charges). Changer le mode
+ * global pour l'avenir ne doit donc pas réécrire un mois déjà soldé.
+ *
+ * Cette fabrique existe parce que la règle était appliquée d'un seul côté.
+ * `computeBalanceChain` lisait bien `period.shareMode`, mais l'écran —
+ * `summary.js` — ne lisait que le mode global : sur un mois reconduit au
+ * prorata puis un passage du foyer au 50-50, le bilan affiché et la chaîne de
+ * report annonçaient deux chiffres différents pour le même mois.
+ *
+ * C'est le jumeau exact du défaut `normalizePair` corrigé juste en dessous :
+ * deux formules pour un même chiffre, donc deux réponses, et aucun écran ne
+ * les montrant côte à côte. Une seule fabrique, des deux côtés.
+ *
+ * @param {string|undefined} modeDuMois - `periods/{mois}/shareMode`, s'il existe
+ * @param {string|undefined} modeGlobal - Le réglage courant du foyer
+ * @returns {string} Le mode à appliquer à ce mois
+ */
+export function resolveShareMode(modeDuMois, modeGlobal) {
+  return modeDuMois || modeGlobal || 'prorata';
+}
+
+/**
+ * Les pourcentages sous lesquels un mois donné se calcule
+ *
+ * Jumelle de `resolveShareMode`, et elle existe parce que figer le mode ne
+ * suffisait pas : `custom` est le seul mode qui porte des **paramètres**, et
+ * ils restaient globaux, donc au présent.
+ *
+ * Le prorata n'a pas ce problème — ses paramètres sont les salaires, et
+ * `backfillPeriodSalaries` les fige par période depuis longtemps. Le 50-50 n'a
+ * rien à figer. Seul `custom` était resté à découvert.
+ *
+ * Mesuré : juillet reconduit en custom 70/30, loyer 1 000 € avancé par vous,
+ * remboursement de 300 € — le mois est soldé à 0 €. Le foyer passe à 60/40
+ * « pour l'avenir » : juillet ressuscite **100 € de dette**, reportés ensuite
+ * de mois en mois. Le mode était bien figé ; ses pourcentages, non.
+ *
+ * @param {Object|undefined} pourcentsDuMois - `periods/{mois}/customPercents`
+ * @param {Object|undefined} pourcentsGlobaux - Le réglage courant du foyer
+ * @returns {Object} Les pourcentages à appliquer à ce mois
+ */
+export function resolvePercents(pourcentsDuMois, pourcentsGlobaux) {
+  const vous = Number(pourcentsDuMois?.vous);
+  const conjointe = Number(pourcentsDuMois?.conjointe);
+
+  // Les deux, ou aucun : un instantané à moitié lisible n'est pas un instantané.
+  // C'est la leçon de `salaries.js`, où une clé absente mettait l'autre à zéro.
+  return (Number.isFinite(vous) && Number.isFinite(conjointe))
+    ? { vous, conjointe }
+    : pourcentsGlobaux;
+}
+
 export function computeSummary({ salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver = 0 }) {
   // Le prorata porte sur l'ensemble des revenus, pas sur le seul salaire :
   // allocations, loyers perçus et activité annexe font partie de ce dont
@@ -372,8 +428,11 @@ export function computeBalanceChain(periods, { shareMode, customPercents, global
       variableCharges: toEntries(period.variableCharges),
       reimbursements: toEntries(period.reimbursements),
       // Un mois peut avoir figé son propre mode de partage (reconduction).
-      shareMode: period.shareMode || shareMode,
-      customPercents
+      // Même fabrique que l'écran, pour qu'ils ne puissent plus diverger.
+      shareMode: resolveShareMode(period.shareMode, shareMode),
+      // Et ses pourcentages avec, sans quoi figer le mode ne servait à rien
+      // sur le seul mode qui en porte.
+      customPercents: resolvePercents(period.customPercents, customPercents)
     });
 
     const total = own + carry;

@@ -137,6 +137,37 @@ export function estAlimentee(versements) {
 }
 
 /**
+ * Ce qui est déjà acquis sur l'objectif — les deux lectures, une seule fabrique
+ *
+ * `provisions.js` demande « combien manque-t-il encore ? », c'est-à-dire
+ * `objectif − acquis`. Ce qu'« acquis » veut dire dépend de la lecture, et les
+ * deux réponses sont justes chacune dans son monde :
+ *
+ *   **cagnotte alimentée** → `versé − dépensé`. L'argent est dans le pot ; ce
+ *   qui en est sorti n'y est plus. C'est du contenu réel.
+ *
+ *   **budget** (aucun versement) → `dépensé`. Rien n'a été mis de côté, mais
+ *   l'argent dépensé a bien été fourni : il a servi à ce que l'enveloppe vise.
+ *   Un budget de 800 € dont 300 € sont dépensés a 500 € encore à couvrir.
+ *
+ * Appliquer la première formule à un pot vide donnait un contenu **négatif**, et
+ * la provision réclamait alors l'objectif **plus** tout le déjà-dépensé. Mesuré
+ * sur l'enveloppe « Vacances » du foyer : objectif 800 €, 1 009,81 € dépensés,
+ * aucun versement — l'écran annonçait « il manque 1 809,81 € », soit très
+ * exactement 800 + 1 009,81. Le commentaire de l'appelant disait pourtant qu'une
+ * provision non alimentée « contient bien zéro » : le code contredisait son
+ * intention.
+ *
+ * @param {Array<Object>} versements - Versements du pot
+ * @param {number} depense - Total des charges rattachées
+ * @returns {number} Ce qui compte déjà pour l'objectif, dans la bonne lecture
+ */
+export function acquisSurObjectif(versements, depense) {
+  const sorti = Number.isFinite(depense) ? depense : 0;
+  return estAlimentee(versements) ? totalVerse(versements) - sorti : sorti;
+}
+
+/**
  * Ce qu'il y a dans une cagnotte, et où elle en est de son objectif
  *
  * @param {Array<Object>} versements - Versements du pot

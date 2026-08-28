@@ -23,6 +23,7 @@ import {
   versementsActifs,
   estAlimentee,
   bilanCagnotte,
+  acquisSurObjectif,
   versementEcrivable
 } from '../utils/versements.js';
 import { etatProvision } from '../utils/provisions.js';
@@ -550,15 +551,19 @@ function blocProvision(provision) {
     `;
   }
 
-  const mois = provision.restants > 1
-    ? `${provision.restants} mois`
-    : 'ce mois-ci, dernier délai';
+  const plusieurs = provision.restants > 1;
+  const mois = plusieurs ? `${provision.restants} mois` : 'ce mois-ci, dernier délai';
+
+  // « par mois » n'a de sens qu'au pluriel. Au dernier mois, la somme entière
+  // est due en une fois : l'annoncer « par mois » la fait lire comme un
+  // engagement qui se répète, quand c'est au contraire le dernier versement.
+  const cadence = plusieurs ? 'par mois' : 'à mettre ce mois-ci';
 
   return `
     <div class="enveloppe-provision">
       <div class="provision-titre">
         <span aria-hidden="true">🗓️</span>
-        <strong>${formatCurrency(provision.parMois)}</strong> par mois
+        <strong>${formatCurrency(provision.parMois)}</strong> ${cadence}
       </div>
       <div class="provision-detail">
         Il manque ${formatCurrency(provision.manque)} pour le
@@ -1060,12 +1065,11 @@ async function ouvrirLaVueEnveloppe(id) {
 
   // Ce qu'il reste à mettre de côté, mois par mois, pour tenir l'échéance.
   //
-  // Le contenu est calculé sans passer par `estAlimentee` : une provision
-  // qu'on n'a pas encore alimentée contient bien zéro, et c'est justement le
-  // cas où la question « combien par mois ? » se pose le plus fort.
-  const contenu = cagnotte
-    ? bilanCagnotte(versements, bilan.total, enveloppe.budget).dansLePot
-    : 0;
+  // `acquisSurObjectif` porte les deux lectures : le contenu réel du pot quand
+  // il est alimenté, le déjà-dépensé quand il ne l'est pas. Ce calcul prenait
+  // `dansLePot` dans tous les cas — donc `versé − dépensé`, négatif sur un pot
+  // vide —, et réclamait l'objectif PLUS tout le déjà-dépensé.
+  const contenu = cagnotte ? acquisSurObjectif(versements, bilan.total) : 0;
   const provision = etatProvision(enveloppe, contenu, moisConsulte);
 
   let modal = document.getElementById('modalVueEnveloppe');
