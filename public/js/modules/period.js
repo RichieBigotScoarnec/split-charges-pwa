@@ -160,6 +160,38 @@ export function navigatePeriod(direction) {
 }
 
 /**
+ * Pose dans l'état les trois termes que le mois affiché peut figer
+ *
+ * Extraite du corps de `loadPeriodData`, sans une seule modification. Elle
+ * existe pour qu'un autre geste puisse rafraîchir les termes du bilan **sans**
+ * appeler `loadPeriodData` : celle-là vide la recherche, réécrit les champs de
+ * revenus et, surtout, **écrit** — elle reconduit les charges récurrentes. Un
+ * règlement de solde n'a rien à reconduire.
+ *
+ * Les trois termes vont de pair : le solde d'un mois se lit avec ses salaires,
+ * son mode et ses pourcentages, tous du même instant. Les rafraîchir
+ * séparément est précisément ce qui donne deux chiffres pour un même mois.
+ *
+ * @param {Object|null} moisAffiche - Nœud `periods/{mois}`, tel que lu
+ * @param {Object|null} globalSalaries - Nœud `salaries` du foyer
+ * @returns {Object} Les salaires retenus pour le mois
+ */
+export function appliquerLesTermesDuMois(moisAffiche, globalSalaries) {
+  // `?? null` et non `|| null` — un mois présent mais sans instantané de
+  // salaires n'est pas un mois absent.
+  const { salaries } = resolveSalaries(moisAffiche?.salaries ?? null, globalSalaries);
+  setState('salaries', salaries);
+
+  // Rangé sous un nom distinct : `shareMode` reste le réglage du foyer, que
+  // l'écran des réglages lit et écrit. Les confondre ferait enregistrer le
+  // mode d'un vieux mois comme nouveau réglage global.
+  setState('shareModeDuMois', (moisAffiche?.shareMode ?? null) || null);
+  setState('customPercentsDuMois', (moisAffiche?.customPercents ?? null) || null);
+
+  return salaries;
+}
+
+/**
  * Load period data from Firebase
  * Loads both salaries (global) and period-specific data
  */
@@ -188,27 +220,14 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
       salairesGlobaux === undefined ? dbGet('salaries') : Promise.resolve(salairesGlobaux)
     ]);
 
-    // Le mois affiché est dans l'instantané : ses deux champs s'y lisent, au
-    // lieu de deux allers-retours supplémentaires. `?? null` et non `|| null` —
-    // un mois présent mais sans instantané de salaires n'est pas un mois absent.
+    // Le mois affiché est dans l'instantané : ses trois champs s'y lisent, au
+    // lieu d'autant d'allers-retours supplémentaires. Le mode figé du mois,
+    // `computeBalanceChain` le lisait depuis toujours ; l'écran, jamais — et
+    // les deux annonçaient alors deux soldes pour le même mois reconduit.
     const moisAffiche = instantane && typeof instantane === 'object'
       ? instantane[currentPeriod] : null;
-    const periodSalaries = moisAffiche?.salaries ?? null;
-    // Le mode figé du mois, s'il en a un. `computeBalanceChain` le lisait
-    // depuis toujours ; l'écran, jamais — et les deux annonçaient alors deux
-    // soldes différents pour le même mois reconduit.
-    const periodShareMode = moisAffiche?.shareMode ?? null;
-    // Et ses pourcentages : ils font partie du mode « custom ».
-    const periodPercents = moisAffiche?.customPercents ?? null;
 
-    const { salaries } = resolveSalaries(periodSalaries, globalSalaries);
-    setState('salaries', salaries);
-
-    // Rangé sous un nom distinct : `shareMode` reste le réglage du foyer, que
-    // l'écran des réglages lit et écrit. Les confondre ferait enregistrer le
-    // mode d'un vieux mois comme nouveau réglage global.
-    setState('shareModeDuMois', periodShareMode || null);
-    setState('customPercentsDuMois', periodPercents || null);
+    const salaries = appliquerLesTermesDuMois(moisAffiche, globalSalaries);
 
     // Les quatre champs de revenus reprennent l'instantané du mois affiché.
     restoreIncomeFields();

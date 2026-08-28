@@ -113,8 +113,11 @@ export function initReimbursements() {
 
 /**
  * Charge les remboursements depuis Firebase pour la période actuelle
+ *
+ * @param {Object} [instantaneDuMois] - Nœud `periods/{mois}` déjà lu dans ce
+ *   geste. OPTIONNEL : l'omettre coûte une lecture, jamais un chiffre faux.
  */
-export async function loadReimbursements() {
+export async function loadReimbursements(instantaneDuMois) {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     warn('⚠️ Pas de période active, chargement remboursements ignoré');
@@ -124,7 +127,9 @@ export async function loadReimbursements() {
   try {
     // Use dbGet from db.js which handles UID-scoped paths
     const { dbGet } = await import('../db.js');
-    const reimbursements = await dbGet(`periods/${currentPeriod}/reimbursements`);
+    const reimbursements = instantaneDuMois === undefined
+      ? await dbGet(`periods/${currentPeriod}/reimbursements`)
+      : (instantaneDuMois?.reimbursements ?? null);
 
     if (reimbursements) {
       // Filtrer les remboursements non supprimés
@@ -245,6 +250,12 @@ async function enregistrerReimbursement() {
  * Le sens découle du signe du solde : un solde positif signifie que la
  * conjointe doit de l'argent, c'est donc elle qui verse.
  *
+ * Le geste tient une promesse en toutes lettres — « le solde du mois reviendra
+ * à zéro » — et c'est elle qui commande le reste : le montant écrit est celui
+ * qu'on a fait confirmer, et il est vérifié contre une relecture COMPLÈTE
+ * juste avant l'écriture. Hors ligne, cette vérification est impossible : le
+ * geste est refusé, la saisie ordinaire restant disponible.
+ *
  * @returns {Promise<void>}
  */
 export async function settleBalance() {
@@ -270,6 +281,83 @@ export async function settleBalance() {
 let reglementEnCours = false;
 
 /**
+ * Ce que dit le refus hors ligne
+ *
+ * Nommé une fois : les deux contrôles doivent dire la même chose, et le second
+ * est celui qu'on lira le plus rarement — donc celui dont le message dériverait.
+ * Le formulaire ordinaire, lui, reste disponible et se met en file : ce qui est
+ * refusé ici, c'est la promesse « le solde reviendra à zéro », pas la saisie.
+ */
+const MESSAGE_HORS_LIGNE =
+  'Règlement impossible hors ligne — le solde ne peut pas être vérifié. '
+  + 'Utilisez « Ajouter un remboursement ».';
+
+/**
+ * Le remboursement qu'exige un solde : son montant et son sens
+ *
+ * Un seul endroit décide, pour que le montant écrit et le montant confirmé ne
+ * puissent pas diverger. Le sens découle du signe : un solde positif signifie
+ * que la conjointe doit de l'argent, c'est donc elle qui verse.
+ *
+ * @param {number} solde
+ * @returns {{amount: number, direction: string}}
+ */
+function reglementPour(solde) {
+  return {
+    amount: Math.round(Math.abs(solde) * 100) / 100,
+    direction: solde > 0
+      ? REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
+      : REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
+  };
+}
+
+/**
+ * Relit tout ce dont le solde dépend, d'un seul instantané
+ *
+ * Le solde d'un mois est une fonction de six choses : ses charges fixes, ses
+ * charges variables, ses remboursements, ses salaires, son mode de partage et
+ * ses pourcentages — plus le report des mois qui le précèdent. Ne rafraîchir
+ * que les remboursements, c'est recalculer un solde à partir d'un mélange de
+ * deux instants.
+ *
+ * `loadPeriodData` ferait tout cela, mais elle vide la recherche, réécrit les
+ * champs de revenus et **écrit** : elle reconduit les charges récurrentes. Un
+ * règlement n'a rien à reconduire.
+ *
+ * Deux lectures pour le geste entier, et l'instantané circule ensuite en
+ * paramètre — c'est le patron déjà posé pour l'ouverture et le changement de
+ * mois.
+ *
+ * @param {string} currentPeriod
+ * @returns {Promise<number>} Le solde, recalculé sur des données du même instant
+ */
+async function relireLeSolde(currentPeriod) {
+  const { dbGet } = await import('../db.js');
+  const [instantane, globalSalaries] = await Promise.all([
+    dbGet('periods'),
+    dbGet('salaries')
+  ]);
+
+  const moisAffiche = instantane && typeof instantane === 'object'
+    ? instantane[currentPeriod] : null;
+
+  const { appliquerLesTermesDuMois } = await import('./period.js');
+  appliquerLesTermesDuMois(moisAffiche, globalSalaries);
+
+  const { loadVariableCharges } = await import('./variable-charges.js');
+  const { loadFixedCharges } = await import('./fixed-charges.js');
+  await loadVariableCharges(moisAffiche);
+  await loadFixedCharges(moisAffiche);
+  await loadReimbursements(moisAffiche);
+
+  // Le report dépend des mois PRÉCÉDENTS : l'instantané les porte tous.
+  const { refreshCarryOver } = await import('./carry-over.js');
+  await refreshCarryOver({ historique: instantane, salairesGlobaux: globalSalaries });
+
+  return calculateSummary({ historique: instantane }).balance;
+}
+
+/**
  * Corps du règlement, protégé par le verrou ci-dessus
  * @returns {Promise<void>}
  */
@@ -282,7 +370,7 @@ async function reglerLeSolde() {
 
   // Le solde affiché fait foi : une seule source, pas de calcul dupliqué.
   const { balance } = calculateSummary();
-  const amount = Math.round(Math.abs(balance) * 100) / 100;
+  const { amount, direction } = reglementPour(balance);
 
   // En deçà du centime, il n'y a rien à régler et l'écriture serait du bruit.
   if (amount < 0.01) {
@@ -290,9 +378,14 @@ async function reglerLeSolde() {
     return;
   }
 
-  const direction = balance > 0
-    ? REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
-    : REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER;
+  const { liaisonRompue } = await import('../db.js');
+  // Courtoisie : éviter de faire confirmer un geste qu'on refusera ensuite.
+  // Ce n'est PAS le contrôle qui décide — la liaison peut se rompre pendant
+  // que la confirmation est à l'écran. Celui qui décide est plus bas.
+  if (liaisonRompue()) {
+    toast.error(MESSAGE_HORS_LIGNE);
+    return;
+  }
 
   const directionText = directionLabel(direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
 
@@ -302,21 +395,47 @@ async function reglerLeSolde() {
   if (!confirmed) return;
 
   try {
-    // Relire les remboursements avant d'écrire : l'autre personne a pu régler
-    // pendant que la confirmation était à l'écran. Le solde recalculé le dira.
-    await loadReimbursements();
-    const { balance: soldeFrais } = calculateSummary();
+    // Relire AVANT d'écrire : l'autre personne a pu régler, ou saisir une
+    // dépense, pendant que la confirmation était à l'écran. Tout ce dont le
+    // solde dépend est relu, pas seulement les remboursements — sans quoi une
+    // charge ajoutée en face resterait invisible et le contrôle ne contrôlerait
+    // que le sixième du problème.
+    const soldeFrais = await relireLeSolde(currentPeriod);
+
+    // Le contrôle qui décide, et il vient APRÈS les lectures.
+    //
+    // `dbGet` ne lève pas quand la liaison est rompue : il sert le miroir. Une
+    // relecture hors ligne rend donc les valeurs de la dernière connexion,
+    // et le « solde vérifié » n'aurait rien vérifié. Pire, `dbPush` mettrait
+    // l'écriture en file et rendrait la main : l'application annoncerait
+    // « Solde réglé » pour un règlement qui partira plus tard, calculé sur un
+    // solde périmé.
+    if (liaisonRompue()) {
+      toast.error(MESSAGE_HORS_LIGNE);
+      return;
+    }
 
     if (Math.abs(soldeFrais) < 0.01) {
       toast.info("Le solde vient d'être réglé — rien à faire");
       return;
     }
 
+    // Le solde a bougé pendant la confirmation. Écrire le montant d'avant
+    // laisserait le mois déséquilibré de la différence, en ayant promis
+    // « le solde reviendra à zéro » ; écrire le montant d'après enregistrerait
+    // une somme que personne n'a validée. On rend donc la main : l'écran
+    // affiche désormais le solde à jour, et un second appui le règle.
+    const { amount: montantFrais, direction: sensFrais } = reglementPour(soldeFrais);
+    if (montantFrais !== amount || sensFrais !== direction) {
+      toast.warning(`Le solde a changé — il est maintenant de ${formatCurrency(montantFrais)}`);
+      return;
+    }
+
     const { dbPush } = await import('../db.js');
 
     await dbPush(`periods/${currentPeriod}/reimbursements`, {
-      direction,
-      amount,
+      direction: sensFrais,
+      amount: montantFrais,
       note: 'Règlement du solde',
       date: dateDuJour(),
       timestamp: Date.now(),

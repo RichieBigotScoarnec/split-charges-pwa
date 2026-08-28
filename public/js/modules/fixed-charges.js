@@ -178,8 +178,12 @@ export function initFixedCharges() {
 
 /**
  * Charge les charges fixes depuis Firebase pour la période actuelle
+ *
+ * @param {Object} [instantaneDuMois] - Nœud `periods/{mois}` déjà lu dans ce
+ *   geste. OPTIONNEL, comme partout : l'omettre coûte une lecture, jamais un
+ *   chiffre faux.
  */
-export async function loadFixedCharges() {
+export async function loadFixedCharges(instantaneDuMois) {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     warn('⚠️ Pas de période active, chargement charges fixes ignoré');
@@ -189,7 +193,9 @@ export async function loadFixedCharges() {
   try {
     // Use dbGet from db.js which handles UID-scoped paths
     const { dbGet } = await import('../db.js');
-    const charges = await dbGet(`periods/${currentPeriod}/fixedCharges`);
+    const charges = instantaneDuMois === undefined
+      ? await dbGet(`periods/${currentPeriod}/fixedCharges`)
+      : (instantaneDuMois?.fixedCharges ?? null);
 
     if (charges) {
       // Filtrer les charges non supprimées

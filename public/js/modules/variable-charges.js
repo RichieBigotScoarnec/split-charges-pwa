@@ -189,8 +189,15 @@ export function initVariableCharges() {
 
 /**
  * Charge les charges variables depuis Firebase pour la période actuelle
+ *
+ * @param {Object} [instantaneDuMois] - Nœud `periods/{mois}` déjà lu dans ce
+ *   geste. Le paramètre est OPTIONNEL : l'omettre coûte une lecture, jamais un
+ *   chiffre faux. Il existe pour les gestes qui ont déjà l'instantané en main
+ *   et doivent lire tout le mois d'un seul état — un règlement de solde, dont
+ *   la justesse tient à ce que charges, salaires et remboursements datent du
+ *   même instant.
  */
-export async function loadVariableCharges() {
+export async function loadVariableCharges(instantaneDuMois) {
   const currentPeriod = getState('currentPeriod');
   if (!currentPeriod) {
     warn('⚠️ Pas de période active, chargement charges variables ignoré');
@@ -200,7 +207,9 @@ export async function loadVariableCharges() {
   try {
     // Use dbGet from db.js which handles UID-scoped paths
     const { dbGet } = await import('../db.js');
-    const charges = await dbGet(`periods/${currentPeriod}/variableCharges`);
+    const charges = instantaneDuMois === undefined
+      ? await dbGet(`periods/${currentPeriod}/variableCharges`)
+      : (instantaneDuMois?.variableCharges ?? null);
 
     if (charges) {
       // Filtrer les charges non supprimées et valides
