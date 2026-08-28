@@ -81,6 +81,34 @@ export function memeDateLAnProchain(date) {
 }
 
 /**
+ * Le nom de l'enveloppe qui prend la suite, estampillée de son année
+ *
+ * Renouveler ne peut pas vouloir dire « réutiliser celle-ci ». L'enveloppe
+ * existante porte les dépenses de l'année écoulée, et son pot les versements
+ * qui les ont financées : repousser simplement son échéance ferait démarrer le
+ * nouveau cycle avec 1 009,81 € déjà dépensés. C'est très exactement le défaut
+ * que `identifiantEnveloppe` a été écrit pour empêcher, dans l'autre sens.
+ *
+ * La suivante est donc une enveloppe **neuve et vide**, distinguée par l'année
+ * de sa propre échéance. Les deux coexistent : l'ancienne reste consultable,
+ * la nouvelle part de zéro.
+ *
+ * @param {string} label - Libellé de l'enveloppe qui s'achève
+ * @param {string} echeance - Nouvelle échéance, AAAA-MM-JJ
+ * @returns {string}
+ */
+export function libelleRenouvele(label, echeance) {
+  const net = String(label || '').trim();
+  const annee = String(echeance || '').slice(0, 4);
+  if (!annee) return net;
+
+  // Un foyer qui nomme déjà ses enveloppes « Vacances 2027 » ne doit pas
+  // obtenir « Vacances 2027 2028 » : l'année qui s'y trouve est remplacée.
+  const sansAnnee = net.replace(/\s+\d{4}$/, '');
+  return `${sansAnnee} ${annee}`.trim();
+}
+
+/**
  * Une cagnotte arrivée à terme mérite-t-elle d'être remise en route ?
  *
  * C'est l'observation qui a motivé ce module. Une enveloppe « Vacances » datée
@@ -143,7 +171,7 @@ export function provisionARenouveler({ enveloppe, depenseReelle, moisCourant }) 
       : `Sur ${depense.toFixed(2)} € réellement dépensés.`,
     ecartAuPrevu: ecart,
     proposition: {
-      label: enveloppe.label,
+      label: libelleRenouvele(enveloppe.label, prochaine),
       icon: enveloppe.icon,
       nature: enveloppe.nature,
       budget: depense,

@@ -1052,3 +1052,45 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/*
+   Le geste que propose une observation
+
+   Une carte qui dit « mettez 64 € de côté » et n'offre aucun moyen de le faire
+   laisse tout le travail à la main : lire le montant, ouvrir la gestion des
+   enveloppes, tout ressaisir. Le bouton reste discret — il s'agit d'accepter
+   un conseil, pas de régler un solde — mais il respecte la cible tactile de
+   44 px que toute action de cette application tient.
+*/
+.veille-action {
+  align-self: flex-start;
+  margin-top: var(--space-xs);
+  min-height: 44px;
+  font-size: 14px;
+}
+
+/*
+   Les observations au-delà des trois premières
+
+   Le premier écran appartient au solde : tout empiler le repousserait sous une
+   pile de conseils, et une vraie alerte se lirait comme du décor. Elles restent
+   à un geste, jamais cachées.
+*/
+.veille-reste {
+  margin-top: var(--space-sm);
+}
+
+.veille-reste > summary {
+  cursor: pointer;
+  padding: var(--space-xs) 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  /* La cible tactile vaut aussi pour un résumé qu'on déplie. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.veille-reste .veille-liste {
+  margin-top: var(--space-xs);
+}

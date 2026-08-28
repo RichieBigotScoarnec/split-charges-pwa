@@ -42,7 +42,7 @@
 // qu'un `data-action` la déborde — ou qu'elle garde un nom devenu inutile.
 const ACTIONS_AUTORISEES = new Set([
   'changePeriod', 'clearSearch', 'closeModal', 'closeQuickAddModal',
-  'createAccount', 'deleteFixedCharge', 'deleteReimbursement',
+  'createAccount', 'creerEnveloppeProposee', 'deleteFixedCharge', 'deleteReimbursement',
   'deleteVariableCharge', 'downloadBackup', 'editFixedCharge',
   'editReimbursement', 'editVariableCharge', 'exportToCSV',
   'exportToPDF', 'focusSalaries', 'handleQuickAddSubmit',

@@ -97,6 +97,7 @@ const STATIC_ASSETS = [
   './js/utils/tendances.js',
   './js/utils/tri.js',
   './js/utils/validation.js',
+  './js/utils/anticipation.js',
   './js/utils/veille.js',
   './js/utils/versements.js',
   // Composants

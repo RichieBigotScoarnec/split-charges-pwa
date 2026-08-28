@@ -61,8 +61,101 @@ const CHEMIN_VERSEMENTS = 'versements';
  */
 export async function initEnvelopes() {
   log('📦 Initialisation module enveloppes');
+  window.creerEnveloppeProposee = creerEnveloppeProposee;
   await loadEnvelopes();
   log('✅ Module enveloppes initialisé');
+}
+
+/**
+ * Crée la cagnotte qu'une observation propose
+ *
+ * `anticipation.js` sait dire « cette assurance revient chaque année, mettez
+ * 64 € de côté par mois ». Sans ce geste, il fallait lire le montant, ouvrir la
+ * gestion des enveloppes et tout ressaisir — l'observation restait un constat.
+ *
+ * **Le bouton ne porte que la CLÉ de l'observation.** Les libellés viennent des
+ * charges saisies par le foyer : faire transiter la proposition entière par un
+ * attribut du DOM en ferait une surface d'injection, et rien ne garantirait que
+ * ce qu'on écrit est bien ce que l'application a calculé. La proposition est
+ * relue dans l'état, là où le calcul l'a laissée.
+ *
+ * L'application ne déplace pas d'argent : elle ouvre la cagnotte, le foyer
+ * l'alimente par des versements. C'est dit à l'écran, dans le message.
+ *
+ * @param {string} cle - Clé de l'observation
+ * @returns {Promise<boolean>} Vrai si l'enveloppe a été créée
+ */
+export async function creerEnveloppeProposee(cle) {
+  const vue = (getState('observations') || []).find(v => v && v.cle === cle);
+  if (!vue || !vue.proposition) {
+    toast.error('Cette proposition n\'est plus à l\'écran');
+    return false;
+  }
+
+  const { label, icon, nature, budget, fin, debut } = vue.proposition;
+
+  const libelle = typeof label === 'string' ? label.trim() : '';
+  // Les règles plafonnent le libellé à 100 caractères ; un refus après un toast
+  // de succès serait pire que ce refus-ci, qui s'explique.
+  if (!libelle || libelle.length > 100) {
+    toast.error('Le nom de cette proposition ne peut pas être enregistré');
+    return false;
+  }
+
+  // Le montant est arrondi au centime : un flottant à quinze décimales
+  // s'écrirait tel quel et se relirait tel quel.
+  const objectif = Number.isFinite(budget) ? Math.round(budget * 100) / 100 : 0;
+  if (!(objectif > 0)) {
+    toast.error('Cette proposition n\'a pas de montant à mettre de côté');
+    return false;
+  }
+
+  const existantes = getEnveloppes();
+  // `anticiper` écarte déjà les propositions déjà en place. Ce contrôle-ci vaut
+  // pour la seconde entre l'affichage et le clic — et pour l'autre téléphone.
+  if (existantes.some(e => e.label.toLowerCase() === libelle.toLowerCase())) {
+    toast.info(`« ${libelle} » existe déjà`);
+    return false;
+  }
+
+  const enveloppe = {
+    id: identifiantEnveloppe(libelle, existantes),
+    label: libelle,
+    icon: typeof icon === 'string' && icon ? icon.slice(0, 20) : '🎯',
+    budget: objectif,
+    debut: typeof debut === 'string' ? debut : null,
+    fin: typeof fin === 'string' ? fin : null,
+    cloturee: false,
+    nature: nature === NATURES.MENSUELLE ? NATURES.MENSUELLE : NATURES.CAGNOTTE,
+    // Une cagnotte reporte par nature : le champ n'a de sens que sur une
+    // mensuelle, et deux façons de dire la même chose finissent par diverger.
+    report: false,
+    rang: RANGS.PROVISION,
+    perimetre: 'commun',
+    proprietaire: null
+  };
+
+  if (!await enregistrer([...existantes, enveloppe], existantes)) return false;
+
+  populateAllEnvelopeSelects();
+
+  // Le solde ne bouge pas — une enveloppe ne pèse jamais dessus — mais la
+  // carte qui vient d'être acceptée doit disparaître de la veille.
+  //
+  // L'historique est relu et REPASSÉ : `calculateSummary()` sans lui fait taire
+  // toute la veille, et l'écran perdrait les autres observations au lieu de la
+  // seule qu'on vient de traiter. Une lecture pour un geste rare et délibéré.
+  try {
+    const { dbGet } = await import('../db.js');
+    const { calculateSummary } = await import('./summary.js');
+    calculateSummary({ historique: await dbGet('periods') });
+  } catch (erreur) {
+    // L'enveloppe est créée : l'écran en retard vaut mieux qu'un échec annoncé.
+    logError('❌ Rafraîchissement du bilan impossible :', erreur);
+  }
+
+  toast.success(`« ${libelle} » créée — à vous de l'alimenter`);
+  return true;
 }
 
 /**

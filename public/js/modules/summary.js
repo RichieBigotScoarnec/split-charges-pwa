@@ -9,7 +9,7 @@ import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolv
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
-import { veiller } from '../utils/veille.js';
+import { anticiper } from '../utils/anticipation.js';
 import { chargesDeLEnveloppeTousMois, totalEnveloppe } from '../utils/enveloppes.js';
 import { jourEtMois } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
@@ -150,17 +150,26 @@ function observationsDuMois(historique) {
     }));
 
     const aujourdhui = new Date();
-    return veiller({
+    // Rangées dans l'état : le bouton d'une carte ne porte que sa clé, et
+    // c'est ici que le gestionnaire retrouve la proposition correspondante.
+    const vues = anticiper({
       enveloppes,
+      // Ce que le foyer a déjà mis en place ne se propose plus : sans cette
+      // liste, la carte reparaîtrait après qu'on l'a acceptée.
+      listeEnveloppes: getState('envelopes') || [],
       periods: historique,
       moisCourant: getState('currentPeriod'),
       jourDuMois: aujourdhui.getDate(),
       joursDuMois: new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() + 1, 0).getDate()
     });
+
+    setState('observations', vues);
+    return vues;
   } catch (erreur) {
     // Une observation n'est jamais indispensable : son échec ne doit pas
     // emporter le bilan, qui, lui, l'est.
     warn('⚠️ Veille indisponible :', erreur);
+    setState('observations', []);
     return [];
   }
 }
@@ -177,24 +186,66 @@ function observationsDuMois(historique) {
  * @param {Array<Object>} observations - Sortie de `veiller`
  * @returns {string} Fragment HTML échappé, ou chaîne vide
  */
-function renderObservations(observations) {
-  const vues = Array.isArray(observations) ? observations : [];
-  if (vues.length === 0) return '';
+/**
+ * Combien d'observations restent sous le solde
+ *
+ * Le premier écran appartient au solde. Avec sept détecteurs, tout afficher
+ * repousserait le chiffre qu'on vient chercher sous une pile de conseils — et
+ * une vraie alerte se lirait comme du décor. Les autres restent atteignables
+ * d'un geste, jamais cachées.
+ */
+const VUES_EN_TETE = 3;
 
-  const lignes = vues.map(vue => `
+/**
+ * Une observation, avec le geste qu'elle propose s'il y en a un
+ *
+ * Le bouton ne porte que la CLÉ de l'observation, jamais sa proposition : les
+ * libellés viennent des charges saisies par le foyer, et faire transiter un
+ * objet par un attribut du DOM en ferait une surface d'injection. Le
+ * gestionnaire relit la proposition dans l'état.
+ *
+ * @param {Object} vue
+ * @returns {string} Fragment HTML échappé
+ */
+function ligneObservation(vue) {
+  const action = vue.proposition
+    ? `<button type="button" class="btn btn-secondary veille-action"
+         data-action="creerEnveloppeProposee" data-arg="${escapeHtml(vue.cle)}">
+         Mettre de côté pour ça
+       </button>`
+    : '';
+
+  return `
     <li class="veille-item veille-item--${escapeHtml(vue.urgence)}">
       <span class="veille-icone" aria-hidden="true">${vue.urgence === 'attention' ? '⚠️' : '💡'}</span>
       <span class="veille-corps">
         <span class="veille-titre">${escapeHtml(vue.titre)}</span>
         <span class="veille-detail">${escapeHtml(vue.detail)}</span>
         <span class="veille-fonde">${escapeHtml(vue.fonde)}</span>
+        ${action}
       </span>
     </li>
-  `).join('');
+  `;
+}
+
+function renderObservations(observations) {
+  const vues = Array.isArray(observations) ? observations : [];
+  if (vues.length === 0) return '';
+
+  const tete = vues.slice(0, VUES_EN_TETE).map(ligneObservation).join('');
+  const reste = vues.slice(VUES_EN_TETE);
+
+  const suite = reste.length === 0 ? '' : `
+    <details class="veille-reste">
+      <summary>${reste.length} autre${reste.length > 1 ? 's' : ''}</summary>
+      <ul class="veille-liste">${reste.map(ligneObservation).join('')}</ul>
+    </details>
+  `;
 
   return `
     <section class="summary-veille" aria-label="Ce que l'application a remarqué">
-      <ul class="veille-liste">${lignes}</ul>
+      <ul class="veille-liste">${tete}</ul>
+      ${suite}
     </section>
   `;
 }
