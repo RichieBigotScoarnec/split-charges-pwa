@@ -12,7 +12,7 @@ import { previsionnelDuMois } from '../utils/previsionnel.js';
 import { anticiper } from '../utils/anticipation.js';
 import { rapportDuMois } from '../utils/rapport-mensuel.js';
 import { chargesDeLEnveloppeTousMois, totalEnveloppe } from '../utils/enveloppes.js';
-import { jourEtMois } from '../utils/date.js';
+import { jourEtMois, getCurrentPeriod } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
@@ -129,6 +129,61 @@ export function calculateSummary({ historique } = {}) {
 }
 
 /**
+ * L'historique sur lequel le rapport peut se fonder
+ *
+ * `calculateSummary` est appelée depuis treize endroits, et deux seulement lui
+ * passent un instantané : le chargement du mois et le règlement du solde. Tous
+ * les autres suivent une ÉCRITURE — ajouter une charge, en corriger une, vider
+ * la corbeille. Sans cette fabrique, le bouton « Le mois en un coup d'œil »
+ * paraissait à l'ouverture puis disparaissait à la première saisie, et ne
+ * revenait qu'au changement de mois. Une commande qui va et vient s'apprend
+ * comme une commande à laquelle on ne peut pas se fier.
+ *
+ * Recharger `periods` à chaque rendu était exclu : quatre lectures du nœud
+ * entier par ouverture représentaient 96 % de ce que l'application téléchargeait
+ * — c'est très exactement ce qu'on vient de corriger.
+ *
+ * Ce qui est conservé est donc le seul historique, celui des mois RÉVOLUS, que
+ * la saisie en cours ne touche jamais. Le mois affiché, lui, est reconstruit à
+ * chaque appel depuis l'état vivant : les charges qu'on vient d'écrire. Aucun
+ * chiffre périmé ne peut donc entrer dans le rapport — ce qui change est relu,
+ * ce qui est conservé ne change pas.
+ *
+ * @param {Object} [historique] - Instantané frais, quand l'appelant en a un
+ * @returns {Object|null} Nœud `periods` utilisable, ou `null`
+ */
+function historiqueUtilisable(historique) {
+  if (historique && typeof historique === 'object') {
+    // Un instantané frais fait toujours autorité, et devient la référence des
+    // rendus qui suivront cette écriture.
+    setState('historiquePourLeRapport', historique);
+    return historique;
+  }
+
+  const conserve = getState('historiquePourLeRapport');
+  if (!conserve || typeof conserve !== 'object') return null;
+
+  const mois = getState('currentPeriod');
+  if (!mois) return null;
+
+  const parIdentifiant = (charges) => Object.fromEntries(
+    (Array.isArray(charges) ? charges : [])
+      .filter(charge => charge && charge.id)
+      .map(charge => [charge.id, charge])
+  );
+
+  return {
+    ...conserve,
+    [mois]: {
+      ...(conserve[mois] || {}),
+      salaries: getState('salaries') || (conserve[mois] || {}).salaries,
+      fixedCharges: parIdentifiant(getState('fixedCharges')),
+      variableCharges: parIdentifiant(getState('variableCharges'))
+    }
+  };
+}
+
+/**
  * Le rapport du mois, déposé dans l'état pour la modale qui l'ouvrira
  *
  * Le bilan est passé tel quel : ce module ne réadditionne rien. C'est la même
@@ -147,15 +202,20 @@ export function calculateSummary({ historique } = {}) {
  * @returns {Object|null}
  */
 function rapportDuMoisAffiche(historique, bilan, salaries) {
-  if (!historique || typeof historique !== 'object') {
+  const periods = historiqueUtilisable(historique);
+
+  if (!periods) {
     setState('rapportDuMois', null);
     return null;
   }
 
   try {
     const rapport = rapportDuMois({
-      periods: historique,
+      periods,
       mois: getState('currentPeriod'),
+      // Le mois du calendrier : c'est lui qui dit si le mois rapporté est
+      // encore en cours, donc incomplet, donc incomparable à des mois entiers.
+      moisReel: getCurrentPeriod(),
       bilan,
       salaries
     });
@@ -208,6 +268,11 @@ function observationsDuMois(historique) {
       listeEnveloppes: getState('envelopes') || [],
       periods: historique,
       moisCourant: getState('currentPeriod'),
+      // Le mois du CALENDRIER, distinct de celui du sélecteur. Le jour et la
+      // durée qui suivent viennent de l'horloge : sans ce rapprochement, la
+      // projection du mois s'appliquerait au mois affiché quel qu'il soit, et
+      // prévoirait la fin d'un mois clos depuis trois mois.
+      moisReel: getCurrentPeriod(),
       jourDuMois: aujourdhui.getDate(),
       joursDuMois: new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() + 1, 0).getDate()
     });

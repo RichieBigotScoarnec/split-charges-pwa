@@ -23,7 +23,9 @@
  */
 
 import { estSolo } from './perimetre.js';
-import { mediane, tauxDEffort, resteAVivre, partDuFixe, categorieQuiABouge } from './tendances.js';
+import {
+  mediane, tauxDEffort, resteAVivre, partDuFixe, categorieQuiABouge, totauxParCategorie
+} from './tendances.js';
 
 /** Une clé de mois */
 const CLE_MOIS = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -60,23 +62,6 @@ function somme(charges) {
 }
 
 /**
- * Les totaux par catégorie d'un mois, comme `analyzeCategoriesData` les produit
- * @param {Object} periode
- * @returns {Object<string, number>}
- */
-function parCategorie(periode) {
-  const { fixes, variables } = chargesDuMois(periode);
-  const totaux = {};
-
-  for (const charge of [...fixes, ...variables]) {
-    const nom = charge.category || 'Autre';
-    totaux[nom] = (totaux[nom] || 0) + (Number.isFinite(charge.amount) ? charge.amount : 0);
-  }
-
-  return totaux;
-}
-
-/**
  * La période qui précède
  * @param {string} periode - AAAA-MM
  * @returns {string|null}
@@ -90,6 +75,19 @@ function moisPrecedent(periode) {
 }
 
 /**
+ * Où en est un mois par rapport au calendrier
+ *
+ * @param {string} mois - AAAA-MM rapporté
+ * @param {string} [moisReel] - AAAA-MM du calendrier
+ * @returns {'revolu'|'en-cours'|'a-venir'|null}
+ */
+function etatDuMois(mois, moisReel) {
+  if (!CLE_MOIS.test(moisReel || '')) return null;
+  if (mois === moisReel) return 'en-cours';
+  return mois < moisReel ? 'revolu' : 'a-venir';
+}
+
+/**
  * Le mois écoulé, prêt pour l'écran
  *
  * @param {Object} params
@@ -97,9 +95,11 @@ function moisPrecedent(periode) {
  * @param {string} params.mois - AAAA-MM, le mois dont on fait le rapport
  * @param {Object} params.bilan - Sortie de `computeSummary` pour ce mois
  * @param {Object} [params.salaries] - Instantané de revenus du mois
+ * @param {string} [params.moisReel] - AAAA-MM du calendrier, pour savoir si le
+ *   mois rapporté est encore en cours
  * @returns {Object|null} `null` si le mois n'existe pas
  */
-export function rapportDuMois({ periods, mois, bilan, salaries }) {
+export function rapportDuMois({ periods, mois, bilan, salaries, moisReel }) {
   if (!periods || typeof periods !== 'object') return null;
   if (!CLE_MOIS.test(mois || '')) return null;
 
@@ -132,7 +132,7 @@ export function rapportDuMois({ periods, mois, bilan, salaries }) {
 
   const avant = moisPrecedent(mois);
   const bouge = avant && periods[avant]
-    ? categorieQuiABouge(parCategorie(periode), parCategorie(periods[avant]))
+    ? categorieQuiABouge(totauxParCategorie(periode), totauxParCategorie(periods[avant]))
     : null;
 
   const solde = bilan && Number.isFinite(bilan.balance) ? bilan.balance : null;
@@ -142,6 +142,25 @@ export function rapportDuMois({ periods, mois, bilan, salaries }) {
     vide: false,
     total,
     nombre: fixes.length + variables.length,
+
+    // Où en est le mois rapporté ? Trois états, et un seul autorise à
+    // QUALIFIER l'écart :
+    //
+    //   - révolu   — il est complet, « 300 € de plus qu'un mois ordinaire »
+    //                veut dire quelque chose ;
+    //   - en cours — le 6, il pèse 1 050 € contre 2 000 € d'ordinaire, et
+    //                l'écart de −950 € est celui des vingt-quatre jours qui
+    //                restent, pas d'une économie. `trends.js` porte déjà cette
+    //                réserve sur la même mesure : c'est sa formule qui est
+    //                reprise, pas une seconde ;
+    //   - à venir  — le sélecteur propose un mois d'avance, et la reconduction
+    //                peut y avoir inscrit les charges fixes. Le comparer à un
+    //                mois ordinaire annoncerait « 1 090 € de moins » pour un
+    //                mois qui n'a pas commencé.
+    //
+    // Sans `moisReel`, on ne peut rien affirmer : `null`, et l'écran ne
+    // qualifie rien plutôt que de supposer le mois clos.
+    etat: etatDuMois(mois, moisReel),
 
     // Comparé à un mois ordinaire, quand il y en a un. `null` sinon : sans
     // trois mois révolus, « ordinaire » ne veut rien dire.

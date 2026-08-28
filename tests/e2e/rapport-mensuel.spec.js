@@ -46,7 +46,7 @@ function semer() {
     [`household/periods/${p}/salaries`]: salaries
   };
 
-  for (let rang = 1; rang <= 3; rang++) {
+  for (let rang = 1; rang <= 4; rang++) {
     const mois = moisAvant(p, rang);
     db[`household/periods/${mois}/salaries`] = salaries;
     db[`household/periods/${mois}/fixedCharges/f1`] = {
@@ -122,9 +122,37 @@ test.describe('Le rapport du mois', () => {
     await ouvrir(page, semer());
     const modale = await ouvrirLeRapport(page);
 
-    // 1 300 contre 1 000 : 300 € de plus.
-    await expect(modale.locator('.rapport-comparaison')).toContainText('de plus');
+    // 1 300 contre 1 000 : 300 € d'écart. Le mois affiché est celui du
+    // calendrier, donc EN COURS — l'écart est donné, jamais qualifié : un mois
+    // entamé se compare à des mois entiers, et « 300 € de plus » serait un
+    // chiffre exact sur une question mal posée.
+    await expect(modale.locator('.rapport-comparaison')).toContainText('300');
+    await expect(modale.locator('.rapport-comparaison')).toContainText('mois en cours, encore incomplet');
+    await expect(modale.locator('.rapport-comparaison')).not.toContainText('de plus');
     await expect(modale.locator('.rapport-comparaison-fonde')).toContainText('médiane');
+  });
+
+  test('un mois RÉVOLU, lui, se qualifie', async ({ page }) => {
+    // Le témoin positif de la réserve ci-dessus : sans lui, une comparaison qui
+    // ne qualifie jamais rien satisferait le contrôle précédent.
+    const p = moisCourant();
+    const passe = moisAvant(p, 1);
+    const db = semer();
+
+    // On charge le mois précédent, révolu, avec le même profil : 1 300 € contre
+    // 1 000 € d'ordinaire.
+    db[`household/periods/${passe}/variableCharges/v2`] = {
+      description: 'Restaurant', amount: 300, category: 'Restaurant',
+      paidBy: 'conjointe', date: `${passe}-14`, deleted: false
+    };
+    await ouvrir(page, db);
+
+    await page.locator('#periodSelect').selectOption(passe);
+    await page.waitForTimeout(1200);
+
+    const modale = await ouvrirLeRapport(page);
+    await expect(modale.locator('.rapport-comparaison')).toContainText('de plus');
+    await expect(modale.locator('.rapport-comparaison')).not.toContainText('encore incomplet');
   });
 
   test('il nomme la catégorie qui a le plus bougé', async ({ page }) => {
@@ -160,6 +188,35 @@ test.describe('Le rapport du mois', () => {
     const modale = await ouvrirLeRapport(page);
     await expect(modale.locator('.rapport-bouge')).toContainText('<img src=x');
     expect(await modale.locator('img').count()).toBe(0);
+  });
+
+  test('LE BOUTON SURVIT À UNE SAISIE, et le rapport intègre la charge neuve', async ({ page }) => {
+    // `calculateSummary` est appelée depuis treize endroits ; deux seulement
+    // lui passent un instantané, et tous les autres suivent une écriture. Le
+    // bouton paraissait donc à l'ouverture puis disparaissait à la première
+    // saisie. Une commande qui va et vient s'apprend comme une commande à
+    // laquelle on ne peut pas se fier.
+    await ouvrir(page, semer());
+
+    const bouton = page.locator('[data-action="ouvrirRapportDuMois"]');
+    await expect(bouton).toBeVisible();
+
+    // Une charge de plus, sans recharger la page. Vue de bureau : sous 900 px
+    // « + Ajouter » vit dans l'onglet Charges, et ce contrôle ne porte sur
+    // aucune largeur.
+    await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#variableChargeDescription').fill('Cinéma');
+    await page.locator('#variableChargeAmount').fill('40');
+    await page.locator('#variableChargeCategory').selectOption('Courses');
+    await page.locator('#saveVariableCharge').click();
+    await page.waitForTimeout(1000);
+
+    await expect(bouton).toBeVisible();
+
+    // Et le total du rapport a suivi : 1 300 + 40 = 1 340. Un historique figé
+    // aurait rendu 1 300, c'est-à-dire un chiffre périmé présenté comme frais.
+    const modale = await ouvrirLeRapport(page);
+    await expect(modale.locator('.rapport-total')).toContainText('340');
   });
 
   test('Échap referme, et le bilan reste lisible derrière', async ({ page }) => {

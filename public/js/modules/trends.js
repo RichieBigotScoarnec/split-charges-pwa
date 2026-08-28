@@ -11,7 +11,8 @@ import {
   tauxDEffort,
   resteAVivre,
   partDuFixe,
-  categorieQuiABouge
+  categorieQuiABouge,
+  totauxParCategorie
 } from '../utils/tendances.js';
 import { toast } from '../components/toast.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -206,38 +207,6 @@ function calculatePeriodTotal(charges) {
     .reduce((sum, charge) => sum + (charge.amount || 0), 0);
 }
 
-/**
- * Répartit les charges d'une période par catégorie
- *
- * Fixes et variables confondues : c'est la dépense qui compte, pas la forme
- * sous laquelle elle est saisie.
- *
- * @param {Object} periodData - Contenu d'une période, tel que lu en base
- * @returns {Object<string, number>} Total par libellé de catégorie
- */
-function totauxParCategorie(periodData) {
-  const totaux = {};
-
-  for (const collection of ['fixedCharges', 'variableCharges']) {
-    const noeud = periodData && periodData[collection];
-    if (!noeud || typeof noeud !== 'object') continue;
-
-    for (const charge of Object.values(noeud)) {
-      // Même raison qu'au-dessus : « la catégorie qui a le plus bougé » est
-      // une observation sur le foyer, pas sur l'un des deux.
-      if (!charge || charge.deleted || estSolo(charge)) continue;
-
-      const categorie = typeof charge.category === 'string' && charge.category
-        ? charge.category
-        : 'Sans catégorie';
-      const montant = Number.isFinite(charge.amount) ? charge.amount : 0;
-
-      totaux[categorie] = (totaux[categorie] || 0) + montant;
-    }
-  }
-
-  return totaux;
-}
 
 /**
  * Génère et affiche le graphique de tendances

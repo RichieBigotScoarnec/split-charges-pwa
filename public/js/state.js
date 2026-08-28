@@ -174,6 +174,16 @@ export function resetUserData() {
   setState('previousMonthCharges', []);
   setState('selectedReconductionItems', []);
 
+  // Ce que le foyer a appris de son propre historique, et l'historique lui-même.
+  // Se reconnecter sur un autre compte sans recharger la page ferait autrement
+  // lire les mois d'un foyer par l'autre — la mémoire des libellés a la même
+  // exigence, et le rapport garde le nœud `periods` en entier.
+  setState('historiquePourLeRapport', null);
+  setState('memoireLibelles', {});
+  setState('haussesChargesFixes', null);
+  setState('rapportDuMois', null);
+  setState('observations', []);
+
   log('🧹 User data reset on logout');
 }
 

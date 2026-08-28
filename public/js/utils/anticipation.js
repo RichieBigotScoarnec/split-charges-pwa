@@ -138,15 +138,35 @@ function moisConnus(periods) {
  * @returns {Array<Object>}
  */
 function chargesCommunesDuMois(periode) {
-  const retenues = [];
+  const parCollection = chargesCommunesParCollection(periode);
+  return COLLECTIONS.flatMap(collection => parCollection[collection]);
+}
+
+/**
+ * Les mêmes charges, mais chaque collection à part
+ *
+ * Une seule mesure a besoin de les distinguer — la projection du mois, où le
+ * fixe est déjà entier et le variable seul se cumule. Rendre deux listes plutôt
+ * que d'estampiller les charges d'un marqueur : l'instantané `periods` est
+ * partagé par tout ce qui lit le mois, et lui poser un champ de travail le
+ * ferait voyager jusqu'en base au premier appelant qui le réécrirait.
+ *
+ * @param {Object} periode
+ * @returns {Object<string, Array<Object>>} Indexé par nom de collection
+ */
+function chargesCommunesParCollection(periode) {
+  const retenues = {};
+
   for (const collection of COLLECTIONS) {
+    retenues[collection] = [];
     const noeud = periode && periode[collection];
     if (!noeud || typeof noeud !== 'object') continue;
     for (const charge of Object.values(noeud)) {
       if (!charge || charge.deleted || estSolo(charge)) continue;
-      retenues.push(charge);
+      retenues[collection].push(charge);
     }
   }
+
   return retenues;
 }
 
@@ -533,8 +553,21 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
 
   // Les mois révolus, les plus récents d'abord — le mois courant est partiel,
   // une charge pas encore saisie y ferait croire à un abonnement interrompu.
-  const mois = moisConnus(periods).filter(cle => cle < moisCourant).slice(-MOIS_POUR_UN_ABONNEMENT);
-  if (mois.length < MOIS_POUR_UN_ABONNEMENT) return null;
+  // Les trois mois qui précèdent IMMÉDIATEMENT, et non les trois derniers mois
+  // connus. La nuance décide de tout : un foyer qui a saisi en novembre, puis
+  // en mars, puis en juillet a bien trois mois d'historique, mais une charge
+  // présente dans ces trois-là ne « revient » pas chaque mois — on n'en sait
+  // rien pour les huit autres. Le titre de l'observation, lui, l'affirmerait.
+  //
+  // Un trou dans la fenêtre vaut donc silence, comme partout dans ce module.
+  if (!periods || typeof periods !== 'object') return null;
+
+  const mois = [];
+  for (let rang = MOIS_POUR_UN_ABONNEMENT; rang >= 1; rang--) {
+    const cle = decalerDeMois(moisCourant, -rang);
+    if (!cle || !periods[cle]) return null;
+    mois.push(cle);
+  }
 
   // Chaque libellé, et ce qu'il a coûté chaque mois — en distinguant la
   // collection, parce que c'est elle qui dit s'il est déclaré récurrent.
@@ -557,7 +590,17 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
         const suivi = suivis.get(nom)
           || { libelle: '', montants: new Map(), estFixe: false };
         suivi.libelle = String(charge.description || '').trim();
-        suivi.montants.set(cle, charge.amount);
+        // On ADDITIONNE les occurrences du mois, on ne garde pas la dernière.
+        //
+        // Un libellé répété dans le mois est le cas nominal : la saisie rapide
+        // sans description reprend le nom de la catégorie, si bien que
+        // « Boulangerie » ou « Courses » revient plusieurs fois. Ne garder que
+        // la dernière — l'ordre des clés Firebase — faisait comparer trois
+        // montants pris au hasard : 5,00, 5,30, 4,80 pour des mois qui pesaient
+        // en réalité 14,70, 11,30 et 17,80 €. Le contrôle de stabilité passait,
+        // et l'observation annonçait 57,60 € par an là où le foyer en dépensait
+        // 529 — avec un fondement affirmant « à montant stable ».
+        suivi.montants.set(cle, (suivi.montants.get(cle) || 0) + charge.amount);
         // Déclarée fixe ne serait-ce qu'une fois : le panneau la porte déjà.
         if (collection === 'fixedCharges') suivi.estFixe = true;
         suivis.set(nom, suivi);
@@ -624,24 +667,55 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
  * dépassement qui n'en est pas un ; et un historique de moins de trois mois,
  * où « ordinaire » ne veut rien dire.
  *
+ * ## Ce que la projection étend, et ce qu'elle n'étend pas
+ *
+ * **Les charges fixes ne s'étendent pas.** La reconduction les inscrit toutes
+ * dès la première ouverture du mois, chacune à son quantième — `previsionnel.js`
+ * existe précisément pour dire que « au 3 du mois, le solde annonce 1 240 €
+ * dont 900 ne sont pas encore sortis du compte ». Les multiplier par
+ * `duree / ecoules` reviendrait à projeter douze loyers : au 5 d'un mois de 31
+ * jours, 900 € de fixe deviendraient 5 580 €, et la carte se déclencherait
+ * presque tous les mois sur un chiffre qui n'a aucun sens.
+ *
+ * Seules les dépenses variables se cumulent jour après jour. Elles seules sont
+ * étendues ; le fixe est ajouté tel quel, une fois. Le repère, lui, reste le
+ * total complet d'un mois révolu — les deux grandeurs sont donc comparables.
+ *
+ * ## Et seulement le mois réellement en cours
+ *
+ * `moisCourant` est le mois AFFICHÉ, celui du sélecteur ; `jourDuMois` vient de
+ * l'horloge. Sans le rapprochement, choisir un mois clos projetait ses 31 jours
+ * de dépenses sur les 28 écoulés d'aujourd'hui — une prévision sur un mois
+ * terminé depuis trois mois. Un mois révolu n'a rien à projeter : il est connu.
+ *
  * @param {Object} params
  * @param {Object} params.periods
- * @param {string} params.moisCourant - AAAA-MM
+ * @param {string} params.moisCourant - AAAA-MM, le mois affiché
+ * @param {string} params.moisReel - AAAA-MM du calendrier, aujourd'hui
  * @param {number} params.jourDuMois
  * @param {number} params.joursDuMois
  * @returns {Object|null}
  */
-export function rythmeDuMois({ periods, moisCourant, jourDuMois, joursDuMois }) {
+export function rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, joursDuMois }) {
   if (!CLE_MOIS.test(moisCourant || '')) return null;
+  // Projeter un mois qu'on ne vit pas n'a pas de sens : le passé est connu,
+  // l'avenir est vide.
+  if (moisCourant !== moisReel) return null;
 
   const ecoules = Number.isFinite(jourDuMois) ? jourDuMois : 0;
   const duree = Number.isFinite(joursDuMois) ? joursDuMois : 0;
   if (ecoules < JOURS_AVANT_DE_JUGER || duree <= 0 || ecoules >= duree) return null;
 
-  const totalDuMois = (cle) => chargesCommunesDuMois(periods && periods[cle])
+  const sommeDe = (charges) => charges
     .reduce((somme, charge) => somme + (Number.isFinite(charge.amount) ? charge.amount : 0), 0);
 
-  const sorti = totalDuMois(moisCourant);
+  const totalDuMois = (cle) => sommeDe(chargesCommunesDuMois(periods && periods[cle]));
+
+  const duMoisCourant = chargesCommunesParCollection(periods && periods[moisCourant]);
+  const fixe = sommeDe(duMoisCourant.fixedCharges);
+  const variable = sommeDe(duMoisCourant.variableCharges);
+
+  const sorti = fixe + variable;
   if (!(sorti > 0)) return null;
 
   const precedents = moisConnus(periods)
@@ -655,7 +729,8 @@ export function rythmeDuMois({ periods, moisCourant, jourDuMois, joursDuMois }) 
   const ordinaire = mediane(precedents);
   if (!(ordinaire > 0)) return null;
 
-  const projection = sorti * (duree / ecoules);
+  // Le fixe est déjà entier ; seul le variable se projette.
+  const projection = fixe + variable * (duree / ecoules);
   const surcout = projection - ordinaire;
 
   // En deçà, la projection ne se distingue pas d'un mois normal — et une
@@ -669,8 +744,9 @@ export function rythmeDuMois({ periods, moisCourant, jourDuMois, joursDuMois }) 
     urgence: 'attention',
     detail: `${projection.toFixed(2)} € à la fin du mois, contre ${ordinaire.toFixed(2)} € `
       + `d'ordinaire — soit ${surcout.toFixed(2)} € de plus.`,
-    fonde: `Sur ${sorti.toFixed(2)} € dépensés en ${ecoules} jours, étendus aux ${duree} `
-      + `du mois, et comparés à la médiane de ${precedents.length} mois révolus.`
+    fonde: `Sur ${variable.toFixed(2)} € de dépenses variables en ${ecoules} jours, étendues `
+      + `aux ${duree} du mois, plus ${fixe.toFixed(2)} € de charges fixes déjà inscrites — `
+      + `comparés à la médiane de ${precedents.length} mois révolus.`
   };
 }
 
@@ -698,14 +774,15 @@ function libelleCompare(valeur) {
  * @param {Array<{enveloppe: Object, depense: number}>} [params.enveloppes]
  * @param {Array<Object>} [params.listeEnveloppes] - Enveloppes existantes
  * @param {Object} [params.periods]
- * @param {string} params.moisCourant - AAAA-MM
+ * @param {string} params.moisCourant - AAAA-MM, le mois affiché
+ * @param {string} [params.moisReel] - AAAA-MM du calendrier, aujourd'hui
  * @param {number} [params.jourDuMois]
  * @param {number} [params.joursDuMois]
  * @returns {Array<Object>} Observations, les plus décisives d'abord
  */
 export function anticiper({
   enveloppes = [], listeEnveloppes = [], periods = null,
-  moisCourant, jourDuMois, joursDuMois
+  moisCourant, moisReel, jourDuMois, joursDuMois
 }) {
   const vues = veiller({ enveloppes, periods, moisCourant, jourDuMois, joursDuMois });
 
@@ -714,7 +791,7 @@ export function anticiper({
   const pic = picSaisonnier({ periods, moisCourant });
   if (pic) vues.push(pic);
 
-  const rythme = rythmeDuMois({ periods, moisCourant, jourDuMois, joursDuMois });
+  const rythme = rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, joursDuMois });
   if (rythme) vues.push(rythme);
 
   const abonnements = abonnementsNonDeclares({ periods, moisCourant });

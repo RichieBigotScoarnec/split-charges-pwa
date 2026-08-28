@@ -102,6 +102,29 @@ function comparaison(rapport) {
   // mois identique pour un mois qui a bougé.
   const sens = Math.abs(ecart) < 1 ? 'egal' : (ecart > 0 ? 'hausse' : 'baisse');
 
+  // Un mois qui n'est pas RÉVOLU ne se qualifie pas. Entamé, il pèse ce qu'il a
+  // déjà coûté et se compare à des mois entiers : le 6, il est presque toujours
+  // « en dessous de l'ordinaire », et l'annoncer comme une économie serait
+  // donner un chiffre exact à une question mal posée. À venir, c'est pire : le
+  // sélecteur propose un mois d'avance, où la reconduction a pu inscrire les
+  // charges fixes, et l'écart annoncerait une économie sur un mois qui n'a pas
+  // commencé.
+  //
+  // On donne l'écart, sans le qualifier — même réserve, et mêmes mots, que la
+  // carte de tendances.
+  if (rapport.etat === 'en-cours' || rapport.etat === 'a-venir') {
+    const reserve = rapport.etat === 'en-cours'
+      ? 'mois en cours, encore incomplet'
+      : 'mois à venir, rien n\'y est encore passé';
+
+    return `
+      <p class="rapport-comparaison rapport-comparaison--egal">
+        <span class="rapport-comparaison-phrase">${escapeHtml(formatCurrency(Math.abs(ecart)))} d'écart avec un mois ordinaire</span>
+        <span class="rapport-comparaison-fonde">${escapeHtml(reserve)} — un mois ordinaire coûte ${escapeHtml(formatCurrency(rapport.ordinaire))}, médiane des mois précédents</span>
+      </p>
+    `;
+  }
+
   const phrase = sens === 'egal'
     ? 'Un mois comme les autres'
     : `${formatCurrency(Math.abs(ecart))} de ${sens === 'hausse' ? 'plus' : 'moins'} qu'un mois ordinaire`;

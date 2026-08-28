@@ -399,6 +399,80 @@ describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
     expect(abonnementsNonDeclares({ periods: {}, moisCourant: '2026-08' })).toBe(null);
     expect(abonnementsNonDeclares({ periods: null, moisCourant: '2026-08' })).toBe(null);
   });
+
+  describe('UN LIBELLÉ RÉPÉTÉ DANS LE MOIS S\'ADDITIONNE', () => {
+    // La saisie rapide sans description reprend le nom de la catégorie :
+    // « Boulangerie » revient donc plusieurs fois par mois. Ne garder que la
+    // dernière occurrence faisait comparer trois montants pris au hasard.
+
+    it('des courses irrégulières ne passent pas pour un prélèvement', () => {
+      const irregulier = {
+        '2026-05': moisComplet([
+          charge('Boulangerie', 4.5), charge('Boulangerie', 5.2), charge('Boulangerie', 5)
+        ]),
+        '2026-06': moisComplet([charge('Boulangerie', 6), charge('Boulangerie', 5.3)]),
+        '2026-07': moisComplet([
+          charge('Boulangerie', 3), charge('Boulangerie', 8),
+          charge('Boulangerie', 2), charge('Boulangerie', 4.8)
+        ])
+      };
+
+      // Sommes réelles : 14,70 / 11,30 / 17,80 → écart de 6,50 €, rien de
+      // stable. Le défaut retenait 5,00 / 5,30 / 4,80 et déclenchait la carte.
+      expect(abonnementsNonDeclares({ periods: irregulier, moisCourant: '2026-08' })).toBe(null);
+    });
+
+    it('un vrai prélèvement doublé un mois porte son montant réel', () => {
+      const double = {
+        '2026-05': moisComplet([charge('Netflix', 13.49)]),
+        '2026-06': moisComplet([charge('Netflix', 13.49)]),
+        '2026-07': moisComplet([charge('Netflix', 13.49)])
+      };
+      const vu = abonnementsNonDeclares({ periods: double, moisCourant: '2026-08' });
+
+      // Une seule occurrence par mois : la somme vaut l'occurrence.
+      expect(vu).not.toBe(null);
+      expect(vu.montant).toBeCloseTo(13.49, 2);
+    });
+  });
+
+  describe('TROIS MOIS CONSÉCUTIFS, ET NON TROIS MOIS CONNUS', () => {
+    // « Revient chaque mois » est une affirmation sur des mois qui se suivent.
+    // Trois mois épars — novembre, mars, juillet — ne la portent pas : on ne
+    // sait rien des huit autres, et le titre de l'observation, lui, l'affirme.
+
+    it('un trou dans la fenêtre fait taire l\'observation', () => {
+      const epars = {
+        '2025-11': moisComplet([charge('Netflix', 13.49), charge('Spotify', 11.99)]),
+        '2026-03': moisComplet([charge('Netflix', 13.49), charge('Spotify', 11.99)]),
+        '2026-07': moisComplet([charge('Netflix', 13.49), charge('Spotify', 11.99)])
+      };
+
+      // Trois mois connus, la même charge dans les trois, montant stable : le
+      // défaut y voyait un prélèvement mensuel.
+      expect(abonnementsNonDeclares({ periods: epars, moisCourant: '2026-08' })).toBe(null);
+    });
+
+    it('un seul mois manquant dans la fenêtre suffit', () => {
+      const troue = {
+        '2026-04': moisComplet([charge('Netflix', 13.49)]),
+        '2026-05': moisComplet([charge('Netflix', 13.49)]),
+        // juin manque
+        '2026-07': moisComplet([charge('Netflix', 13.49)])
+      };
+
+      expect(abonnementsNonDeclares({ periods: troue, moisCourant: '2026-08' })).toBe(null);
+    });
+
+    it('trois mois qui se suivent, eux, parlent', () => {
+      // Le témoin positif : sans lui, les deux contrôles ci-dessus seraient
+      // satisfaits par une fonction qui rend toujours `null`.
+      const vu = abonnementsNonDeclares({ periods: TROIS_MOIS, moisCourant: '2026-08' });
+
+      expect(vu).not.toBe(null);
+      expect(vu.detail).toContain('Netflix');
+    });
+  });
 });
 
 describe('À ce rythme, combien coûtera le mois', () => {
@@ -412,7 +486,7 @@ describe('À ce rythme, combien coûtera le mois', () => {
   it('projette la dépense sur le mois entier et la compare à l\'ordinaire', () => {
     const periods = { ...socle, '2026-08': mois([charge('Vie', 600)]) };
     // 600 € en 10 jours → 1 860 € sur 31 jours, contre 1 000 € d'ordinaire.
-    const vu = rythmeDuMois({ periods, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31 });
+    const vu = rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 });
 
     expect(vu.urgence).toBe('attention');
     expect(vu.montant).toBeCloseTo(1860, 2);
@@ -424,7 +498,7 @@ describe('À ce rythme, combien coûtera le mois', () => {
     // Sur deux jours, une seule grosse course projette un dépassement qui n'en
     // est pas un.
     const periods = { ...socle, '2026-08': mois([charge('Vie', 400)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', jourDuMois: 2, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 2, joursDuMois: 31 }))
       .toBe(null);
   });
 
@@ -433,34 +507,152 @@ describe('À ce rythme, combien coûtera le mois', () => {
       '2026-07': mois([charge('Vie', 1000)]),
       '2026-08': mois([charge('Vie', 600)])
     };
-    expect(rythmeDuMois({ periods: court, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods: court, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
   });
 
   it('un mois qui suit son cours ordinaire ne dit rien', () => {
     // 320 € en 10 jours → 992 € sur 31 : c'est un mois normal.
     const periods = { ...socle, '2026-08': mois([charge('Vie', 320)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
   });
 
   it('un écart de quelques pour cent n\'est pas un dépassement', () => {
     // 360 € en 10 jours → 1 116 €, soit 11 % de plus : sous le seuil.
     const periods = { ...socle, '2026-08': mois([charge('Vie', 360)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
   });
 
   it('le dernier jour du mois, il n\'y a plus rien à projeter', () => {
     const periods = { ...socle, '2026-08': mois([charge('Vie', 1800)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', jourDuMois: 31, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 31, joursDuMois: 31 }))
       .toBe(null);
   });
 
   it('des entrées inexploitables ne font pas tomber le calcul', () => {
-    expect(rythmeDuMois({ periods: null, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods: null, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
-    expect(rythmeDuMois({ periods: socle, moisCourant: 'pas un mois', jourDuMois: 10, joursDuMois: 31 }))
+    expect(rythmeDuMois({ periods: socle, moisCourant: 'pas un mois', moisReel: 'pas un mois', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
+  });
+
+  /**
+   * Un mois avec ses charges fixes ET variables — la forme réelle d'un mois
+   * ouvert : la reconduction y a inscrit tout le fixe dès le premier jour.
+   */
+  const moisReconduit = (fixes, variables) => ({
+    salaries: { vous: 2500, conjointe: 1800 },
+    fixedCharges: Object.fromEntries(fixes.map((c, i) => [`f${i}`, c])),
+    variableCharges: Object.fromEntries(variables.map((c, i) => [`v${i}`, c]))
+  });
+
+  describe('LE FIXE NE SE PROJETTE PAS : il est déjà entier', () => {
+    // La reconduction inscrit toutes les charges fixes dès la première
+    // ouverture du mois, chacune à son quantième. Les étendre au prorata des
+    // jours écoulés revient à projeter six loyers.
+    const AVEC_FIXE = {
+      '2026-05': moisReconduit([charge('Loyer', 900)], [charge('Vie', 400)]),
+      '2026-06': moisReconduit([charge('Loyer', 900)], [charge('Vie', 400)]),
+      '2026-07': moisReconduit([charge('Loyer', 900)], [charge('Vie', 400)]),
+      // Au 5 : 900 € de loyer déjà inscrits, 200 € de variables saisis.
+      '2026-08': moisReconduit([charge('Loyer', 900)], [charge('Vie', 200)])
+    };
+
+    it('n\'étend que les dépenses variables', () => {
+      const vu = rythmeDuMois({
+        periods: AVEC_FIXE, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 5, joursDuMois: 31
+      });
+
+      // 900 + 200 × 31/5 = 900 + 1 240 = 2 140.
+      // Le défaut multipliait TOUT : 1 100 × 31/5 = 6 820 €.
+      expect(vu).not.toBe(null);
+      expect(vu.montant).toBeCloseTo(2140, 2);
+      expect(vu.montant).toBeLessThan(6820);
+    });
+
+    it('le fonde distingue les deux, sans quoi le chiffre serait invérifiable', () => {
+      const vu = rythmeDuMois({
+        periods: AVEC_FIXE, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 5, joursDuMois: 31
+      });
+
+      expect(vu.fonde).toContain('200.00');
+      expect(vu.fonde).toContain('900.00');
+      expect(vu.fonde).toContain('déjà inscrites');
+    });
+
+    it('un mois où SEUL le fixe est passé ne projette aucun dépassement', () => {
+      // C'est le cas du 2 ou du 3 du mois, avant la première course. Le défaut
+      // y voyait 900 × 31/6 = 4 650 € et criait au dépassement.
+      const seulLeFixe = {
+        ...AVEC_FIXE,
+        '2026-08': moisReconduit([charge('Loyer', 900)], [])
+      };
+      const vu = rythmeDuMois({
+        periods: seulLeFixe, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 6, joursDuMois: 31
+      });
+
+      // 900 € projetés contre 1 300 € d'ordinaire : rien à signaler.
+      expect(vu).toBe(null);
+    });
+  });
+
+  describe('SEUL LE MOIS RÉELLEMENT EN COURS SE PROJETTE', () => {
+    // `moisCourant` est le mois du sélecteur ; le jour vient de l'horloge.
+    // Sans le rapprochement, choisir un mois clos projetait ses dépenses sur
+    // les jours écoulés d'aujourd'hui.
+    //
+    // Les mois sont posés de façon que CHAQUE cas déclencherait l'observation
+    // sans la garde : quatre mois révolus à 1 000 € avant le plus ancien des
+    // trois qu'on interroge, et un total assez lourd dans chacun. Sans cette
+    // précaution les contrôles passeraient pour la mauvaise raison — trop peu
+    // d'historique, ou un mois vide — et ne mesureraient rien.
+    const periods = {
+      '2026-03': mois([charge('Vie', 1000)]),
+      '2026-04': mois([charge('Vie', 1000)]),
+      '2026-05': mois([charge('Vie', 1000)]),
+      '2026-06': mois([charge('Vie', 1000)]),
+      '2026-07': mois([charge('Vie', 1800)]),
+      '2026-08': mois([charge('Vie', 600)]),
+      '2026-09': mois([charge('Vie', 600)])
+    };
+
+    it('un mois révolu n\'a rien à projeter : il est connu', () => {
+      // Sans la garde : 1 800 × 31/10 = 5 580 € « à la fin » d'un mois clos.
+      expect(rythmeDuMois({
+        periods, moisCourant: '2026-07', moisReel: '2026-08',
+        jourDuMois: 10, joursDuMois: 31
+      })).toBe(null);
+    });
+
+    it('un mois à venir non plus', () => {
+      // Sans la garde : 600 × 31/10 = 1 860 € pour un mois pas encore commencé.
+      expect(rythmeDuMois({
+        periods, moisCourant: '2026-09', moisReel: '2026-08',
+        jourDuMois: 10, joursDuMois: 31
+      })).toBe(null);
+    });
+
+    it('sans mois réel, on ne suppose pas que le mois affiché est celui d\'aujourd\'hui', () => {
+      expect(rythmeDuMois({
+        periods, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31
+      })).toBe(null);
+    });
+
+    it('le mois réellement en cours, lui, se projette', () => {
+      // Le témoin positif : sans lui, les trois contrôles ci-dessus seraient
+      // satisfaits par une fonction qui rend toujours `null`.
+      const vu = rythmeDuMois({
+        periods, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 10, joursDuMois: 31
+      });
+
+      expect(vu).not.toBe(null);
+      expect(vu.montant).toBeCloseTo(1860, 2);
+    });
   });
 });

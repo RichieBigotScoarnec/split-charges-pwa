@@ -126,8 +126,15 @@ test.describe('Le détail d\'un payeur', () => {
     const vous = await lire('vous');
     const conjointe = await lire('conjointe');
 
-    // 950 + 74,25 + 88,50 + 300
-    expect(vous + conjointe).toBeCloseTo(1412.75, 2);
+    // Comparé au total que LE BILAN AFFICHE, sur la même page et dans le même
+    // geste — jamais à une constante écrite à la main. Avec 1 412,75 en dur, le
+    // jour où `computeSummary` se remettrait à compter une charge solo ou
+    // supprimée, le bilan afficherait 1 447,75 € pendant que les deux détails
+    // continueraient de sommer 1 412,75 — et ce contrôle, dont le titre EST
+    // cette égalité, serait resté vert.
+    const duBilan = enNombre(await page.locator('.summary-total-row strong').innerText());
+
+    expect(vous + conjointe).toBeCloseTo(duBilan, 2);
   });
 
   test('Échap referme', async ({ page }) => {

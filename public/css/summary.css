@@ -1103,7 +1103,15 @@
    que le navigateur lui donne, et à lui rendre celle de la ligne qu'elle était.
 */
 .summary-row--ouvrable {
-  width: 100%;
+  /*
+     Pas de `width: 100%`. `.summary-row` déborde de son conteneur par une
+     marge négative de part et d'autre, et compte sur `width: auto` pour le
+     faire symétriquement. Fixer la largeur sur-contraint l'équation
+     `marge gauche + largeur + marge droite = largeur du conteneur` : le
+     navigateur recalcule alors la marge droite, et le bouton s'arrête 16 px
+     avant le bord que les lignes voisines atteignent. Les montants des lignes
+     « a payé » ne s'alignaient plus sur ceux du reste du bilan.
+  */
   background: none;
   border: none;
   font: inherit;

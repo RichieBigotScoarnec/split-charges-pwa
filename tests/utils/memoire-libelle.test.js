@@ -68,6 +68,36 @@ describe('Ce que le module refuse de proposer', () => {
     expect(categorieProposee('Leclerc', apprendre(partage))).toBe(null);
   });
 
+  it('à égalité SUR PLUSIEURS SAISIES non plus — c\'est là que la règle joue', () => {
+    // Le cas 1 contre 1 ci-dessus est écarté un cran plus tôt, par le seuil
+    // « deux saisies minimum » : il n'atteint jamais la règle de majorité.
+    // Trois contre trois, si — et sans elle, `apprendre` proposerait
+    // « Courses » avec trois saisies pour l'appuyer, sur un mot que le foyer
+    // emploie exactement autant dans l'autre sens.
+    const troisPartout = historique({
+      '2026-06': [
+        charge('Leclerc', 'Courses'), charge('Leclerc', 'Courses'), charge('Leclerc', 'Courses'),
+        charge('Leclerc', 'Essence'), charge('Leclerc', 'Essence'), charge('Leclerc', 'Essence')
+      ]
+    });
+
+    expect(categorieProposee('Leclerc', apprendre(troisPartout))).toBe(null);
+    expect(apprendre(troisPartout)).toEqual({});
+  });
+
+  it('une majorité d\'une seule voix suffit, et pas moins', () => {
+    // La frontière exacte : 3 contre 2 tranche, 3 contre 3 non. Sans ce
+    // couple, une règle « au moins la moitié » passerait le contrôle du haut.
+    const troisContreDeux = historique({
+      '2026-06': [
+        charge('Leclerc', 'Courses'), charge('Leclerc', 'Courses'), charge('Leclerc', 'Courses'),
+        charge('Leclerc', 'Essence'), charge('Leclerc', 'Essence')
+      ]
+    });
+
+    expect(categorieProposee('Leclerc', apprendre(troisContreDeux)).categorie).toBe('Courses');
+  });
+
   it('mais une majorité stricte tranche', () => {
     const majorite = historique({
       '2026-07': [charge('Leclerc', 'Courses'), charge('Leclerc', 'Courses')],

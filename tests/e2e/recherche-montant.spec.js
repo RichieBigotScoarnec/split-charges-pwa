@@ -29,13 +29,20 @@ async function poser(page, description, montant, categorie = 'Courses') {
   // légitimement. Ce n'est pas un défaut du code, c'est une prémisse fausse —
   // et elle a mis un passage complet à se manifester.
   await page.locator('#variableChargeHeure').fill('');
-  // Le premier du mois, pour que la date ne porte pas non plus les deux
-  // chiffres qu'on cherche.
-  const debutDuMois = await page.evaluate(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-  });
-  await page.locator('#variableChargeDate').fill(debutDuMois);
+
+  // LA DATE EST EFFACÉE POUR LA MÊME RAISON, ET ELLE DOIT L'ÊTRE EN ENTIER.
+  //
+  // La première version datait la charge du PREMIER du mois, pour neutraliser
+  // le jour. Elle ne neutralisait ni le mois ni l'année : en décembre les trois
+  // charges auraient porté « AAAA-12-01 », et le contrôle « 12 ne ramène pas
+  // 120 » serait tombé tout le mois — la date portant les deux chiffres
+  // cherchés. Le job E2E aurait viré au rouge chaque décembre, et `deploy.yml`
+  // aurait sauté la publication.
+  //
+  // Un an après le contrôle qui dépendait de l'heure qu'il était, le même
+  // piège d'un cran plus large. Une date vide est un cas que l'application
+  // porte : c'est la seule valeur qui ne puisse contenir aucun chiffre.
+  await page.locator('#variableChargeDate').fill('');
 
   await page.locator('#saveVariableCharge').click();
   await expect(page.locator('#variableChargesList').getByText(description))

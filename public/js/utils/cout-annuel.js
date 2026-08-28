@@ -41,16 +41,36 @@ const HAUSSE_MINIMALE = 0.5;
  * Les dépenses solo sont écartées : elles n'engagent pas le foyer, et les
  * verser dans un total commun contredirait le bilan.
  *
+ * ## Ce qui se multiplie par douze, et ce qui ne se multiplie pas
+ *
+ * Une charge fixe porte `recurring`, la bascule « Récurrente (reconduction
+ * auto) » du formulaire. `recurrence.js` la lit pour décider de reconduire, et
+ * la liste elle-même étiquette « ponctuelle » celles qui ne le sont pas. Une
+ * taxe foncière saisie en charge fixe avec la bascule décochée — le cas d'usage
+ * exact du drapeau — coûte 1 200 € une fois l'an, pas 14 400.
+ *
+ * Le total annuel les compte donc chacune à son rythme : douze fois pour les
+ * récurrentes, une seule pour les ponctuelles. Ignorer le drapeau aurait écrit
+ * « Soit 25 200,00 € sur une année » deux lignes sous une charge que la même
+ * liste venait d'étiqueter « ponctuelle ».
+ *
+ * Son ABSENCE vaut récurrente — même convention que `recurrence.js`, et c'est
+ * le défaut du formulaire : tout l'existant est ainsi préservé.
+ *
  * @param {Array<Object>} fixedCharges - Charges fixes du mois affiché
- * @returns {{parMois: number, parAn: number, nombre: number}}
+ * @returns {{parMois: number, parAn: number, nombre: number, ponctuelles: number}}
  */
 export function coutDesChargesFixes(fixedCharges) {
   const actives = chargesCommunes(Array.isArray(fixedCharges) ? fixedCharges : [])
     .filter(charge => charge && !charge.deleted);
 
-  const parMois = totalDesCharges(actives);
+  const recurrentes = actives.filter(charge => charge.recurring !== false);
+  const ponctuelles = actives.filter(charge => charge.recurring === false);
 
-  return { parMois, parAn: parMois * MOIS_PAR_AN, nombre: actives.length };
+  const parMois = totalDesCharges(actives);
+  const parAn = totalDesCharges(recurrentes) * MOIS_PAR_AN + totalDesCharges(ponctuelles);
+
+  return { parMois, parAn, nombre: actives.length, ponctuelles: ponctuelles.length };
 }
 
 /**

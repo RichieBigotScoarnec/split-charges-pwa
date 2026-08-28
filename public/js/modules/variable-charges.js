@@ -157,7 +157,20 @@ function proposerLaCategorie() {
   const vu = categorieProposee(champ.value, getState('memoireLibelles'));
   if (!vu) {
     // La proposition précédente ne vaut plus : le libellé a changé.
-    if (!select.value) oublierLaProposition();
+    //
+    // La garde était `if (!select.value)`, c'est-à-dire l'inverse de son
+    // intention : une proposition posée REMPLIT le sélecteur, donc elle ne
+    // s'effaçait jamais. Écrire « Intermarché » puis le remplacer par « Cinéma »
+    // laissait « Courses » en place, avec l'indice « d'après vos 2 saisies de ce
+    // libellé » — une justification portant sur un libellé qui n'est plus là.
+    //
+    // La catégorie n'est retirée QUE si l'indice est visible, c'est-à-dire si
+    // c'est bien l'application qui l'a posée. `_categorieChoisie` protège déjà
+    // du choix manuel ; ceci protège de la charge qu'on vient de rouvrir, dont
+    // la catégorie vient de la base et non d'une proposition.
+    const indiceVisible = indice && !indice.hidden;
+    if (indiceVisible) select.value = '';
+    oublierLaProposition();
     return;
   }
 

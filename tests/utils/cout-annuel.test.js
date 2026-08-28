@@ -47,6 +47,52 @@ describe('Le coût des charges fixes', () => {
     expect(coutDesChargesFixes([]).parAn).toBe(0);
     expect(coutDesChargesFixes(null).parAn).toBe(0);
   });
+
+  describe('UNE PONCTUELLE NE SE PAIE PAS DOUZE FOIS', () => {
+    // `recurring: false` est la bascule « Récurrente (reconduction auto) »
+    // décochée. La liste des charges fixes étiquette ces lignes « ponctuelle » :
+    // écrire « soit 25 200 € sur une année » deux lignes plus bas contredirait
+    // l'étiquette que l'écran vient d'afficher.
+
+    it('la compte une fois, quand la récurrente est comptée douze', () => {
+      const { parMois, parAn, ponctuelles } = coutDesChargesFixes([
+        fixe('Loyer', 900),
+        fixe('Taxe foncière', 1200, { recurring: false })
+      ]);
+
+      expect(parMois).toBeCloseTo(2100, 6);
+      // 900 × 12 + 1 200 = 12 000. Le défaut rendait 2 100 × 12 = 25 200.
+      expect(parAn).toBeCloseTo(12000, 6);
+      expect(ponctuelles).toBe(1);
+    });
+
+    it('l\'absence du drapeau vaut récurrente — tout l\'existant est préservé', () => {
+      // Même convention que `recurrence.js` : c'est le défaut du formulaire, et
+      // aucune charge saisie avant l'ajout du drapeau n'en porte.
+      const { parAn, ponctuelles } = coutDesChargesFixes([fixe('Loyer', 900)]);
+
+      expect(parAn).toBeCloseTo(10800, 6);
+      expect(ponctuelles).toBe(0);
+    });
+
+    it('`recurring: true` explicite se comporte comme son absence', () => {
+      const explicite = coutDesChargesFixes([fixe('Loyer', 900, { recurring: true })]);
+      const implicite = coutDesChargesFixes([fixe('Loyer', 900)]);
+
+      expect(explicite.parAn).toBe(implicite.parAn);
+    });
+
+    it('une ponctuelle solo ou supprimée ne compte nulle part', () => {
+      const { parAn, ponctuelles } = coutDesChargesFixes([
+        fixe('Loyer', 900),
+        fixe('Réparation', 500, { recurring: false, deleted: true }),
+        fixe('Vélo', 400, { recurring: false, perimetre: 'solo' })
+      ]);
+
+      expect(parAn).toBeCloseTo(10800, 6);
+      expect(ponctuelles).toBe(0);
+    });
+  });
 });
 
 describe('Ce qui a augmenté depuis l\'an dernier', () => {

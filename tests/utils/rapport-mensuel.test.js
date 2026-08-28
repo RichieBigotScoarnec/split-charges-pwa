@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rapportDuMois } from '../../public/js/utils/rapport-mensuel.js';
 import { computeSummary } from '../../public/js/utils/calculations.js';
+import { categorieQuiABouge, totauxParCategorie, SANS_CATEGORIE } from '../../public/js/utils/tendances.js';
 
 /**
  * Le mois écoulé, en une page
@@ -59,12 +60,60 @@ describe('LA PROPRIÉTÉ : le rapport ne recalcule rien', () => {
     expect(rapport.total).toBeCloseTo(bilan.total, 6);
   });
 
+  it('la catégorie qui a bougé est celle que le panneau des tendances nomme', () => {
+    // Le rapport et les tendances posent la MÊME question à la MÊME fonction.
+    // Deux agrégations séparées y répondaient sur des seaux différents : l'une
+    // rangeait les charges sans catégorie sous « Autre », l'autre sous « Sans
+    // catégorie » — et « Autre » est une catégorie réelle du foyer. Les deux
+    // écrans pouvaient donc nommer deux catégories pour le même mois.
+    const juillet = {
+      salaries: { vous: 2500, conjointe: 1800 },
+      variableCharges: {
+        v1: { description: 'Divers', amount: 500, category: 'Autre', deleted: false }
+      }
+    };
+    const aout = {
+      salaries: { vous: 2500, conjointe: 1800 },
+      variableCharges: {
+        v1: { description: 'Divers', amount: 100, category: 'Autre', deleted: false },
+        // Sans champ `category` : les règles ne l'exigent pas.
+        v2: { description: 'Héritée', amount: 400, deleted: false }
+      }
+    };
+    const periods = { '2026-07': juillet, '2026-08': aout };
+
+    const rapport = rapportDuMois({ periods, mois: '2026-08', bilan: null });
+    const desTendances = categorieQuiABouge(
+      totauxParCategorie(aout), totauxParCategorie(juillet)
+    );
+
+    expect(rapport.categorieQuiABouge).toEqual(desTendances);
+    // Et les deux seaux restent bien distincts.
+    expect(totauxParCategorie(aout)).toEqual({ 'Autre': 100, [SANS_CATEGORIE]: 400 });
+  });
+
   it('le solde et son règlement viennent du bilan, pas d\'un nouveau calcul', () => {
     const bilan = bilanDe('2026-08');
     const rapport = rapportDuMois({ periods: PERIODS, mois: '2026-08', bilan });
 
     expect(rapport.solde).toBe(bilan.balance);
     expect(rapport.soldeRegle).toBe(Math.abs(bilan.balance) < 0.01);
+  });
+
+  it('un mois RÉGLÉ le dit — la branche que le jeu d\'essai ordinaire n\'atteint pas', () => {
+    // Le solde du jeu d'essai vaut +244,19 € : `soldeRegle` y est faux partout,
+    // et l'assertion ci-dessus comparait donc false à false. Une implémentation
+    // rendant toujours `false` la passait. `settleBalance` laisse un résidu de
+    // l'ordre du demi-centime : c'est cette frontière qu'il faut tenir.
+    const regle = (balance) => rapportDuMois({
+      periods: PERIODS, mois: '2026-08', bilan: { ...bilanDe('2026-08'), balance }
+    }).soldeRegle;
+
+    expect(regle(0)).toBe(true);
+    expect(regle(0.005)).toBe(true);
+    expect(regle(-0.005)).toBe(true);
+    expect(regle(0.02)).toBe(false);
+    expect(regle(-0.02)).toBe(false);
   });
 });
 
@@ -135,6 +184,27 @@ describe('Ce qui manque, et le dit', () => {
     const rapport = rapportDuMois({ periods: vide, mois: '2026-08', bilan: null });
 
     expect(rapport.vide).toBe(true);
+  });
+
+  it('situe le mois par rapport au calendrier : révolu, en cours, ou à venir', () => {
+    // Un seul des trois états autorise à qualifier l'écart. Le 6 du mois, un
+    // mois entamé pèse 1 050 € contre 2 000 € d'ordinaire, et l'écart est celui
+    // des jours qui restent, pas une économie. Un mois à VENIR — le sélecteur
+    // en propose un d'avance — est pire encore : rien n'y est passé.
+    const etatPour = (moisReel) => rapportDuMois({
+      periods: PERIODS, mois: '2026-08', bilan: bilanDe('2026-08'), moisReel
+    }).etat;
+
+    expect(etatPour('2026-08')).toBe('en-cours');
+    expect(etatPour('2026-09')).toBe('revolu');
+    expect(etatPour('2026-07')).toBe('a-venir');
+  });
+
+  it('sans mois réel, on ne suppose pas que le mois est clos', () => {
+    // Le silence plutôt qu'une affirmation : `null` se distingue des trois
+    // états, et l'écran ne qualifie alors rien.
+    const rapport = rapportDuMois({ periods: PERIODS, mois: '2026-08', bilan: bilanDe('2026-08') });
+    expect(rapport.etat).toBe(null);
   });
 
   it('un mois absent ou une entrée illisible rend null', () => {

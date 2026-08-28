@@ -520,11 +520,47 @@ function afficherTotal(element, charges) {
  * @param {Array<Object>} charges - Les charges affichées
  * @returns {void}
  */
+/**
+ * Les hausses que la liste affichée porte encore
+ *
+ * `haussesChargesFixes` est calculé une fois, au chargement du mois, sur
+ * l'instantané que `loadPeriodData` avait sous la main. Supprimer une charge
+ * ou en corriger le montant réaffiche la liste sans repasser par là : le pied
+ * de liste continuait alors de nommer « Loyer, Internet » quand le loyer venait
+ * d'être supprimé, et d'annoncer un écart mensuel qui le comptait encore.
+ *
+ * Recalculer ici est impossible — la comparaison exige le mois d'il y a douze
+ * mois, que ce module n'a pas. On retient donc les seules lignes que la liste
+ * confirme, au libellé ET au montant : une charge repassée de 990 à 950 € n'a
+ * plus augmenté de 40 €, et le dire serait aussi faux que de la nommer absente.
+ *
+ * @param {Object|null} hausses - Sortie de `haussesDepuisLAnDernier`
+ * @param {Array<Object>} charges - Les charges réellement affichées
+ * @returns {{lignes: Array<Object>, ecartMensuel: number}}
+ */
+function haussesEncoreVraies(hausses, charges) {
+  const vide = { lignes: [], ecartMensuel: 0 };
+  if (!hausses || !Array.isArray(hausses.lignes)) return vide;
+
+  const actives = (Array.isArray(charges) ? charges : [])
+    .filter(charge => charge && !charge.deleted);
+
+  const lignes = hausses.lignes.filter(ligne => actives.some(charge =>
+    String(charge.description || '').trim() === String(ligne.description || '').trim()
+    && Number(charge.amount) === Number(ligne.apres)
+  ));
+
+  return {
+    lignes,
+    ecartMensuel: lignes.reduce((somme, ligne) => somme + (Number(ligne.ecart) || 0), 0)
+  };
+}
+
 function afficherLeCoutAnnuel(charges) {
   const element = document.getElementById('fixedChargesAnnuel');
   if (!element) return;
 
-  const { parAn, nombre } = coutDesChargesFixes(charges);
+  const { parAn, nombre, ponctuelles } = coutDesChargesFixes(charges);
 
   if (nombre === 0 || !(parAn > 0)) {
     element.hidden = true;
@@ -534,8 +570,18 @@ function afficherLeCoutAnnuel(charges) {
 
   const phrases = [`Soit ${formatCurrency(parAn)} sur une année`];
 
-  const hausses = getState('haussesChargesFixes');
-  if (hausses && Array.isArray(hausses.lignes) && hausses.lignes.length > 0) {
+  // Sans cette phrase, le total paraîtrait arbitraire : il ne vaut pas douze
+  // fois le total mensuel affiché juste au-dessus, et rien à l'écran ne dirait
+  // pourquoi. Une ponctuelle n'y est comptée qu'une fois.
+  if (ponctuelles > 0) {
+    phrases.push(
+      `${ponctuelles} ${ponctuelles > 1 ? 'charges ponctuelles comptées' : 'charge ponctuelle comptée'} `
+      + 'une seule fois'
+    );
+  }
+
+  const hausses = haussesEncoreVraies(getState('haussesChargesFixes'), charges);
+  if (hausses.lignes.length > 0) {
     const n = hausses.lignes.length;
     phrases.push(
       `${n} ${n > 1 ? 'ont augmenté' : 'a augmenté'} depuis l'an dernier `

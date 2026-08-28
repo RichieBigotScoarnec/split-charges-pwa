@@ -22,7 +22,14 @@ export const REACTIVE_FIREBASE_MOCK = `
   // si bien qu'une lecture de parent rendait null — ce qui masquait toute
   // fonctionnalité parcourant l'historique.
   function _read(path) {
-    if (window.__db[path] !== undefined) return window.__db[path];
+    var exact = window.__db[path];
+
+    // Une valeur qui n'est pas un objet ne se compose pas : elle fait
+    // autorité seule.
+    if (exact !== undefined && (typeof exact !== 'object' || exact === null
+        || Array.isArray(exact))) {
+      return exact;
+    }
 
     var prefix = path + '/';
     var tree = null;
@@ -53,6 +60,19 @@ export const REACTIVE_FIREBASE_MOCK = `
         node[derniere] = valeur;
       }
     });
+
+    // L'entrée EXACTE et les chemins plats coexistent : les semences des tests
+    // écrivent des enfants à plat, et une écriture d'ensemble pose l'objet
+    // parent. Rendre l'un en ignorant l'autre faisait DISPARAÎTRE des charges —
+    // semer deux charges à plat puis en ajouter une par l'écran ramenait le
+    // bilan de 1 340 € à 990 €. Realtime Database n'a qu'un seul arbre : on le
+    // reconstitue en réunissant les deux représentations, l'entrée fine
+    // l'emportant sur l ensemble.
+    if (exact !== undefined) {
+      if (tree === null) return exact;
+      return Object.assign({}, exact, tree);
+    }
+
     return tree;
   }
 
@@ -183,11 +203,26 @@ export const REACTIVE_FIREBASE_MOCK = `
               return {
                 key: key,
                 set: function(data) {
-                  // Stockage hiérarchique : window.__db[parentPath][key] = data
+                  // L'enfant est écrit comme un CHEMIN PLAT, exactement comme
+                  // les semences des tests l'écrivent — et set se charge de le
+                  // refléter dans l'objet parent quand il en existe un.
+                  //
+                  // La version d'avant fabriquait le parent : window.__db[path]
+                  // = {} puis [key] = data. Or _read rend l'entrée exacte dès
+                  // qu'elle existe, sans assembler les chemins plats. Semer deux
+                  // charges à plat puis en ajouter une par l'écran faisait donc
+                  // DISPARAÎTRE les deux premières — le bilan tombait de
+                  // 1 340 € à 990 €. Realtime Database, elle, ajoute un frère.
+                  // L'objet parent est tenu à jour LUI AUSSI : plusieurs
+                  // contrôles parcourent window.__db à deux niveaux pour
+                  // relire une charge en base, et c'est la représentation
+                  // qu ils y cherchent. La lecture réunit les deux.
                   if (typeof window.__db[path] !== 'object' || window.__db[path] === null) {
                     window.__db[path] = {};
                   }
                   window.__db[path][key] = data;
+
+                  ref(path + '/' + key).set(data);
                   _notify(path);
                   return Promise.resolve();
                 }

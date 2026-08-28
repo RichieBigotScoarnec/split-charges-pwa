@@ -19,6 +19,7 @@
  */
 
 import { resolveIncomeBase } from './salaries.js';
+import { estSolo } from './perimetre.js';
 
 /** En deçà d'un centime, une variation n'en est pas une */
 export const SEUIL_VARIATION = 0.01;
@@ -160,6 +161,55 @@ export function partDuFixe(fixes, variables) {
  * @param {Object<string, number>} precedent - Totaux par catégorie du mois d'avant
  * @returns {{categorie: string, variation: number}|null}
  */
+/**
+ * Le seau d'une charge sans catégorie
+ *
+ * « Autre » ne convient pas : c'est une catégorie RÉELLE du foyer
+ * (`config.js`), et l'y verser confondrait ce qu'il a rangé là avec ce qu'il
+ * n'a rangé nulle part.
+ */
+export const SANS_CATEGORIE = 'Sans catégorie';
+
+/**
+ * Répartit les charges communes d'une période par catégorie
+ *
+ * Fixes et variables confondues : c'est la dépense qui compte, pas la forme
+ * sous laquelle elle est saisie. Les dépenses solo sont écartées — « la
+ * catégorie qui a le plus bougé » est une observation sur le FOYER.
+ *
+ * **Cette fabrique est la seule.** Le panneau des tendances et le rapport
+ * mensuel posent la même question au même `categorieQuiABouge` ; deux
+ * agrégations séparées y répondaient sur des seaux différents — l'une rangeait
+ * les charges sans catégorie sous « Autre », l'autre sous « Sans catégorie » —
+ * et les deux écrans pouvaient nommer deux catégories différentes pour le même
+ * mois. C'est exactement le défaut de `normalizePair` et de `resolveShareMode`,
+ * et il se referme de la même façon : une seule fonction.
+ *
+ * @param {Object} periode - Contenu d'une période, tel que lu en base
+ * @returns {Object<string, number>} Total par libellé de catégorie
+ */
+export function totauxParCategorie(periode) {
+  const totaux = {};
+
+  for (const collection of ['fixedCharges', 'variableCharges']) {
+    const noeud = periode && periode[collection];
+    if (!noeud || typeof noeud !== 'object') continue;
+
+    for (const charge of Object.values(noeud)) {
+      if (!charge || charge.deleted || estSolo(charge)) continue;
+
+      const categorie = typeof charge.category === 'string' && charge.category
+        ? charge.category
+        : SANS_CATEGORIE;
+      const montant = Number.isFinite(charge.amount) ? charge.amount : 0;
+
+      totaux[categorie] = (totaux[categorie] || 0) + montant;
+    }
+  }
+
+  return totaux;
+}
+
 export function categorieQuiABouge(dernier, precedent) {
   const lire = source => (source && typeof source === 'object' ? source : {});
 

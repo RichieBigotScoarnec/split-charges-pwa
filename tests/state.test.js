@@ -150,6 +150,26 @@ describe('resetUserData', () => {
     expect(getState('reimbursements')).toHaveLength(0);
   });
 
+  it('efface tout ce qui est dérivé de l\'historique du foyer', () => {
+    // Se reconnecter sur un autre compte sans recharger la page laissait
+    // autrement l'historique complet du foyer précédent dans l'état — le nœud
+    // `periods` en entier pour le rapport, et ce que la mémoire des libellés
+    // en avait appris.
+    setState('historiquePourLeRapport', { '2026-07': { variableCharges: {} } });
+    setState('memoireLibelles', { intermarche: 'Courses' });
+    setState('haussesChargesFixes', { lignes: [{ description: 'Loyer' }] });
+    setState('rapportDuMois', { mois: '2026-08', total: 1300 });
+    setState('observations', [{ cle: 'rythme-du-mois:2026-08' }]);
+
+    resetUserData();
+
+    expect(getState('historiquePourLeRapport')).toBe(null);
+    expect(getState('memoireLibelles')).toEqual({});
+    expect(getState('haussesChargesFixes')).toBe(null);
+    expect(getState('rapportDuMois')).toBe(null);
+    expect(getState('observations')).toHaveLength(0);
+  });
+
   it('remet shareMode à prorata', () => {
     setState('shareMode', '50-50');
     resetUserData();

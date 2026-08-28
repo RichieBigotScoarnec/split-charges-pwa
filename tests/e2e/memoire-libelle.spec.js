@@ -86,6 +86,21 @@ test.describe('La catégorie proposée', () => {
     await expect(page.locator('#variableChargeCategoryHint')).toContainText('commençant ainsi');
   });
 
+  test('une proposition ne survit pas au libellé qui l\'a produite', async ({ page }) => {
+    // La garde était inversée : une proposition posée REMPLIT le sélecteur,
+    // donc elle ne s'effaçait jamais. « Intermarché » puis « Cinéma » laissait
+    // « Courses » en place, avec un indice justifiant un libellé absent.
+    await ouvrir(page);
+    await ecrire(page, 'Intermarché');
+    await expect(page.locator('#variableChargeCategory')).toHaveValue('Courses');
+
+    await page.locator('#variableChargeDescription').fill('Cinéma');
+    await page.waitForTimeout(300);
+
+    await expect(page.locator('#variableChargeCategory')).toHaveValue('');
+    await expect(page.locator('#variableChargeCategoryHint')).toBeHidden();
+  });
+
   test('LA PROPRIÉTÉ : un choix fait à la main n\'est jamais écrasé', async ({ page }) => {
     await ouvrir(page);
     await ecrire(page, 'Interm');

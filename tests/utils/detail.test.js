@@ -45,6 +45,55 @@ const detailPour = qui => detailDuPayeur({
   customPercents: MOIS.customPercents
 });
 
+describe('LA PROPRIÉTÉ TIENT SOUS LE MODE FIGÉ DU MOIS', () => {
+  // `detail-depenses.js` lit `resolveShareMode(shareModeDuMois, shareMode)` et
+  // `resolvePercents(...)` précisément pour retrouver le chiffre du bilan sur
+  // un mois reconduit. Rien ne l'éprouvait : la suite passait `prorata` en dur,
+  // et remplacer la fabrique par le réglage global du foyer laissait tout vert.
+  //
+  // C'est la classe de défaut la plus coûteuse de ce dépôt — un juillet clos
+  // ressuscitait 125 € — et elle était ici sans témoin. Le contrôle rejoue donc
+  // la propriété pour CHAQUE mode, sur les mêmes charges : quel que soit le
+  // mode que le mois a figé, le détail doit retomber sur le bilan de ce mode.
+  const MODES = [
+    { mode: 'prorata', percents: { vous: 50, conjointe: 50 } },
+    { mode: '50-50', percents: { vous: 50, conjointe: 50 } },
+    { mode: 'custom', percents: { vous: 70, conjointe: 30 } }
+  ];
+
+  for (const { mode, percents } of MODES) {
+    it(`le détail retrouve le bilan en « ${mode} »`, () => {
+      const termes = { ...MOIS, shareMode: mode, customPercents: percents };
+      const bilan = computeSummary(termes);
+
+      const pour = qui => detailDuPayeur({
+        fixedCharges: termes.fixedCharges,
+        variableCharges: termes.variableCharges,
+        qui,
+        shareMode: mode,
+        salaries: termes.salaries,
+        customPercents: percents
+      });
+
+      expect(pour('vous').total).toBeCloseTo(bilan.yourActualPayments, 6);
+      expect(pour('conjointe').total).toBeCloseTo(bilan.partnerActualPayments, 6);
+    });
+  }
+
+  it('et les trois modes ne donnent pas le même chiffre — sans quoi rien n\'est mesuré', () => {
+    // Le témoin positif : la charge « Week-end » est partagée, donc sa
+    // répartition dépend du mode. Si les trois donnaient le même total, les
+    // contrôles ci-dessus seraient satisfaits par n'importe quelle fabrique.
+    const totalEn = (mode, percents) => detailDuPayeur({
+      fixedCharges: MOIS.fixedCharges, variableCharges: MOIS.variableCharges,
+      qui: 'vous', shareMode: mode, salaries: MOIS.salaries, customPercents: percents
+    }).total;
+
+    const totaux = MODES.map(({ mode, percents }) => totalEn(mode, percents));
+    expect(new Set(totaux.map(t => t.toFixed(2))).size).toBe(MODES.length);
+  });
+});
+
 describe('LA PROPRIÉTÉ : le détail retrouve le chiffre du bilan', () => {
   const bilan = computeSummary(MOIS);
 
