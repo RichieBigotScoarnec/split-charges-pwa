@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  libelleRenouvele,
   moisSuivant,
   memeDateLAnProchain,
   provisionARenouveler,
@@ -314,5 +315,29 @@ describe('veiller — l\'assemblage', () => {
       expect(vue.cle).toBeTruthy();
       expect(vue.titre).toBeTruthy();
     }
+  });
+});
+
+describe('Le nom de l\'enveloppe qui prend la suite', () => {
+  it('porte l\'année de sa propre échéance', () => {
+    // Renouveler ne peut pas vouloir dire « réutiliser celle-ci » : l'ancienne
+    // porte les dépenses de l'année écoulée, et son pot les versements qui les
+    // ont financées. Repousser son échéance ferait démarrer le nouveau cycle
+    // avec 1 009,81 € déjà dépensés.
+    expect(libelleRenouvele('Vacances', '2027-08-29')).toBe('Vacances 2027');
+  });
+
+  it('remplace une année déjà présente au lieu de l\'empiler', () => {
+    expect(libelleRenouvele('Vacances 2026', '2027-08-29')).toBe('Vacances 2027');
+    expect(libelleRenouvele('Vacances 2026', '2028-08-29')).toBe('Vacances 2028');
+  });
+
+  it('ne prend pas un nombre du milieu pour une année', () => {
+    expect(libelleRenouvele('Chantier 2 pièces', '2027-01-01')).toBe('Chantier 2 pièces 2027');
+  });
+
+  it('supporte l\'absence d\'échéance lisible', () => {
+    expect(libelleRenouvele('Vacances', '')).toBe('Vacances');
+    expect(libelleRenouvele(null, '2027-01-01')).toBe('2027');
   });
 });
