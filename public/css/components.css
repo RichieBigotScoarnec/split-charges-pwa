@@ -1276,3 +1276,31 @@
 .budget-row--ouvrable:focus-visible {
   background: var(--primary-soft);
 }
+
+/*
+   Ce que l'application a proposé, et sur quoi elle se fonde
+
+   Une catégorie qui se pose toute seule sans un mot se lit comme un bogue.
+   « Proposée d'après vos 4 saisies » se corrige d'un geste, parce qu'on sait
+   d'où elle vient.
+*/
+.form-hint--proposee {
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  color: var(--primary-color);
+}
+
+/*
+   Ce que les charges fixes coûtent à l'année
+
+   Un loyer se lit par mois — c'est ainsi qu'il se paie. Un abonnement, non :
+   9,99 € ne se remarquent jamais, 119,88 € se discutent. La ligne reste sous
+   le total mensuel, discrète : elle éclaire, elle ne réclame pas.
+*/
+.list-annuel {
+  margin: var(--space-xs) 0 0;
+  padding: 0 var(--space-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

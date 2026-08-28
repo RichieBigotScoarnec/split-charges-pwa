@@ -19,6 +19,8 @@ import { parseMontant } from '../utils/montant.js';
 import { listePeriodes } from '../utils/periodes.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { activerOnglet } from '../utils/onglets.js';
+import { apprendre } from '../utils/memoire-libelle.js';
+import { haussesDepuisLAnDernier } from '../utils/cout-annuel.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -228,6 +230,17 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
       ? instantane[currentPeriod] : null;
 
     const salaries = appliquerLesTermesDuMois(moisAffiche, globalSalaries);
+
+    // Ce que le foyer range où, appris de son propre historique. Construit sur
+    // l'instantané que ce geste a DÉJÀ lu : aucune lecture supplémentaire.
+    setState('memoireLibelles', apprendre(instantane));
+
+    // Ce qui a augmenté depuis l'an dernier — même instantané, aucune lecture
+    // de plus. `null` tant que le mois d'il y a un an manque : on ne compare
+    // pas à ce qu'on n'a pas.
+    setState('haussesChargesFixes', haussesDepuisLAnDernier({
+      periods: instantane, moisCourant: currentPeriod
+    }));
 
     // Les quatre champs de revenus reprennent l'instantané du mois affiché.
     restoreIncomeFields();

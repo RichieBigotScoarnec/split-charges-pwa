@@ -24,6 +24,7 @@ import { normaliserEmplacement } from '../utils/members.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { estSolo, totauxParPerimetre, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { coutDesChargesFixes } from '../utils/cout-annuel.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -502,6 +503,52 @@ function afficherTotal(element, charges) {
 }
 
 /**
+ * Ce que ces charges coûtent sur une année, et ce qui a augmenté
+ *
+ * Un loyer se lit par mois : c'est ainsi qu'il se paie. Un abonnement, non —
+ * 9,99 € ne se remarquent jamais, 119,88 € se discutent. L'application
+ * n'affichait que le mois, et le foyer n'avait aucun endroit où lire ce que
+ * ses charges récurrentes lui coûtent sur l'année.
+ *
+ * La comparaison à l'an dernier n'apparaît que si l'historique la porte :
+ * elle est calculée dans `loadPeriodData`, sur l'instantané déjà lu, et vaut
+ * `null` tant que le mois d'il y a douze mois manque.
+ *
+ * `textContent` et non `innerHTML` : un total n'a aucune raison d'ouvrir un
+ * site d'injection de plus.
+ *
+ * @param {Array<Object>} charges - Les charges affichées
+ * @returns {void}
+ */
+function afficherLeCoutAnnuel(charges) {
+  const element = document.getElementById('fixedChargesAnnuel');
+  if (!element) return;
+
+  const { parAn, nombre } = coutDesChargesFixes(charges);
+
+  if (nombre === 0 || !(parAn > 0)) {
+    element.hidden = true;
+    element.textContent = '';
+    return;
+  }
+
+  const phrases = [`Soit ${formatCurrency(parAn)} sur une année`];
+
+  const hausses = getState('haussesChargesFixes');
+  if (hausses && Array.isArray(hausses.lignes) && hausses.lignes.length > 0) {
+    const n = hausses.lignes.length;
+    phrases.push(
+      `${n} ${n > 1 ? 'ont augmenté' : 'a augmenté'} depuis l'an dernier `
+      + `(+ ${formatCurrency(hausses.ecartMensuel)} par mois) : `
+      + hausses.lignes.map(ligne => ligne.description).join(', ')
+    );
+  }
+
+  element.textContent = phrases.join(' · ');
+  element.hidden = false;
+}
+
+/**
  * Affiche la liste des charges fixes dans le DOM
  */
 export function renderFixedCharges() {
@@ -520,6 +567,7 @@ export function renderFixedCharges() {
   if (charges.length === 0) {
     listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période</p>';
     afficherTotal(totalElement, []);
+    afficherLeCoutAnnuel([]);
     return;
   }
 
@@ -593,6 +641,7 @@ export function renderFixedCharges() {
 
   // Afficher le total — commun d'abord, perso à part.
   afficherTotal(totalElement, charges);
+  afficherLeCoutAnnuel(charges);
 }
 
 /**

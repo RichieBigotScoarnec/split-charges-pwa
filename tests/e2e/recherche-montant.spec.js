@@ -19,6 +19,24 @@ async function poser(page, description, montant, categorie = 'Courses') {
   await page.locator('#variableChargeAmount').fill(montant);
   await page.locator('#variableChargeCategory').selectOption(categorie);
   await page.locator('#variableChargePaidBy').selectOption('vous');
+
+  // L'HEURE EST EFFACÉE, ET C'EST INDISPENSABLE.
+  //
+  // La recherche couvre l'heure à dessein — « 08:30 » se cherche sans avoir à
+  // retrouver le jour qui va avec. Le formulaire préremplit l'heure courante :
+  // un contrôle qui cherche « 17 » passe donc toute la journée et tombe entre
+  // 17 h et 18 h, quand chaque charge porte « 17:xx » et se trouve
+  // légitimement. Ce n'est pas un défaut du code, c'est une prémisse fausse —
+  // et elle a mis un passage complet à se manifester.
+  await page.locator('#variableChargeHeure').fill('');
+  // Le premier du mois, pour que la date ne porte pas non plus les deux
+  // chiffres qu'on cherche.
+  const debutDuMois = await page.evaluate(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  await page.locator('#variableChargeDate').fill(debutDuMois);
+
   await page.locator('#saveVariableCharge').click();
   await expect(page.locator('#variableChargesList').getByText(description))
     .toBeVisible({ timeout: 5000 });
