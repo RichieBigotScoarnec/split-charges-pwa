@@ -17,7 +17,7 @@
 import { getState } from '../state.js';
 import { showModal, closeModal } from '../components/modal.js';
 import { escapeHtml, formatCurrency, formatPaidBy } from '../utils/format.js';
-import { formatDate, formatPeriod } from '../utils/date.js';
+import { formatDate, formatPeriod, dateDeLaCharge } from '../utils/date.js';
 import { memberLabel } from '../utils/members.js';
 import { resolveShareMode, resolvePercents } from '../utils/calculations.js';
 import { detailDuPayeur, detailDeLaCategorie } from '../utils/detail.js';
@@ -117,7 +117,13 @@ export function ouvrirDetailCategorie(categorie) {
 function ligneDetail(entree, surLaPart) {
   const montant = surLaPart ? entree.part : entree.amount;
 
-  const quand = entree.date ? formatDate(entree.date) : '';
+  // `dateDeLaCharge`, comme partout ailleurs : une charge antérieure au champ
+  // « date » (2026-08-23) n'a que son `timestamp`, et le repli l'affiche à sa
+  // date d'écriture. Sans lui, la modale TRIAIT par ce repli — `trierParDate`
+  // le fait — mais n'affichait rien : les lignes paraissaient dans un ordre
+  // arbitraire, sans un mot pour l'expliquer.
+  const jour = dateDeLaCharge(entree);
+  const quand = jour ? formatDate(jour) : '';
   // Sur un détail de payeur, la catégorie situe la dépense ; sur un détail de
   // catégorie, c'est le payeur qui manque. On donne celui qui n'est pas connu
   // d'avance par le titre.

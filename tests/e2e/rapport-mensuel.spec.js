@@ -219,6 +219,32 @@ test.describe('Le rapport du mois', () => {
     await expect(modale.locator('.rapport-total')).toContainText('340');
   });
 
+  test('LE FOCUS ENTRE DANS LA MODALE — sans quoi la tabulation court sous le voile', async ({ page }) => {
+    // `showModal` ne posait le focus que sur `input, select, textarea`. Le
+    // détail et le rapport sont les deux SEULES modales sans champ de saisie :
+    // le focus restait donc sur le bouton déclencheur, derrière le voile, et
+    // `trapFocus` — un écouteur posé sur la modale — ne recevait jamais rien.
+    //
+    // Deux Tab suffisaient à atteindre les boutons 🗑️ de la liste des charges,
+    // cachés sous le voile, où Entrée supprime pour de bon. Et aucun lecteur
+    // d'écran n'annonçait le dialogue.
+    await ouvrir(page, semer());
+    await ouvrirLeRapport(page);
+
+    const dansLaModale = () => page.evaluate(() => {
+      const modale = document.getElementById('modalRapportMensuel');
+      return !!(modale && document.activeElement
+        && (document.activeElement === modale || modale.contains(document.activeElement)));
+    });
+
+    await expect.poll(dansLaModale, { timeout: 3000 }).toBe(true);
+
+    // Et la tabulation n'en sort pas.
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    expect(await dansLaModale()).toBe(true);
+  });
+
   test('Échap referme, et le bilan reste lisible derrière', async ({ page }) => {
     await ouvrir(page, semer());
     await ouvrirLeRapport(page);

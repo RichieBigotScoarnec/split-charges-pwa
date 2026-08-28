@@ -573,8 +573,22 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
   // collection, parce que c'est elle qui dit s'il est déclaré récurrent.
   const suivis = new Map();
 
-  for (const cle of mois) {
+  // Le mois AFFICHÉ est parcouru lui aussi, mais pour la seule question « est-ce
+  // déjà déclaré fixe ? ».
+  //
+  // Sans lui, suivre le conseil ne l'éteignait pas : on ajoutait « Netflix » aux
+  // charges fixes du mois, et la carte revenait le mois suivant — la fenêtre ne
+  // regarde que les trois mois qui précèdent, où la charge était encore
+  // variable. Pire, le panneau des charges fixes affichait alors son coût
+  // annuel, et l'observation le répétait : le même montant deux fois sur le
+  // même écran. C'est très exactement le décor permanent que l'en-tête du
+  // détecteur dit vouloir éviter.
+  //
+  // Il n'entre PAS dans la fenêtre de stabilité : le mois courant est partiel,
+  // et une charge pas encore saisie ferait croire à un abonnement interrompu.
+  for (const cle of [...mois, moisCourant]) {
     const periode = periods[cle] || {};
+    const pourLeSeulDrapeau = cle === moisCourant;
 
     for (const collection of COLLECTIONS) {
       const noeud = periode[collection];
@@ -586,6 +600,13 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
 
         const nom = empreinte(charge);
         if (!nom) continue;
+
+        if (pourLeSeulDrapeau) {
+          if (collection !== 'fixedCharges') continue;
+          const connu = suivis.get(nom);
+          if (connu) connu.estFixe = true;
+          continue;
+        }
 
         const suivi = suivis.get(nom)
           || { libelle: '', montants: new Map(), estFixe: false };

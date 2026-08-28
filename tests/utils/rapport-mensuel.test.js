@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { rapportDuMois } from '../../public/js/utils/rapport-mensuel.js';
 import { computeSummary } from '../../public/js/utils/calculations.js';
-import { categorieQuiABouge, totauxParCategorie, SANS_CATEGORIE } from '../../public/js/utils/tendances.js';
+import {
+  categorieQuiABouge, totauxParCategorie, SANS_CATEGORIE, ecartAuHabituel
+} from '../../public/js/utils/tendances.js';
 
 /**
  * Le mois écoulé, en une page
@@ -90,6 +92,31 @@ describe('LA PROPRIÉTÉ : le rapport ne recalcule rien', () => {
     expect(rapport.categorieQuiABouge).toEqual(desTendances);
     // Et les deux seaux restent bien distincts.
     expect(totauxParCategorie(aout)).toEqual({ 'Autre': 100, [SANS_CATEGORIE]: 400 });
+  });
+
+  it('« un mois ordinaire » est celui du panneau des tendances, pas un second', () => {
+    // Le module promet qu'il ne calcule aucun chiffre d'argent nouveau. Il
+    // refaisait pourtant la médiane, sur une autre fenêtre que les tendances :
+    // trois montants pour « un mois ordinaire » dans la même application.
+    //
+    // Sept mois aux totaux tous différents : c'est la seule forme où les deux
+    // fenêtres divergent. Le jeu d'essai ordinaire, lui, a trois mois
+    // identiques — il aurait donné le même chiffre des deux côtés et n'aurait
+    // rien mesuré.
+    const TOTAUX = [800, 900, 1000, 1100, 1200, 1300, 2000];
+    const CLES = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
+
+    const sept = Object.fromEntries(CLES.map((cle, i) => [
+      cle, periode([], [charge('Vie', TOTAUX[i])])
+    ]));
+
+    const rapport = rapportDuMois({ periods: sept, mois: '2026-08', bilan: null });
+
+    // Ce que le panneau des tendances calcule, sur la même fenêtre de six mois.
+    const desTendances = ecartAuHabituel(TOTAUX.slice(-6));
+
+    expect(rapport.ordinaire).toBeCloseTo(desTendances.reference, 6);
+    expect(rapport.ecart).toBeCloseTo(desTendances.variation, 6);
   });
 
   it('le solde et son règlement viennent du bilan, pas d\'un nouveau calcul', () => {

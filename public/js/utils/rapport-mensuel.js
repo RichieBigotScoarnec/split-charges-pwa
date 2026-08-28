@@ -24,7 +24,7 @@
 
 import { estSolo } from './perimetre.js';
 import {
-  mediane, tauxDEffort, resteAVivre, partDuFixe, categorieQuiABouge, totauxParCategorie
+  ecartAuHabituel, tauxDEffort, resteAVivre, partDuFixe, categorieQuiABouge, totauxParCategorie
 } from './tendances.js';
 
 /** Une clé de mois */
@@ -115,20 +115,34 @@ export function rapportDuMois({ periods, mois, bilan, salaries, moisReel }) {
     return { mois, vide: true };
   }
 
-  // Le mois ordinaire : la médiane des révolus qui précèdent, jamais la
-  // moyenne — un mois exceptionnel la déplacerait, et c'est justement lui
-  // qu'on cherche à situer.
-  const precedents = Object.keys(periods)
-    .filter(cle => CLE_MOIS.test(cle) && cle < mois)
+  // Le mois ordinaire vient de `ecartAuHabituel`, LA MÊME FABRIQUE que le
+  // panneau des tendances — et non d'une seconde médiane.
+  //
+  // L'en-tête de ce module promet qu'il ne calcule aucun chiffre d'argent
+  // nouveau ; il refaisait pourtant celui-ci, sur une autre fenêtre. Mesuré sur
+  // sept mois : « un mois ordinaire » valait 1 100 € dans les tendances et
+  // 1 050 € dans le rapport, et l'écart au mois affiché 900 € contre 950 €.
+  // Deux réponses à la même question, dans la même application, pour le même
+  // mois — le défaut de `normalizePair` et de `resolveShareMode`, reproduit.
+  //
+  // La fenêtre est donc celle des tendances : les `PROFONDEUR` mois qui se
+  // terminent par le mois affiché, dont `ecartAuHabituel` écarte le dernier
+  // pour établir la référence.
+  const fenetre = Object.keys(periods)
+    .filter(cle => CLE_MOIS.test(cle) && cle <= mois)
     .sort()
     .slice(-PROFONDEUR)
     .map(cle => {
       const { fixes: f, variables: v } = chargesDuMois(periods[cle]);
       return somme(f) + somme(v);
-    })
-    .filter(valeur => valeur > 0);
+    });
 
-  const ordinaire = precedents.length >= MOIS_POUR_UN_ORDINAIRE ? mediane(precedents) : null;
+  // Le seuil reste celui de ce module : sans trois mois révolus, « ordinaire »
+  // ne veut rien dire, et `ecartAuHabituel` se contenterait d'un seul.
+  const revolus = fenetre.slice(0, -1).filter(valeur => valeur > 0);
+  const habituel = revolus.length >= MOIS_POUR_UN_ORDINAIRE ? ecartAuHabituel(fenetre) : null;
+
+  const ordinaire = habituel ? habituel.reference : null;
 
   const avant = moisPrecedent(mois);
   const bouge = avant && periods[avant]
@@ -165,7 +179,7 @@ export function rapportDuMois({ periods, mois, bilan, salaries, moisReel }) {
     // Comparé à un mois ordinaire, quand il y en a un. `null` sinon : sans
     // trois mois révolus, « ordinaire » ne veut rien dire.
     ordinaire,
-    ecart: ordinaire === null ? null : total - ordinaire,
+    ecart: habituel ? habituel.variation : null,
 
     partFixe: partDuFixe(somme(fixes), somme(variables)),
     tauxDEffort: tauxDEffort(total, salaries),

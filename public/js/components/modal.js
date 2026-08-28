@@ -118,13 +118,30 @@ export function showModal(modalId) {
     modal.classList.add('active');
 
     // Focus first input if exists
+    //
+    // Sans champ de saisie, le focus RESTE SUR LE BOUTON DÉCLENCHEUR, dans la
+    // page, derrière le voile. `trapFocus` pose bien son écouteur sur la
+    // modale, mais un écouteur ne reçoit que les touches frappées à
+    // l'intérieur : le piège ne s'exécutait jamais. Au clavier, deux Tab
+    // suffisaient à atteindre les boutons 🗑️ de la liste des charges, cachés
+    // sous le voile, où Entrée supprime pour de bon — pendant qu'un voile
+    // indique que la page est bloquée. Et aucun lecteur d'écran n'annonçait le
+    // dialogue.
+    //
+    // Toutes les modales du dépôt y échappaient par accident : elles portent un
+    // champ. Le détail des dépenses et le rapport du mois, non — ils ne font
+    // que montrer.
     const firstInput = modal.querySelector('input, select, textarea');
-    if (firstInput) {
-      setTimeout(() => {
-        if (focusDejaPose(modal)) return;
-        firstInput.focus();
-      }, 100);
+    const cible = firstInput || modal;
+    if (!firstInput) {
+      // Un conteneur ne prend le focus que si on l'y autorise. `-1` le rend
+      // focalisable par script sans l'insérer dans l'ordre de tabulation.
+      modal.setAttribute('tabindex', '-1');
     }
+    setTimeout(() => {
+      if (focusDejaPose(modal)) return;
+      cible.focus();
+    }, 100);
 
     // Rouvrir une modale déjà ouverte écrasait la fonction de nettoyage sans
     // l'appeler : l'écouteur précédent restait attaché. `showManageModal` se

@@ -413,6 +413,23 @@ Et six trous de test — des contrôles qui passaient sans rien mesurer :
 | `expect(rapport.soldeRegle).toBe(Math.abs(bilan.balance) < 0.01)` comparait `false` à `false` : le jeu d'essai ne produit jamais de solde réglé, et une implémentation rendant toujours `false` passait | `tests/utils/rapport-mensuel.test.js` | ✅ RÉSOLU 2026-08-28 — la frontière tenue des deux côtés, résidu de `settleBalance` compris | La branche « Le mois est équilibré » n'était jamais rendue |
 | « Les deux détails réunis font le total des charges » comparait à `1412.75` écrit à la main, alors que le total est lisible sur la même page | `tests/e2e/detail-depenses.spec.js` | ✅ RÉSOLU 2026-08-28 — comparé au chiffre que le bilan affiche, dans le même geste | Si `computeSummary` recomptait une charge solo, le contrôle dont le titre EST cette égalité serait resté vert |
 
+Puis cinq de plus, trouvés par l'agent de complétude — ce qu'aucune des sept
+dimensions n'avait regardé :
+
+| **Le piège à focus des deux modales neuves était inerte.** `showModal` ne pose le focus que sur `input, select, textarea` — et le détail comme le rapport sont les deux SEULES modales sans champ de saisie. Le focus restait sur le bouton déclencheur, derrière le voile ; `trapFocus`, posé sur la modale, ne recevait donc jamais rien. Au clavier, deux Tab atteignaient les boutons 🗑️ de la liste des charges, cachés sous le voile, où Entrée supprime pour de bon. Aucun lecteur d'écran n'annonçait le dialogue | `public/js/components/modal.js` | ✅ RÉSOLU 2026-08-28 — sans champ, le conteneur reçoit le focus (`tabindex="-1"`) | Toutes les autres modales y échappaient par accident : elles portent un champ |
+| **« Un mois ordinaire » était recalculé sur une autre fenêtre que celle des tendances**, alors que l'en-tête du module promet qu'il ne calcule aucun chiffre neuf. Mesuré sur sept mois : 1 150 €, 1 100 € et 1 050 € pour la même grandeur, et deux écarts — 900 € et 950 € — dans la même application, pour le même mois | `public/js/utils/rapport-mensuel.js` | ✅ RÉSOLU 2026-08-28 — `ecartAuHabituel`, la fabrique des tendances ; le seuil des trois mois révolus reste celui du rapport | Troisième occurrence du défaut de `normalizePair`, cette fois de ma main, dans le module qui prétendait le prévenir |
+| `abonnementsNonDeclares` ne regardait jamais le mois affiché : suivre son conseil ne l'éteignait pas. On ajoutait « Netflix » aux charges fixes, la carte revenait — pendant que le panneau des charges fixes affichait déjà son coût annuel. Le même montant deux fois sur le même écran | `public/js/utils/anticipation.js` | ✅ RÉSOLU 2026-08-28 — le mois affiché est lu pour le SEUL drapeau « déjà déclarée fixe », jamais pour la fenêtre de stabilité | Il est partiel : l'y verser ferait croire à un abonnement interrompu |
+| Les boutons du détail et du rapport étaient peints quatre étapes avant que leurs fonctions n'existent — dont une étape qui attend une lecture Firebase au délai de garde de dix secondes. Sur un réseau lent, le bilan s'affichait complet et les boutons ne répondaient pas | `public/js/modules/auth.js` | ✅ RÉSOLU 2026-08-28 — les deux `init` remontés avant le premier rendu du bilan | Ils ne font que poser des fonctions sur `window` : ils ne dépendent de rien |
+| Le détail affichait `charge.date` brut là où tout le reste passe par `dateDeLaCharge`, tout en TRIANT par ce repli : une charge d'avant le champ « date » y paraissait sans date, dans un ordre qui semblait arbitraire | `public/js/modules/detail-depenses.js` | ✅ RÉSOLU 2026-08-28 — même fabrique que les six autres surfaces d'affichage | — |
+
+> **Une leçon de méthode.** Les sceptiques ont « écarté » 14 constats sur 21.
+> Le chiffre ne veut rien dire : ils lisaient l'arbre de travail *pendant* que
+> les correctifs s'écrivaient, et ont donc conclu « déjà couvert ». L'un d'eux
+> l'a signalé lui-même — « le retenir comme déjà couvert serait circulaire ».
+> Une vérification doit être figée sur le commit qu'elle relit. Ce qui fait foi
+> ici, ce sont les témoins négatifs : pour chacun des vingt-quatre défauts,
+> rétablir le défaut fait tomber un contrôle.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles

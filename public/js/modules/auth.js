@@ -440,6 +440,23 @@ async function initializeAppData() {
   // chacune se recharge d'elle-même.
   let periodeChargee = false;
 
+  // Ces deux modules ne font que poser des fonctions sur `window`, et ils le
+  // font AVANT l'étape qui peint leurs boutons.
+  //
+  // Ils venaient après « budgets par catégorie », qui attend une lecture
+  // Firebase dont le délai de garde vaut dix secondes. Sur un réseau lent, le
+  // bilan s'affichait donc complet — « Richard a payé », « 📄 Le mois en un
+  // coup d'œil » — et les boutons ne répondaient pas : `init.js` trouve bien
+  // l'action dans la liste blanche, mais `window[nom]` n'existe pas encore.
+  await runStep('détail des dépenses', async () => {
+    const { initDetailDepenses } = await import('./detail-depenses.js');
+    initDetailDepenses();
+  }, failures);
+  await runStep('rapport du mois', async () => {
+    const { initRapport } = await import('./rapport.js');
+    initRapport();
+  }, failures);
+
   await runStep('salaires de la période', async () => {
     const { dbGet } = await import('../db.js');
     [instantanePeriods, salairesGlobaux] = await Promise.all([
@@ -499,14 +516,6 @@ async function initializeAppData() {
   await runStep('budgets par catégorie', async () => {
     const { initCategoryBudgets } = await import('./category-budgets.js');
     await initCategoryBudgets();
-  }, failures);
-  await runStep('détail des dépenses', async () => {
-    const { initDetailDepenses } = await import('./detail-depenses.js');
-    initDetailDepenses();
-  }, failures);
-  await runStep('rapport du mois', async () => {
-    const { initRapport } = await import('./rapport.js');
-    initRapport();
   }, failures);
   await runStep('tendances', () => initTrends(), failures);
   await runStep('reconduction', () => initReconduction(), failures);

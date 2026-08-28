@@ -400,6 +400,53 @@ describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
     expect(abonnementsNonDeclares({ periods: null, moisCourant: '2026-08' })).toBe(null);
   });
 
+  describe('SUIVRE LE CONSEIL L\'ÉTEINT', () => {
+    // La fenêtre ne regarde que les trois mois qui précèdent. Le drapeau
+    // « déjà déclarée fixe » y était donc aveugle au mois affiché : on ajoutait
+    // « Netflix » aux charges fixes, et la carte revenait — pendant que le
+    // panneau des charges fixes affichait déjà son coût annuel. Le même montant
+    // deux fois sur le même écran, c'est le décor permanent que ce détecteur
+    // dit vouloir éviter.
+    const TROIS_MOIS_VARIABLES = {
+      '2026-05': moisComplet([charge('Netflix', 13.49)]),
+      '2026-06': moisComplet([charge('Netflix', 13.49)]),
+      '2026-07': moisComplet([charge('Netflix', 13.49)])
+    };
+
+    it('la déclarer fixe dans le mois affiché fait taire l\'observation', () => {
+      const suivi = {
+        ...TROIS_MOIS_VARIABLES,
+        '2026-08': moisComplet([], [charge('Netflix', 13.49)])
+      };
+
+      expect(abonnementsNonDeclares({ periods: suivi, moisCourant: '2026-08' })).toBe(null);
+    });
+
+    it('tant qu\'on ne l\'a pas fait, elle parle', () => {
+      // Le témoin positif : sans lui, un détecteur muet passerait le contrôle
+      // ci-dessus.
+      const vu = abonnementsNonDeclares({
+        periods: TROIS_MOIS_VARIABLES, moisCourant: '2026-08'
+      });
+
+      expect(vu).not.toBe(null);
+      expect(vu.detail).toContain('Netflix');
+    });
+
+    it('le mois affiché ne compte pas dans la fenêtre de stabilité', () => {
+      // Il est partiel : une charge pas encore saisie ferait croire à un
+      // abonnement interrompu, et un montant à moitié passé le ferait varier.
+      const moisEntame = {
+        ...TROIS_MOIS_VARIABLES,
+        '2026-08': moisComplet([charge('Netflix', 99)])
+      };
+      const vu = abonnementsNonDeclares({ periods: moisEntame, moisCourant: '2026-08' });
+
+      expect(vu).not.toBe(null);
+      expect(vu.montant).toBeCloseTo(13.49, 2);
+    });
+  });
+
   describe('UN LIBELLÉ RÉPÉTÉ DANS LE MOIS S\'ADDITIONNE', () => {
     // La saisie rapide sans description reprend le nom de la catégorie :
     // « Boulangerie » revient donc plusieurs fois par mois. Ne garder que la
