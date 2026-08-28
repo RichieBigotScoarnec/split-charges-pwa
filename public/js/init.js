@@ -47,6 +47,7 @@ const ACTIONS_AUTORISEES = new Set([
   'editReimbursement', 'editVariableCharge', 'exportToCSV',
   'exportToPDF', 'focusSalaries', 'handleQuickAddSubmit',
   'navigatePeriod', 'ouvrirDetailCategorie', 'ouvrirDetailPayeur',
+  'ouvrirRapportDuMois',
   'pickBackupFile', 'requestNotificationPermission',
   'restoreFromTrash', 'saveCategoryBudgets', 'saveMembers',
   'saveReminderSettings', 'selectShareMode', 'settleBalance',

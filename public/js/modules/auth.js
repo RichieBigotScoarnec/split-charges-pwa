@@ -504,6 +504,10 @@ async function initializeAppData() {
     const { initDetailDepenses } = await import('./detail-depenses.js');
     initDetailDepenses();
   }, failures);
+  await runStep('rapport du mois', async () => {
+    const { initRapport } = await import('./rapport.js');
+    initRapport();
+  }, failures);
   await runStep('tendances', () => initTrends(), failures);
   await runStep('reconduction', () => initReconduction(), failures);
   await runStep('saisie rapide', () => initQuickAdd(), failures);

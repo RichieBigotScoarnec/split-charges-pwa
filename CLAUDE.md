@@ -73,8 +73,10 @@ FairSplit/
 │                               # raccourci (ce que l'URL demande à l'ouverture),
 │                               # attente-application (attendre d'avoir de quoi
 │                               # écrire), previsionnel (ce qui reste à passer
-│                               # ce mois-ci), calculations, format, validation,
-│                               # salaries
+│                               # ce mois-ci), rapport-mensuel (le mois écoulé
+│                               # en une page — ne calcule aucun chiffre neuf,
+│                               # il compose ceux du bilan et des tendances),
+│                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
 │                               # migration-repartition.mjs,
@@ -377,6 +379,10 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 
 | Un prélèvement saisi à la main tous les mois — Netflix, une salle de sport — échappait à la reconduction et à toute lecture annuelle. Le panneau des charges fixes ne le porte pas : il n'a jamais été déclaré fixe | `public/js/utils/anticipation.js` | ✅ RÉSOLU 2026-08-28 — `abonnementsNonDeclares` : trois mois consécutifs, montant stable à 1 € près, absent des charges fixes ; total mensuel **et** annuel | **Se tait sur ce que le panneau porte déjà** — sans quoi l'observation deviendrait un décor permanent. C'est ce qui la distingue du total des charges fixes |
 | Le rythme du mois n'était projeté que par enveloppe : « à ce rythme, le mois coûtera X » n'existait nulle part, alors que c'est la fonction que les agrégateurs bancaires vendent le plus cher | `public/js/utils/anticipation.js` | ✅ RÉSOLU 2026-08-28 — `rythmeDuMois`, comparé à la **médiane** des mois révolus | Chez eux la projection part du solde du compte ; ici elle ne porte que sur les dépenses saisies, et le `fonde` le dit |
+
+| Tout ce qu'il faut pour dire comment un mois s'est passé existait, éparpillé sur trois écrans — et sous 900 px ces trois écrans sont deux onglets et une modale. La synthèse se faisait de tête | `public/js/utils/rapport-mensuel.js`, `public/js/modules/rapport.js` | ✅ RÉSOLU 2026-08-28 — « 📄 Le mois en un coup d'œil » : total, écart au mois ordinaire, solde, taux d'effort, reste à vivre, part du fixe, catégorie qui a bougé | **Aucun chiffre d'argent nouveau** : le bilan est passé en paramètre, jamais réadditionné |
+| Le piège était d'additionner le total dans le rapport — « ce serait plus simple ». C'est très exactement ce qu'ont fait `normalizePair` et `resolveShareMode` avant de diverger de l'écran qu'ils expliquaient | `tests/utils/rapport-mensuel.test.js`, `tests/e2e/rapport-mensuel.spec.js` | ✅ RÉSOLU 2026-08-28 — la propriété est tenue des deux côtés : `rapport.total === computeSummary().total` en unitaire, et les deux chiffres lus **sur la même page** en bout en bout | Témoins négatifs : 1 centime d'écart fait tomber 6 contrôles unitaires, 1 € en fait tomber 3 à l'écran |
+| Sans historique, un rapport aurait ouvert une page à moitié vide : ni mois ordinaire, ni catégorie qui a bougé | `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-28 — le bouton n'est pas rendu du tout, même dégradation que la veille | Le silence, jamais un chiffre partiel présenté comme complet |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

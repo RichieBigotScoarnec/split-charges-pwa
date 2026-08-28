@@ -10,6 +10,7 @@ import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
 import { anticiper } from '../utils/anticipation.js';
+import { rapportDuMois } from '../utils/rapport-mensuel.js';
 import { chargesDeLEnveloppeTousMois, totalEnveloppe } from '../utils/enveloppes.js';
 import { jourEtMois } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
@@ -65,6 +66,10 @@ export function calculateSummary({ historique } = {}) {
     // Le solde publié dans l'état sert aux rappels, qui ne peuvent pas
     // importer ce module sans créer un cycle.
     setState('dernierSolde', 0);
+    // Sans bilan, pas de rapport — et surtout pas celui du mois précédent, que
+    // l'état porterait encore. Le bouton n'est de toute façon pas rendu sur ce
+    // chemin, mais un état périmé finit toujours par trouver un lecteur.
+    setState('rapportDuMois', null);
 
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
@@ -102,6 +107,7 @@ export function calculateSummary({ historique } = {}) {
   renderSummary({
     previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
     observations: observationsDuMois(historique),
+    rapport: rapportDuMoisAffiche(historique, summary, salaries),
     totalCharges: summary.total,
     yourTheoricalShare: summary.yourShare,
     partnerTheoricalShare: summary.partnerShare,
@@ -120,6 +126,49 @@ export function calculateSummary({ historique } = {}) {
     partnerShare: summary.partnerShare,
     balance: summary.balance
   };
+}
+
+/**
+ * Le rapport du mois, déposé dans l'état pour la modale qui l'ouvrira
+ *
+ * Le bilan est passé tel quel : ce module ne réadditionne rien. C'est la même
+ * règle que partout ailleurs ici — un second calcul du même nombre finit par
+ * diverger du premier, et l'écran se met alors à expliquer un chiffre qu'il
+ * n'affiche pas.
+ *
+ * L'historique est OPTIONNEL, comme pour la veille : sans lui il n'y a ni mois
+ * ordinaire ni catégorie qui a bougé, c'est-à-dire presque rien à dire. Le
+ * rapport vaut alors `null` et le bouton n'est pas rendu — plutôt qu'un bouton
+ * qui ouvre une page à moitié vide.
+ *
+ * @param {Object} [historique] - Nœud `periods`, lu dans le même geste
+ * @param {Object} bilan - Sortie de `computeSummary` pour le mois affiché
+ * @param {Object} salaries - Instantané de revenus du mois
+ * @returns {Object|null}
+ */
+function rapportDuMoisAffiche(historique, bilan, salaries) {
+  if (!historique || typeof historique !== 'object') {
+    setState('rapportDuMois', null);
+    return null;
+  }
+
+  try {
+    const rapport = rapportDuMois({
+      periods: historique,
+      mois: getState('currentPeriod'),
+      bilan,
+      salaries
+    });
+
+    setState('rapportDuMois', rapport);
+    return rapport;
+  } catch (erreur) {
+    // Un rapport n'est jamais indispensable : son échec ne doit pas emporter le
+    // bilan, qui, lui, l'est.
+    warn('⚠️ Rapport du mois indisponible :', erreur);
+    setState('rapportDuMois', null);
+    return null;
+  }
 }
 
 /**
@@ -281,6 +330,7 @@ function renderSummary(summary) {
   const {
     previsionnel,
     observations,
+    rapport,
     totalCharges,
     yourTheoricalShare,
     partnerTheoricalShare,
@@ -410,6 +460,12 @@ function renderSummary(summary) {
           </div>
         ` : ''}
       </details>
+
+      ${rapport && !rapport.vide
+        ? `<button type="button" class="btn btn-secondary rapport-ouvrir" data-action="ouvrirRapportDuMois">
+             📄 Le mois en un coup d'œil
+           </button>`
+        : ''}
     </div>
 
     ${renderBudgetGauge(totalCharges)}

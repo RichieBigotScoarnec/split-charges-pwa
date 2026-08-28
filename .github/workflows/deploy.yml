@@ -82,8 +82,14 @@ jobs:
       # déjà formaté par `formatCurrency`. Aucune donnée de fichier n'atteint
       # le DOM sans être échappée, et c'est bien le point : le contenu vient
       # ici d'un fichier que l'utilisateur n'a pas nécessairement écrit.
+      #
+      # 25 → 26 le 2026-08-28, pour le rapport du mois (`modules/rapport.js`).
+      # Deux valeurs y viennent du foyer et d'aucune autre source : le prénom
+      # rendu par `memberLabel` et le nom de la catégorie qui a le plus bougé.
+      # Les deux passent par `escapeHtml`, et le reste de la modale est soit un
+      # montant formaté, soit un nombre, soit un libellé écrit dans le module.
       - name: Aucun nouvel innerHTML dynamique
-        run: npx eslint public/js --max-warnings 25
+        run: npx eslint public/js --max-warnings 26
 
       - name: Run unit tests
         run: npx vitest run

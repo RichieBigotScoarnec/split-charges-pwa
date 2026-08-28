@@ -1130,3 +1130,14 @@
   color: var(--text-muted);
   font-weight: 600;
 }
+
+/*
+   L'entrée du rapport : sous le détail, jamais au-dessus du solde.
+   Le premier écran appartient au chiffre qu'on vient chercher ; le rapport se
+   consulte une fois le mois écoulé, pas à chaque ouverture.
+*/
+.rapport-ouvrir {
+  width: 100%;
+  margin-top: var(--space-md);
+  min-height: 44px;
+}
