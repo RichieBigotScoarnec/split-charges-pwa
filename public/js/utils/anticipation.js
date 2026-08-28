@@ -33,7 +33,7 @@
 import { estSolo } from './perimetre.js';
 import { moisRestants, provisionMensuelle } from './provisions.js';
 import { resteAVivre, mediane } from './tendances.js';
-import { veiller, moisSuivant, memeDateLAnProchain } from './veille.js';
+import { veiller, moisSuivant, memeDateLAnProchain, JOURS_AVANT_DE_JUGER } from './veille.js';
 
 /** Une clé de mois */
 const CLE_MOIS = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -82,12 +82,14 @@ const FENETRE_ANNUELLE = 12;
  */
 const RANGS = {
   'charges-disparues': 0,
-  'rythme-du-budget': 1,
-  'provision-a-renouveler': 2,
-  'charge-annuelle': 3,
-  'pic-saisonnier': 4,
-  'capacite-epargne': 5,
-  'depenses-par-lieu': 6
+  'rythme-du-mois': 1,
+  'rythme-du-budget': 2,
+  'provision-a-renouveler': 3,
+  'charge-annuelle': 4,
+  'pic-saisonnier': 5,
+  'abonnements-non-declares': 6,
+  'capacite-epargne': 7,
+  'depenses-par-lieu': 8
 };
 
 /**
@@ -497,6 +499,182 @@ export function depensesParLieu({ periods, moisCourant }) {
 }
 
 /**
+ * Combien de mois consécutifs font un abonnement
+ *
+ * Deux mois de suite peuvent être une coïncidence — une même course faite deux
+ * samedis. Trois, c'est un prélèvement.
+ */
+const MOIS_POUR_UN_ABONNEMENT = 3;
+
+/** Écart de montant toléré d'un mois sur l'autre, en euros */
+const MONTANT_STABLE = 1;
+
+/**
+ * Ce qui revient chaque mois sans être déclaré comme charge fixe
+ *
+ * Le panneau des charges fixes donne déjà leur total mensuel et annuel. Ce
+ * détecteur cherche autre chose : les prélèvements que le foyer saisit à la
+ * main tous les mois — Netflix, une salle de sport, un abonnement de transport
+ * — sans les avoir déclarés récurrents. Ils échappent donc à la reconduction,
+ * qu'il faut refaire à la main, et surtout à toute lecture annuelle : 9,99 €
+ * ne se remarquent jamais, 119,88 € se discutent.
+ *
+ * **Il se tait quand il n'a rien à apprendre.** Une charge déjà déclarée fixe
+ * figure dans le total du panneau : la répéter ici serait du bruit. C'est ce
+ * qui empêche cette observation de devenir un décor permanent.
+ *
+ * @param {Object} params
+ * @param {Object} params.periods - Nœud `periods` complet
+ * @param {string} params.moisCourant - AAAA-MM
+ * @returns {Object|null}
+ */
+export function abonnementsNonDeclares({ periods, moisCourant }) {
+  if (!CLE_MOIS.test(moisCourant || '')) return null;
+
+  // Les mois révolus, les plus récents d'abord — le mois courant est partiel,
+  // une charge pas encore saisie y ferait croire à un abonnement interrompu.
+  const mois = moisConnus(periods).filter(cle => cle < moisCourant).slice(-MOIS_POUR_UN_ABONNEMENT);
+  if (mois.length < MOIS_POUR_UN_ABONNEMENT) return null;
+
+  // Chaque libellé, et ce qu'il a coûté chaque mois — en distinguant la
+  // collection, parce que c'est elle qui dit s'il est déclaré récurrent.
+  const suivis = new Map();
+
+  for (const cle of mois) {
+    const periode = periods[cle] || {};
+
+    for (const collection of COLLECTIONS) {
+      const noeud = periode[collection];
+      if (!noeud || typeof noeud !== 'object') continue;
+
+      for (const charge of Object.values(noeud)) {
+        if (!charge || charge.deleted || estSolo(charge)) continue;
+        if (!Number.isFinite(charge.amount) || charge.amount <= 0) continue;
+
+        const nom = empreinte(charge);
+        if (!nom) continue;
+
+        const suivi = suivis.get(nom)
+          || { libelle: '', montants: new Map(), estFixe: false };
+        suivi.libelle = String(charge.description || '').trim();
+        suivi.montants.set(cle, charge.amount);
+        // Déclarée fixe ne serait-ce qu'une fois : le panneau la porte déjà.
+        if (collection === 'fixedCharges') suivi.estFixe = true;
+        suivis.set(nom, suivi);
+      }
+    }
+  }
+
+  const trouves = [];
+  let parMois = 0;
+
+  for (const suivi of suivis.values()) {
+    if (suivi.estFixe) continue;
+    // Présent à CHAQUE mois de la fenêtre : un trou, et ce n'est pas un
+    // prélèvement mais une habitude irrégulière.
+    if (suivi.montants.size !== mois.length) continue;
+
+    const valeurs = [...suivi.montants.values()];
+    const mini = Math.min(...valeurs);
+    const maxi = Math.max(...valeurs);
+    // Un montant qui varie n'est pas un abonnement, c'est une dépense
+    // régulière — des courses hebdomadaires, par exemple.
+    if (maxi - mini > MONTANT_STABLE) continue;
+
+    // Le dernier montant connu : un abonnement réévalué se provisionne à son
+    // nouveau prix, pas à celui d'il y a trois mois.
+    const dernier = suivi.montants.get(mois[mois.length - 1]);
+    trouves.push({ libelle: suivi.libelle, montant: dernier });
+    parMois += dernier;
+  }
+
+  if (trouves.length === 0) return null;
+
+  trouves.sort((a, b) => b.montant - a.montant);
+  const parAn = parMois * 12;
+
+  return {
+    cle: 'abonnements-non-declares',
+    titre: trouves.length === 1
+      ? 'Une charge revient chaque mois sans être déclarée fixe'
+      : `${trouves.length} charges reviennent chaque mois sans être déclarées fixes`,
+    montant: parMois,
+    urgence: 'info',
+    detail: `${parMois.toFixed(2)} € par mois, soit ${parAn.toFixed(2)} € sur une année : `
+      + trouves.map(t => t.libelle).join(', ') + '.',
+    fonde: `Vues aux ${mois.length} derniers mois révolus (${mois.join(', ')}), `
+      + 'à montant stable, et absentes des charges fixes.'
+  };
+}
+
+/**
+ * À ce rythme, combien coûtera le mois ?
+ *
+ * `rythmeDuBudget` pose déjà cette question pour une enveloppe. Elle vaut pour
+ * le mois entier, et c'est la fonction que les agrégateurs bancaires vendent
+ * le plus cher — à cette différence près qu'eux la fondent sur le solde du
+ * compte, que cette application ne connaît pas. Ici, la projection ne porte
+ * que sur les dépenses saisies.
+ *
+ * La comparaison se fait au mois ORDINAIRE — la médiane des mois révolus — et
+ * non à la moyenne, que le mois exceptionnel qu'on cherche à signaler
+ * tirerait vers le haut.
+ *
+ * Deux silences : les premiers jours, où une seule grosse course projette un
+ * dépassement qui n'en est pas un ; et un historique de moins de trois mois,
+ * où « ordinaire » ne veut rien dire.
+ *
+ * @param {Object} params
+ * @param {Object} params.periods
+ * @param {string} params.moisCourant - AAAA-MM
+ * @param {number} params.jourDuMois
+ * @param {number} params.joursDuMois
+ * @returns {Object|null}
+ */
+export function rythmeDuMois({ periods, moisCourant, jourDuMois, joursDuMois }) {
+  if (!CLE_MOIS.test(moisCourant || '')) return null;
+
+  const ecoules = Number.isFinite(jourDuMois) ? jourDuMois : 0;
+  const duree = Number.isFinite(joursDuMois) ? joursDuMois : 0;
+  if (ecoules < JOURS_AVANT_DE_JUGER || duree <= 0 || ecoules >= duree) return null;
+
+  const totalDuMois = (cle) => chargesCommunesDuMois(periods && periods[cle])
+    .reduce((somme, charge) => somme + (Number.isFinite(charge.amount) ? charge.amount : 0), 0);
+
+  const sorti = totalDuMois(moisCourant);
+  if (!(sorti > 0)) return null;
+
+  const precedents = moisConnus(periods)
+    .filter(cle => cle < moisCourant)
+    .slice(-PROFONDEUR_EPARGNE)
+    .map(totalDuMois)
+    .filter(total => total > 0);
+
+  if (precedents.length < MINIMUM_EPARGNE) return null;
+
+  const ordinaire = mediane(precedents);
+  if (!(ordinaire > 0)) return null;
+
+  const projection = sorti * (duree / ecoules);
+  const surcout = projection - ordinaire;
+
+  // En deçà, la projection ne se distingue pas d'un mois normal — et une
+  // projection au dixième de jour près n'a pas cette précision.
+  if (surcout <= 0 || surcout < ordinaire * PART_DU_PIC) return null;
+
+  return {
+    cle: `rythme-du-mois:${moisCourant}`,
+    titre: 'À ce rythme, le mois coûtera plus qu\'un mois ordinaire',
+    montant: projection,
+    urgence: 'attention',
+    detail: `${projection.toFixed(2)} € à la fin du mois, contre ${ordinaire.toFixed(2)} € `
+      + `d'ordinaire — soit ${surcout.toFixed(2)} € de plus.`,
+    fonde: `Sur ${sorti.toFixed(2)} € dépensés en ${ecoules} jours, étendus aux ${duree} `
+      + `du mois, et comparés à la médiane de ${precedents.length} mois révolus.`
+  };
+}
+
+/**
  * Le libellé d'une enveloppe, réduit pour la comparaison
  * @param {*} valeur
  * @returns {string}
@@ -535,6 +713,12 @@ export function anticiper({
 
   const pic = picSaisonnier({ periods, moisCourant });
   if (pic) vues.push(pic);
+
+  const rythme = rythmeDuMois({ periods, moisCourant, jourDuMois, joursDuMois });
+  if (rythme) vues.push(rythme);
+
+  const abonnements = abonnementsNonDeclares({ periods, moisCourant });
+  if (abonnements) vues.push(abonnements);
 
   const lieu = depensesParLieu({ periods, moisCourant });
   if (lieu) vues.push(lieu);
