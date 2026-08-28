@@ -980,3 +980,75 @@
 .trends-piste strong {
   color: var(--text-primary);
 }
+
+/* ===== VEILLE — CE QUE L'APPLICATION REMARQUE ===== */
+
+/* Un bloc par observation, jamais d'encadré « tout va bien » : rien à dire est
+   le cas courant d'un mois qui se passe bien, et le silence est alors la bonne
+   réponse. Le rendu ne produit rien du tout quand la liste est vide. */
+.summary-veille {
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+}
+
+.veille-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.veille-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  text-align: left;
+}
+
+/* Ce qui appelle une décision se distingue de ce qui informe — par la couleur
+   comme par la place, les deux étant nécessaires : la couleur seule ne se lit
+   pas pour tout le monde, et l'ordre seul ne se voit pas d'un coup d'œil. */
+.veille-item--attention {
+  border-color: var(--warning-edge);
+  background: var(--warning-soft);
+}
+
+.veille-icone {
+  flex: 0 0 auto;
+  line-height: 1.4;
+}
+
+.veille-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.veille-titre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.veille-detail {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sur quoi l'observation se fonde. Volontairement plus discret que le reste,
+   mais présent : un conseil dont on ne peut pas vérifier l'assise n'est pas un
+   conseil. `--text-secondary` et non `--text-muted` — même mesure que le
+   prévisionnel, muted tombe sous le seuil AA sur ces lavis. */
+.veille-fonde {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

@@ -9,6 +9,8 @@ import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolv
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
+import { veiller } from '../utils/veille.js';
+import { chargesDeLEnveloppeTousMois, totalEnveloppe } from '../utils/enveloppes.js';
 import { jourEtMois } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
@@ -26,7 +28,7 @@ export function initSummary() {
  * Calcule le bilan financier complet
  * @returns {Object} Résumé du bilan
  */
-export function calculateSummary() {
+export function calculateSummary({ historique } = {}) {
   // La recherche n'a de sens que s'il existe des charges à filtrer
   refreshSearchVisibility();
 
@@ -99,6 +101,7 @@ export function calculateSummary() {
   // Afficher le résumé
   renderSummary({
     previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
+    observations: observationsDuMois(historique),
     totalCharges: summary.total,
     yourTheoricalShare: summary.yourShare,
     partnerTheoricalShare: summary.partnerShare,
@@ -117,6 +120,83 @@ export function calculateSummary() {
     partnerShare: summary.partnerShare,
     balance: summary.balance
   };
+}
+
+/**
+ * Ce que l'application remarque, à partir de l'historique qu'on lui confie
+ *
+ * Le paramètre est OPTIONNEL, comme partout ailleurs dans cette application :
+ * `calculateSummary` est appelée depuis une dizaine d'endroits, et la plupart
+ * n'ont pas l'historique sous la main. Sans lui, la veille **se tait** — un
+ * total d'enveloppe calculé sur le seul mois affiché serait faux pour toute
+ * enveloppe qui traverse les mois, ce qui est le cas de celles qui nous
+ * intéressent ici.
+ *
+ * Le mode de dégradation est donc le silence, jamais un chiffre partiel
+ * présenté comme complet.
+ *
+ * @param {Object} [historique] - Nœud `periods`, lu dans le même geste
+ * @returns {Array<Object>} Observations, ou liste vide
+ */
+function observationsDuMois(historique) {
+  if (!historique || typeof historique !== 'object') return [];
+
+  try {
+    const enveloppes = (getState('envelopes') || []).map(enveloppe => ({
+      enveloppe,
+      // Tous mois confondus : ce qu'ont coûté les vacances en tout, et non ce
+      // qu'elles ont coûté au mois qu'on regarde.
+      depense: totalEnveloppe(chargesDeLEnveloppeTousMois(historique, enveloppe.id), enveloppe.id)
+    }));
+
+    const aujourdhui = new Date();
+    return veiller({
+      enveloppes,
+      periods: historique,
+      moisCourant: getState('currentPeriod'),
+      jourDuMois: aujourdhui.getDate(),
+      joursDuMois: new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() + 1, 0).getDate()
+    });
+  } catch (erreur) {
+    // Une observation n'est jamais indispensable : son échec ne doit pas
+    // emporter le bilan, qui, lui, l'est.
+    warn('⚠️ Veille indisponible :', erreur);
+    return [];
+  }
+}
+
+/**
+ * Ce que l'application a remarqué, rendu à l'écran
+ *
+ * Chaque observation porte son fondement : le foyer doit pouvoir vérifier d'où
+ * sort le chiffre, sinon ce n'est plus un conseil mais une injonction.
+ *
+ * Rien à dire est le cas courant d'un mois qui se passe bien : on rend une
+ * chaîne vide plutôt qu'un encadré « tout va bien », qui deviendrait du bruit.
+ *
+ * @param {Array<Object>} observations - Sortie de `veiller`
+ * @returns {string} Fragment HTML échappé, ou chaîne vide
+ */
+function renderObservations(observations) {
+  const vues = Array.isArray(observations) ? observations : [];
+  if (vues.length === 0) return '';
+
+  const lignes = vues.map(vue => `
+    <li class="veille-item veille-item--${escapeHtml(vue.urgence)}">
+      <span class="veille-icone" aria-hidden="true">${vue.urgence === 'attention' ? '⚠️' : '💡'}</span>
+      <span class="veille-corps">
+        <span class="veille-titre">${escapeHtml(vue.titre)}</span>
+        <span class="veille-detail">${escapeHtml(vue.detail)}</span>
+        <span class="veille-fonde">${escapeHtml(vue.fonde)}</span>
+      </span>
+    </li>
+  `).join('');
+
+  return `
+    <section class="summary-veille" aria-label="Ce que l'application a remarqué">
+      <ul class="veille-liste">${lignes}</ul>
+    </section>
+  `;
 }
 
 /**
@@ -149,6 +229,7 @@ function renderSummary(summary) {
 
   const {
     previsionnel,
+    observations,
     totalCharges,
     yourTheoricalShare,
     partnerTheoricalShare,
@@ -234,6 +315,7 @@ function renderSummary(summary) {
       </div>
 
       ${renderPrevisionnel(previsionnel)}
+      ${renderObservations(observations)}
 
       <details class="summary-details">
         <summary>Voir le détail</summary>

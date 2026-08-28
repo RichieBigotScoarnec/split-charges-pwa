@@ -238,7 +238,10 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     await refreshCarryOver({ historique: instantane, salairesGlobaux: globalSalaries });
 
     // Calculate summary (rendering is done by individual loaders)
-    calculateSummary();
+    //
+    // L'instantané est passé au bilan : c'est lui qui permet à la veille de
+    // parler d'une enveloppe tous mois confondus. Sans lui, elle se tait.
+    calculateSummary({ historique: instantane });
 
     // Reconduction des charges récurrentes : silencieuse si le mois n'est pas
     // neuf, et ne s'exécute qu'une fois par mois cible.
