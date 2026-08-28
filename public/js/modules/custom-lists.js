@@ -6,10 +6,10 @@ import { getState, setState } from '../state.js';
 import { CATEGORIES, DESTINATIONS } from '../config.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../utils/format.js';
-import { log, error as logError } from '../utils/debug.js';
+import { log, warn, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { categoriesQueLeGpsAttend } from '../utils/categorie-lieu.js';
-import { planRenommage, libelleAcceptable } from '../utils/renommage.js';
+import { planRenommage, planBudget, libelleAcceptable } from '../utils/renommage.js';
 
 // Réexporté : la fabrication d'identifiant vit désormais dans `utils/`, mais
 // elle est appelée d'ici depuis toujours et testée sous ce nom.
@@ -364,6 +364,31 @@ export function populateAllSelects() {
 }
 
 /**
+ * Les budgets tels qu'ils sont, ou à défaut tels que l'écran les montre
+ *
+ * Le nœud `categoryBudgets` n'est lu qu'à l'ouverture. Hors réseau, `dbGet` sur
+ * un chemin jamais parvenu au miroir **lève** — et cette lecture ne doit pas
+ * emporter avec elle le report du renommage sur les charges, qui, lui, se met
+ * en file et aboutira.
+ *
+ * Le repli est distingué de la lecture réussie : un nœud vraiment vide en base
+ * rend `{}`, et non l'état de l'écran. Sans quoi un budget effacé depuis
+ * l'autre téléphone serait ressuscité par le renommage.
+ *
+ * @param {Function} dbGet
+ * @returns {Promise<Object>} Nœud `categoryBudgets`
+ */
+async function budgetsCourants(dbGet) {
+  try {
+    const lus = await dbGet('categoryBudgets');
+    return lus && typeof lus === 'object' ? lus : {};
+  } catch (erreur) {
+    warn('⚠️ Budgets illisibles, repli sur l\'état affiché :', erreur);
+    return getState('categoryBudgets') || {};
+  }
+}
+
+/**
  * Reporte un renommage sur les charges qui portaient l'ancien libellé
  *
  * Une charge ne porte pas l'identifiant de sa catégorie, elle en porte le
@@ -371,6 +396,11 @@ export function populateAllSelects() {
  * reviendrait donc exactement à la suppression-recréation qu'on veut éviter —
  * le récapitulatif par catégorie, les budgets et les filtres de la carte
  * cesseraient tous de reconnaître l'ancien nom.
+ *
+ * Le budget de la catégorie suit le même sort, et pour la même raison :
+ * `categoryBudgets` est indexé par libellé, la clé EST le nom. Il part dans la
+ * **même** écriture que les charges — un budget déplacé alors que les charges
+ * sont restées, ou l'inverse, serait pire que le défaut d'origine.
  *
  * L'écriture est unique : `update` sur la racine applique tous les chemins ou
  * aucun. Un renommage à moitié appliqué laisserait deux catégories là où
@@ -387,10 +417,33 @@ async function reporterSurLesCharges(champ, ancien, nouveau) {
     const periods = await dbGet('periods');
 
     const { chemins, nombre } = planRenommage({ periods, champ, ancien, nouveau });
-    if (nombre === 0) return 0;
 
-    await dbUpdate(undefined, chemins);
+    // Une destination n'a pas de budget : ne rien lire plutôt que d'exposer le
+    // renommage à l'échec d'une lecture qui ne le concerne pas.
+    const budgets = champ === 'category' ? await budgetsCourants(dbGet) : {};
+    const budget = planBudget({ budgets, ancien, nouveau });
+
+    const tout = { ...chemins, ...budget.chemins };
+    if (Object.keys(tout).length === 0) return 0;
+
+    await dbUpdate(undefined, tout);
     log(`✏️ ${nombre} charge(s) suivies vers « ${nouveau} »`);
+
+    if (budget.montant !== null) {
+      // L'état est corrigé sur place plutôt que relu : `initCategoryBudgets`
+      // retombe sur `{}` quand la lecture échoue, et viderait le panneau.
+      //
+      // Le panneau n'est pas repeint pour autant : les charges affichées
+      // portent encore l'ancien libellé — un renommage ne les recharge pas —
+      // et un rendu immédiat montrerait la dépense sous un nom et le budget
+      // sous l'autre. L'état corrigé suffit au prochain rendu, qui verra les
+      // deux d'accord.
+      const suivant = { ...budgets, [nouveau]: budget.montant };
+      delete suivant[ancien];
+      setState('categoryBudgets', suivant);
+      log(`🎯 Budget de ${budget.montant} suivi vers « ${nouveau} »`);
+    }
+
     return nombre;
   } catch (erreur) {
     // La liste porte déjà le nouveau nom, mais les charges gardent l'ancien :

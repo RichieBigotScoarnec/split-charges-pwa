@@ -74,6 +74,62 @@ export function planRenommage({ periods, champ, ancien, nouveau }) {
 }
 
 /**
+ * Le déplacement du budget qu'exige le renommage d'une catégorie
+ *
+ * `category-budgets.js` indexe les budgets **par libellé** :
+ * `categoryBudgets['Courses'] = 600`. La clé EST le nom. Renommer la catégorie
+ * déplaçait donc toutes les charges — `planRenommage` s'en charge — mais
+ * laissait le budget derrière, sous un nom que plus rien ne porte.
+ *
+ * Mesuré : budget de 600 € sur « Courses », 450 € dépensés. Après renommage en
+ * « Alimentation », l'écran annonçait « 0,00 € dépensés sur 600,00 € budgétés »
+ * — et les 600 € restaient orphelins sous l'ancien nom, invisibles et
+ * inatteignables.
+ *
+ * Ce module ne décide que des chemins ; l'appelant les joint à ceux des charges
+ * pour n'écrire qu'une fois. Une écriture séparée pourrait échouer à moitié et
+ * laisser un budget dupliqué sous deux noms.
+ *
+ * **La collision ne peut viser qu'un orphelin.** `libelleAcceptable` refuse de
+ * renommer vers un libellé déjà dans la liste : si `categoryBudgets[nouveau]`
+ * existe malgré tout, c'est un vestige d'un renommage antérieur — donc du
+ * défaut qu'on répare ici. Le budget déplacé l'emporte, et c'est le bon choix :
+ * il correspond à la catégorie vivante, l'autre à un nom que plus personne ne
+ * porte.
+ *
+ * L'objet reçu n'est jamais modifié : il vient de `state.js`, et une mutation y
+ * ferait diverger l'écran de la base au premier échec d'écriture.
+ *
+ * @param {Object} params
+ * @param {Object} params.budgets - Nœud `categoryBudgets`, tel que lu
+ * @param {string} params.ancien - Libellé actuel
+ * @param {string} params.nouveau - Libellé voulu
+ * @returns {{chemins: Object, montant: number|null}} Chemins relatifs à la racine
+ */
+export function planBudget({ budgets, ancien, nouveau }) {
+  const vide = { chemins: {}, montant: null };
+
+  if (!budgets || typeof budgets !== 'object') return vide;
+  if (typeof ancien !== 'string' || typeof nouveau !== 'string') return vide;
+  if (!ancien || !nouveau || ancien === nouveau) return vide;
+
+  const montant = budgets[ancien];
+  // Un budget absent n'a rien à déplacer ; un montant illisible non plus, et le
+  // recopier propagerait une valeur que l'écran ne saurait pas afficher.
+  if (!Number.isFinite(montant)) return vide;
+
+  return {
+    chemins: {
+      // `null` supprime la clé. `.validate` n'est jamais évaluée sur une
+      // suppression : ce chemin ne peut pas être refusé pour sa valeur.
+      [`categoryBudgets/${ancien}`]: null,
+      [`categoryBudgets/${nouveau}`]: montant
+    },
+    montant
+  };
+}
+
+/**
  * Les six caractères que Realtime Database refuse dans une clé
  *
  * Écrits en toutes lettres plutôt qu'en classe d'expression régulière : une
