@@ -6,6 +6,7 @@ import { escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDateEtHeure, heureDeLaCharge } from '../utils/date.js';
 import { jourDeTri } from '../utils/tri.js';
 import { contient, plier } from '../utils/recherche-texte.js';
+import { montantCorrespond } from '../utils/recherche-montant.js';
 import { log, error as logError } from '../utils/debug.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { formatCurrency } from '../utils/format.js';
@@ -372,10 +373,6 @@ function matchesQuery(charge, query) {
     charge.location && charge.location.codePostal
   ];
 
-  // Une charge héritée peut ne pas porter de montant exploitable : appeler
-  // toString() dessus interrompait la recherche entière sur une seule entrée.
-  champs.push(String(charge.amount ?? ''));
-
   // Une requête vide ne filtre rien : c'est l'état d'un champ effacé, et
   // masquer toutes les charges y ferait croire à une perte de données.
   // `contient` répond faux à une requête vide — sans quoi n'importe quel champ
@@ -386,6 +383,12 @@ function matchesQuery(charge, query) {
   // ils demandent un appui long, que personne ne fait pour chercher. Sans cela,
   // « intermarche » ne trouvait pas « Intermarché » et l'application répondait
   // « 0 résultat » sur une charge bien présente.
+  // Le montant se compare comme un NOMBRE, jamais comme une sous-chaîne. Versé
+  // parmi les textes, « 12.5 » ne répondait ni à « 12,50 » ni à « 12.50 » — ce
+  // que l'écran affiche et ce qu'on tape — pendant que « 17 » trouvait 1171,01,
+  // parce que ces deux chiffres s'y suivent.
+  if (montantCorrespond(charge.amount, query)) return true;
+
   return champs.some(champ => contient(champ, query));
 }
 
