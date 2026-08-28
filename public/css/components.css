@@ -1253,3 +1253,26 @@
   line-height: 1.45;
   color: var(--text-secondary);
 }
+
+/*
+   Une catégorie du panneau des budgets ouvre le détail de ses dépenses
+
+   Même raison que `.summary-row--ouvrable` : un bouton pour que la commande
+   soit atteignable au clavier, dépouillé de l'apparence que le navigateur lui
+   donne.
+*/
+.budget-row--ouvrable {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.budget-row--ouvrable:hover,
+.budget-row--ouvrable:focus-visible {
+  background: var(--primary-soft);
+}

@@ -57,7 +57,8 @@ describe('Les cas signalés à l\'usage', () => {
   });
 
   it('le montant recopié de l\'écran, espace comprise', () => {
-    expect(montantCorrespond(1171.01, '1 171,01')).toBe(true);
+    expect(montantCorrespond(1171.01, '1\u202F171,01')).toBe(true);   // tel que l'écran l'écrit
+    expect(montantCorrespond(1171.01, '1 171,01')).toBe(true);        // tel qu'on le tape
     expect(montantCorrespond(1171.01, '1171,01')).toBe(true);
     expect(montantCorrespond(1171.01, '1171.01')).toBe(true);
   });
@@ -70,7 +71,7 @@ describe('Les cas signalés à l\'usage', () => {
     // Vide sur ce qui existe…
     expect(commeAvant(12.5, '12,50')).toBe(false);
     expect(commeAvant(12.5, '12.50')).toBe(false);
-    expect(commeAvant(1171.01, '1 171,01')).toBe(false);
+    expect(commeAvant(1171.01, '1\u202F171,01')).toBe(false);
 
     // …et faux sur ce qui n'a rien à voir.
     expect(commeAvant(1171.01, '17')).toBe(true);

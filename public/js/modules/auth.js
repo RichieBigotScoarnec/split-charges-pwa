@@ -500,6 +500,10 @@ async function initializeAppData() {
     const { initCategoryBudgets } = await import('./category-budgets.js');
     await initCategoryBudgets();
   }, failures);
+  await runStep('détail des dépenses', async () => {
+    const { initDetailDepenses } = await import('./detail-depenses.js');
+    initDetailDepenses();
+  }, failures);
   await runStep('tendances', () => initTrends(), failures);
   await runStep('reconduction', () => initReconduction(), failures);
   await runStep('saisie rapide', () => initQuickAdd(), failures);

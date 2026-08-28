@@ -24,7 +24,7 @@
  * ne tape ; un utilisateur tape une espace ordinaire, ou rien. Les trois
  * doivent mener au même montant.
  */
-const SEPARATEURS_MILLIERS = /[\s   ']/g;
+const SEPARATEURS_MILLIERS = /[\s\u00A0\u202F']/g;
 
 /**
  * Un montant, au plus deux décimales, une fois la saisie nettoyée

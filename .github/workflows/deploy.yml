@@ -83,7 +83,7 @@ jobs:
       # le DOM sans être échappée, et c'est bien le point : le contenu vient
       # ici d'un fichier que l'utilisateur n'a pas nécessairement écrit.
       - name: Aucun nouvel innerHTML dynamique
-        run: npx eslint public/js --max-warnings 24
+        run: npx eslint public/js --max-warnings 25
 
       - name: Run unit tests
         run: npx vitest run

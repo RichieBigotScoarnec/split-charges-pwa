@@ -1480,3 +1480,84 @@
   color: var(--text-secondary);
   line-height: 1.6;
 }
+
+/* ===== LE DÉTAIL DERRIÈRE UN CHIFFRE DU BILAN ===== */
+/*
+   Même langage visuel que la vue d'enveloppe, qui répond à la même question
+   pour un autre critère : un titre, un total, les dépenses qui le composent.
+*/
+.detail-total {
+  text-align: center;
+  padding: var(--space-md) 0 var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-md);
+}
+
+.detail-total-montant {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-total-info {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.detail-lignes {
+  max-height: 55vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detail-ligne {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "titre montant"
+    "info  montant";
+  gap: 2px var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.detail-ligne-titre {
+  grid-area: titre;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.detail-ligne-info {
+  grid-area: info;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.detail-ligne-montant {
+  grid-area: montant;
+  align-self: center;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/*
+   Une charge partagée n'entre dans le total du payeur que pour la part qu'il a
+   avancée. Le taire ferait une liste dont les montants ne s'additionnent pas
+   jusqu'à son propre total — et c'est le total qu'on mettrait en doute.
+*/
+.detail-part {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: normal;
+}

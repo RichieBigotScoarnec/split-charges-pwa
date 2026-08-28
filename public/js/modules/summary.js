@@ -391,14 +391,16 @@ function renderSummary(summary) {
         <div class="summary-divider"></div>
 
         <div class="summary-section-label">Paiements réels</div>
-        <div class="summary-row">
+        <button type="button" class="summary-row summary-row--ouvrable"
+                data-action="ouvrirDetailPayeur" data-arg="vous">
           <span>${escapeHtml(nomVous)} a payé</span>
           <strong>${formatCurrency(yourActualPayments)}</strong>
-        </div>
-        <div class="summary-row">
+        </button>
+        <button type="button" class="summary-row summary-row--ouvrable"
+                data-action="ouvrirDetailPayeur" data-arg="conjointe">
           <span>${escapeHtml(memberLabel('conjointe', getState('members')))} a payé</span>
           <strong>${formatCurrency(partnerActualPayments)}</strong>
-        </div>
+        </button>
 
         ${reimbursementAdjustment !== 0 ? `
           <div class="summary-divider"></div>
