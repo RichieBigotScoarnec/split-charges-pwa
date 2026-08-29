@@ -154,7 +154,15 @@ export async function creerEnveloppeProposee(cle) {
     logError('❌ Rafraîchissement du bilan impossible :', erreur);
   }
 
-  toast.success(`« ${libelle} » créée — à vous de l'alimenter`);
+  // Le montant est REPRIS de la carte, jamais recalculé : c'est le seul moment
+  // où le foyer le voit disparaître de l'écran, et c'est donc le moment de dire
+  // ce qu'il devient. Sans lui, accepter la proposition faisait perdre le
+  // chiffre qu'on venait d'accepter.
+  const cadence = Number.isFinite(vue.montant) && vue.montant > 0
+    ? ` — ${formatCurrency(vue.montant)} par mois à mettre de côté`
+    : '';
+
+  toast.success(`« ${libelle} » créée${cadence}`);
   return true;
 }
 
@@ -553,6 +561,32 @@ function formulaireEdition(enveloppe, index) {
 }
 
 /**
+ * Ce que la loupe apporte, dit avant de cliquer
+ *
+ * Une provision — cagnotte, objectif, échéance — y porte le chiffre qu'on
+ * vient chercher : combien mettre de côté ce mois-ci. Il ne peut PAS être
+ * calculé ici : la liste ne connaît que les charges du mois consulté, pas le
+ * contenu du pot, et une provision calculée sans lui serait un second chiffre
+ * faux à côté du bon. On dit donc où il est, plutôt que de le refaire.
+ *
+ * Signalé à l'usage : une fois la cagnotte de l'an prochain créée, la carte de
+ * veille disparaît — c'est voulu, elle a été suivie — et rien n'indiquait plus
+ * où le montant mensuel avait migré.
+ *
+ * @param {Object} enveloppe
+ * @returns {string} Texte, échappé par l'appelant
+ */
+function indiceDeLaLoupe(enveloppe) {
+  const provision = enveloppe.nature !== NATURES.MENSUELLE
+    && Number.isFinite(enveloppe.budget) && enveloppe.budget > 0
+    && typeof enveloppe.fin === 'string' && enveloppe.fin;
+
+  return provision
+    ? '🔍 pour le total, et ce qu\'il reste à mettre de côté chaque mois'
+    : '🔍 pour le total sur toute sa durée';
+}
+
+/**
  * Une ligne de la liste de gestion
  *
  * @param {Object} enveloppe
@@ -585,7 +619,7 @@ function ligneEnveloppe(enveloppe, index, charges) {
       <span class="manage-item-label">
         ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}${natureTag}${persoTag}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>
-        <small class="envelope-detail envelope-detail--indice">🔍 pour le total sur toute sa durée</small>
+        <small class="envelope-detail envelope-detail--indice">${indiceDeLaLoupe(enveloppe)}</small>
       </span>
       <button type="button" class="btn-icon envelope-ouvrir" data-index="${index}"
               aria-label="Voir le détail de ${escapeHtml(enveloppe.label)}">🔍</button>

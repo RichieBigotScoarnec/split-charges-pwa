@@ -430,6 +430,13 @@ dimensions n'avait regardé :
 > ici, ce sont les témoins négatifs : pour chacun des vingt-quatre défauts,
 > rétablir le défaut fait tomber un contrôle.
 
+### Signalé à l'usage, le 29 août 2026
+
+| **L'enveloppe créée annonçait un autre montant que la carte qui l'avait proposée.** `etatProvision` comptait les mois depuis le mois AFFICHÉ, sans regarder `debut` — or la cagnotte que propose la veille ne s'ouvre que le mois suivant. Mesuré : la carte disait « 103,67 € par mois pendant 12 mois », la vue de l'enveloppe « 95,69 € pendant 13 », en comptant un août où l'enveloppe n'existe pas encore | `public/js/utils/provisions.js` | ✅ RÉSOLU 2026-08-29 — le départ est le plus tardif des deux : le mois affiché, ou celui où la cagnotte s'ouvre | Le chiffre de la carte était le juste. Quatrième occurrence du défaut de `normalizePair` |
+| **L'enveloppe créée fait disparaître la carte, et rien ne dit où le chiffre est parti.** C'est voulu — sinon la carte reviendrait indéfiniment — mais le montant mensuel migre alors derrière la loupe, sans un mot. Le foyer a cru que l'application considérait ses vacances terminées | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-29 — le message de création reprend le montant de la carte, et l'indice de la loupe annonce ce qu'elle porte sur une provision | Le montant est REPRIS, jamais recalculé : la liste ne connaît pas le contenu du pot, et le refaire sans lui redonnerait deux chiffres |
+| **Et personne ne peut dire QUI a créé une enveloppe, ni quand.** Le foyer a découvert « Vacances 2027 » sans l'avoir créée sciemment. Le code n'a qu'un seul chemin d'écriture — un clic sur « Mettre de côté pour ça » — mais l'enveloppe ne porte ni auteur ni date, et `$autre: false` interdit même d'en écrire : la question n'a aucune réponse possible | `database.rules.json`, `public/js/modules/envelopes.js` | ⚠️ OUVERT — un versement exige un auteur nominatif ; une enveloppe, créée d'un geste depuis une carte qui paraît d'elle-même et sans confirmation, n'en garde aucun | Sur deux téléphones partageant le même espace, la question se reposera |
+| Le doute portait aussi sur les dates : « mes vacances sont jusqu'au 29 inclus » | — | ⚠️ VÉRIFIÉ, PAS UN DÉFAUT — `moisRestants('2026-08-29', '2026-08')` rend 1, c'est-à-dire « on y est » ; l'observation porte même la mention « le mois de l'échéance n'est pas fini » | Le calcul est mensuel et inclusif. C'est la disparition de la carte qui donnait l'impression contraire |
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles

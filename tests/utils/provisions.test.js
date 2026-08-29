@@ -6,6 +6,7 @@ import {
   etatProvision,
   provisionsDuMois
 } from '../../public/js/utils/provisions.js';
+import { provisionARenouveler } from '../../public/js/utils/veille.js';
 
 /**
  * Ce qu'il faut mettre de côté ce mois-ci
@@ -225,5 +226,67 @@ describe('provisionsDuMois — le chiffre qui manquait au bilan', () => {
     const { total } = provisionsDuMois(
       [{ enveloppe: { ...TAXE, budget: NaN }, dansLePot: undefined }], '2026-08');
     expect(Number.isFinite(total)).toBe(true);
+  });
+});
+
+
+describe('LA PROPRIÉTÉ : l\'enveloppe créée dit le même chiffre que la carte qui l\'a proposée', () => {
+  // Signalé à l'usage, le 29 août : « je n'ai plus la petite indication qui
+  // indiquait combien mettre de côté ». Elle avait disparu parce que le foyer
+  // avait suivi le conseil — et le chiffre qu'il retrouvait dans l'enveloppe
+  // n'était plus celui qu'on lui avait annoncé.
+  //
+  // `etatProvision` comptait les mois depuis le mois AFFICHÉ, sans regarder
+  // que la cagnotte ne s'ouvre que le mois suivant. Deux chiffres pour la même
+  // question : 103,67 € sur 12 mois d'un côté, 95,69 € sur 13 de l'autre.
+
+  const CARTE = provisionARenouveler({
+    enveloppe: {
+      id: 'vacances', label: 'Vacances', icon: '🧳',
+      nature: 'cagnotte', budget: 800, fin: '2026-08-29'
+    },
+    depenseReelle: 1244.01,
+    moisCourant: '2026-08'
+  });
+
+  /** L'enveloppe telle que `creerEnveloppeProposee` l'écrit */
+  const CREEE = {
+    label: CARTE.proposition.label,
+    nature: CARTE.proposition.nature,
+    budget: CARTE.proposition.budget,
+    debut: CARTE.proposition.debut,
+    fin: CARTE.proposition.fin
+  };
+
+  it('le mois même où la carte est affichée', () => {
+    const etat = etatProvision(CREEE, 0, '2026-08');
+
+    expect(etat.parMois).toBeCloseTo(CARTE.montant, 6);
+    // 12 mois : septembre à août. Le défaut en comptait 13, dont un août où
+    // l'enveloppe n'existe pas encore.
+    expect(etat.restants).toBe(12);
+  });
+
+  it('et le mois où la cagnotte s\'ouvre vraiment', () => {
+    const etat = etatProvision(CREEE, 0, '2026-09');
+
+    expect(etat.parMois).toBeCloseTo(CARTE.montant, 6);
+    expect(etat.restants).toBe(12);
+  });
+
+  it('une fois l\'enveloppe ouverte, le compte suit le mois affiché', () => {
+    // Le témoin positif : si le départ était TOUJOURS `debut`, la provision ne
+    // monterait jamais et l'objectif filerait.
+    const etat = etatProvision(CREEE, 0, '2027-03');
+
+    expect(etat.restants).toBe(6);
+    expect(etat.parMois).toBeCloseTo(1244.01 / 6, 6);
+  });
+
+  it('une enveloppe sans date de début compte depuis le mois affiché', () => {
+    // Le cas de toutes celles qui existaient avant : rien ne change pour elles.
+    const sansDebut = { ...CREEE, debut: null };
+
+    expect(etatProvision(sansDebut, 0, '2026-08').restants).toBe(13);
   });
 });

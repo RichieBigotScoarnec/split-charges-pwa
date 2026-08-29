@@ -123,7 +123,24 @@ export function etatProvision(enveloppe, dansLePot, moisCourant) {
   const concernee = Boolean(cagnotte && echeance && objectif > 0);
 
   const acquis = Number.isFinite(dansLePot) ? dansLePot : 0;
-  const restants = concernee ? moisRestants(echeance, moisCourant) : 0;
+
+  // ON NE PROVISIONNE PAS DANS UNE ENVELOPPE QUI N'A PAS COMMENCÉ.
+  //
+  // Le compte partait du mois AFFICHÉ, sans regarder `debut`. Une cagnotte
+  // ouverte le 29 août pour l'an prochain — le geste que propose la veille —
+  // démarre au 1er septembre : la carte annonçait « 103,67 € par mois pendant
+  // 12 mois », et la vue de l'enveloppe « 95,69 € pendant 13 » en comptant un
+  // mois d'août où l'enveloppe n'existe pas encore. Deux chiffres pour la même
+  // question, et c'est celui de la carte qui était juste.
+  //
+  // Le départ est donc le plus TARDIF des deux : le mois affiché, ou celui où
+  // l'enveloppe s'ouvre.
+  const ouverture = typeof enveloppe?.debut === 'string' && CLE_MOIS.test(enveloppe.debut)
+    ? enveloppe.debut.slice(0, 7)
+    : null;
+  const depart = ouverture && ouverture > moisCourant ? ouverture : moisCourant;
+
+  const restants = concernee ? moisRestants(echeance, depart) : 0;
   const manque = Math.max(0, objectif - acquis);
 
   return {
