@@ -1006,6 +1006,16 @@
    son emoji et son intitulé, faute de quoi l'information serait perdue pour
    qui ne distingue pas les teintes (WCAG 1.4.1).
 */
+/*
+   D'où vient l'enveloppe. Discret à dessein : c'est une réponse qu'on vient
+   chercher quand la question se pose, pas une information à lire chaque fois.
+*/
+.enveloppe-provenance {
+  margin: var(--space-xs) 0 var(--space-md);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .enveloppe-provision {
   padding: var(--space-md);
   margin-bottom: var(--space-md);

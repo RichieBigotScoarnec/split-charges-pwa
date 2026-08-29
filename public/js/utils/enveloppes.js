@@ -93,7 +93,7 @@ const FORMAT_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * refuse `undefined` à l'écriture, et le tri en aurait fait un cas particulier.
  *
  * @param {*} brut - Entrée telle que lue en base
- * @returns {{id: string, label: string, icon: string, budget: number|null, debut: string|null, fin: string|null, cloturee: boolean}|null}
+ * @returns {{id: string, label: string, icon: string, budget: number|null, debut: string|null, fin: string|null, cloturee: boolean, creePar: string|null, creeLe: number|null}|null}
  */
 export function normaliserEnveloppe(brut) {
   if (!brut || typeof brut !== 'object') return null;
@@ -128,7 +128,19 @@ export function normaliserEnveloppe(brut) {
     report: brut.nature === NATURES.MENSUELLE && brut.report === true,
     rang: Object.values(RANGS).includes(brut.rang) ? brut.rang : null,
     perimetre,
-    proprietaire
+    proprietaire,
+    // QUI l'a créée, et QUAND.
+    //
+    // Un versement exige un auteur nominatif depuis toujours ; une enveloppe
+    // n'en gardait aucun — alors que l'application propose d'en créer une d'un
+    // seul geste, depuis une carte qui paraît d'elle-même. Le foyer a découvert
+    // « Vacances 2027 » sans savoir d'où elle sortait, et l'application n'avait
+    // aucune réponse à lui donner : rien n'était enregistré.
+    //
+    // Absent sur tout l'existant, et c'est normal : `null` se lit « on ne sait
+    // pas », jamais « personne ». Une valeur inventée serait pire que le vide.
+    creePar: PERSONNES.includes(brut.creePar) ? brut.creePar : null,
+    creeLe: Number.isFinite(brut.creeLe) && brut.creeLe > 0 ? brut.creeLe : null
   };
 }
 

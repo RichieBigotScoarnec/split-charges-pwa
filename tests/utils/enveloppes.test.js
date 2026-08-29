@@ -57,7 +57,43 @@ describe('Lecture d\'une enveloppe venue de la base', () => {
       report: false,
       rang: null,
       perimetre: 'commun',
-      proprietaire: null
+      proprietaire: null,
+      // Une enveloppe écrite avant que la provenance existe n'en porte pas, et
+      // `null` se lit « on ne sait pas » — jamais « personne ».
+      creePar: null,
+      creeLe: null
+    });
+  });
+
+  describe('LA PROVENANCE : qui a créé cette enveloppe, et quand', () => {
+    // Le foyer a découvert « Vacances 2027 » sans savoir d'où elle sortait, et
+    // l'application n'avait aucune réponse possible : rien n'était enregistré.
+    // Un versement porte un auteur nominatif depuis toujours.
+
+    it('retient l\'auteur et l\'instant quand ils sont là', () => {
+      const lue = normaliserEnveloppe({
+        id: 'vacances-2027', label: 'Vacances 2027',
+        creePar: 'conjointe', creeLe: 1756500000000
+      });
+
+      expect(lue.creePar).toBe('conjointe');
+      expect(lue.creeLe).toBe(1756500000000);
+    });
+
+    it('un auteur qui ne désigne personne n\'en désigne aucun', () => {
+      // La même règle que pour l'auteur d'un versement : plutôt le vide qu'un
+      // nom choisi au hasard.
+      for (const faux of ['Richard', '', null, 42, 'VOUS']) {
+        expect(normaliserEnveloppe({ id: 'e', label: 'E', creePar: faux }).creePar).toBe(null);
+      }
+    });
+
+    it('un instant illisible ou nul ne fabrique pas de date', () => {
+      // `formatDate(0)` afficherait le 1er janvier 1970 : une absence devenue
+      // affirmation fausse.
+      for (const faux of [0, -1, '1756500000000', NaN, Infinity, null]) {
+        expect(normaliserEnveloppe({ id: 'e', label: 'E', creeLe: faux }).creeLe).toBe(null);
+      }
     });
   });
 

@@ -96,6 +96,8 @@ test.describe('Anticiper une charge annuelle', () => {
 
     const carte = page.locator('.veille-item', { hasText: 'Assurance habitation' });
     await carte.locator('.veille-action').click();
+    // Le geste écrit, donc il se confirme — comme supprimer une charge.
+    await page.locator('#modalConfirmOk').click();
     await page.waitForTimeout(900);
 
     const apres = await enveloppesEnBase(page);
@@ -118,6 +120,7 @@ test.describe('Anticiper une charge annuelle', () => {
 
     const carte = page.locator('.veille-item', { hasText: 'Assurance habitation' });
     await carte.locator('.veille-action').click();
+    await page.locator('#modalConfirmOk').click();
     await page.waitForTimeout(900);
 
     // La carte a disparu : on rejoue le geste par la fonction elle-même.
@@ -128,6 +131,8 @@ test.describe('Anticiper une charge annuelle', () => {
       const { getState } = await import('/js/state.js');
       const vues = getState('observations') || [];
       const cle = vues.length ? vues[0].cle : 'charge-annuelle:inconnue';
+      // Le refus du doublon tombe avant la confirmation : rien à confirmer,
+      // puisque rien ne sera écrit.
       const rendu = await window.creerEnveloppeProposee(cle);
       const apres = Object.values(await dbGet('envelopes') || {}).length;
       return { rendu, avant, apres };

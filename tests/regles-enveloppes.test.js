@@ -41,6 +41,35 @@ describe('Le nœud des enveloppes', () => {
     }
   });
 
+  it('LA PROVENANCE est déclarée, sinon elle serait refusée en silence', () => {
+    // `$autre: false` refuse tout champ non nommé, et le refus arrive côté
+    // serveur — après que l'écran a dit « créée ». Deux champs neufs sans
+    // règle, c'est une enveloppe qui ne s'écrit plus du tout.
+    for (const espace of ESPACES) {
+      const entree = regles[espace].envelopes.$rang;
+
+      expect(entree.creePar, `creePar manque sous ${espace}`).toBeDefined();
+      // Les deux mêmes valeurs que l'auteur d'un versement : pas de texte libre.
+      expect(entree.creePar['.validate']).toContain("=== 'vous'");
+      expect(entree.creePar['.validate']).toContain("=== 'conjointe'");
+
+      expect(entree.creeLe, `creeLe manque sous ${espace}`).toBeDefined();
+      expect(entree.creeLe['.validate']).toContain('isNumber');
+    }
+  });
+
+  it('la provenance d\'une enveloppe est bornée comme celle d\'un versement', () => {
+    // Une seule convention pour la même chose : si les deux divergent, l'une
+    // des deux acceptera un jour ce que l'autre refuse.
+    for (const espace of ESPACES) {
+      const enveloppe = regles[espace].envelopes.$rang;
+      const versement = regles[espace].versements.$enveloppe.$versement;
+
+      expect(enveloppe.creePar['.validate']).toBe(versement.auteur['.validate']);
+      expect(enveloppe.creeLe['.validate']).toBe(versement.timestamp['.validate']);
+    }
+  });
+
   it('refuse un champ que le code n\'écrit pas', () => {
     // La même posture que pour les catégories : ce qui n'est pas prévu est
     // refusé, plutôt que stocké au cas où.
@@ -234,6 +263,35 @@ describe('Les versements : un nœud neuf, donc refusé tant qu\'il n\'est pas no
       const v = regles[espace].versements.$enveloppe.$versement.date['.validate'];
       expect(v).toContain("newData.val() === ''");
       expect(v).toContain('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+  });
+
+  it('LA PROVENANCE est déclarée, sinon elle serait refusée en silence', () => {
+    // `$autre: false` refuse tout champ non nommé, et le refus arrive côté
+    // serveur — après que l'écran a dit « créée ». Deux champs neufs sans
+    // règle, c'est une enveloppe qui ne s'écrit plus du tout.
+    for (const espace of ESPACES) {
+      const entree = regles[espace].envelopes.$rang;
+
+      expect(entree.creePar, `creePar manque sous ${espace}`).toBeDefined();
+      // Les deux mêmes valeurs que l'auteur d'un versement : pas de texte libre.
+      expect(entree.creePar['.validate']).toContain("=== 'vous'");
+      expect(entree.creePar['.validate']).toContain("=== 'conjointe'");
+
+      expect(entree.creeLe, `creeLe manque sous ${espace}`).toBeDefined();
+      expect(entree.creeLe['.validate']).toContain('isNumber');
+    }
+  });
+
+  it('la provenance d\'une enveloppe est bornée comme celle d\'un versement', () => {
+    // Une seule convention pour la même chose : si les deux divergent, l'une
+    // des deux acceptera un jour ce que l'autre refuse.
+    for (const espace of ESPACES) {
+      const enveloppe = regles[espace].envelopes.$rang;
+      const versement = regles[espace].versements.$enveloppe.$versement;
+
+      expect(enveloppe.creePar['.validate']).toBe(versement.auteur['.validate']);
+      expect(enveloppe.creeLe['.validate']).toBe(versement.timestamp['.validate']);
     }
   });
 
