@@ -113,6 +113,57 @@ test.describe('La veille sur le bilan', () => {
     expect(await page.locator('.summary-veille').count()).toBe(0);
   });
 
+  test('CRÉER DEMANDE CONFIRMATION — et refuser n\'écrit rien', async ({ page }) => {
+    // Le bouton vit dans une carte qui paraît d'elle-même, en tête du bilan,
+    // au-dessus de tout ce qu'on vient y chercher. Il écrivait sans rien
+    // demander, là où supprimer une charge fait confirmer : une frappe
+    // involontaire devenait indiscernable d'une décision, et le foyer a trouvé
+    // une enveloppe qu'il ne se souvenait pas d'avoir créée.
+    await ouvrir(page, semer());
+
+    await page.locator('[data-action="creerEnveloppeProposee"]').click();
+
+    const confirmation = page.locator('#modalConfirm');
+    await expect(confirmation).toBeVisible();
+    // Elle nomme ce qui sera créé, ET ce que ça engage.
+    await expect(confirmation).toContainText('Vacances 2027');
+    // Le montant est celui de la carte, formaté comme partout où l'application
+    // montre de l'argent : « 84,15 € », et non le « 84.15 » brut que le texte
+    // de l'observation emploie.
+    await expect(confirmation).toContainText('84,15');
+
+    await page.locator('#modalConfirmCancel').click();
+    await page.waitForTimeout(600);
+
+    // Rien n'a été écrit, et la carte est toujours là.
+    const enBase = await page.evaluate(() =>
+      JSON.stringify(window.__db['household/envelopes'] || []));
+    expect(enBase).not.toContain('Vacances 2027');
+    await expect(page.locator('.summary-veille')).toContainText('an prochain');
+  });
+
+  test('accepter crée la cagnotte, et l\'enveloppe garde qui l\'a créée', async ({ page }) => {
+    // Le témoin positif : sans lui, une confirmation qui refuserait toujours
+    // passerait le contrôle ci-dessus.
+    await ouvrir(page, semer());
+
+    await page.locator('[data-action="creerEnveloppeProposee"]').click();
+    await page.locator('#modalConfirmOk').click();
+    await page.waitForTimeout(900);
+
+    const creee = await page.evaluate(() => {
+      const brut = window.__db['household/envelopes'] || [];
+      const liste = Array.isArray(brut) ? brut : Object.values(brut);
+      return liste.find(e => e && e.label === 'Vacances 2027') || null;
+    });
+
+    expect(creee, 'la cagnotte n\'a pas été écrite').not.toBe(null);
+    // La question « qui a créé ça, et quand ? » n'avait aucune réponse possible.
+    expect(['vous', 'conjointe']).toContain(creee.creePar);
+    expect(typeof creee.creeLe).toBe('number');
+    expect(creee.creeLe).toBeGreaterThan(0);
+  });
+
   test('un libellé hostile est affiché en texte, jamais interprété', async ({ page }) => {
     const db = semer();
     db['household/envelopes'][0].label = '<img src=x onerror=alert(1)>';

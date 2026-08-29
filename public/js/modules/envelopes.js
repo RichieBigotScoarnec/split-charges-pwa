@@ -17,7 +17,7 @@ import { log, error as logError } from '../utils/debug.js';
 import { identifiantEnveloppe } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
 import { formatDate, dateDuJour } from '../utils/date.js';
-import { normaliserEmplacement } from '../utils/members.js';
+import { normaliserEmplacement, memberLabel } from '../utils/members.js';
 import {
   normaliserVersements,
   versementsActifs,
@@ -64,6 +64,25 @@ export async function initEnvelopes() {
   window.creerEnveloppeProposee = creerEnveloppeProposee;
   await loadEnvelopes();
   log('✅ Module enveloppes initialisé');
+}
+
+/**
+ * Qui crée cette enveloppe, et quand
+ *
+ * Un versement porte un auteur nominatif depuis toujours ; une enveloppe n'en
+ * gardait aucun — alors que l'application propose d'en créer une d'un seul
+ * geste, depuis une carte qui paraît d'elle-même en tête du bilan. Le foyer a
+ * découvert « Vacances 2027 » sans savoir d'où elle sortait, et l'application
+ * n'avait rien à répondre : la question n'avait pas de réponse possible.
+ *
+ * Même fabrique que l'auteur d'un versement : l'emplacement du compte qui tient
+ * l'appareil, jamais « vous » en dur — sur le second téléphone, chaque création
+ * serait attribuée à l'autre.
+ *
+ * @returns {{creePar: string, creeLe: number}}
+ */
+function provenance() {
+  return { creePar: auteurParDefaut(), creeLe: Date.now() };
 }
 
 /**
@@ -118,6 +137,27 @@ export async function creerEnveloppeProposee(cle) {
     return false;
   }
 
+  // ON DEMANDE AVANT D'ÉCRIRE.
+  //
+  // Ce bouton vit dans une carte qui paraît d'elle-même, en tête du bilan,
+  // au-dessus de tout ce qu'on vient y chercher. Il écrivait sans rien
+  // demander, là où supprimer une charge fait confirmer — et une frappe
+  // involontaire devenait indiscernable d'une décision. Le foyer a trouvé une
+  // enveloppe qu'il ne se souvenait pas d'avoir créée.
+  //
+  // La question nomme ce qui sera créé ET ce que ça engage : « mettre de côté »
+  // n'a de sens que si l'on sait combien, et jusqu'à quand.
+  // Le montant est REPRIS de la carte, jamais recalculé : c'est le chiffre que
+  // le foyer vient de lire, et le refaire ici en donnerait un second.
+  const parMois = Number.isFinite(vue.montant) && vue.montant > 0 ? vue.montant : null;
+
+  const { showConfirmModal } = await import('../components/modal.js');
+  const accepte = await showConfirmModal(
+    `Créer la cagnotte « ${libelle} » ?`
+    + (parMois ? `\n\n${formatCurrency(parMois)} par mois à mettre de côté.` : '')
+  );
+  if (!accepte) return false;
+
   const enveloppe = {
     id: identifiantEnveloppe(libelle, existantes),
     label: libelle,
@@ -132,7 +172,8 @@ export async function creerEnveloppeProposee(cle) {
     report: false,
     rang: RANGS.PROVISION,
     perimetre: 'commun',
-    proprietaire: null
+    proprietaire: null,
+    ...provenance()
   };
 
   if (!await enregistrer([...existantes, enveloppe], existantes)) return false;
@@ -154,15 +195,10 @@ export async function creerEnveloppeProposee(cle) {
     logError('❌ Rafraîchissement du bilan impossible :', erreur);
   }
 
-  // Le montant est REPRIS de la carte, jamais recalculé : c'est le seul moment
-  // où le foyer le voit disparaître de l'écran, et c'est donc le moment de dire
-  // ce qu'il devient. Sans lui, accepter la proposition faisait perdre le
-  // chiffre qu'on venait d'accepter.
-  const cadence = Number.isFinite(vue.montant) && vue.montant > 0
-    ? ` — ${formatCurrency(vue.montant)} par mois à mettre de côté`
-    : '';
-
-  toast.success(`« ${libelle} » créée${cadence}`);
+  // La création fait disparaître la carte : c'est le seul moment où le foyer
+  // voit le montant quitter l'écran, donc le moment de dire ce qu'il devient.
+  toast.success(`« ${libelle} » créée`
+    + (parMois ? ` — ${formatCurrency(parMois)} par mois à mettre de côté` : ''));
   return true;
 }
 
@@ -561,6 +597,35 @@ function formulaireEdition(enveloppe, index) {
 }
 
 /**
+ * D'où vient cette enveloppe
+ *
+ * Le foyer a découvert « Vacances 2027 » sans savoir d'où elle sortait, et
+ * l'application n'avait aucune réponse : rien n'était enregistré. La ligne
+ * n'est rendue que si la provenance est connue — toutes les enveloppes créées
+ * avant ce champ n'en portent pas, et inventer un auteur serait pire que le
+ * silence.
+ *
+ * @param {Object} enveloppe
+ * @returns {string} Fragment HTML échappé, ou chaîne vide
+ */
+function blocProvenance(enveloppe) {
+  if (!enveloppe.creePar && !enveloppe.creeLe) return '';
+
+  const qui = enveloppe.creePar
+    ? memberLabel(enveloppe.creePar, getState('members'))
+    : null;
+  const quand = enveloppe.creeLe ? formatDate(enveloppe.creeLe) : null;
+
+  const phrase = [
+    'Créée',
+    qui ? `par ${qui}` : null,
+    quand ? `le ${quand}` : null
+  ].filter(Boolean).join(' ');
+
+  return `<p class="enveloppe-provenance">${escapeHtml(phrase)}</p>`;
+}
+
+/**
  * Ce que la loupe apporte, dit avant de cliquer
  *
  * Une provision — cagnotte, objectif, échéance — y porte le chiffre qu'on
@@ -824,7 +889,8 @@ function brancherEcran(modal) {
         && modal.querySelector('#envelopeNewReport').value === 'oui',
       rang: modal.querySelector('#envelopeNewRang').value || null,
       perimetre: pourQui === 'commun' ? 'commun' : 'solo',
-      proprietaire: pourQui === 'commun' ? null : pourQui
+      proprietaire: pourQui === 'commun' ? null : pourQui,
+      ...provenance()
     };
 
     if (!await enregistrer([...existantes, enveloppe], existantes)) return;
@@ -1228,6 +1294,7 @@ async function ouvrirLaVueEnveloppe(id) {
       </div>
 
       ${blocProvision(provision)}
+      ${blocProvenance(enveloppe)}
 
       ${cagnotte ? blocVersements(versements, enveloppe) : ''}
 

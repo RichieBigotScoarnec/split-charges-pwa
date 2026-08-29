@@ -149,6 +149,12 @@
           "proprietaire": {
             ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
           },
+          "creePar": {
+            ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
+          },
+          "creeLe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+          },
           "$autre": {
             ".validate": false
           }
@@ -593,6 +599,12 @@
           },
           "proprietaire": {
             ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
+          },
+          "creePar": {
+            ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe')"
+          },
+          "creeLe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
           },
           "$autre": {
             ".validate": false
