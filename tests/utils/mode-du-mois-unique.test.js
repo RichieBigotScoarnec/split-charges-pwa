@@ -48,15 +48,24 @@ const MOIS = {
   }
 };
 
-/** Ce que l'écran calcule, l'état monté comme `loadPeriodData` le monte */
-function soldeAffiche({ modeDuMois, modeGlobal }) {
+/**
+ * Ce que l'écran calcule, l'état monté comme `loadPeriodData` le monte
+ *
+ * Les PARTS du mois s'y montent aussi. Elles manquaient, et c'est ce qui a
+ * laissé un trou : figer le mode sans ses paramètres ne protège rien sur
+ * « custom », le seul mode qui en porte — et l'écran était le seul des deux
+ * côtés à n'avoir aucun témoin.
+ */
+function soldeAffiche({ modeDuMois, modeGlobal, partsDuMois, partsGlobales, mois = MOIS }) {
   resetState();
-  setState('salaries', SALAIRES);
-  setState('variableCharges', Object.values(MOIS.variableCharges));
-  setState('fixedCharges', []);
-  setState('reimbursements', []);
+  setState('salaries', mois.salaries || SALAIRES);
+  setState('variableCharges', Object.values(mois.variableCharges || {}));
+  setState('fixedCharges', Object.values(mois.fixedCharges || {}));
+  setState('reimbursements', Object.values(mois.reimbursements || {}));
   setState('shareMode', modeGlobal);
   setState('shareModeDuMois', modeDuMois);
+  if (partsGlobales) setState('customPercents', partsGlobales);
+  if (partsDuMois) setState('customPercentsDuMois', partsDuMois);
   return calculateSummary().balance;
 }
 
@@ -205,6 +214,46 @@ describe('Un mois « custom » figé ne bouge plus quand le foyer change ses par
     // C'est l'état des mois déjà en base, écrits avant cette correction : elle
     // protège les mois à venir, elle ne réécrit pas le passé.
     expect(chaine({ '2026-07': JUILLET }, { vous: 60, conjointe: 40 }).total).toBeCloseTo(100, 6);
+  });
+
+  /**
+   * L'ÉCRAN AUSSI, et c'est la moitié qui manquait.
+   *
+   * `resolvePercents` est appelée des deux côtés — `calculations.js` pour la
+   * chaîne, `summary.js` pour l'écran — mais un seul appel avait un témoin.
+   * Mutant vérifié : remplacer l'appel de `summary.js:47` par le seul réglage
+   * du foyer laissait les 2 319 tests verts, et faisait annoncer 100,00 € à
+   * l'écran quand la chaîne annonçait 0,00 € pour le même mois. Une dette
+   * ressuscitée, puis reportée de mois en mois.
+   *
+   * La propriété est la même que pour le mode : quel que soit le chemin, un
+   * mois se lit sous UN seul jeu de parts.
+   */
+  const ecran = (partsDuMois, partsGlobales) => soldeAffiche({
+    modeDuMois: 'custom', modeGlobal: 'custom',
+    partsDuMois, partsGlobales, mois: JUILLET
+  });
+
+  it('L\'ÉCRAN : avec ses parts figées, juillet reste soldé', () => {
+    expect(ecran({ vous: 70, conjointe: 30 }, { vous: 60, conjointe: 40 })).toBeCloseTo(0, 6);
+  });
+
+  it('L\'ÉCRAN et la chaîne annoncent le même solde, parts figées comprises', () => {
+    const fige = { '2026-07': { ...JUILLET, customPercents: { vous: 70, conjointe: 30 } } };
+
+    expect(ecran({ vous: 70, conjointe: 30 }, { vous: 60, conjointe: 40 }))
+      .toBeCloseTo(chaine(fige, { vous: 60, conjointe: 40 }).total, 6);
+  });
+
+  it('TÉMOIN NÉGATIF : sans parts figées, l\'écran ressuscite les mêmes 100 €', () => {
+    // Le témoin qui donne son sens au contrôle ci-dessus : si l'écran ne lisait
+    // pas les parts du mois, il rendrait CE chiffre-là.
+    expect(ecran(null, { vous: 60, conjointe: 40 })).toBeCloseTo(100, 6);
+  });
+
+  it('et les deux côtés se trompent alors ensemble, ce qui est le seul cas sain', () => {
+    expect(ecran(null, { vous: 60, conjointe: 40 }))
+      .toBeCloseTo(chaine({ '2026-07': JUILLET }, { vous: 60, conjointe: 40 }).total, 6);
   });
 
   it('et la dette ressuscitée se reporte sur les mois suivants', () => {

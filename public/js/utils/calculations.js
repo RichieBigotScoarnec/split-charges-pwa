@@ -321,7 +321,16 @@ export function computeVirementsByDestination(fixedCharges, params) {
   // virer à sa conjointe. Une dépense solo n'a rien à y faire — elle ne lui
   // doit rien. Le bilan avait déjà été blindé sans que ce calcul le soit, et
   // c'est ce décalage qui avait affiché « NaN € » à virer sous un bilan juste.
-  chargesCommunes(fixedCharges).forEach(charge => {
+  //
+  // LA CORBEILLE AUSSI, et pour exactement la même raison. `computeSummary`
+  // écarte les charges supprimées ; ici, la seule garde vivait chez l'APPELANT
+  // — `summary.js` filtrait avant d'appeler — et rien ne la tenait. La retirer
+  // laissait les 2 329 tests verts. Mesuré : un loyer de 900 € mis à la
+  // corbeille faisait demander 470 € à virer là où 20 € étaient dus, en
+  // contredisant le bilan affiché deux lignes plus haut.
+  //
+  // Une garde posée chez l'appelant n'est pas une garde : c'est un usage.
+  chargesCommunes(fixedCharges).filter(charge => !charge.deleted).forEach(charge => {
     const dest = charge.destination || '';
     if (!dest) return;
 
