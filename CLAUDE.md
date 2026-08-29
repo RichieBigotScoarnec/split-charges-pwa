@@ -438,6 +438,30 @@ dimensions n'avait regardé :
 | **Créer une enveloppe n'était soumis à aucune confirmation**, alors que supprimer une charge en demande une. Le bouton vit dans une carte qui paraît d'elle-même en tête du bilan, au-dessus de ce qu'on vient y chercher : une frappe involontaire était indiscernable d'une décision | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-29 — la question nomme la cagnotte ET le montant mensuel qu'elle engage | Le montant est repris de la carte, jamais recalculé — troisième fois que cette règle s'applique dans la même journée |
 | Le doute portait aussi sur les dates : « mes vacances sont jusqu'au 29 inclus » | — | ⚠️ VÉRIFIÉ, PAS UN DÉFAUT — `moisRestants('2026-08-29', '2026-08')` rend 1, c'est-à-dire « on y est » ; l'observation porte même la mention « le mois de l'échéance n'est pas fini » | Le calcul est mensuel et inclusif. C'est la disparition de la carte qui donnait l'impression contraire |
 
+### Audit de couverture, 2026-08-29
+
+Couverture réelle mesurée — unitaires **et** bout en bout fusionnés : **88,34 %**
+des lignes (6 021 / 6 816), 51 fichiers sur 88 à 100 %. Tout le cœur monétaire
+est à 100 % : `provisions`, `tendances`, `previsionnel`, `rapport-mensuel`,
+`detail`, `cout-annuel`, `enveloppes`, `versements`, `perimetre`, `salaries`,
+`budgets`, `recurrence`, `montant` ; `calculations` à 99 %.
+
+> **La couverture mesure ce qui s'exécute, pas ce qui est vérifié.** Sept
+> relecteurs cherchant des MUTANTS SURVIVANTS — casser une ligne, relancer les
+> 2 310 tests, voir si un seul tombe — ont trouvé des gardes réelles qu'on peut
+> retirer sans qu'aucun test ne bouge. Le motif : **les fonctions pures sont
+> blindées, le CÂBLAGE qui les relie ne l'est pas.**
+
+| **Une même valeur passée à deux mesures aux besoins opposés.** `veiller` recevait un seul `depense` — le cumul de TOUS les mois — et le donnait à la fois à la provision (qui en a besoin) et au rythme d'un budget MENSUEL (qui ne doit surtout pas le recevoir). Mesuré : budget « Courses » de 600 €, 200 € en juillet et 150 € en août, au 10 du mois — le cumul de 350 € projetait 1 085 € et criait « ne tiendra pas le mois », quand août seul projette 465 € et tient largement. La carte se déclenchait **tous les mois**, sur toute enveloppe mensuelle ayant un passé | `public/js/utils/veille.js`, `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-29 — `depense` (cumul) et `depenseDuMois` (mois affiché), deux champs distincts ; une entrée sans le second fait taire la mesure | Trouvé par un brouillon d'agent que le contrôle d'arbre propre a signalé — pas par un test |
+| **Les trois producteurs de cartes chiffraient chacun leur part mensuelle, et les trois divergeaient de l'enveloppe qu'ils créent.** `chargesAnnuelles` divisait par les mois comptés depuis le mois affiché tout en ouvrant la cagnotte le mois SUIVANT — 64,00 € annoncés, 73,14 € dans l'enveloppe. `picSaisonnier` divisait par les mois qui SÉPARENT du pic quand l'enveloppe compte l'échéance — 54,55 € contre 50,00 € | `public/js/utils/anticipation.js` | ✅ RÉSOLU 2026-08-29 — les deux comptent désormais comme `etatProvision` comptera | Cinquième et sixième occurrences du défaut de `normalizePair`, le même jour |
+| Une propriété par producteur ne suffisait pas : celle écrite le matin ne couvrait qu'`provisionARenouveler`, et les deux autres divergeaient depuis toujours | `tests/utils/provisions.test.js` | ✅ RÉSOLU 2026-08-29 — la propriété est GÉNÉRALE : chaque carte crée l'enveloppe qu'elle décrit, interroge `etatProvision`, et exige l'égalité. Aucune valeur écrite à la main | Un quatrième producteur ajouté demain avec son propre calcul la fera tomber |
+| `rythmeDuBudget` projetait le mois AFFICHÉ avec le jour d'AUJOURD'HUI : choisir un juillet clos annonçait qu'un budget déjà soldé « ne tiendra pas le mois » | `public/js/utils/veille.js` | ✅ RÉSOLU 2026-08-29 — `moisReel` transmis jusqu'à lui, même garde que `rythmeDuMois` | Le correctif du 28 n'avait traité que la projection du mois entier, pas celle par enveloppe |
+
+Restent connus et non traités, relevés par l'audit avec mutant vérifié : le
+mode figé du mois côté ÉCRAN (`summary.js`), le filtre `deleted` des virements,
+la comparaison des CHAMPS écrits aux champs déclarés dans les règles, et les
+gardes de `db.js` sur le rejeu hors ligne et les accès privés.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles

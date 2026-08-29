@@ -7,6 +7,7 @@ import {
   provisionsDuMois
 } from '../../public/js/utils/provisions.js';
 import { provisionARenouveler } from '../../public/js/utils/veille.js';
+import { chargesAnnuelles, picSaisonnier } from '../../public/js/utils/anticipation.js';
 
 /**
  * Ce qu'il faut mettre de côté ce mois-ci
@@ -288,5 +289,100 @@ describe('LA PROPRIÉTÉ : l\'enveloppe créée dit le même chiffre que la cart
     const sansDebut = { ...CREEE, debut: null };
 
     expect(etatProvision(sansDebut, 0, '2026-08').restants).toBe(13);
+  });
+});
+
+describe('LA PROPRIÉTÉ GÉNÉRALE : toute carte annonce le montant de l\'enveloppe qu\'elle crée', () => {
+  /**
+   * Trois producteurs de cartes proposent d'ouvrir une cagnotte, et chacun
+   * chiffre lui-même sa part mensuelle. Les trois avaient leur propre compte
+   * des mois restants, et les trois divergeaient de ce que l'enveloppe créée
+   * afficherait ensuite :
+   *
+   *   provisionARenouveler   103,67 € / 12 mois   contre   95,69 € / 13
+   *   chargesAnnuelles        64,00 € /  8 mois   contre   73,14 € /  7
+   *   picSaisonnier           54,55 € / 11 mois   contre   50,00 € / 12
+   *
+   * Le foyer clique sur un chiffre et en trouve un autre. Le contrôle qui suit
+   * ne vérifie AUCUNE valeur écrite à la main : il crée l'enveloppe que la
+   * proposition décrit, demande à `etatProvision` ce qu'elle affichera, et
+   * exige l'égalité. Un quatrième producteur ajouté demain avec son propre
+   * calcul le fera tomber.
+   */
+  const MOIS = '2026-08';
+
+  /** L'enveloppe telle que `creerEnveloppeProposee` l'écrit, depuis une carte */
+  const enveloppeDe = (proposition) => ({
+    label: proposition.label,
+    nature: proposition.nature,
+    budget: proposition.budget,
+    debut: proposition.debut,
+    fin: proposition.fin
+  });
+
+  const charge = (description, amount, extra = {}) => ({
+    description, amount, category: 'Maison', paidBy: 'vous', deleted: false, ...extra
+  });
+  const mois = (charges) => ({
+    salaries: { vous: 2500, conjointe: 1800 },
+    variableCharges: Object.fromEntries(charges.map((c, i) => [`v${i}`, c]))
+  });
+
+  /** Les trois producteurs, avec l'historique qui les réveille */
+  const PRODUCTEURS = [
+    {
+      nom: 'provisionARenouveler — la cagnotte arrivée à terme',
+      carte: () => provisionARenouveler({
+        enveloppe: {
+          id: 'vacances', label: 'Vacances', icon: '🧳',
+          nature: 'cagnotte', budget: 800, fin: `${MOIS}-29`
+        },
+        depenseReelle: 1244.01,
+        moisCourant: MOIS
+      })
+    },
+    {
+      nom: 'chargesAnnuelles — ce qui revient tous les ans',
+      carte: () => chargesAnnuelles({
+        periods: {
+          '2025-03': mois([charge('Assurance auto', 480, { date: '2025-03-12' })]),
+          '2026-03': mois([charge('Assurance auto', 512, { date: '2026-03-12' })])
+        },
+        moisCourant: MOIS
+      })[0]
+    },
+    {
+      nom: 'picSaisonnier — le mois qui coûte plus cher',
+      carte: () => {
+        const periods = {};
+        for (let m = 1; m <= 12; m++) {
+          periods[`2025-${String(m).padStart(2, '0')}`] = mois([
+            charge('Vie courante', m === 12 ? 1600 : 1000)
+          ]);
+        }
+        return picSaisonnier({ periods, moisCourant: '2026-01' });
+      },
+      moisCourant: '2026-01'
+    }
+  ];
+
+  for (const { nom, carte, moisCourant } of PRODUCTEURS) {
+    it(nom, () => {
+      const vue = carte();
+      expect(vue, 'le producteur ne rend aucune carte : le jeu d\'essai ne le réveille pas').toBeTruthy();
+      expect(vue.proposition).toBeTruthy();
+
+      const etat = etatProvision(enveloppeDe(vue.proposition), 0, moisCourant || MOIS);
+
+      expect(etat.concernee, 'la proposition ne fabrique pas une provision lisible').toBe(true);
+      expect(vue.montant).toBeCloseTo(etat.parMois, 6);
+    });
+  }
+
+  it('et les trois montants sont bien distincts — sans quoi rien n\'est mesuré', () => {
+    // Le témoin positif : si les trois jeux d'essai donnaient le même chiffre,
+    // n'importe quel calcul passerait les contrôles ci-dessus.
+    const montants = PRODUCTEURS.map(p => p.carte().montant.toFixed(2));
+    expect(new Set(montants).size).toBe(PRODUCTEURS.length);
   });
 });

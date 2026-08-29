@@ -247,14 +247,21 @@ export function chargesAnnuelles({ periods, moisCourant }) {
     const prochaine = memeDateLAnProchain(dateDerniere);
     if (!prochaine) continue;
 
-    const restants = moisRestants(prochaine, moisCourant);
-    // Échéance passée ou dans le mois : il n'y a plus de provision à étaler,
-    // et `veille.js` suit déjà les enveloppes arrivées à terme.
+    // Le compte part du mois où la cagnotte S'OUVRE, pas du mois affiché.
+    //
+    // La carte divisait par les mois restants depuis `moisCourant` tout en
+    // faisant démarrer l'enveloppe le mois SUIVANT : elle comptait donc un mois
+    // de plus que l'enveloppe n'en aurait. Mesuré — carte « 400 € par mois
+    // pendant 3 mois », enveloppe « 600 € sur 2 mois » pour la même échéance.
+    // On ne provisionne pas dans une cagnotte qui n'existe pas encore.
+    const depart = moisSuivant(moisCourant);
+    const restants = moisRestants(prochaine, depart);
+    // Échéance passée, ce mois-ci ou le mois prochain : il n'y a plus de
+    // provision à étaler, et `veille.js` suit déjà les enveloppes à terme.
     if (restants <= 1) continue;
 
     const montant = suivi.derniere.amount;
     const parMois = provisionMensuelle(montant, 0, restants);
-    const depart = moisSuivant(moisCourant);
 
     observations.push({
       cle: `charge-annuelle:${suivi.mois[0]}:${empreinte(suivi.derniere)}`,
@@ -347,14 +354,20 @@ export function picSaisonnier({ periods, moisCourant }) {
 
   if (!meilleur) return null;
 
-  const parMois = provisionMensuelle(meilleur.surcout, 0, meilleur.restants);
+  // Le compte de l'ENVELOPPE, pas un second : elle s'ouvre ce mois-ci et court
+  // jusqu'au pic, échéance comprise. La carte divisait par `avance` — le nombre
+  // de mois qui SÉPARENT du pic — soit un de moins. Mesuré : carte « 150 € par
+  // mois pendant 4 mois », enveloppe « 120 € ». Deux chiffres pour la même
+  // question, et c'est l'enveloppe qu'on alimente.
+  const restants = moisRestants(meilleur.cible, moisCourant);
+  const parMois = provisionMensuelle(meilleur.surcout, 0, restants);
 
   return {
     cle: `pic-saisonnier:${meilleur.cible}`,
     titre: `${nomDuMois(meilleur.cible)} coûte plus cher que les autres mois`,
     montant: parMois,
     urgence: 'info',
-    detail: `${parMois.toFixed(2)} € par mois pendant ${meilleur.restants} mois `
+    detail: `${parMois.toFixed(2)} € par mois pendant ${restants} mois `
       + `pour absorber les ${meilleur.surcout.toFixed(2)} € de surcoût.`,
     fonde: `${meilleur.habituel.toFixed(2)} € en médiane sur ${meilleur.observees} `
       + `observation${meilleur.observees > 1 ? 's' : ''}, contre ${ordinaire.toFixed(2)} € `
@@ -805,7 +818,7 @@ export function anticiper({
   enveloppes = [], listeEnveloppes = [], periods = null,
   moisCourant, moisReel, jourDuMois, joursDuMois
 }) {
-  const vues = veiller({ enveloppes, periods, moisCourant, jourDuMois, joursDuMois });
+  const vues = veiller({ enveloppes, periods, moisCourant, moisReel, jourDuMois, joursDuMois });
 
   vues.push(...chargesAnnuelles({ periods, moisCourant }));
 

@@ -251,11 +251,20 @@ function observationsDuMois(historique) {
   if (!historique || typeof historique !== 'object') return [];
 
   try {
+    // Deux totaux, parce que deux mesures les attendent et qu'elles ne veulent
+    // pas le même. Les confondre faisait projeter le cumul de tous les mois
+    // contre une allocation MENSUELLE, et crier « ne tiendra pas le mois » sur
+    // une enveloppe qui tenait.
+    const duMois = [...(getState('fixedCharges') || []), ...(getState('variableCharges') || [])];
+
     const enveloppes = (getState('envelopes') || []).map(enveloppe => ({
       enveloppe,
       // Tous mois confondus : ce qu'ont coûté les vacances en tout, et non ce
-      // qu'elles ont coûté au mois qu'on regarde.
-      depense: totalEnveloppe(chargesDeLEnveloppeTousMois(historique, enveloppe.id), enveloppe.id)
+      // qu'elles ont coûté au mois qu'on regarde. C'est ce dont la provision a
+      // besoin.
+      depense: totalEnveloppe(chargesDeLEnveloppeTousMois(historique, enveloppe.id), enveloppe.id),
+      // Le mois affiché seul : ce qu'attend « à ce rythme, tiendra-t-elle ? ».
+      depenseDuMois: totalEnveloppe(duMois, enveloppe.id)
     }));
 
     const aujourdhui = new Date();

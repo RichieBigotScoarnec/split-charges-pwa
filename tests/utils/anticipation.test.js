@@ -45,8 +45,12 @@ describe('Les charges qui reviennent tous les ans', () => {
     const [vue] = chargesAnnuelles({ periods: AVEC_DEUX_ANS, moisCourant: '2026-08' });
 
     expect(vue.titre).toContain('Assurance auto');
-    // Échéance 2027-03 ; de 2026-08 à 2027-03 inclus, huit mois.
-    expect(vue.montant).toBeCloseTo(512 / 8, 6);
+    // Échéance 2027-03, et la cagnotte s'ouvre en SEPTEMBRE — c'est ce que la
+    // proposition écrit. De 2026-09 à 2027-03 inclus : sept mois. Le compte
+    // partait auparavant du mois affiché, soit huit — un mois pendant lequel
+    // l'enveloppe n'existe pas encore, et la carte annonçait alors 64,00 €
+    // quand l'enveloppe créée en réclamait 73,14.
+    expect(vue.montant).toBeCloseTo(512 / 7, 6);
     expect(vue.proposition).toMatchObject({ budget: 512, fin: '2027-03-12', nature: 'cagnotte' });
   });
 
@@ -130,8 +134,11 @@ describe('Le mois de l\'année qui coûte plus cher', () => {
     const vue = picSaisonnier({ periods: douzeMoisAvecUnPic(), moisCourant: '2026-01' });
 
     expect(vue.titre).toContain('Décembre');
-    // 1600 − 1000 = 600 de surcoût, étalés sur les onze mois jusqu'à décembre.
-    expect(vue.montant).toBeCloseTo(600 / 11, 6);
+    // 1600 − 1000 = 600 de surcoût. La cagnotte s'ouvre en janvier et court
+    // jusqu'à décembre, échéance comprise : douze mois, comme les comptera
+    // l'enveloppe. La carte divisait par onze — les mois qui SÉPARENT du pic —
+    // et annonçait 54,55 € quand l'enveloppe en montrait 50,00.
+    expect(vue.montant).toBeCloseTo(600 / 12, 6);
     expect(vue.fonde).toContain('1000.00');
   });
 
@@ -300,13 +307,13 @@ describe('Tout ce que l\'application a remarqué', () => {
 
     const avec = anticiper({ periods, moisCourant: '2026-08' })
       .find(v => v.cle === 'capacite-epargne');
-    expect(avec.detail).toContain('64.00');   // 512 / 8
+    expect(avec.detail).toContain('73.14');   // 512 / 7, les mois de la cagnotte
 
     const sans = anticiper({
       periods, moisCourant: '2026-08',
       listeEnveloppes: [{ id: 'x', label: 'Assurance auto' }]
     }).find(v => v.cle === 'capacite-epargne');
-    expect(sans.detail).not.toContain('64.00');
+    expect(sans.detail).not.toContain('73.14');
   });
 
   it('un mois qui se passe bien ne produit rien', () => {
