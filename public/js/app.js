@@ -25,6 +25,7 @@ import { initDiagnostics, noter } from './utils/diagnostics.js';
 import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
 import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
 import { refuserLEncadrement } from './utils/cadre.js';
+import { annoncesDuRejeu } from './utils/rejeu-annonce.js';
 import { initOnglets } from './utils/onglets.js';
 import { suivreLEntete } from './utils/entete.js';
 
@@ -184,25 +185,35 @@ async function initApp() {
  * @returns {Promise<void>}
  */
 async function synchroniserLesSaisies() {
-  const { envoyees, restantes, erreur } = await rejouerFileDAttente();
+  const bilan = await rejouerFileDAttente();
+  const { envoyees, restantes, erreur, refusees = [] } = bilan;
 
-  if (envoyees > 0) {
-    toast.success(envoyees === 1
-      ? '1 saisie enregistrée'
-      : `${envoyees} saisies enregistrées`);
-    noter('hors-ligne', 'file rejouée', { envoyees, restantes });
+  // Les trois messages viennent d'`annoncesDuRejeu`, et non d'ici.
+  //
+  // Cette fonction et `ecoulerLesSaisiesGardees` d'`auth.js` rédigeaient
+  // chacune les siens, et avaient divergé sur celui qui compte le plus :
+  // celle-ci ne lisait pas `refusees`. Une saisie définitivement refusée est
+  // écartée de la file mais reste portée par le miroir — donc à l'écran. Sans
+  // un mot, le foyer la croit enregistrée alors qu'elle n'existe nulle part.
+  //
+  // Et c'est ce chemin-ci qui court le plus : il part à CHAQUE reconnexion,
+  // quand celui d'`auth.js` ne part qu'au chargement des données.
+  const { succes, refus, restant } = annoncesDuRejeu(bilan);
+
+  if (succes) {
+    toast.success(succes);
+    noter('hors-ligne', 'file rejouée', { envoyees, restantes, refusees: refusees.length });
   }
 
-  // `erreur` distingue « on a essayé et ça a résisté » de « on n'a pas encore
-  // essayé » — la session n'est pas toujours rétablie quand la liaison
-  // s'établit. Sans cette nuance, chaque ouverture avec une file non vide
-  // annoncerait un échec inexistant.
-  if (restantes > 0 && erreur) {
+  if (refus) {
+    toast.error(refus);
+    logError('⚠️ Saisies refusées définitivement :', refusees);
+  }
+
+  if (restant) {
     // La file résiste : le dire, plutôt que laisser le bandeau disparaître
     // avec la reconnexion en emportant le compte des saisies restées à quai.
-    toast.error(restantes === 1
-      ? '1 saisie n\'a pas pu être enregistrée'
-      : `${restantes} saisies n'ont pas pu être enregistrées`);
+    toast.error(restant);
     logError('❌ Rejeu incomplet :', erreur);
   }
 

@@ -28,6 +28,7 @@ import {
 } from '../utils/versements.js';
 import { etatProvision } from '../utils/provisions.js';
 import {
+  normaliserEnveloppe,
   normaliserEnveloppes,
   chargesDeLEnveloppeTousMois,
   bilanEnveloppe,
@@ -83,6 +84,29 @@ export async function initEnvelopes() {
  */
 function provenance() {
   return { creePar: auteurParDefaut(), creeLe: Date.now() };
+}
+
+/**
+ * La forme d'une enveloppe neuve, par la SEULE fabrique qui la connaisse
+ *
+ * `fusionnerListe` écrit le tableau ENTIER par une transaction. Un champ de
+ * plus sur une seule enveloppe — une couleur, une note, un `archive` — tombe
+ * donc dans le `$autre: {".validate": false}` des règles, et le serveur refuse
+ * l'écriture COMPLÈTE : toutes les enveloppes du foyer, pas seulement la neuve.
+ * Le toast dirait « créée », et rien ne serait enregistré.
+ *
+ * Les deux chemins de création écrivaient chacun leur littéral, tenus à la main
+ * en parallèle des règles et l'un de l'autre. Ils passent maintenant par
+ * `normaliserEnveloppe`, qui est déjà la fabrique de tout ce que l'application
+ * relit : ce qu'elle ne connaît pas n'est pas écrit, et
+ * `tests/enveloppe-champs-declares.test.js` compare ses clés à celles que les
+ * règles déclarent, dans les deux sens.
+ *
+ * @param {Object} brouillon - Champs voulus, tels que l'écran les a lus
+ * @returns {Object|null} Enveloppe prête à écrire, ou `null` si inexploitable
+ */
+function enveloppeNeuve(brouillon) {
+  return normaliserEnveloppe({ ...brouillon, ...provenance() });
 }
 
 /**
@@ -158,7 +182,7 @@ export async function creerEnveloppeProposee(cle) {
   );
   if (!accepte) return false;
 
-  const enveloppe = {
+  const enveloppe = enveloppeNeuve({
     id: identifiantEnveloppe(libelle, existantes),
     label: libelle,
     icon: typeof icon === 'string' && icon ? icon.slice(0, 20) : '🎯',
@@ -172,9 +196,13 @@ export async function creerEnveloppeProposee(cle) {
     report: false,
     rang: RANGS.PROVISION,
     perimetre: 'commun',
-    proprietaire: null,
-    ...provenance()
-  };
+    proprietaire: null
+  });
+
+  if (!enveloppe) {
+    toast.error('Cette proposition ne peut pas être enregistrée');
+    return false;
+  }
 
   if (!await enregistrer([...existantes, enveloppe], existantes)) return false;
 
@@ -869,7 +897,7 @@ function brancherEcran(modal) {
       ? NATURES.MENSUELLE
       : NATURES.CAGNOTTE;
 
-    const enveloppe = {
+    const enveloppe = enveloppeNeuve({
       // `identifiantEnveloppe`, et non `identifiantDepuisLibelle` : un
       // identifiant entièrement dérivé du libellé faisait hériter une
       // « Vacances » recréée de tout ce qui renvoyait à la précédente — ses
@@ -889,9 +917,14 @@ function brancherEcran(modal) {
         && modal.querySelector('#envelopeNewReport').value === 'oui',
       rang: modal.querySelector('#envelopeNewRang').value || null,
       perimetre: pourQui === 'commun' ? 'commun' : 'solo',
-      proprietaire: pourQui === 'commun' ? null : pourQui,
-      ...provenance()
-    };
+      proprietaire: pourQui === 'commun' ? null : pourQui
+    });
+
+    if (!enveloppe) {
+      toast.error('Cette enveloppe ne peut pas être enregistrée');
+      champLibelle.focus();
+      return;
+    }
 
     if (!await enregistrer([...existantes, enveloppe], existantes)) return;
 

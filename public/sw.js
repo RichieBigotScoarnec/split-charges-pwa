@@ -93,6 +93,7 @@ const STATIC_ASSETS = [
   './js/utils/recherche-montant.js',
   './js/utils/recherche-texte.js',
   './js/utils/recurrence.js',
+  './js/utils/rejeu-annonce.js',
   './js/utils/renommage.js',
   './js/utils/salaries.js',
   './js/utils/sonde-liaison.js',

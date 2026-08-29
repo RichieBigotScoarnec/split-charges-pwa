@@ -41,21 +41,107 @@ function sources(dossier, trouves = []) {
 }
 
 /**
- * Les chemins de base écrits en dur dans le code
+ * Les fonctions dont le premier argument EST un chemin de données
  *
- * `getDataPath('x')` comme `dbSet('x', …)` visent tous deux `{racine}/x`.
+ * `fusionnerListe` en fait partie : son corps appelle `getDataPath(chemin)`,
+ * et c'est par elle que passent les trois listes du foyer.
+ */
+const ECRIVAINS = 'getDataPath|dbSet|dbUpdate|dbPush|dbGet|fusionnerListe';
+
+/** Les constantes de chemin déclarées dans un fichier : `const NOM = 'valeur'` */
+function constantesLocales(source) {
+  const table = new Map();
+  for (const [, nom, , valeur] of source.matchAll(/const\s+([A-Z][A-Z0-9_]*)\s*=\s*(['"`])([^'"`]*)\2/g)) {
+    table.set(nom, valeur);
+  }
+  return table;
+}
+
+/** Les chemins nommés de `config.js`, sous la forme `DB_PATHS.X` */
+function cheminsNommes() {
+  const source = readFileSync(join(RACINE, 'public/js/config.js'), 'utf-8');
+  const debut = source.indexOf('export const DB_PATHS = {');
+  const bloc = source.slice(debut, source.indexOf('};', debut));
+
+  return new Map(
+    [...bloc.matchAll(/([A-Z_]+)\s*:\s*'([^']+)'/g)].map(([, cle, valeur]) => [`DB_PATHS.${cle}`, valeur])
+  );
+}
+
+/** Un identifiant nu, ou un accès `OBJET.PROPRIETE` */
+const EST_IDENTIFIANT = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
+
+/**
+ * Les chemins de base que le code écrit
+ *
+ * ## Ce que le motif d'origine ne voyait pas
+ *
+ * Il n'acceptait qu'une chaîne littérale en première position. Or la moitié
+ * des nœuds du foyer sont désignés par une CONSTANTE — `dbSet(BUDGETS_PATH, …)`,
+ * `dbSet(DB_PATHS.REMINDERS, …)`, `fusionnerListe(CHEMIN, …)`. Sept nœuds
+ * échappaient donc à l'énumération : `envelopes`, `versements`,
+ * `categoryBudgets`, `members`, `carryOverEnabled`, `reminders`, `shareMode`.
+ *
+ * C'est-à-dire que le test qui existe pour attraper un nœud non déclaré ne
+ * regardait pas `envelopes` — le nœud dont l'écriture est la plus large de
+ * l'application, puisque `fusionnerListe` réécrit le tableau entier.
+ *
+ * ## Ce qui est résolu, et ce qui ne l'est pas
+ *
+ * Une constante en MAJUSCULES est résolue : dans son fichier d'abord, puis
+ * dans `DB_PATHS`. Une constante qui ne se résout pas fait ÉCHOUER le test —
+ * c'est un chemin qu'on n'a pas lu, et le silence serait exactement le défaut
+ * qu'on ferme ici.
+ *
+ * Un identifiant en minuscules est un PARAMÈTRE : un relais, pas un site
+ * d'appel. `fusionnerListe(chemin, …)` ne désigne rien ; ce sont ses appelants
+ * qui désignent, et le motif les voit.
+ *
+ * `undefined` vise la racine de l'espace — `getDataPath('')` rend `household`.
+ * Elle est déclarée par construction : c'est le nœud qui porte tous les autres.
  */
 function cheminsEcrits() {
-  const motif = /(?:getDataPath|dbSet|dbUpdate|dbPush)\(\s*([`'"])([^`'"]*)\1/g;
+  const motif = new RegExp(`(?:${ECRIVAINS})\\(\\s*([^,)]+)`, 'g');
+  const nommes = cheminsNommes();
   const trouves = new Set();
+  const irresolus = new Set();
 
   for (const fichier of sources(join(RACINE, 'public/js'))) {
     const source = readFileSync(fichier, 'utf-8');
-    for (const [, , chemin] of source.matchAll(motif)) {
-      if (chemin.trim()) trouves.add(chemin);
+    const locales = constantesLocales(source);
+    const resoudre = (nom) => locales.get(nom) ?? nommes.get(nom);
+
+    for (const [, brut] of source.matchAll(motif)) {
+      const argument = brut.trim();
+
+      const litteral = argument.match(/^([`'"])([^`'"]*)\1$/);
+      if (litteral) {
+        // Un gabarit dont la tête est une constante connue désigne un nœud
+        // précis : `` `${CHEMIN_VERSEMENTS}/${id}` `` vise `versements/…`, et
+        // non « n'importe quel enfant de la racine », ce que `estVariable`
+        // aurait supposé. La résoudre rend le contrôle exact au lieu de
+        // permissif.
+        const chemin = litteral[2].replace(
+          /\$\{([A-Z][A-Z0-9_]*)\}/g,
+          (tel, nom) => resoudre(nom) ?? tel
+        );
+        if (chemin.trim()) trouves.add(chemin);
+        continue;
+      }
+
+      if (argument === 'undefined') continue;
+      if (!EST_IDENTIFIANT.test(argument)) continue;
+
+      // Minuscule initiale : un paramètre, donc un relais.
+      if (!/^[A-Z]/.test(argument)) continue;
+
+      const valeur = resoudre(argument);
+      if (valeur) trouves.add(valeur);
+      else irresolus.add(`${fichier.slice(RACINE.length)} → ${argument}`);
     }
   }
-  return [...trouves].sort();
+
+  return { chemins: [...trouves].sort(), irresolus: [...irresolus].sort() };
 }
 
 /** Un segment est-il une interpolation, donc n'importe quelle clé ? */
@@ -93,12 +179,33 @@ function cheminDeclare(noeud, segments) {
 }
 
 describe('Chaque chemin écrit par l\'application est déclaré dans les règles', () => {
-  const chemins = cheminsEcrits();
+  const { chemins, irresolus } = cheminsEcrits();
 
   it('le relevé des chemins n\'est pas vide', () => {
     // Sans cette garde, une expression régulière cassée rendrait le fichier
     // entier silencieusement vert.
     expect(chemins.length).toBeGreaterThan(8);
+  });
+
+  it('aucun chemin ne reste illisible', () => {
+    // Une constante que le relevé ne sait pas résoudre est un nœud qu'on
+    // n'inspecte pas. Passer outre en silence, c'est reproduire le trou qu'on
+    // vient de fermer : l'échec force à lire, et à décider.
+    expect(irresolus).toEqual([]);
+  });
+
+  it.each([
+    'envelopes', 'versements', 'categoryBudgets', 'members',
+    'carryOverEnabled', 'reminders', 'shareMode'
+  ])('le nœud « %s », désigné par une constante, est bien relevé', (noeud) => {
+    // Les sept que le motif d'origine ne voyait pas : il n'acceptait qu'une
+    // chaîne littérale en première position. Nommés un par un, parce que ce
+    // sont eux qui manquaient — et qu'une régression du motif se lirait
+    // autrement comme « le relevé n'est pas vide ».
+    //
+    // Sur la TÊTE du chemin : `versements` n'est écrit que par
+    // `versements/${id}`, jamais nu.
+    expect(chemins.map(chemin => chemin.split('/')[0])).toContain(noeud);
   });
 
   it.each(['household', 'sandbox'])('espace %s', (espace) => {

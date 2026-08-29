@@ -26,6 +26,7 @@ import { cleanupModals } from '../components/modal.js';
 import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente, liaisonRompue, getDataPath, getDataRoot } from '../db.js';
 import { diagnostiquerLaLiaison } from '../utils/sonde-liaison.js';
 import { annoncerLaCause } from '../utils/connection-banner.js';
+import { annoncesDuRejeu } from '../utils/rejeu-annonce.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
@@ -610,29 +611,28 @@ function diagnostiquerSiLaBaseManque() {
 async function ecoulerLesSaisiesGardees() {
   if (saisiesEnAttente() === 0) return;
 
-  const { envoyees, restantes, erreur, refusees = [] } = await rejouerFileDAttente();
+  const bilan = await rejouerFileDAttente();
+  const { erreur, refusees = [] } = bilan;
 
-  if (envoyees > 0) {
-    toast.success(envoyees === 1
-      ? '1 saisie hors ligne enregistrée'
-      : `${envoyees} saisies hors ligne enregistrées`);
-  }
+  // Les trois messages viennent d'`annoncesDuRejeu`, la seule fabrique — et
+  // non d'une seconde rédaction. C'est `synchroniserLesSaisies` d'`app.js` qui
+  // portait l'autre, et les deux avaient déjà divergé : celle-là ne lisait pas
+  // `refusees`, donc écartait des saisies sans un mot.
+  const { succes, refus, restant } = annoncesDuRejeu(bilan);
+
+  if (succes) toast.success(succes);
 
   // Une saisie que le serveur refusera toujours ne « reste » pas : elle est
   // perdue, et le dire est la seule chose honnête à faire. La confondre avec
   // une saisie en attente promettait un envoi qui n'arriverait jamais — et
   // elle bloquait au passage toutes les suivantes.
-  if (refusees.length > 0) {
-    toast.error(refusees.length === 1
-      ? '1 saisie refusée par la base — à ressaisir'
-      : `${refusees.length} saisies refusées par la base — à ressaisir`);
+  if (refus) {
+    toast.error(refus);
     warn('⚠️ Saisies refusées définitivement :', refusees);
   }
 
-  if (restantes > 0 && erreur) {
-    toast.error(restantes === 1
-      ? '1 saisie reste sur cet appareil'
-      : `${restantes} saisies restent sur cet appareil`);
+  if (restant) {
+    toast.error(restant);
     warn('⚠️ Rejeu incomplet :', erreur);
   }
 }
