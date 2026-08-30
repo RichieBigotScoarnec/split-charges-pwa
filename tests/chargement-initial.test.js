@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
@@ -411,3 +411,93 @@ describe('LA POLITIQUE EST CONFRONTÉE À CE QUE LA PAGE CHARGE VRAIMENT', () =>
     expect(autorisee(csp, 'script-src', 'https://unpkg.com/n-importe-quoi.js')).toBe(false);
   });
 });
+
+describe('ET CE QUE LE SCRIPT VA CHERCHER, que le balisage ne montre pas', () => {
+  /**
+   * Le bloc précédent part du BALISAGE : chaque `<script src>`, chaque feuille,
+   * chaque image. C'est déjà l'autre bout que les contrôles nommant les origines
+   * à la main, mais ce n'est que la moitié du chemin.
+   *
+   * L'autre moitié, c'est ce que le code va chercher LUI-MÊME : le géocodage,
+   * les tuiles de la carte, l'avatar Google, la base. Rien de tout cela
+   * n'apparaît dans le HTML. Mesuré : retirer `nominatim.openstreetmap.org` de
+   * `connect-src` — dans la page ET dans `firebase.json`, donc sans que le
+   * miroir des deux politiques ne bronche — laissait les 2 378 contrôles verts.
+   * La recherche de lieu serait morte en production, et rien ne l'aurait dit.
+   *
+   * Chaque entrée ci-dessous nomme la directive que le navigateur consulte pour
+   * ce genre de requête, et l'endroit du code qui la déclenche.
+   */
+  const csp = politique(html);
+
+  const DISTANTES = [
+    {
+      quoi: 'le géocodage inverse — le lieu déduit de la position GPS',
+      directive: 'connect-src',
+      url: 'https://nominatim.openstreetmap.org/reverse',
+      ou: 'utils/lieu.js'
+    },
+    {
+      quoi: 'la recherche de lieu par son nom',
+      directive: 'connect-src',
+      url: 'https://nominatim.openstreetmap.org/search',
+      ou: 'utils/recherche-lieu.js'
+    },
+    {
+      quoi: 'la base de données',
+      directive: 'connect-src',
+      url: 'https://fairsplit-foyer-default-rtdb.europe-west1.firebasedatabase.app/',
+      ou: 'config.js — databaseURL'
+    },
+    {
+      quoi: 'les tuiles de la carte',
+      directive: 'img-src',
+      url: 'https://a.tile.openstreetmap.org/12/2045/1430.png',
+      ou: 'modules/map.js — L.tileLayer'
+    },
+    {
+      quoi: 'l\'avatar du compte Google',
+      directive: 'img-src',
+      url: 'https://lh3.googleusercontent.com/a/exemple',
+      ou: 'modules/auth.js — userAvatarEl.src = user.photoURL'
+    }
+  ];
+
+  it.each(DISTANTES)('$quoi ($ou)', ({ directive, url }) => {
+    expect(autorisee(csp, directive, url), `${directive} refuse ${url}`).toBe(true);
+  });
+
+  it('le relevé colle à ce que le code contient encore', () => {
+    // Une liste tenue à la main dérive. Celle-ci est comparée aux URL absolues
+    // réellement écrites dans `public/js` : une origine qui disparaîtrait du
+    // code sans quitter cette liste ferait échouer ce contrôle, et l'inverse
+    // aussi.
+    const dansLeCode = new Set();
+    for (const chemin of sourcesJs(resolve(RACINE, 'public/js'))) {
+      for (const [url] of readFileSync(chemin, 'utf8').matchAll(/https:\/\/[a-zA-Z0-9.*/@{}-]+/g)) {
+        const hote = url.split('/')[2];
+        // `www.openstreetmap.org/copyright` n'est qu'un lien d'attribution dans
+        // le balisage de la carte : rien n'est chargé depuis lui.
+        if (hote && hote !== 'www.openstreetmap.org') dansLeCode.add(hote);
+      }
+    }
+
+    // Les hôtes que le relevé couvre, gabarits de sous-domaine résolus.
+    const couverts = new Set(['nominatim.openstreetmap.org', 'unpkg.com',
+      'fairsplit-foyer-default-rtdb.europe-west1.firebasedatabase.app',
+      '{s}.tile.openstreetmap.org']);
+
+    expect([...dansLeCode].filter(h => !couverts.has(h)),
+      'une origine jointe par le code n\'est pas au relevé').toEqual([]);
+  });
+});
+
+/** Tous les fichiers JS livrés */
+function sourcesJs(dossier, trouves = []) {
+  for (const entree of readdirSync(dossier)) {
+    const chemin = resolve(dossier, entree);
+    if (statSync(chemin).isDirectory()) sourcesJs(chemin, trouves);
+    else if (entree.endsWith('.js')) trouves.push(chemin);
+  }
+  return trouves;
+}

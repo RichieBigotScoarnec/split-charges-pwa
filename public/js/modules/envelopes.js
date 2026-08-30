@@ -105,7 +105,7 @@ function provenance() {
  * @param {Object} brouillon - Champs voulus, tels que l'écran les a lus
  * @returns {Object|null} Enveloppe prête à écrire, ou `null` si inexploitable
  */
-function enveloppeNeuve(brouillon) {
+export function enveloppeNeuve(brouillon) {
   return normaliserEnveloppe({ ...brouillon, ...provenance() });
 }
 
@@ -1041,7 +1041,15 @@ function brancherEcran(modal) {
       ? NATURES.MENSUELLE
       : NATURES.CAGNOTTE;
 
-    const apres = avant.map((enveloppe, rang) => (rang === index ? {
+    // `normaliserEnveloppe` et non l'objet étalé tel quel : `fusionnerListe`
+    // écrit le tableau ENTIER par transaction, et les règles ferment la liste
+    // des champs. Un champ de plus posé ici — un `modifieLe`, une couleur —
+    // ferait refuser TOUTES les enveloppes du foyer, pas seulement celle qu'on
+    // vient d'éditer. Mesuré : l'ajouter laissait les 2 378 contrôles verts.
+    //
+    // La provenance n'est PAS refaite : éditer n'est pas créer, et
+    // `...enveloppe` la porte déjà.
+    const apres = avant.map((enveloppe, rang) => (rang === index ? normaliserEnveloppe({
       ...enveloppe,
       label: libelle,
       icon: emojiEdition ? emojiEdition.textContent.trim() : enveloppe.icon,
@@ -1052,7 +1060,12 @@ function brancherEcran(modal) {
       report: natureChoisie === NATURES.MENSUELLE
         && modal.querySelector('#envelopeEditReport').value === 'oui',
       rang: modal.querySelector('#envelopeEditRang').value || null
-    } : enveloppe));
+    }) : enveloppe));
+
+    if (apres.some(entree => !entree)) {
+      toast.error('Cette enveloppe ne peut pas être enregistrée');
+      return;
+    }
 
     if (!await enregistrer(apres, avant)) return;
 
@@ -1072,8 +1085,14 @@ function brancherEcran(modal) {
       if (!cible) return;
 
       const apres = avant.map((enveloppe, rang) => (
-        rang === index ? { ...enveloppe, cloturee: !enveloppe.cloturee } : enveloppe
+        rang === index
+          ? normaliserEnveloppe({ ...enveloppe, cloturee: !enveloppe.cloturee })
+          : enveloppe
       ));
+      if (apres.some(entree => !entree)) {
+        toast.error('Cette enveloppe ne peut pas être enregistrée');
+        return;
+      }
 
       if (!await enregistrer(apres, avant)) return;
 

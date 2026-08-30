@@ -8,9 +8,11 @@ vi.mock('../../public/js/components/modal.js', () => ({
   showModal: vi.fn(), closeModal: vi.fn(), showConfirmModal: vi.fn()
 }));
 
-import { setState, resetState } from '../../public/js/state.js';
+import { setState, getState, resetState } from '../../public/js/state.js';
 import { calculateSummary } from '../../public/js/modules/summary.js';
-import { computeBalanceChain, resolveShareMode, resolvePercents } from '../../public/js/utils/calculations.js';
+import {
+  computeBalanceChain, computeSummary, resolveShareMode, resolvePercents
+} from '../../public/js/utils/calculations.js';
 
 /**
  * Un mois se calcule sous UN seul mode de partage — écran et report compris
@@ -263,5 +265,98 @@ describe('Un mois « custom » figé ne bouge plus quand le foyer change ses par
       globalSalaries: { vous: 2000, conjointe: 2000 }
     }).get('2026-08');
     expect(aout.carry).toBeCloseTo(100, 6);
+  });
+});
+
+
+describe('LA MOITIÉ AMONT DU FIL : ce que `period.js` publie dans l\'état', () => {
+  /**
+   * Tout ce qui précède monte `shareModeDuMois` et `customPercentsDuMois` À LA
+   * MAIN, puis vérifie que l'écran les respecte. Personne ne vérifiait que
+   * quelqu'un les POSE.
+   *
+   * Mesuré : remplacer la ligne de `period.js` par
+   * `setState('customPercentsDuMois', null)` laissait les 2 378 contrôles verts.
+   * L'appel de `summary.js` reste alors intact et juste — il ne reçoit
+   * simplement plus jamais rien, et tous les mois se recalculent aux parts
+   * d'aujourd'hui. La garde était parfaite, et branchée sur le vide.
+   *
+   * `appliquerLesTermesDuMois` est la seule fabrique de cet état : c'est elle
+   * que `loadPeriodData` appelle à chaque changement de mois, et que le
+   * règlement du solde rappelle avant d'écrire.
+   */
+  it('le mode figé du mois arrive dans l\'état', async () => {
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    appliquerLesTermesDuMois({ shareMode: '50-50', salaries: SALAIRES }, SALAIRES);
+
+    expect(getState('shareModeDuMois')).toBe('50-50');
+  });
+
+  it('et les POURCENTAGES figés aussi — c\'est eux qui manquaient', async () => {
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    appliquerLesTermesDuMois(
+      { shareMode: 'custom', customPercents: { vous: 70, conjointe: 30 }, salaries: SALAIRES },
+      SALAIRES
+    );
+
+    expect(getState('customPercentsDuMois')).toEqual({ vous: 70, conjointe: 30 });
+  });
+
+  it('un mois qui ne fige rien laisse l\'état vide, et non un objet trompeur', async () => {
+    // `null` se lit « ce mois n'a rien figé », et `resolvePercents` retombe
+    // alors sur le réglage du foyer. Un objet vide, lui, aurait été pris pour
+    // des parts figées à zéro.
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    appliquerLesTermesDuMois({ salaries: SALAIRES }, SALAIRES);
+
+    expect(getState('shareModeDuMois')).toBeNull();
+    expect(getState('customPercentsDuMois')).toBeNull();
+  });
+
+  it('LE FIL ENTIER : ce que `period.js` pose, l\'écran le respecte', async () => {
+    // La propriété qui compte, bout à bout — sans monter l'état à la main.
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    setState('variableCharges', Object.values(MOIS.variableCharges || {}));
+    setState('fixedCharges', Object.values(MOIS.fixedCharges || {}));
+    setState('reimbursements', Object.values(MOIS.reimbursements || {}));
+    setState('shareMode', 'prorata');
+    setState('customPercents', { vous: 30, conjointe: 70 });
+
+    appliquerLesTermesDuMois(
+      { ...MOIS, shareMode: 'custom', customPercents: { vous: 70, conjointe: 30 } },
+      SALAIRES
+    );
+
+    const parLeFil = calculateSummary().balance;
+    const attendu = computeSummary({
+      salaries: getState('salaries'),
+      fixedCharges: Object.values(MOIS.fixedCharges || {}),
+      variableCharges: Object.values(MOIS.variableCharges || {}),
+      reimbursements: Object.values(MOIS.reimbursements || {}),
+      shareMode: 'custom',
+      customPercents: { vous: 70, conjointe: 30 }
+    }).balance;
+
+    expect(parLeFil).toBeCloseTo(attendu, 2);
+
+    // Et le témoin : les parts du foyer donneraient un autre chiffre.
+    const parLeFoyer = computeSummary({
+      salaries: getState('salaries'),
+      fixedCharges: Object.values(MOIS.fixedCharges || {}),
+      variableCharges: Object.values(MOIS.variableCharges || {}),
+      reimbursements: Object.values(MOIS.reimbursements || {}),
+      shareMode: 'custom',
+      customPercents: { vous: 30, conjointe: 70 }
+    }).balance;
+
+    expect(parLeFil).not.toBeCloseTo(parLeFoyer, 2);
   });
 });

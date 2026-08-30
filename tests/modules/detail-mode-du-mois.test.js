@@ -47,6 +47,21 @@ const AVANCEE = {
   paidBy: 'vous', date: '2026-07-12', deleted: false
 };
 
+/**
+ * ET UNE CHARGE FIXE — la moitié que le contrôle ne regardait pas
+ *
+ * `termesDuMois()` rend `fixedCharges` autant que `variableCharges`. Le jeu
+ * d'essai ne portait que des variables : mesuré, remplacer
+ * `fixedCharges: getState('fixedCharges') || []` par `fixedCharges: []` laissait
+ * les 2 378 contrôles verts. La modale aurait alors omis le loyer du détail de
+ * son payeur, et son total n'aurait plus rien additionné jusqu'au chiffre du
+ * bilan — ce que l'en-tête du module présente comme sa raison d'être.
+ */
+const FIXE = {
+  id: 'f1', description: 'Loyer', amount: 900, category: 'Logement',
+  paidBy: 'vous', date: '2026-07-01', deleted: false
+};
+
 const CHARGES = [PARTAGEE, AVANCEE];
 
 /**
@@ -58,7 +73,7 @@ function totalAffiche({ modeDuMois, modeGlobal, partsDuMois, partsGlobales }) {
   document.body.innerHTML = '';
 
   setState('salaries', SALAIRES);
-  setState('fixedCharges', []);
+  setState('fixedCharges', [FIXE]);
   setState('variableCharges', CHARGES);
   setState('reimbursements', []);
   setState('currentPeriod', '2026-07');
@@ -80,7 +95,7 @@ function totalAffiche({ modeDuMois, modeGlobal, partsDuMois, partsGlobales }) {
 function duBilan({ shareMode, customPercents }) {
   return computeSummary({
     salaries: SALAIRES,
-    fixedCharges: [],
+    fixedCharges: [FIXE],
     variableCharges: CHARGES,
     reimbursements: [],
     shareMode,

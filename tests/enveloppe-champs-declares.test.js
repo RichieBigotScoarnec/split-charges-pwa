@@ -137,6 +137,25 @@ describe('CE QUI TIENT LA PROPRIÉTÉ : une seule fabrique de la forme écrite',
     expect((SOURCE.match(/enveloppeNeuve\(\{/g) || []).length).toBe(2);
   });
 
+  it('TOUT chemin d\'écriture passe par une fabrique de forme', () => {
+    // Créer n'est pas le seul geste qui écrit : éditer et clore réécrivent le
+    // tableau ENTIER par la même transaction. Un champ de plus posé sur l'un
+    // d'eux — un `modifieLe`, une couleur — fait refuser TOUTES les enveloppes
+    // du foyer. Mesuré : l'ajouter au chemin d'édition laissait les 2 378
+    // contrôles verts, la comparaison de champs ci-dessus ne regardant que la
+    // création.
+    //
+    // Les quatre appels à `enregistrer` : deux créations (`enveloppeNeuve`),
+    // une édition et une clôture (`normaliserEnveloppe`), et une suppression,
+    // qui ne fait que filtrer et n'invente aucun champ.
+    const etalements = SOURCE.match(/\{\s*\.\.\.enveloppe,/g) || [];
+    const normalises = SOURCE.match(/normaliserEnveloppe\(\{\s*\.\.\.enveloppe,/g) || [];
+
+    expect(etalements.length).toBeGreaterThan(1);
+    expect(normalises.length, 'un étalement d\'enveloppe échappe à la fabrique')
+      .toBe(etalements.length);
+  });
+
   it('la fabrique laisse tomber ce qu\'elle ne connaît pas', () => {
     // Le témoin : c'est CE comportement qui rend un champ oublié inoffensif.
     // Sans lui, `couleur` partirait en base et le serveur refuserait tout.

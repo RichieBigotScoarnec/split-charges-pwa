@@ -471,8 +471,44 @@ est à 100 % : `provisions`, `tendances`, `previsionnel`, `rapport-mensuel`,
 | **La politique de sécurité n'était jamais confrontée à ce que la page charge.** Les contrôles vérifiaient qu'elle CONTIENT telle origine, nommée à la main parce qu'une panne l'avait fait ajouter. Aucun ne partait de l'autre bout — et c'est par là qu'est passée la panne du long-polling, qui a rendu la base injoignable pour toujours sur un réseau sain | `tests/chargement-initial.test.js` | ✅ RÉSOLU 2026-08-29 — chaque `<script src>`, feuille et image du balisage est passée à un comparateur de source CSP (joker de sous-domaine, préfixe de CHEMIN), Leaflet compris — qui n'est pas dans le balisage, `map.js` le fabrique au premier usage | Trois mutants : un script tiers ajouté, Leaflet monté de version hors du chemin borné, une origine retirée. Trois chutes |
 | **`app.js` écartait des saisies sans un mot.** Deux fonctions rejouaient la file en rédigeant chacune ses messages, et elles avaient divergé sur celui qui compte le plus : `synchroniserLesSaisies` ne lisait pas `refusees`. Une saisie que le serveur refusera toujours est retirée de la file mais reste portée par le miroir — donc à l'écran. Le foyer la voit, la croit enregistrée, elle n'existe nulle part. Et c'est ce chemin-là qui court le plus : à CHAQUE reconnexion, quand celui d'`auth.js` ne part qu'au chargement | `public/js/utils/rejeu-annonce.js` | ✅ RÉSOLU 2026-08-29 — `annoncesDuRejeu`, seule fabrique des trois messages, et les deux appelants y passent | Septième occurrence du défaut de `normalizePair`, la première hors du monétaire. `db.js` promettait que « l'appelant apprend qu'elle n'ira pas plus loin » : un appelant sur deux le faisait |
 
-Reste connu et non traité : la reprise autonome de liaison d'`app.js`, dont le
-câblage vers le bandeau et la file n'a pas de témoin de bout en bout.
+### Vérification de l'audit par mutants, 2026-08-30
+
+Dix agents ont posé des mutants sur les dix gardes fermées la veille et relancé
+la suite entière. **Huit ont survécu** : huit gardes annoncées tenues ne l'étaient
+pas. Toutes sont refermées ci-dessous, chacune avec son mutant mesuré.
+
+> **Une lecture de source mesure la FORME du câblage, jamais son EFFET.** C'est le
+> défaut que ce fil poursuit depuis le début — les fonctions pures blindées, le
+> câblage nu — et je l'ai commis dans les contrôles écrits pour le refermer. Un
+> contrôle qui vérifie qu'un fichier « contient `annoncesDuRejeu` » survit à la
+> suppression du bloc qui affiche le message.
+
+| **Le correctif que le commit annonçait résolu était supprimable sans qu'un seul contrôle ne bouge.** Retirer le bloc `if (refus) { toast.error(refus); … }` d'`app.js` laissait les 2 378 contrôles verts : les deux chaînes cherchées — `annoncesDuRejeu`, `refusees` — restent en place, `refusees` étant encore déstructuré et passé à `noter()`. Sans ce bloc, une saisie définitivement refusée est écartée de la file en silence tout en restant à l'écran par le miroir | `public/js/utils/reprise.js`, `tests/utils/reprise.test.js` | ✅ RÉSOLU 2026-08-30 — le comportement quitte `app.js` et `auth.js`, deux fichiers qu'aucun test ne monte, pour un module qui se monte avec cinq doubles ; 13 contrôles qui regardent ce qui est AFFICHÉ | Cinq mutants, cinq chutes |
+| **La reprise autonome de liaison** — le seul trou que l'audit laissait ouvert — était une fermeture anonyme dans `app.js`, donc inatteignable. Retirer l'un de ses deux gestes ne faisait rien tomber. C'est le chemin qui a laissé l'application bloquée hors ligne pendant des heures quand `.info/connected` reste faux alors que la base répond | `public/js/utils/reprise.js` | ✅ RÉSOLU 2026-08-30 — `surRepriseDeLiaison`, nommée, exportée, éprouvée : refermer le bandeau ET écouler la file, les deux | La garde de câblage reste une lecture de source — légitime sur la racine de composition, puisque ce qu'elle compose est mesuré ailleurs |
+| Un contrôle **rendu inerte par mon propre refactor** : il cherchait `if (envoyees > 0)` dans `app.js`, chaîne devenue `if (succes)` et fichier devenu `utils/reprise.js`. `indexOf` rendait -1, et « -1 < n'importe quoi » passait sans rien mesurer | `tests/init-resiliente.test.js` | ✅ RÉSOLU 2026-08-30 — remplacé, et ce qu'il voulait tenir est mesuré pour de vrai | Une lecture de source ne survit pas au renommage de ce qu'elle lit |
+| **Le panneau des virements ignorait les termes FIGÉS du mois.** Il est calculé par un appel séparé de celui du bilan, avec ses propres arguments, et rien ne les tenait : remplacer `shareMode`/`customPercents` par les réglages globaux du foyer survivait. C'est le défaut `resolveShareMode` — celui qui a ressuscité 125 € sur un juillet clos — sur la seule surface qui ne l'avait jamais eu, et c'est un chiffre qu'on recopie dans une application bancaire | `tests/modules/virements-du-mois.test.js` | ✅ RÉSOLU 2026-08-30 — six contrôles qui lisent le total SUR LA PAGE | Le témoin des trois modes a dit que mes parts 80/20 coïncidaient avec le prorata : le contrôle serait passé pour la mauvaise raison |
+| Le même appel recevait l'ASSIETTE résolue ; lui passer les salaires bruts survivait aussi — les revenus complémentaires disparaissaient du prorata | `tests/modules/virements-du-mois.test.js` | ✅ RÉSOLU 2026-08-30 — 354,55 € contre 325 €, mesurés | Le premier jeu d'essai ne donnait un complément qu'à un seul des deux : les deux lectures coïncidaient, le mutant survivait encore |
+| **`enveloppeNeuve` pouvait cesser de normaliser sans que rien ne tombe.** Le contrôle lisait la source — « contient `enveloppeNeuve({` deux fois », « `provenance()` une seule ». Remplacer le corps par `return { ...brouillon, ...provenance() }` laissait tout cela vrai, et la garde entière disparaissait : c'est elle qui empêche un champ inconnu de faire refuser TOUTES les enveloppes du foyer | `tests/modules/enveloppe-neuve.test.js` | ✅ RÉSOLU 2026-08-30 — 12 contrôles qui APPELLENT la fabrique et regardent ce qu'elle rend | Neuf tombent sous le mutant |
+| Et la comparaison des champs ne regardait que la CRÉATION : l'édition et la clôture réécrivent le tableau entier par la même transaction. Un `modifieLe` posé sur le chemin d'édition survivait | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-30 — les deux y passent aussi, et un contrôle exige que TOUT étalement d'enveloppe traverse une fabrique de forme | Le mutant est désormais équivalent : la fabrique écarte le champ, il n'a plus de conséquence |
+| `termesDuMois()` rend `fixedCharges` autant que `variableCharges`, et le jeu d'essai n'en portait aucune : les vider survivait. La modale aurait omis le loyer du détail de son payeur | `tests/modules/detail-mode-du-mois.test.js` | ✅ RÉSOLU 2026-08-30 — une charge fixe au jeu d'essai ; le mutant en fait tomber 4 | — |
+| **La moitié AMONT du fil des parts figées n'était tenue par personne.** Tous les contrôles montaient `customPercentsDuMois` à la main ; remplacer la ligne de `period.js` par `setState('customPercentsDuMois', null)` survivait. L'appel de `summary.js` restait alors intact et juste — branché sur le vide, et tous les mois se recalculaient aux parts d'aujourd'hui | `tests/utils/mode-du-mois-unique.test.js` | ✅ RÉSOLU 2026-08-30 — quatre contrôles sur `appliquerLesTermesDuMois`, dont un qui joue le fil ENTIER sans monter l'état à la main | Une garde parfaite branchée sur rien reste une garde absente |
+| **La politique de sécurité n'était confrontée qu'au BALISAGE.** Le géocodage, les tuiles de la carte, l'avatar Google, la base : rien de tout cela n'est dans le HTML. Retirer `nominatim.openstreetmap.org` de `connect-src` des DEUX fichiers — donc sans que le miroir des politiques ne bronche — survivait, et la recherche de lieu serait morte en production | `tests/chargement-initial.test.js` | ✅ RÉSOLU 2026-08-30 — cinq destinations du code passées au comparateur, plus une garde de dérive qui compare le relevé aux URL réellement écrites dans `public/js` | Quatre mutants, quatre chutes |
+
+> **Et une leçon de méthode, payée cash.** Les worktrees des agents ont été créés
+> depuis `origin/main`, pas depuis la branche : la moitié d'entre eux ont mesuré
+> le code d'AVANT les correctifs qu'ils devaient vérifier. Leur constat le plus
+> spectaculaire — « échanger les arguments de `resolvePercents` survit » — est
+> vrai contre `main` et FAUX contre la branche, où il fait tomber deux contrôles.
+> Une vérification doit être figée sur le commit qu'elle relit, et ce n'est pas
+> la première fois que ce dépôt l'apprend. Ce qui a sauvé le résultat, c'est
+> d'avoir rejoué chaque mutant à la main sur le vrai code : sur vingt et un
+> candidats, huit tenaient.
+
+Restent connus et non traités, avec mutant vérifié : quatre nœuds que le relevé
+des chemins écrits ne voit pas (`import.js`, les deux racines privées de
+`prive.js`, et une tête de gabarit pointée `${DB_PATHS.X}/…`), et `surLaPart`
+dans `detail-depenses.js`, dont l'inversion affiche le montant plein au lieu de
+la part avancée.
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
