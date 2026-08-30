@@ -331,12 +331,26 @@ const VUES_EN_TETE = 3;
  * @returns {string} Fragment HTML échappé
  */
 function ligneObservation(vue) {
-  const action = vue.proposition
-    ? `<button type="button" class="btn btn-secondary veille-action"
+  // Deux gestes possibles, jamais les deux : une échéance se PROVISIONNE, un
+  // abonnement se DÉCLARE. Un détecteur qui porterait les deux propositions
+  // offrirait deux boutons pour une seule décision.
+  let action = '';
+
+  if (vue.proposition) {
+    action = `<button type="button" class="btn btn-secondary veille-action"
          data-action="creerEnveloppeProposee" data-arg="${escapeHtml(vue.cle)}">
          Mettre de côté pour ça
-       </button>`
-    : '';
+       </button>`;
+  } else if (vue.propositionFixe) {
+    // Le constat devient un geste. Sans lui, « Netflix revient chaque mois »
+    // envoyait ressaisir la charge à la main, dans un formulaire à neuf champs
+    // — un conseil plus coûteux que de ne rien faire.
+    action = `<button type="button" class="btn btn-secondary veille-action"
+         data-action="declarerAbonnementsProposes" data-arg="${escapeHtml(vue.cle)}">
+         ${vue.propositionFixe.charges.length === 1
+    ? 'Déclarer en charge fixe' : 'Déclarer en charges fixes'}
+       </button>`;
+  }
 
   return `
     <li class="veille-item veille-item--${escapeHtml(vue.urgence)}">

@@ -355,6 +355,90 @@ describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
     expect(vu.detail).toContain('Spotify');
   });
 
+  describe('CE QUE LA PROPOSITION PORTE — et ce qu\'elle refuse de deviner', () => {
+    /**
+     * Le détecteur ne fait plus que constater : son observation porte de quoi
+     * agir. Ce qu'elle porte engage le solde du couple, donc rien n'y est
+     * déduit.
+     *
+     * **Le payeur n'est jamais deviné.** C'est la règle que l'import CSV a
+     * posée. Un prélèvement avancé tantôt par l'un tantôt par l'autre n'a pas
+     * de payeur : il en a deux. En retenir un — le premier vu, le plus
+     * fréquent — ferait basculer le solde sur une déduction que personne n'a
+     * validée, et le geste écrit SANS montrer de formulaire.
+     *
+     * Mesuré : remplacer `payeurs.size === 1` par `>= 1` laissait les 2 464
+     * contrôles verts.
+     */
+    it('un payeur constant sur toute la fenêtre est LU, pas deviné', () => {
+      const vu = abonnementsNonDeclares({ periods: TROIS_MOIS, moisCourant: '2026-08' });
+      const netflix = vu.propositionFixe.charges.find(c => c.libelle === 'Netflix');
+
+      expect(netflix.payeur).toBe('vous');
+    });
+
+    it('un payeur QUI CHANGE d\'un mois sur l\'autre ne donne aucun payeur', () => {
+      const alterne = {
+        '2026-05': moisComplet([charge('Netflix', 13.49, { paidBy: 'vous' })]),
+        '2026-06': moisComplet([charge('Netflix', 13.49, { paidBy: 'conjointe' })]),
+        '2026-07': moisComplet([charge('Netflix', 13.49, { paidBy: 'vous' })])
+      };
+      const vu = abonnementsNonDeclares({ periods: alterne, moisCourant: '2026-08' });
+
+      expect(vu.propositionFixe.charges[0].payeur).toBeNull();
+    });
+
+    it('et l\'observation reste affichée : c\'est le GESTE qui s\'abstient', () => {
+      // Se taire priverait le foyer du constat lui-même, qui est juste. C'est
+      // au moment d'écrire que l'application refuse de choisir.
+      const alterne = {
+        '2026-05': moisComplet([charge('Netflix', 13.49, { paidBy: 'vous' })]),
+        '2026-06': moisComplet([charge('Netflix', 13.49, { paidBy: 'conjointe' })]),
+        '2026-07': moisComplet([charge('Netflix', 13.49, { paidBy: 'vous' })])
+      };
+      const vu = abonnementsNonDeclares({ periods: alterne, moisCourant: '2026-08' });
+
+      expect(vu.detail).toContain('Netflix');
+      expect(vu.montant).toBeCloseTo(13.49, 2);
+    });
+
+    it('la catégorie obéit à la même règle', () => {
+      const melange = {
+        '2026-05': moisComplet([charge('Netflix', 13.49, { category: 'Loisirs' })]),
+        '2026-06': moisComplet([charge('Netflix', 13.49, { category: 'Abonnements' })]),
+        '2026-07': moisComplet([charge('Netflix', 13.49, { category: 'Loisirs' })])
+      };
+      const vu = abonnementsNonDeclares({ periods: melange, moisCourant: '2026-08' });
+
+      expect(vu.propositionFixe.charges[0].categorie).toBeNull();
+      expect(abonnementsNonDeclares({ periods: TROIS_MOIS, moisCourant: '2026-08' })
+        .propositionFixe.charges[0].categorie).toBe('Maison');
+    });
+
+    it('le montant proposé est le DERNIER connu, pas celui d\'il y a trois mois', () => {
+      // Un abonnement réévalué se déclare à son nouveau prix.
+      const monte = {
+        '2026-05': moisComplet([charge('Netflix', 12.99)]),
+        '2026-06': moisComplet([charge('Netflix', 13.49)]),
+        '2026-07': moisComplet([charge('Netflix', 13.99)])
+      };
+      const vu = abonnementsNonDeclares({ periods: monte, moisCourant: '2026-08' });
+
+      expect(vu.propositionFixe.charges[0].montant).toBeCloseTo(13.99, 2);
+    });
+
+    it('la proposition liste exactement ce que le détail nomme', () => {
+      // Deux listes qui divergeraient feraient écrire autre chose que ce que le
+      // foyer a lu — le défaut que ce dépôt poursuit depuis le début.
+      const vu = abonnementsNonDeclares({ periods: TROIS_MOIS, moisCourant: '2026-08' });
+
+      for (const proposee of vu.propositionFixe.charges) {
+        expect(vu.detail).toContain(proposee.libelle);
+      }
+      expect(vu.propositionFixe.parMois).toBeCloseTo(vu.montant, 2);
+    });
+  });
+
   it('SE TAIT sur ce que le panneau des charges fixes porte déjà', () => {
     // Le répéter ici serait du bruit, et l'observation deviendrait un décor.
     const vu = abonnementsNonDeclares({ periods: TROIS_MOIS, moisCourant: '2026-08' });

@@ -514,6 +514,25 @@ Plus aucun mutant connu ne survit. **132 fichiers, 2 431 contrôles unitaires** 
 bout en bout 467 passés, les 23 échecs étant ceux qui exigent les émulateurs
 Firebase, absents du conteneur et lancés par la CI.
 
+### Le constat devient un geste, 2026-08-30
+
+> **La feuille de route que le dépôt s'est donnée à lui-même** : « Le vrai écart
+> avec les applications du marché n'est pas dans les rapports, il est dans la
+> saisie. […] un rapport de plus ne sert à rien si le foyer cesse de saisir en
+> novembre. » Ce lot ne rend donc aucun chiffre de plus : il retire des gestes.
+
+| **`abonnementsNonDeclares` constatait sans rien proposer.** Il disait « Netflix et la salle de sport reviennent chaque mois sans être déclarés fixes », puis laissait le foyer ouvrir le panneau et ressaisir chaque ligne dans un formulaire à neuf champs. Un conseil qui coûte plus cher que de ne rien faire n'en est pas un — et l'observation revenait le mois suivant | `public/js/utils/abonnements.js`, `fixed-charges.js` | ✅ RÉSOLU 2026-08-30 — bouton « Déclarer en charges fixes », jumeau de « Mettre de côté pour ça » : il ne porte que la CLÉ, la proposition est relue dans l'état | Une fois déclarée, la reconduction la porte : zéro saisie les mois suivants |
+| **Le piège était le double comptage, et c'est le cas NOMINAL.** Le détecteur ne se déclenche que sur des libellés que le foyer saisit à la main tous les mois : l'abonnement est donc probablement déjà là, en charge variable. Écrire la charge fixe sans rien d'autre aurait fait gagner au mois 13,49 € que personne n'a dépensés, et au solde du couple avec | `public/js/utils/abonnements.js` | ✅ RÉSOLU 2026-08-30 — les variables de même libellé partent à la corbeille dans la MÊME écriture, et la charge fixe reprend leur montant exact. La dépense change de collection, pas de valeur | La propriété est tenue des deux côtés : `total APRÈS === total AVANT` en unitaire, et les deux chiffres lus sur la même page en bout en bout |
+| Le montant devait venir du MOIS, pas de la fenêtre du détecteur : un abonnement réévalué entre-temps aurait déplacé le total de la différence | `public/js/utils/abonnements.js` | ✅ RÉSOLU 2026-08-30 — la somme des occurrences réelles du mois fait foi | Le mutant qui prend le montant de la fenêtre fait tomber 2 contrôles |
+| **Le payeur n'est jamais deviné** — et ce geste écrit SANS montrer de formulaire. Un prélèvement avancé tantôt par l'un tantôt par l'autre n'a pas de payeur, il en a deux ; en retenir un ferait basculer le solde sur une déduction que personne n'a validée | `public/js/utils/anticipation.js` | ✅ RÉSOLU 2026-08-30 — une seule valeur sur toute la fenêtre est une LECTURE, pas une déduction ; sinon `null`, la charge est écartée et le motif est dit | La règle que l'import CSV avait posée. `size === 1` → `>= 1` survivait aux 2 464 contrôles |
+| L'observation reste affichée quand le payeur est incertain : se taire priverait le foyer d'un constat juste. C'est au moment d'ÉCRIRE que l'application refuse de choisir | `public/js/utils/anticipation.js` | ✅ RÉSOLU 2026-08-30 — constat et geste sont deux décisions distinctes | — |
+| Le mois est RELU avant d'écrire, jamais pris dans l'état : entre l'affichage de la carte et le clic, l'autre téléphone a pu saisir l'abonnement, ou le déclarer fixe lui-même | `public/js/modules/fixed-charges.js` | ✅ RÉSOLU 2026-08-30 — même garde que le doublon d'enveloppe, rejouée au clic | Le mutant qui saute la relecture fait tomber 4 contrôles |
+| Hors ligne, le geste aurait posé sa question, reçu un oui, puis échoué : le lot vise la racine de l'espace, et `operationRejouable` refuse de différer une écriture qui ne nomme aucun nœud — la garde qui empêche une entrée forgée d'effacer le foyer | `public/js/modules/fixed-charges.js` | ✅ RÉSOLU 2026-08-30 — refusé AVANT la confirmation, avec son motif, comme la restauration de sauvegarde | Poser la question pour rien est pire que de dire non tout de suite |
+
+Quinze mutants posés, quinze chutes — dont deux qui ont survécu à la première
+passe et ont dû être refermés : le payeur deviné, et le bouton absent de la
+carte. **134 fichiers, 2 484 contrôles unitaires** ; bout en bout 470 passés.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles
