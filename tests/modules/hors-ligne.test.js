@@ -34,7 +34,8 @@ const {
   signalerLiaison, liaisonRompue,
   dbGet, dbSet, dbUpdate, dbPush,
   saisiesEnAttente, rejouerFileDAttente, oublierHorsLigne, surFileModifiee,
-  retenterLaLiaison, surLiaisonRetablie
+  retenterLaLiaison, surLiaisonRetablie,
+  dbGetAbsolu, dbSetAbsolu, dbUpdateAbsolu, dbPushAbsolu
 } = await import('../../public/js/db.js');
 
 /**
@@ -871,5 +872,225 @@ describe('Une saisie que le serveur refusera toujours ne bloque plus la file', (
     expect(bilan.envoyees).toBe(2);
     expect(bilan.refusees).toHaveLength(1);
     expect(saisiesEnAttente()).toBe(0);
+  });
+});
+
+describe('UNE ENTRÉE FORGÉE DANS LA FILE NE PART PAS', () => {
+  /**
+   * Le contrôle du REJEU, et non celui du dépôt
+   *
+   * `tests/utils/file-non-forgeable.test.js` éprouve `operationRejouable` — la
+   * fonction pure — sous tous ses angles. Mais rien n'éprouvait son APPEL dans
+   * la boucle de rejeu : retirer les six lignes de `db.js` laissait les 2 341
+   * contrôles verts, et l'entrée forgée repartait.
+   *
+   * C'est le seul endroit qui compte. La file vit en clair dans
+   * `localStorage`, sur une origine que GitHub Pages partage entre tous les
+   * dépôts d'un même compte : une autre page du compte y écrit sans la moindre
+   * injection, et une extension de navigateur aussi. `empiler()` ne défend que
+   * ce que l'application y met elle-même — pas ce qu'un tiers y dépose ensuite.
+   *
+   * La charge utile tient en une entrée : `{ type: 'set', chemin: '',
+   * donnees: null }`. `getDataPath('')` rend `household`, l'espace entier, et
+   * le rejeu part seul à la reconnexion, sous la session légitime du foyer,
+   * sans rien redemander.
+   */
+
+  /** Dépose une entrée dans la file sans passer par `dbSet` */
+  const forger = (operation) => {
+    const cle = 'fairsplit:hors-ligne:household';
+    const dossier = JSON.parse(window.localStorage.getItem(cle) || '{}');
+    dossier.file = [...(dossier.file || []), { instant: Date.now(), ...operation }];
+    window.localStorage.setItem(cle, JSON.stringify(dossier));
+  };
+
+  it('l\'effacement de la racine est écarté, et n\'atteint jamais la base', async () => {
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    await dbSet('periods/2026-08/variableCharges/saine', { description: 'Café', amount: 3 });
+
+    forger({ id: 'forgee', type: 'set', chemin: '', donnees: null });
+    expect(saisiesEnAttente()).toBe(2);
+
+    signalerLiaison(true);
+    const avant = base.journal.length;
+    const bilan = await rejouerFileDAttente();
+
+    // Rien de ce qui est parti ne vise la racine.
+    const partis = base.journal.slice(avant);
+    expect(partis.map(e => e.chemin)).not.toContain('household');
+    expect(partis.every(e => e.donnees !== null)).toBe(true);
+
+    // Les charges du mois sont toujours là : l'espace n'a pas été vidé.
+    expect(base.contenu.household.periods['2026-08'].variableCharges.a1)
+      .toEqual({ description: 'Café', amount: 3 });
+
+    // L'entrée forgée est retirée sans être comptée comme envoyée, et la
+    // saisie légitime qui la suivait est bien partie.
+    expect(bilan.envoyees).toBe(1);
+    expect(saisiesEnAttente()).toBe(0);
+  });
+
+  it('elle ne bloque pas la file non plus', async () => {
+    // Écarter n'est pas s'arrêter : une entrée forgée en TÊTE ne doit pas
+    // retenir les saisies réelles derrière elle.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    forger({ id: 'forgee-1', type: 'remove', chemin: 'periods/2026-08', donnees: null });
+    await dbSet('periods/2026-08/variableCharges/x', { description: 'Pain', amount: 2 });
+    await dbSet('periods/2026-08/variableCharges/y', { description: 'Lait', amount: 1 });
+
+    signalerLiaison(true);
+    const bilan = await rejouerFileDAttente();
+
+    expect(bilan.envoyees).toBe(2);
+    expect(bilan.erreur).toBeNull();
+    expect(saisiesEnAttente()).toBe(0);
+  });
+
+  it('TÉMOIN — une saisie ordinaire déposée de la même façon part, elle', async () => {
+    // Sans lui, une boucle qui écarterait TOUT passerait les deux contrôles
+    // ci-dessus. Ce qui est refusé, c'est la forme de l'opération, pas le fait
+    // qu'elle vienne du stockage.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+
+    forger({
+      id: 'deposee',
+      type: 'set',
+      chemin: 'periods/2026-08/variableCharges/z',
+      donnees: { description: 'Thé', amount: 4 }
+    });
+
+    signalerLiaison(true);
+    const bilan = await rejouerFileDAttente();
+
+    expect(bilan.envoyees).toBe(1);
+    expect(base.contenu.household.periods['2026-08'].variableCharges.z)
+      .toEqual({ description: 'Thé', amount: 4 });
+  });
+});
+
+describe('LE DÉTAIL PRIVÉ NE PASSE NI PAR LE MIROIR NI PAR LA FILE', () => {
+  /**
+   * La confidentialité vaut mieux qu'une saisie différée
+   *
+   * `dbGet` et ses voisines gardent tout : la dernière valeur lue de chaque
+   * chemin dans le miroir, les écritures en attente dans la file. Les deux
+   * vivent en clair dans `localStorage`, sur une origine que GitHub Pages
+   * partage entre TOUS les dépôts du compte — l'audit a montré qu'une autre
+   * page y écrit sans la moindre injection.
+   *
+   * Y déposer le détail d'une dépense privée la mettrait exactement là où elle
+   * ne doit pas être. Les quatre accès absolus sautent donc les deux, et hors
+   * ligne une écriture privée échoue FRANCHEMENT plutôt que d'attendre.
+   *
+   * Ce choix n'avait aucun témoin : les quatre fonctions n'étaient appelées par
+   * aucun test. Leur passer le miroir et la file — deux lignes — n'aurait fait
+   * tomber personne, et la fuite serait passée pour une amélioration
+   * (« maintenant ça marche hors ligne »).
+   */
+
+  const CHEMIN = 'prive/vous/periods/2026-08/depenses';
+  const DEPENSE = { libelle: 'Cadeau', montant: 60 };
+
+  /** Tout ce que l'appareil garde, à plat */
+  const stockage = () => JSON.stringify(window.localStorage);
+
+  it('une écriture privée hors ligne échoue, et n\'entre pas dans la file', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const ecriture = dbSetAbsolu(`${CHEMIN}/d1`, DEPENSE);
+    const verdict = expect(ecriture).rejects.toThrow(/sans réponse/);
+    await vi.advanceTimersByTimeAsync(16000);
+    await verdict;
+
+    expect(saisiesEnAttente()).toBe(0);
+    expect(stockage()).not.toContain('Cadeau');
+  });
+
+  it('et un ajout privé non plus', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const ajout = dbPushAbsolu(CHEMIN, DEPENSE);
+    const verdict = expect(ajout).rejects.toThrow(/sans réponse/);
+    await vi.advanceTimersByTimeAsync(16000);
+    await verdict;
+
+    expect(saisiesEnAttente()).toBe(0);
+    expect(stockage()).not.toContain('Cadeau');
+  });
+
+  it('ni une suppression douce', async () => {
+    await amorcerLeMiroir();
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const maj = dbUpdateAbsolu(`${CHEMIN}/d1`, { deleted: true });
+    const verdict = expect(maj).rejects.toThrow(/sans réponse/);
+    await vi.advanceTimersByTimeAsync(16000);
+    await verdict;
+
+    expect(saisiesEnAttente()).toBe(0);
+  });
+
+  it('une lecture privée ne laisse aucune trace sur l\'appareil', async () => {
+    await amorcerLeMiroir();
+    await dbSetAbsolu(`${CHEMIN}/d1`, DEPENSE);
+
+    expect(await dbGetAbsolu(`${CHEMIN}/d1`)).toEqual(DEPENSE);
+    // Ni le montant ni le libellé, ni même le chemin.
+    expect(stockage()).not.toContain('Cadeau');
+    expect(stockage()).not.toContain('prive/');
+  });
+
+  it('et elle ne se sert JAMAIS du miroir : coupée, elle échoue', async () => {
+    // Le cœur du choix. Une lecture ordinaire sert la dernière valeur connue
+    // quand le serveur ne répond pas — c'est ce qui rend l'application utilisable
+    // hors réseau. Ici, non : rien n'a été gardé, donc il n'y a rien à servir,
+    // et le contrôle l'exige plutôt que de le supposer.
+    await amorcerLeMiroir();
+    await dbSetAbsolu(`${CHEMIN}/d1`, DEPENSE);
+    await dbGetAbsolu(`${CHEMIN}/d1`);
+
+    base.couper();
+    signalerLiaison(false);
+    vi.useFakeTimers();
+
+    const lecture = dbGetAbsolu(`${CHEMIN}/d1`);
+    const verdict = expect(lecture).rejects.toThrow(/sans réponse/);
+    await vi.advanceTimersByTimeAsync(11000);
+    await verdict;
+  });
+
+  it('TÉMOIN — en ligne, les quatre écrivent et relisent bien', async () => {
+    // Sans lui, quatre fonctions qui lèveraient toujours passeraient tout ce
+    // qui précède.
+    const cle = await dbPushAbsolu(CHEMIN, DEPENSE);
+    expect(cle).toBeTruthy();
+
+    await dbUpdateAbsolu(`${CHEMIN}/${cle}`, { montant: 80 });
+    expect(await dbGetAbsolu(`${CHEMIN}/${cle}`)).toEqual({ ...DEPENSE, montant: 80 });
+
+    await dbSetAbsolu(`${CHEMIN}/${cle}`, null);
+    expect(await dbGetAbsolu(`${CHEMIN}/${cle}`)).toBeNull();
+  });
+
+  it('et le chemin n\'est JAMAIS préfixé par l\'espace de données', async () => {
+    // C'est la raison d'être de ces quatre-là : `.write` cascade dans les
+    // règles Firebase, et sous `household` — ouvert aux deux comptes — aucune
+    // règle profonde n'aurait pu réserver une lecture à une seule personne.
+    await dbSetAbsolu(`${CHEMIN}/d1`, DEPENSE);
+
+    expect(base.contenu.prive.vous.periods['2026-08'].depenses.d1).toEqual(DEPENSE);
+    expect(base.contenu.household.prive).toBeUndefined();
   });
 });

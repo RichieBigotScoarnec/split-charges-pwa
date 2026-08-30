@@ -146,7 +146,7 @@ describe('rythmeDuBudget', () => {
   it('signale un budget qui ne tiendra pas le mois', () => {
     // 300 € en 10 jours sur un mois de 31 → 930 € projetés pour 600 € prévus.
     const vu = rythmeDuBudget({
-      enveloppe: COURSES, depense: 300, jourDuMois: 10, joursDuMois: 31
+      enveloppe: COURSES, moisCourant: '2026-08', moisReel: '2026-08', depense: 300, jourDuMois: 10, joursDuMois: 31
     });
 
     expect(vu).not.toBeNull();
@@ -157,26 +157,26 @@ describe('rythmeDuBudget', () => {
   it('se tait quand le rythme tient', () => {
     // 150 € en 10 jours → 465 € projetés, sous les 600 €.
     expect(rythmeDuBudget({
-      enveloppe: COURSES, depense: 150, jourDuMois: 10, joursDuMois: 31
+      enveloppe: COURSES, moisCourant: '2026-08', moisReel: '2026-08', depense: 150, jourDuMois: 10, joursDuMois: 31
     })).toBeNull();
   });
 
   it('se tait les premiers jours : une grosse course n\'est pas une tendance', () => {
     // 200 € au 2e jour projetteraient 3 100 €. C'est du bruit, pas un signal.
     expect(rythmeDuBudget({
-      enveloppe: COURSES, depense: 200, jourDuMois: 2, joursDuMois: 31
+      enveloppe: COURSES, moisCourant: '2026-08', moisReel: '2026-08', depense: 200, jourDuMois: 2, joursDuMois: 31
     })).toBeNull();
   });
 
   it('se tait sur un budget déjà dépassé : la jauge le dit déjà', () => {
     expect(rythmeDuBudget({
-      enveloppe: COURSES, depense: 650, jourDuMois: 20, joursDuMois: 31
+      enveloppe: COURSES, moisCourant: '2026-08', moisReel: '2026-08', depense: 650, jourDuMois: 20, joursDuMois: 31
     })).toBeNull();
   });
 
   it('se tait sans budget : il n\'y a rien à dépasser', () => {
     expect(rythmeDuBudget({
-      enveloppe: { ...COURSES, budget: 0 }, depense: 300, jourDuMois: 10, joursDuMois: 31
+      enveloppe: { ...COURSES, budget: 0 }, moisCourant: '2026-08', moisReel: '2026-08', depense: 300, jourDuMois: 10, joursDuMois: 31
     })).toBeNull();
   });
 
@@ -277,9 +277,12 @@ describe('veiller — l\'assemblage', () => {
     const vues = veiller({
       enveloppes: [
         { enveloppe: VACANCES, depense: DEPENSE_REELLE },
-        { enveloppe: { id: 'courses', label: 'Courses', nature: 'mensuelle', budget: 600 }, depense: 300 }
+        // `depenseDuMois` : le rythme d'une mensuelle se juge sur le mois
+        // affiché, jamais sur le cumul.
+        { enveloppe: { id: 'courses', label: 'Courses', nature: 'mensuelle', budget: 600 }, depenseDuMois: 300 }
       ],
       moisCourant: '2026-09',
+      moisReel: '2026-09',
       jourDuMois: 10,
       joursDuMois: 30
     });
@@ -287,6 +290,73 @@ describe('veiller — l\'assemblage', () => {
     expect(vues.length).toBeGreaterThanOrEqual(2);
     expect(vues[0].urgence).toBe('attention');
     expect(vues[vues.length - 1].urgence).toBe('info');
+  });
+
+  describe('DEUX TOTAUX, PAS UN : le cumul ne projette pas un budget mensuel', () => {
+    // Le câblage passait la même valeur — le cumul de tous les mois — aux deux
+    // mesures. La provision en a besoin ; le rythme mensuel, jamais.
+    //
+    // Mesuré sur le défaut : « Courses », budget 600 €, 200 € en juillet et
+    // 150 € en août, au 10 du mois. Le cumul de 350 € projetait 1 085 € et
+    // criait « ne tiendra pas le mois » — quand août seul projette 465 € et
+    // tient largement. La carte se déclenchait tous les mois, sur toute
+    // enveloppe mensuelle ayant un passé.
+    const COURSES = { id: 'courses', label: 'Courses', nature: 'mensuelle', budget: 600 };
+
+    it('un mois qui tient ne déclenche rien, même avec un passé chargé', () => {
+      const vues = veiller({
+        enveloppes: [{ enveloppe: COURSES, depense: 350, depenseDuMois: 150 }],
+        moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31
+      });
+
+      expect(vues.filter(v => v.cle.startsWith('rythme-du-budget'))).toHaveLength(0);
+    });
+
+    it('et un mois qui ne tient pas le déclenche bien', () => {
+      // Le témoin positif : sans lui, un câblage qui ne passerait jamais rien
+      // satisferait le contrôle ci-dessus.
+      const vues = veiller({
+        enveloppes: [{ enveloppe: COURSES, depense: 350, depenseDuMois: 300 }],
+        moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31
+      });
+
+      const rythme = vues.find(v => v.cle.startsWith('rythme-du-budget'));
+      expect(rythme).toBeDefined();
+      expect(rythme.montant).toBeCloseTo(930, 2);
+    });
+
+    it('un mois RÉVOLU ne se projette pas : il est connu', () => {
+      // `moisCourant` vient du sélecteur, `jourDuMois` de l'horloge. Sans le
+      // rapprochement, choisir un juillet clos projetait ses dépenses sur les
+      // dix jours écoulés d'août et annonçait qu'un budget déjà soldé « ne
+      // tiendra pas le mois ». Même garde que `rythmeDuMois`.
+      const vues = veiller({
+        enveloppes: [{ enveloppe: COURSES, depense: 350, depenseDuMois: 300 }],
+        moisCourant: '2026-07', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31
+      });
+
+      expect(vues.filter(v => v.cle.startsWith('rythme-du-budget'))).toHaveLength(0);
+    });
+
+    it('sans mois réel, la mesure se tait plutôt que de supposer', () => {
+      const vues = veiller({
+        enveloppes: [{ enveloppe: COURSES, depense: 350, depenseDuMois: 300 }],
+        moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31
+      });
+
+      expect(vues.filter(v => v.cle.startsWith('rythme-du-budget'))).toHaveLength(0);
+    });
+
+    it('sans le total du mois, la mesure se tait plutôt que de reprendre le cumul', () => {
+      // Le silence, jamais un chiffre faux : un appelant qui oublie le champ
+      // paie une observation manquante, pas une fausse alerte.
+      const vues = veiller({
+        enveloppes: [{ enveloppe: COURSES, depense: 350 }],
+        moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31
+      });
+
+      expect(vues.filter(v => v.cle.startsWith('rythme-du-budget'))).toHaveLength(0);
+    });
   });
 
   it('supporte une entrée abîmée sans rien casser', () => {

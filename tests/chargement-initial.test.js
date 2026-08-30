@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
@@ -281,4 +281,223 @@ function politique(texte) {
   }
 
   return directives;
+}
+
+/**
+ * Une origine autorisée admet-elle cette URL ?
+ *
+ * Reproduit la comparaison de source CSP dans ce qu'elle a d'utile ici :
+ * `'self'` pour une URL relative, un joker de sous-domaine (`https://*.x.tld`),
+ * et un préfixe de CHEMIN — `https://unpkg.com/leaflet@1.9.4/` n'autorise que
+ * ce qui commence par lui, et c'est précisément ce qui a borné unpkg.
+ *
+ * @param {string} source - Une entrée de directive
+ * @param {URL} url - Ressource chargée
+ * @returns {boolean}
+ */
+function sourceAdmet(source, url) {
+  if (source === "'self'" || source === "'none'") return false;
+  if (source === '*') return true;
+  if (source.startsWith("'")) return false;
+
+  const motif = source.includes('://') ? source : `https://${source}`;
+  let borne;
+  try {
+    borne = new URL(motif);
+  } catch {
+    return false;
+  }
+
+  if (borne.protocol !== url.protocol) return false;
+
+  const hote = borne.hostname.startsWith('*.')
+    ? url.hostname === borne.hostname.slice(2) || url.hostname.endsWith(borne.hostname.slice(1))
+    : url.hostname === borne.hostname;
+  if (!hote) return false;
+
+  if (borne.port && borne.port !== '*' && borne.port !== url.port) return false;
+
+  // Un chemin qui n'est pas « / » borne : la source ne vaut que pour ce
+  // préfixe. C'est ce qui distingue « tout unpkg » de « Leaflet 1.9.4 ».
+  return borne.pathname === '/' || url.pathname.startsWith(borne.pathname);
+}
+
+/**
+ * La politique laisse-t-elle charger cette ressource ?
+ *
+ * @param {Object<string, string[]>} csp
+ * @param {string} directive - `script-src`, `style-src`, `img-src`, …
+ * @param {string} href - Tel qu'il est écrit dans le balisage
+ * @returns {boolean}
+ */
+function autorisee(csp, directive, href) {
+  const sources = resoudre(csp, directive).length
+    ? resoudre(csp, directive)
+    : (csp['default-src'] || []);
+
+  // Une URL relative est servie par l'origine de la page : `'self'` suffit.
+  if (!/^[a-z]+:\/\//i.test(href)) return sources.includes("'self'");
+
+  const url = new URL(href);
+  return sources.some((source) => sourceAdmet(source, url));
+}
+
+describe('LA POLITIQUE EST CONFRONTÉE À CE QUE LA PAGE CHARGE VRAIMENT', () => {
+  /**
+   * Les contrôles au-dessus lisent la politique et vérifient qu'elle contient
+   * telle origine — nommée à la main, parce qu'une panne l'avait fait ajouter.
+   * Aucun ne part de l'autre bout : **ce que la page va réellement chercher**.
+   *
+   * Un `<script src>` vers une origine absente de `script-src` se charge donc
+   * sans qu'aucun test ne bronche, et le refus n'a lieu que dans le navigateur
+   * du foyer. C'est exactement la panne du long-polling, qui a rendu la base
+   * injoignable pour toujours sur un réseau sain — et il a fallu effacer les
+   * données du site pour en sortir.
+   *
+   * Le sens inverse est déjà tenu ailleurs (`balisage-sain.test.js` compare la
+   * balise et `firebase.json`). Celui-ci part du balisage.
+   */
+  const csp = politique(html);
+
+  /** Tout ce que la page déclare aller chercher, avec sa directive */
+  const RESSOURCES = [
+    ...[...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)]
+      .map(([, href]) => ({ directive: 'script-src', href })),
+    ...[...html.matchAll(/<link[^>]*\srel="stylesheet"[^>]*\shref="([^"]+)"/g)]
+      .map(([, href]) => ({ directive: 'style-src', href })),
+    ...[...html.matchAll(/<img[^>]*\ssrc="([^"]+)"/g)]
+      .map(([, href]) => ({ directive: 'img-src', href }))
+  ];
+
+  it('le relevé n\'est pas vide', () => {
+    // Une expression régulière cassée rendrait tout le bloc vert.
+    expect(RESSOURCES.filter(r => r.directive === 'script-src').length).toBeGreaterThan(4);
+    expect(RESSOURCES.filter(r => r.directive === 'style-src').length).toBeGreaterThan(4);
+  });
+
+  it('chaque ressource du balisage est admise par la politique', () => {
+    const refusees = RESSOURCES
+      .filter(({ directive, href }) => !autorisee(csp, directive, href))
+      .map(({ directive, href }) => `${directive} ← ${href}`);
+
+    expect(refusees, `la page les charge, la politique les refuse :\n${refusees.join('\n')}`)
+      .toEqual([]);
+  });
+
+  it('Leaflet aussi, qui n\'est chargé qu\'à l\'ouverture de la carte', () => {
+    // Il n'est pas dans le balisage : `map.js` fabrique les deux balises au
+    // premier usage. Un test qui ne lirait que le HTML ne le verrait jamais —
+    // et c'est justement l'origine dont `script-src` a été RESSERRÉE sur un
+    // chemin exact, donc celle qu'un changement de version casserait en
+    // silence, sans qu'on s'en aperçoive avant d'ouvrir la carte.
+    const map = readFileSync(resolve(RACINE, 'public/js/modules/map.js'), 'utf8');
+    const urls = [...map.matchAll(/'(https:\/\/[^']+\.(?:js|css))'/g)].map(([, url]) => url);
+
+    expect(urls.length, 'les URL de Leaflet ont changé de forme').toBe(2);
+
+    for (const url of urls) {
+      const directive = url.endsWith('.css') ? 'style-src' : 'script-src';
+      expect(autorisee(csp, directive, url), `${directive} refuse ${url}`).toBe(true);
+    }
+  });
+
+  it('et une origine que la politique ne cite pas serait bien refusée', () => {
+    // Le test doit savoir échouer.
+    expect(autorisee(csp, 'script-src', 'https://cdn.exemple.test/x.js')).toBe(false);
+
+    // Le bornage d'unpkg au chemin exact : une autre version, un autre paquet.
+    expect(autorisee(csp, 'script-src', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')).toBe(true);
+    expect(autorisee(csp, 'script-src', 'https://unpkg.com/leaflet@2.0.0/dist/leaflet.js')).toBe(false);
+    expect(autorisee(csp, 'script-src', 'https://unpkg.com/n-importe-quoi.js')).toBe(false);
+  });
+});
+
+describe('ET CE QUE LE SCRIPT VA CHERCHER, que le balisage ne montre pas', () => {
+  /**
+   * Le bloc précédent part du BALISAGE : chaque `<script src>`, chaque feuille,
+   * chaque image. C'est déjà l'autre bout que les contrôles nommant les origines
+   * à la main, mais ce n'est que la moitié du chemin.
+   *
+   * L'autre moitié, c'est ce que le code va chercher LUI-MÊME : le géocodage,
+   * les tuiles de la carte, l'avatar Google, la base. Rien de tout cela
+   * n'apparaît dans le HTML. Mesuré : retirer `nominatim.openstreetmap.org` de
+   * `connect-src` — dans la page ET dans `firebase.json`, donc sans que le
+   * miroir des deux politiques ne bronche — laissait les 2 378 contrôles verts.
+   * La recherche de lieu serait morte en production, et rien ne l'aurait dit.
+   *
+   * Chaque entrée ci-dessous nomme la directive que le navigateur consulte pour
+   * ce genre de requête, et l'endroit du code qui la déclenche.
+   */
+  const csp = politique(html);
+
+  const DISTANTES = [
+    {
+      quoi: 'le géocodage inverse — le lieu déduit de la position GPS',
+      directive: 'connect-src',
+      url: 'https://nominatim.openstreetmap.org/reverse',
+      ou: 'utils/lieu.js'
+    },
+    {
+      quoi: 'la recherche de lieu par son nom',
+      directive: 'connect-src',
+      url: 'https://nominatim.openstreetmap.org/search',
+      ou: 'utils/recherche-lieu.js'
+    },
+    {
+      quoi: 'la base de données',
+      directive: 'connect-src',
+      url: 'https://fairsplit-foyer-default-rtdb.europe-west1.firebasedatabase.app/',
+      ou: 'config.js — databaseURL'
+    },
+    {
+      quoi: 'les tuiles de la carte',
+      directive: 'img-src',
+      url: 'https://a.tile.openstreetmap.org/12/2045/1430.png',
+      ou: 'modules/map.js — L.tileLayer'
+    },
+    {
+      quoi: 'l\'avatar du compte Google',
+      directive: 'img-src',
+      url: 'https://lh3.googleusercontent.com/a/exemple',
+      ou: 'modules/auth.js — userAvatarEl.src = user.photoURL'
+    }
+  ];
+
+  it.each(DISTANTES)('$quoi ($ou)', ({ directive, url }) => {
+    expect(autorisee(csp, directive, url), `${directive} refuse ${url}`).toBe(true);
+  });
+
+  it('le relevé colle à ce que le code contient encore', () => {
+    // Une liste tenue à la main dérive. Celle-ci est comparée aux URL absolues
+    // réellement écrites dans `public/js` : une origine qui disparaîtrait du
+    // code sans quitter cette liste ferait échouer ce contrôle, et l'inverse
+    // aussi.
+    const dansLeCode = new Set();
+    for (const chemin of sourcesJs(resolve(RACINE, 'public/js'))) {
+      for (const [url] of readFileSync(chemin, 'utf8').matchAll(/https:\/\/[a-zA-Z0-9.*/@{}-]+/g)) {
+        const hote = url.split('/')[2];
+        // `www.openstreetmap.org/copyright` n'est qu'un lien d'attribution dans
+        // le balisage de la carte : rien n'est chargé depuis lui.
+        if (hote && hote !== 'www.openstreetmap.org') dansLeCode.add(hote);
+      }
+    }
+
+    // Les hôtes que le relevé couvre, gabarits de sous-domaine résolus.
+    const couverts = new Set(['nominatim.openstreetmap.org', 'unpkg.com',
+      'fairsplit-foyer-default-rtdb.europe-west1.firebasedatabase.app',
+      '{s}.tile.openstreetmap.org']);
+
+    expect([...dansLeCode].filter(h => !couverts.has(h)),
+      'une origine jointe par le code n\'est pas au relevé').toEqual([]);
+  });
+});
+
+/** Tous les fichiers JS livrés */
+function sourcesJs(dossier, trouves = []) {
+  for (const entree of readdirSync(dossier)) {
+    const chemin = resolve(dossier, entree);
+    if (statSync(chemin).isDirectory()) sourcesJs(chemin, trouves);
+    else if (entree.endsWith('.js')) trouves.push(chemin);
+  }
+  return trouves;
 }

@@ -23,9 +23,10 @@ import { initQuickAdd, cleanupQuickAdd } from './quick-add.js';
 import { initMap, cleanupMap } from './map.js';
 import { initCustomLists, populateAllSelects } from './custom-lists.js';
 import { cleanupModals } from '../components/modal.js';
-import { saisiesEnAttente, oublierHorsLigne, rejouerFileDAttente, liaisonRompue, getDataPath, getDataRoot } from '../db.js';
+import { saisiesEnAttente, oublierHorsLigne, liaisonRompue, getDataPath, getDataRoot } from '../db.js';
 import { diagnostiquerLaLiaison } from '../utils/sonde-liaison.js';
 import { annoncerLaCause } from '../utils/connection-banner.js';
+import { ecoulerLesSaisiesGardees } from '../utils/reprise.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
@@ -595,45 +596,6 @@ function diagnostiquerSiLaBaseManque() {
     });
   } catch (erreur) {
     warn('[Auth] Diagnostic de liaison impossible :', erreur?.message || erreur);
-  }
-}
-
-/**
- * Envoie ce qui a été saisi pendant une coupure
- *
- * Muette quand il n'y a rien à envoyer : l'immense majorité des ouvertures.
- * Une confirmation systématique ferait de ce message un bruit de fond, et
- * c'est justement le cas où il compte qu'on cesserait de voir.
- *
- * @returns {Promise<void>}
- */
-async function ecoulerLesSaisiesGardees() {
-  if (saisiesEnAttente() === 0) return;
-
-  const { envoyees, restantes, erreur, refusees = [] } = await rejouerFileDAttente();
-
-  if (envoyees > 0) {
-    toast.success(envoyees === 1
-      ? '1 saisie hors ligne enregistrée'
-      : `${envoyees} saisies hors ligne enregistrées`);
-  }
-
-  // Une saisie que le serveur refusera toujours ne « reste » pas : elle est
-  // perdue, et le dire est la seule chose honnête à faire. La confondre avec
-  // une saisie en attente promettait un envoi qui n'arriverait jamais — et
-  // elle bloquait au passage toutes les suivantes.
-  if (refusees.length > 0) {
-    toast.error(refusees.length === 1
-      ? '1 saisie refusée par la base — à ressaisir'
-      : `${refusees.length} saisies refusées par la base — à ressaisir`);
-    warn('⚠️ Saisies refusées définitivement :', refusees);
-  }
-
-  if (restantes > 0 && erreur) {
-    toast.error(restantes === 1
-      ? '1 saisie reste sur cet appareil'
-      : `${restantes} saisies restent sur cet appareil`);
-    warn('⚠️ Rejeu incomplet :', erreur);
   }
 }
 

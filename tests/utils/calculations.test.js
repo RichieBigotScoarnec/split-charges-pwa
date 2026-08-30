@@ -314,6 +314,41 @@ describe('computeVirementsByDestination', () => {
     expect(result).toEqual([]);
   });
 
+  it('LA CORBEILLE : une charge supprimée ne demande aucun virement', () => {
+    // La seule garde de tout ce chemin vivait chez l'APPELANT — `summary.js`
+    // filtrait `!c.deleted` avant d'appeler — et rien ne la tenait. Mesuré :
+    // la retirer laissait les 2 329 tests verts, et le panneau des virements
+    // réclamait 380 € pour un loyer mis à la corbeille là où 20 € sont dus.
+    //
+    // Une garde posée chez l'appelant n'est pas une garde : c'est un usage.
+    // Elle est donc DANS la fonction, comme `computeSummary` porte la sienne,
+    // et ce contrôle appelle sans filtrer — sinon il n'éprouverait que lui-même.
+    const charges = [
+      makeCharge({ amount: 50, destination: 'Compte Joint', description: 'Internet' }),
+      makeCharge({
+        amount: 900, destination: 'Compte Joint', description: 'Loyer', deleted: true
+      })
+    ];
+    const result = computeVirementsByDestination(charges, params);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].charges).toHaveLength(1);
+    expect(result[0].charges[0].description).toBe('Internet');
+
+    // 50 € × 40 % = 20 €. Avec la corbeille comptée : 950 × 40 % = 380 €.
+    expect(result[0].total).toBeCloseTo(20);
+  });
+
+  it('et une destination dont TOUTES les charges sont à la corbeille disparaît', () => {
+    // Sans quoi le panneau afficherait une ligne « Compte Joint — 0,00 € »,
+    // qui se lit comme un virement à faire.
+    const charges = [
+      makeCharge({ amount: 900, destination: 'Compte Joint', deleted: true })
+    ];
+
+    expect(computeVirementsByDestination(charges, params)).toEqual([]);
+  });
+
   it('groupe les charges par destination', () => {
     const charges = [
       makeCharge({ amount: 500, destination: 'Env. Charges Fixes', description: 'Loyer' }),

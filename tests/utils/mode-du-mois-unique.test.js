@@ -8,9 +8,11 @@ vi.mock('../../public/js/components/modal.js', () => ({
   showModal: vi.fn(), closeModal: vi.fn(), showConfirmModal: vi.fn()
 }));
 
-import { setState, resetState } from '../../public/js/state.js';
+import { setState, getState, resetState } from '../../public/js/state.js';
 import { calculateSummary } from '../../public/js/modules/summary.js';
-import { computeBalanceChain, resolveShareMode, resolvePercents } from '../../public/js/utils/calculations.js';
+import {
+  computeBalanceChain, computeSummary, resolveShareMode, resolvePercents
+} from '../../public/js/utils/calculations.js';
 
 /**
  * Un mois se calcule sous UN seul mode de partage — écran et report compris
@@ -48,15 +50,24 @@ const MOIS = {
   }
 };
 
-/** Ce que l'écran calcule, l'état monté comme `loadPeriodData` le monte */
-function soldeAffiche({ modeDuMois, modeGlobal }) {
+/**
+ * Ce que l'écran calcule, l'état monté comme `loadPeriodData` le monte
+ *
+ * Les PARTS du mois s'y montent aussi. Elles manquaient, et c'est ce qui a
+ * laissé un trou : figer le mode sans ses paramètres ne protège rien sur
+ * « custom », le seul mode qui en porte — et l'écran était le seul des deux
+ * côtés à n'avoir aucun témoin.
+ */
+function soldeAffiche({ modeDuMois, modeGlobal, partsDuMois, partsGlobales, mois = MOIS }) {
   resetState();
-  setState('salaries', SALAIRES);
-  setState('variableCharges', Object.values(MOIS.variableCharges));
-  setState('fixedCharges', []);
-  setState('reimbursements', []);
+  setState('salaries', mois.salaries || SALAIRES);
+  setState('variableCharges', Object.values(mois.variableCharges || {}));
+  setState('fixedCharges', Object.values(mois.fixedCharges || {}));
+  setState('reimbursements', Object.values(mois.reimbursements || {}));
   setState('shareMode', modeGlobal);
   setState('shareModeDuMois', modeDuMois);
+  if (partsGlobales) setState('customPercents', partsGlobales);
+  if (partsDuMois) setState('customPercentsDuMois', partsDuMois);
   return calculateSummary().balance;
 }
 
@@ -207,6 +218,46 @@ describe('Un mois « custom » figé ne bouge plus quand le foyer change ses par
     expect(chaine({ '2026-07': JUILLET }, { vous: 60, conjointe: 40 }).total).toBeCloseTo(100, 6);
   });
 
+  /**
+   * L'ÉCRAN AUSSI, et c'est la moitié qui manquait.
+   *
+   * `resolvePercents` est appelée des deux côtés — `calculations.js` pour la
+   * chaîne, `summary.js` pour l'écran — mais un seul appel avait un témoin.
+   * Mutant vérifié : remplacer l'appel de `summary.js:47` par le seul réglage
+   * du foyer laissait les 2 319 tests verts, et faisait annoncer 100,00 € à
+   * l'écran quand la chaîne annonçait 0,00 € pour le même mois. Une dette
+   * ressuscitée, puis reportée de mois en mois.
+   *
+   * La propriété est la même que pour le mode : quel que soit le chemin, un
+   * mois se lit sous UN seul jeu de parts.
+   */
+  const ecran = (partsDuMois, partsGlobales) => soldeAffiche({
+    modeDuMois: 'custom', modeGlobal: 'custom',
+    partsDuMois, partsGlobales, mois: JUILLET
+  });
+
+  it('L\'ÉCRAN : avec ses parts figées, juillet reste soldé', () => {
+    expect(ecran({ vous: 70, conjointe: 30 }, { vous: 60, conjointe: 40 })).toBeCloseTo(0, 6);
+  });
+
+  it('L\'ÉCRAN et la chaîne annoncent le même solde, parts figées comprises', () => {
+    const fige = { '2026-07': { ...JUILLET, customPercents: { vous: 70, conjointe: 30 } } };
+
+    expect(ecran({ vous: 70, conjointe: 30 }, { vous: 60, conjointe: 40 }))
+      .toBeCloseTo(chaine(fige, { vous: 60, conjointe: 40 }).total, 6);
+  });
+
+  it('TÉMOIN NÉGATIF : sans parts figées, l\'écran ressuscite les mêmes 100 €', () => {
+    // Le témoin qui donne son sens au contrôle ci-dessus : si l'écran ne lisait
+    // pas les parts du mois, il rendrait CE chiffre-là.
+    expect(ecran(null, { vous: 60, conjointe: 40 })).toBeCloseTo(100, 6);
+  });
+
+  it('et les deux côtés se trompent alors ensemble, ce qui est le seul cas sain', () => {
+    expect(ecran(null, { vous: 60, conjointe: 40 }))
+      .toBeCloseTo(chaine({ '2026-07': JUILLET }, { vous: 60, conjointe: 40 }).total, 6);
+  });
+
   it('et la dette ressuscitée se reporte sur les mois suivants', () => {
     const deuxMois = { '2026-07': JUILLET, '2026-08': { salaries: { vous: 2000, conjointe: 2000 } } };
     const aout = computeBalanceChain(deuxMois, {
@@ -214,5 +265,98 @@ describe('Un mois « custom » figé ne bouge plus quand le foyer change ses par
       globalSalaries: { vous: 2000, conjointe: 2000 }
     }).get('2026-08');
     expect(aout.carry).toBeCloseTo(100, 6);
+  });
+});
+
+
+describe('LA MOITIÉ AMONT DU FIL : ce que `period.js` publie dans l\'état', () => {
+  /**
+   * Tout ce qui précède monte `shareModeDuMois` et `customPercentsDuMois` À LA
+   * MAIN, puis vérifie que l'écran les respecte. Personne ne vérifiait que
+   * quelqu'un les POSE.
+   *
+   * Mesuré : remplacer la ligne de `period.js` par
+   * `setState('customPercentsDuMois', null)` laissait les 2 378 contrôles verts.
+   * L'appel de `summary.js` reste alors intact et juste — il ne reçoit
+   * simplement plus jamais rien, et tous les mois se recalculent aux parts
+   * d'aujourd'hui. La garde était parfaite, et branchée sur le vide.
+   *
+   * `appliquerLesTermesDuMois` est la seule fabrique de cet état : c'est elle
+   * que `loadPeriodData` appelle à chaque changement de mois, et que le
+   * règlement du solde rappelle avant d'écrire.
+   */
+  it('le mode figé du mois arrive dans l\'état', async () => {
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    appliquerLesTermesDuMois({ shareMode: '50-50', salaries: SALAIRES }, SALAIRES);
+
+    expect(getState('shareModeDuMois')).toBe('50-50');
+  });
+
+  it('et les POURCENTAGES figés aussi — c\'est eux qui manquaient', async () => {
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    appliquerLesTermesDuMois(
+      { shareMode: 'custom', customPercents: { vous: 70, conjointe: 30 }, salaries: SALAIRES },
+      SALAIRES
+    );
+
+    expect(getState('customPercentsDuMois')).toEqual({ vous: 70, conjointe: 30 });
+  });
+
+  it('un mois qui ne fige rien laisse l\'état vide, et non un objet trompeur', async () => {
+    // `null` se lit « ce mois n'a rien figé », et `resolvePercents` retombe
+    // alors sur le réglage du foyer. Un objet vide, lui, aurait été pris pour
+    // des parts figées à zéro.
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    appliquerLesTermesDuMois({ salaries: SALAIRES }, SALAIRES);
+
+    expect(getState('shareModeDuMois')).toBeNull();
+    expect(getState('customPercentsDuMois')).toBeNull();
+  });
+
+  it('LE FIL ENTIER : ce que `period.js` pose, l\'écran le respecte', async () => {
+    // La propriété qui compte, bout à bout — sans monter l'état à la main.
+    const { appliquerLesTermesDuMois } = await import('../../public/js/modules/period.js');
+    resetState();
+
+    setState('variableCharges', Object.values(MOIS.variableCharges || {}));
+    setState('fixedCharges', Object.values(MOIS.fixedCharges || {}));
+    setState('reimbursements', Object.values(MOIS.reimbursements || {}));
+    setState('shareMode', 'prorata');
+    setState('customPercents', { vous: 30, conjointe: 70 });
+
+    appliquerLesTermesDuMois(
+      { ...MOIS, shareMode: 'custom', customPercents: { vous: 70, conjointe: 30 } },
+      SALAIRES
+    );
+
+    const parLeFil = calculateSummary().balance;
+    const attendu = computeSummary({
+      salaries: getState('salaries'),
+      fixedCharges: Object.values(MOIS.fixedCharges || {}),
+      variableCharges: Object.values(MOIS.variableCharges || {}),
+      reimbursements: Object.values(MOIS.reimbursements || {}),
+      shareMode: 'custom',
+      customPercents: { vous: 70, conjointe: 30 }
+    }).balance;
+
+    expect(parLeFil).toBeCloseTo(attendu, 2);
+
+    // Et le témoin : les parts du foyer donneraient un autre chiffre.
+    const parLeFoyer = computeSummary({
+      salaries: getState('salaries'),
+      fixedCharges: Object.values(MOIS.fixedCharges || {}),
+      variableCharges: Object.values(MOIS.variableCharges || {}),
+      reimbursements: Object.values(MOIS.reimbursements || {}),
+      shareMode: 'custom',
+      customPercents: { vous: 30, conjointe: 70 }
+    }).balance;
+
+    expect(parLeFil).not.toBeCloseTo(parLeFoyer, 2);
   });
 });

@@ -11,7 +11,6 @@ import {
   initDatabase,
   signalerLiaison,
   saisiesEnAttente,
-  rejouerFileDAttente,
   surFileModifiee,
   surLiaisonRetablie,
   retenterLaLiaison
@@ -25,6 +24,7 @@ import { initDiagnostics, noter } from './utils/diagnostics.js';
 import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
 import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
 import { refuserLEncadrement } from './utils/cadre.js';
+import { synchroniserLesSaisies, surRepriseDeLiaison } from './utils/reprise.js';
 import { initOnglets } from './utils/onglets.js';
 import { suivreLEntete } from './utils/entete.js';
 
@@ -92,10 +92,7 @@ async function initApp() {
     // le ferait une reconnexion annoncée par Firebase. C'est le seul moyen de
     // sortir du hors-ligne quand `.info/connected` reste faux alors que la base
     // répond — le cas qui a duré des heures.
-    surLiaisonRetablie(() => {
-      refreshConnectionBanner(true, saisiesEnAttente());
-      synchroniserLesSaisies();
-    });
+    surLiaisonRetablie(surRepriseDeLiaison);
 
     // 2. Surveillance de la liaison
     // Écoute maintenue pour la durée de vie de la page : l'application est
@@ -167,46 +164,6 @@ async function initApp() {
     // l'écran resterait sur « Connexion… », sans commande ni explication.
     revelerFormulaireConnexion();
   }
-}
-
-/**
- * Envoie les saisies gardées sur l'appareil, à la reconnexion
- *
- * Ne recharge pas la page et ne redemande rien : les modules affichent déjà
- * ces saisies, `db.js` les leur ayant appliquées à la lecture. Le rejeu ne
- * fait que rendre vrai côté serveur ce qui est vrai à l'écran depuis la
- * coupure.
- *
- * Le silence est la règle quand la file est vide : une reconnexion se produit
- * à chaque sortie de veille, et un message à chacune finirait par masquer le
- * seul qui compte.
- *
- * @returns {Promise<void>}
- */
-async function synchroniserLesSaisies() {
-  const { envoyees, restantes, erreur } = await rejouerFileDAttente();
-
-  if (envoyees > 0) {
-    toast.success(envoyees === 1
-      ? '1 saisie enregistrée'
-      : `${envoyees} saisies enregistrées`);
-    noter('hors-ligne', 'file rejouée', { envoyees, restantes });
-  }
-
-  // `erreur` distingue « on a essayé et ça a résisté » de « on n'a pas encore
-  // essayé » — la session n'est pas toujours rétablie quand la liaison
-  // s'établit. Sans cette nuance, chaque ouverture avec une file non vide
-  // annoncerait un échec inexistant.
-  if (restantes > 0 && erreur) {
-    // La file résiste : le dire, plutôt que laisser le bandeau disparaître
-    // avec la reconnexion en emportant le compte des saisies restées à quai.
-    toast.error(restantes === 1
-      ? '1 saisie n\'a pas pu être enregistrée'
-      : `${restantes} saisies n'ont pas pu être enregistrées`);
-    logError('❌ Rejeu incomplet :', erreur);
-  }
-
-  refreshConnectionBanner(true, restantes);
 }
 
 // Initialize when DOM is ready

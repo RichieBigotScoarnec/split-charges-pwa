@@ -199,8 +199,18 @@ export function provisionARenouveler({ enveloppe, depenseReelle, moisCourant }) 
  * @param {number} params.joursDuMois - Nombre de jours du mois
  * @returns {Object|null}
  */
-export function rythmeDuBudget({ enveloppe, depense, jourDuMois, joursDuMois }) {
+export function rythmeDuBudget({ enveloppe, depense, jourDuMois, joursDuMois, moisCourant, moisReel }) {
   if (!enveloppe || enveloppe.nature !== NATURES.MENSUELLE) return null;
+
+  // ET SEULEMENT LE MOIS QU'ON VIT. `moisCourant` vient du sélecteur,
+  // `jourDuMois` de l'horloge : sans ce rapprochement, choisir un mois clos
+  // projetait ses dépenses sur les jours écoulés d'aujourd'hui et annonçait
+  // qu'un budget déjà soldé « ne tiendra pas le mois ». Même garde que
+  // `rythmeDuMois`, pour la même raison.
+  //
+  // Sans `moisReel`, la mesure se tait : on ne suppose pas que le mois affiché
+  // est celui d'aujourd'hui.
+  if (!moisReel || moisCourant !== moisReel) return null;
 
   const budget = Number.isFinite(enveloppe.budget) ? enveloppe.budget : 0;
   const sorti = Number.isFinite(depense) ? depense : 0;
@@ -325,17 +335,40 @@ export function chargesDisparues({ periods, moisCourant }) {
  * @param {number} [params.joursDuMois]
  * @returns {Array<Object>} Observations, les plus pressantes d'abord
  */
-export function veiller({ enveloppes = [], periods = null, moisCourant, jourDuMois, joursDuMois }) {
+export function veiller({
+  enveloppes = [], periods = null, moisCourant, moisReel, jourDuMois, joursDuMois
+}) {
   const vues = [];
 
   for (const entree of Array.isArray(enveloppes) ? enveloppes : []) {
     if (!entree || !entree.enveloppe) continue;
 
+    // DEUX CHIFFRES, PAS UN. La même entrée alimente deux mesures aux besoins
+    // opposés, et leur passer la même valeur produisait une fausse alerte à
+    // chaque mois.
+    //
+    //   `depenseDuMois` — ce que l'enveloppe a coûté sur le MOIS AFFICHÉ. Seul
+    //                     chiffre qui ait un sens face à une allocation
+    //                     mensuelle : « à ce rythme, tiendra-t-elle le mois ? »
+    //   `depense`       — le cumul de TOUS les mois. Ce qu'il faut à la
+    //                     provision : un séjour se juge sur ce qu'il a coûté en
+    //                     tout, pas sur sa dernière semaine.
+    //
+    // Mesuré avec le câblage d'avant : un budget « Courses » de 600 €, 200 €
+    // en juillet et 150 € en août, au 10 du mois. Le cumul de 350 € projetait
+    // 1 085 € et déclenchait « ne tiendra pas le mois » — quand août, seul,
+    // projette 465 € et tient largement. La carte criait tous les mois, sur
+    // toute enveloppe mensuelle ayant un passé.
+    //
+    // Une entrée sans `depenseDuMois` fait TAIRE la mesure plutôt que de
+    // retomber sur le cumul : le silence, jamais un chiffre faux.
     const rythme = rythmeDuBudget({
       enveloppe: entree.enveloppe,
-      depense: entree.depense,
+      depense: entree.depenseDuMois,
       jourDuMois,
-      joursDuMois
+      joursDuMois,
+      moisCourant,
+      moisReel
     });
     if (rythme) vues.push(rythme);
 

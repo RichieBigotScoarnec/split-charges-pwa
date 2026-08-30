@@ -81,3 +81,15 @@ playwright-report/
 .couverture-e2e/
 coverage/
 coverage-fusionnee/
+
+# Worktrees jetables des agents de vérification
+#
+# Un audit par mutants doit poser une modification, relancer la suite, puis
+# restaurer. À plusieurs agents en parallèle dans le même arbre, chacun
+# écraserait la mesure des autres : chacun travaille donc dans son propre
+# worktree, créé ici et retiré à la fin.
+#
+# Ce sont des copies de travail, jamais des sources. Les commiter versionnerait
+# le dépôt dans le dépôt — et, pire, y figerait un mutant si un agent tombait
+# avant d'avoir restauré.
+.claude/worktrees/
