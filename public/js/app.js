@@ -11,7 +11,6 @@ import {
   initDatabase,
   signalerLiaison,
   saisiesEnAttente,
-  rejouerFileDAttente,
   surFileModifiee,
   surLiaisonRetablie,
   retenterLaLiaison
@@ -25,7 +24,7 @@ import { initDiagnostics, noter } from './utils/diagnostics.js';
 import { ouvreLaSaisieRapide, urlSansAction } from './utils/raccourci.js';
 import { ouvrirSaisieRapideAnticipee } from './modules/quick-add.js';
 import { refuserLEncadrement } from './utils/cadre.js';
-import { annoncesDuRejeu } from './utils/rejeu-annonce.js';
+import { synchroniserLesSaisies, surRepriseDeLiaison } from './utils/reprise.js';
 import { initOnglets } from './utils/onglets.js';
 import { suivreLEntete } from './utils/entete.js';
 
@@ -93,10 +92,7 @@ async function initApp() {
     // le ferait une reconnexion annoncée par Firebase. C'est le seul moyen de
     // sortir du hors-ligne quand `.info/connected` reste faux alors que la base
     // répond — le cas qui a duré des heures.
-    surLiaisonRetablie(() => {
-      refreshConnectionBanner(true, saisiesEnAttente());
-      synchroniserLesSaisies();
-    });
+    surLiaisonRetablie(surRepriseDeLiaison);
 
     // 2. Surveillance de la liaison
     // Écoute maintenue pour la durée de vie de la page : l'application est
@@ -168,56 +164,6 @@ async function initApp() {
     // l'écran resterait sur « Connexion… », sans commande ni explication.
     revelerFormulaireConnexion();
   }
-}
-
-/**
- * Envoie les saisies gardées sur l'appareil, à la reconnexion
- *
- * Ne recharge pas la page et ne redemande rien : les modules affichent déjà
- * ces saisies, `db.js` les leur ayant appliquées à la lecture. Le rejeu ne
- * fait que rendre vrai côté serveur ce qui est vrai à l'écran depuis la
- * coupure.
- *
- * Le silence est la règle quand la file est vide : une reconnexion se produit
- * à chaque sortie de veille, et un message à chacune finirait par masquer le
- * seul qui compte.
- *
- * @returns {Promise<void>}
- */
-async function synchroniserLesSaisies() {
-  const bilan = await rejouerFileDAttente();
-  const { envoyees, restantes, erreur, refusees = [] } = bilan;
-
-  // Les trois messages viennent d'`annoncesDuRejeu`, et non d'ici.
-  //
-  // Cette fonction et `ecoulerLesSaisiesGardees` d'`auth.js` rédigeaient
-  // chacune les siens, et avaient divergé sur celui qui compte le plus :
-  // celle-ci ne lisait pas `refusees`. Une saisie définitivement refusée est
-  // écartée de la file mais reste portée par le miroir — donc à l'écran. Sans
-  // un mot, le foyer la croit enregistrée alors qu'elle n'existe nulle part.
-  //
-  // Et c'est ce chemin-ci qui court le plus : il part à CHAQUE reconnexion,
-  // quand celui d'`auth.js` ne part qu'au chargement des données.
-  const { succes, refus, restant } = annoncesDuRejeu(bilan);
-
-  if (succes) {
-    toast.success(succes);
-    noter('hors-ligne', 'file rejouée', { envoyees, restantes, refusees: refusees.length });
-  }
-
-  if (refus) {
-    toast.error(refus);
-    logError('⚠️ Saisies refusées définitivement :', refusees);
-  }
-
-  if (restant) {
-    // La file résiste : le dire, plutôt que laisser le bandeau disparaître
-    // avec la reconnexion en emportant le compte des saisies restées à quai.
-    toast.error(restant);
-    logError('❌ Rejeu incomplet :', erreur);
-  }
-
-  refreshConnectionBanner(true, restantes);
 }
 
 // Initialize when DOM is ready

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { annoncesDuRejeu } from '../../public/js/utils/rejeu-annonce.js';
 
@@ -21,6 +21,16 @@ import { annoncesDuRejeu } from '../../public/js/utils/rejeu-annonce.js';
 
 const RACINE = new URL('../..', import.meta.url).pathname;
 const source = (chemin) => readFileSync(join(RACINE, chemin), 'utf-8');
+
+/** Tous les fichiers JS livrés */
+function fichiersLivres(dossier = 'public/js', trouves = []) {
+  for (const entree of readdirSync(join(RACINE, dossier))) {
+    const chemin = `${dossier}/${entree}`;
+    if (statSync(join(RACINE, chemin)).isDirectory()) fichiersLivres(chemin, trouves);
+    else if (entree.endsWith('.js')) trouves.push(chemin);
+  }
+  return trouves;
+}
 
 describe('Le message de succès', () => {
   it('se tait quand rien n\'est parti', () => {
@@ -91,29 +101,43 @@ describe('Un bilan abîmé ne fabrique aucun message', () => {
 });
 
 describe('UNE SEULE FABRIQUE : les deux appelants passent par elle', () => {
-  it('`app.js` ne rédige plus ses messages', () => {
-    const app = source('public/js/app.js');
+  /**
+   * Ce bloc lisait la SOURCE d'`app.js` et d'`auth.js` — « contient
+   * `annoncesDuRejeu(bilan)` », « contient `refusees` ». Mesuré : supprimer le
+   * bloc `if (refus) { toast.error(refus); … }` laissait les deux chaînes en
+   * place, et les 2 378 contrôles verts. Le correctif entier disparaissait sans
+   * que rien ne bronche.
+   *
+   * Les deux appelants vivent maintenant dans `utils/reprise.js`, et
+   * `tests/utils/reprise.test.js` les MONTE : il regarde ce que le foyer voit
+   * affiché, pas ce que le fichier a l'air de contenir. Ce qui reste ici tient
+   * la seule propriété qu'une lecture de texte puisse honnêtement tenir : que
+   * personne n'ait rédigé une SECONDE fois ces messages ailleurs.
+   */
+  it('personne ne rédige ces messages en dehors de la fabrique', () => {
+    const fragments = [
+      'hors ligne enregistrée', 'hors ligne enregistrées',
+      'refusée par la base', 'refusées par la base',
+      'reste sur cet appareil', 'restent sur cet appareil'
+    ];
 
-    expect(app).toContain('annoncesDuRejeu(bilan)');
-    // Le témoin du défaut : les libellés écrits sur place ont disparu.
-    expect(app).not.toContain('saisies enregistrées');
-    expect(app).not.toContain('n\'a pas pu être enregistrée');
-  });
-
-  it('`auth.js` non plus', () => {
-    const auth = source('public/js/modules/auth.js');
-
-    expect(auth).toContain('annoncesDuRejeu(bilan)');
-    expect(auth).not.toContain('saisies hors ligne enregistrées');
-    expect(auth).not.toContain('refusée par la base');
-  });
-
-  it('et les deux lisent bien `refusees`', () => {
-    // Le champ que l'un des deux ignorait. Nommé, parce que c'est LUI qui
-    // manquait — et qu'une régression se lirait autrement comme un simple
-    // changement de formulation.
-    for (const chemin of ['public/js/app.js', 'public/js/modules/auth.js']) {
-      expect(source(chemin), chemin).toContain('refusees');
+    const coupables = [];
+    for (const chemin of fichiersLivres()) {
+      if (chemin.endsWith('utils/rejeu-annonce.js')) continue;
+      const texte = source(chemin);
+      for (const fragment of fragments) {
+        if (texte.includes(fragment)) coupables.push(`${chemin} → « ${fragment} »`);
+      }
     }
+
+    expect(coupables, `messages rédigés hors de la fabrique :\n${coupables.join('\n')}`).toEqual([]);
+  });
+
+  it('et les deux appelants l\'interrogent bien', () => {
+    // Le pendant : la fabrique ne servirait à rien si personne ne l'appelait.
+    // L'EFFET de ces appels est mesuré dans `tests/utils/reprise.test.js`.
+    const reprise = source('public/js/utils/reprise.js');
+
+    expect((reprise.match(/annoncesDuRejeu\(bilan\)/g) || []).length).toBe(2);
   });
 });

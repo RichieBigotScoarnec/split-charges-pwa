@@ -130,12 +130,21 @@ describe('Ordre d\'initialisation', () => {
     // la page : une reconnexion se produit à chaque sortie de veille, et
     // annoncer « saisies enregistrées » à chacune ferait de la confirmation un
     // bruit de fond.
+    // Ce contrôle a été RENDU INERTE par un refactor : il cherchait
+    // `if (envoyees > 0)` dans `app.js`, chaîne devenue `if (succes)` et
+    // fichier devenu `utils/reprise.js`. `indexOf` rendait -1, et
+    // « -1 < n'importe quoi » passait sans rien mesurer. Une lecture de source
+    // ne survit pas au renommage de ce qu'elle lit.
+    //
+    // Ce qu'il voulait tenir est désormais mesuré pour de vrai — la
+    // confirmation ne paraît que si quelque chose est parti, contrôlé en
+    // montant la fonction dans `tests/utils/reprise.test.js`. Ce qui reste ici
+    // est la seule chose que ce fichier-ci puisse dire : le message de succès
+    // du rejeu n'est écrit nulle part ailleurs dans la page.
     const entree = readFileSync(resolve(process.cwd(), 'public/js/app.js'), 'utf8');
-    const corps = extraireFonction(entree, 'async function synchroniserLesSaisies()');
 
-    expect(corps, 'synchroniserLesSaisies introuvable dans app.js').not.toBe('');
-    expect(corps.indexOf('if (envoyees > 0)'), 'la confirmation doit être conditionnée')
-      .toBeLessThan(corps.indexOf('toast.success('));
+    expect(entree, 'le rejeu ne doit plus confirmer depuis app.js')
+      .not.toContain('toast.success(');
   });
 
   it('les saisies gardées hors ligne partent une fois les données chargées', () => {
@@ -189,3 +198,37 @@ function extraireFonction(source, signature) {
   }
   return '';
 }
+
+describe('LE CÂBLAGE DE LA REPRISE AUTONOME', () => {
+  /**
+   * `app.js` est la racine de composition : il ne fait que dire quel geste, à
+   * quel moment. Lire sa source est légitime ICI, et seulement ici, parce que
+   * le comportement composé est mesuré ailleurs pour de vrai —
+   * `tests/utils/reprise.test.js` monte les trois fonctions et regarde ce que
+   * le foyer voit affiché.
+   *
+   * Ce qui rend cette lecture honnête, c'est cette division : la forme du fil
+   * est vérifiée ici, son effet là-bas. Une lecture de source qui prétend
+   * tenir un COMPORTEMENT, elle, ne tient rien — mesuré : supprimer le bloc
+   * qui annonce les saisies refusées laissait le contrôle qui le « tenait »
+   * entièrement vert.
+   */
+  const app = () => readFileSync(resolve(process.cwd(), 'public/js/app.js'), 'utf8');
+
+  it('la reprise réussie déclenche `surRepriseDeLiaison`', () => {
+    // `.info/connected` peut rester faux alors que la base répond — la panne
+    // qui a duré des heures. Ce rappel est la seule issue, et il était une
+    // fermeture anonyme, donc inatteignable par tout contrôle.
+    expect(app()).toContain('surLiaisonRetablie(surRepriseDeLiaison)');
+  });
+
+  it('et une reconnexion annoncée par Firebase écoule la file', () => {
+    expect(app()).toContain('if (isConnected) synchroniserLesSaisies()');
+  });
+
+  it('app.js ne porte plus aucun de ces comportements lui-même', () => {
+    // S'ils y revenaient, ils échapperaient de nouveau à toute mesure.
+    expect(app()).not.toContain('async function synchroniserLesSaisies');
+    expect(app()).not.toContain('annoncesDuRejeu');
+  });
+});
