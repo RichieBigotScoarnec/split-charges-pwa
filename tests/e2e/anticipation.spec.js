@@ -206,4 +206,93 @@ test.describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
     // Le panneau des charges fixes porte déjà le loyer : le répéter serait du bruit.
     await expect(veille).not.toContainText('Loyer');
   });
+
+  /**
+   * Le constat devient un geste
+   *
+   * Sans bouton, « Netflix revient chaque mois » envoyait ressaisir la charge à
+   * la main, dans un formulaire à neuf champs. Un conseil plus coûteux que de
+   * ne rien faire n'en est pas un.
+   *
+   * Ce que ces contrôles tiennent, et que la fonction pure ne peut pas tenir :
+   * le bouton existe, il écrit, et le TOTAL DU MOIS ne bouge pas d'un centime
+   * — l'abonnement était déjà saisi en variable, la déclarer fixe le compterait
+   * deux fois.
+   */
+  test('la carte porte le bouton, et il écrit vraiment', async ({ page }) => {
+    await ouvrir(page, abonnements());
+
+    const carte = page.locator('.veille-item', { hasText: 'Netflix' });
+    const bouton = carte.locator('[data-action="declarerAbonnementsProposes"]');
+    await expect(bouton).toBeVisible();
+    await expect(bouton).toContainText('charge fixe');
+
+    // Le mois courant ne porte pas encore Netflix : la charge fixe s'y ajoute.
+    await bouton.click();
+
+    const confirmation = page.locator('#modalConfirm');
+    await expect(confirmation).toBeVisible();
+    // Elle nomme la charge ET ce que ça engage : « reconduits » est le mot qui
+    // distingue ce geste d'une simple saisie.
+    await expect(confirmation).toContainText('Netflix');
+    await expect(confirmation).toContainText('reconduits');
+
+    await page.locator('#modalConfirmOk').click();
+    await page.waitForTimeout(900);
+
+    await expect(page.locator('#fixedChargesList')).toContainText('Netflix');
+
+    // Et elle est RÉCURRENTE : c'est tout l'objet du geste, la reconduction la
+    // portera désormais sans que personne n'ait à la ressaisir.
+    const ecrite = await page.evaluate(() => {
+      const noeud = Object.entries(window.__db)
+        .filter(([chemin]) => chemin.includes('/fixedCharges/'))
+        .map(([, charge]) => charge);
+      return noeud.find(c => c && c.description === 'Netflix') || null;
+    });
+    expect(ecrite, 'la charge fixe n\'a pas été écrite').not.toBe(null);
+    expect(ecrite.recurring).toBe(true);
+    expect(ecrite.paidBy).toBe('vous');
+  });
+
+  test('LE TOTAL DU MOIS NE BOUGE PAS quand la charge y était déjà saisie', async ({ page }) => {
+    // Le cas nominal, et le seul qui puisse coûter de l'argent : le détecteur
+    // ne se déclenche QUE sur des libellés saisis à la main tous les mois.
+    const db = abonnements();
+    const p = moisCourant();
+    db[`household/periods/${p}/variableCharges/deja`] = {
+      description: 'Netflix', amount: 13.49, category: 'Loisirs',
+      paidBy: 'vous', date: `${p}-04`, deleted: false
+    };
+
+    await ouvrir(page, db);
+
+    const total = page.locator('.summary-total-row strong');
+    const avant = await total.textContent();
+    expect(avant).toBeTruthy();
+
+    await page.locator('[data-action="declarerAbonnementsProposes"]').click();
+    await page.locator('#modalConfirmOk').click();
+    await page.waitForTimeout(900);
+
+    await expect(page.locator('#fixedChargesList')).toContainText('Netflix');
+    // La dépense a changé de collection, pas de valeur.
+    await expect(total).toHaveText(avant);
+    // Et la saisie variable est partie à la corbeille, jamais effacée.
+    const corbeille = await page.evaluate((mois) =>
+      window.__db[`household/periods/${mois}/variableCharges/deja`]?.deleted, moisCourant());
+    expect(corbeille).toBe(true);
+  });
+
+  test('refuser la confirmation n\'écrit rien', async ({ page }) => {
+    await ouvrir(page, abonnements());
+
+    await page.locator('[data-action="declarerAbonnementsProposes"]').click();
+    await page.locator('#modalConfirmCancel').click();
+    await page.waitForTimeout(600);
+
+    await expect(page.locator('#fixedChargesList')).not.toContainText('Netflix');
+    // Et la carte est toujours là : rien n'a été décidé.
+    await expect(page.locator('.summary-veille')).toContainText('Netflix');
+  });
 });

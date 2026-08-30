@@ -622,8 +622,14 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
         }
 
         const suivi = suivis.get(nom)
-          || { libelle: '', montants: new Map(), estFixe: false };
+          || { libelle: '', montants: new Map(), estFixe: false, payeurs: new Set(), categories: new Set() };
         suivi.libelle = String(charge.description || '').trim();
+
+        // Le payeur et la catégorie de chaque occurrence, pour que le geste qui
+        // suit n'ait rien à inventer. On les COLLECTE ; c'est plus bas qu'on
+        // décide s'ils sont exploitables.
+        if (typeof charge.paidBy === 'string' && charge.paidBy) suivi.payeurs.add(charge.paidBy);
+        if (typeof charge.category === 'string' && charge.category) suivi.categories.add(charge.category);
         // On ADDITIONNE les occurrences du mois, on ne garde pas la dernière.
         //
         // Un libellé répété dans le mois est le cas nominal : la saisie rapide
@@ -661,7 +667,20 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
     // Le dernier montant connu : un abonnement réévalué se provisionne à son
     // nouveau prix, pas à celui d'il y a trois mois.
     const dernier = suivi.montants.get(mois[mois.length - 1]);
-    trouves.push({ libelle: suivi.libelle, montant: dernier });
+
+    // LE PAYEUR N'EST JAMAIS DEVINÉ.
+    //
+    // C'est la règle que l'import CSV a posée, et elle vaut ici : un
+    // prélèvement avancé tantôt par l'un tantôt par l'autre n'a pas de payeur,
+    // il en a deux. En choisir un — le dernier vu, le plus fréquent — ferait
+    // basculer le solde du foyer sur une déduction que personne n'a validée.
+    //
+    // Une seule valeur sur toute la fenêtre n'est pas une déduction : c'est une
+    // lecture. Sinon, `null`, et l'écran demandera.
+    const payeur = suivi.payeurs.size === 1 ? [...suivi.payeurs][0] : null;
+    const categorie = suivi.categories.size === 1 ? [...suivi.categories][0] : null;
+
+    trouves.push({ libelle: suivi.libelle, montant: dernier, payeur, categorie });
     parMois += dernier;
   }
 
@@ -680,7 +699,26 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
     detail: `${parMois.toFixed(2)} € par mois, soit ${parAn.toFixed(2)} € sur une année : `
       + trouves.map(t => t.libelle).join(', ') + '.',
     fonde: `Vues aux ${mois.length} derniers mois révolus (${mois.join(', ')}), `
-      + 'à montant stable, et absentes des charges fixes.'
+      + 'à montant stable, et absentes des charges fixes.',
+
+    // CE QUI FAIT LA DIFFÉRENCE ENTRE UN CONSTAT ET UN GESTE.
+    //
+    // Ce détecteur disait « Netflix revient chaque mois sans être déclaré
+    // fixe » — et laissait le foyer aller le ressaisir à la main, dans un
+    // formulaire à neuf champs, une fois par abonnement. Le conseil coûtait
+    // donc plus cher que de ne rien faire, et c'est ainsi qu'une application de
+    // budget se fait abandonner en novembre.
+    //
+    // La proposition porte ce qu'il faut pour écrire, et rien de plus. Le
+    // payeur et la catégorie valent `null` quand la fenêtre n'en montre pas
+    // une seule : l'écran demandera plutôt que l'application ne décide.
+    propositionFixe: {
+      charges: trouves.map(({ libelle, montant, payeur, categorie }) => ({
+        libelle, montant, payeur, categorie
+      })),
+      parMois,
+      parAn
+    }
   };
 }
 

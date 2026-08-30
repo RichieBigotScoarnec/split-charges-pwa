@@ -18,6 +18,7 @@ import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
 import { log, warn, error as logError } from '../utils/debug.js';
+import { planDeclarationFixe, questionDeConfirmation } from '../utils/abonnements.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { normaliserEmplacement } from '../utils/members.js';
@@ -92,6 +93,150 @@ function accorderModaleFixed(edition) {
   if (bouton) bouton.textContent = edition ? 'Enregistrer' : 'Ajouter';
 }
 
+/**
+ * Déclare fixes les abonnements que la veille a repérés
+ *
+ * `anticipation.js` sait dire « Netflix et la salle de sport reviennent chaque
+ * mois sans être déclarés fixes ». Le constat restait sans suite : il fallait
+ * ouvrir ce formulaire et ressaisir chaque ligne, neuf champs à la fois. Un
+ * conseil qui coûte plus cher que de ne rien faire n'en est pas un — et c'est
+ * ainsi qu'une application de budget se fait abandonner en novembre.
+ *
+ * **Le bouton ne porte que la CLÉ de l'observation.** Les libellés viennent des
+ * charges saisies par le foyer : faire transiter la proposition entière par un
+ * attribut du DOM en ferait une surface d'injection, et rien ne garantirait que
+ * ce qu'on écrit est bien ce que l'application a calculé. La proposition est
+ * relue dans l'état, là où le calcul l'a laissée — même règle que
+ * `creerEnveloppeProposee`.
+ *
+ * L'écriture est UN SEUL lot multi-chemins : les charges fixes créées, et les
+ * saisies variables qu'elles remplacent mises à la corbeille. Deux écritures
+ * séparées pourraient échouer à moitié et laisser le mois compté deux fois.
+ *
+ * @param {string} cle - Clé de l'observation
+ * @returns {Promise<boolean>} Vrai si quelque chose a été écrit
+ */
+export async function declarerAbonnementsProposes(cle) {
+  const vue = (getState('observations') || []).find(v => v && v.cle === cle);
+  if (!vue || !vue.propositionFixe) {
+    toast.error('Cette proposition n\'est plus à l\'écran');
+    return false;
+  }
+
+  const currentPeriod = getState('currentPeriod');
+  const { dbGet, dbUpdate, liaisonRompue } = await import('../db.js');
+
+  // REFUSÉ HORS LIGNE, et refusé AVANT de demander confirmation.
+  //
+  // Ce geste écrit un lot multi-chemins visant la racine de l'espace, et
+  // `operationRejouable` refuse de différer une écriture qui ne nomme aucun
+  // nœud — c'est la garde qui empêche une entrée forgée d'effacer le foyer.
+  // L'écriture échouerait donc de toute façon, mais après que l'écran a
+  // demandé « Déclarer Netflix en charge fixe ? » et reçu un oui. Poser la
+  // question pour rien est pire que de dire non tout de suite.
+  //
+  // Et la lecture, elle, aboutirait : `dbGet` sert le miroir hors ligne. Le
+  // plan serait donc calculé sur un mois peut-être périmé.
+  if (liaisonRompue()) {
+    toast.error('Déclaration impossible hors ligne — la base doit être joignable');
+    return false;
+  }
+
+  // Le mois est RELU avant d'écrire, et non pris dans l'état.
+  //
+  // Entre l'affichage de la carte et le clic, l'autre téléphone a pu saisir
+  // l'abonnement — ou le déclarer fixe lui-même. Le plan doit porter sur ce que
+  // la base contient à cet instant, sans quoi le mois serait compté deux fois.
+  let periode;
+  try {
+    periode = await dbGet(`periods/${currentPeriod}`);
+  } catch (erreur) {
+    logError('❌ Lecture du mois impossible :', erreur);
+    toast.error('Impossible de lire le mois');
+    return false;
+  }
+
+  const plan = planDeclarationFixe({
+    charges: vue.propositionFixe.charges,
+    periode,
+    mois: currentPeriod,
+    instant: Date.now()
+  });
+
+  if (plan.aEcrire.length === 0) {
+    // Rien à écrire n'est pas une panne : c'est le cas où l'autre téléphone a
+    // été plus rapide, ou celui d'un payeur qu'on refuse de deviner. Le motif
+    // est dit, sinon le bouton paraîtrait inerte.
+    toast.info(plan.ecartees.length > 0
+      ? plan.ecartees.map(e => `« ${e.libelle} » : ${e.motif}`).join(' ; ')
+      : 'Rien à déclarer');
+    return false;
+  }
+
+  const accepte = await showConfirmModal(questionDeConfirmation(plan, formatCurrency));
+  if (!accepte) return false;
+
+  const ecritures = {};
+  for (const charge of plan.aEcrire) {
+    ecritures[`periods/${currentPeriod}/fixedCharges/${await cleDeCharge()}`] = charge;
+  }
+  // La corbeille, jamais l'effacement : c'est la règle du dépôt, et elle laisse
+  // au foyer de quoi revenir sur le geste.
+  for (const charge of plan.aRetirer) {
+    ecritures[`periods/${currentPeriod}/variableCharges/${charge.id}/deleted`] = true;
+  }
+
+  try {
+    await dbUpdate(undefined, ecritures);
+  } catch (erreur) {
+    logError('❌ Déclaration des abonnements impossible :', erreur);
+    toast.error('Erreur de sauvegarde');
+    return false;
+  }
+
+  await loadFixedCharges();
+
+  // Les variables aussi : certaines viennent de partir à la corbeille, et
+  // l'écran les montrerait encore.
+  const { loadVariableCharges } = await import('./variable-charges.js');
+  await loadVariableCharges();
+
+  toast.success(`${plan.aEcrire.length === 1
+    ? `« ${plan.aEcrire[0].description} » déclarée fixe`
+    : `${plan.aEcrire.length} charges déclarées fixes`} — ${formatCurrency(plan.total)} par mois, reconduits`);
+
+  if (plan.ecartees.length > 0) {
+    // Ce qui n'a pas été écrit se dit : un silence laisserait croire que tout
+    // est passé, et le mois prochain la carte reviendrait sans qu'on comprenne.
+    toast.info(plan.ecartees.map(e => `« ${e.libelle} » : ${e.motif}`).join(' ; '));
+  }
+
+  // L'historique est relu et REPASSÉ : `calculateSummary()` sans lui fait taire
+  // toute la veille, et l'écran perdrait les autres observations au lieu de la
+  // seule qu'on vient de traiter.
+  try {
+    calculateSummary({ historique: await dbGet('periods') });
+  } catch (erreur) {
+    logError('❌ Rafraîchissement du bilan impossible :', erreur);
+    calculateSummary();
+  }
+
+  return true;
+}
+
+/**
+ * Une clé Firebase neuve, sans écrire
+ *
+ * `dbPush` écrit ; ici il faut la clé AVANT, pour la poser dans un lot
+ * multi-chemins qui part en une seule fois.
+ *
+ * @returns {Promise<string>}
+ */
+async function cleDeCharge() {
+  const { getFirebaseDatabase } = await import('../firebase-init.js');
+  return getFirebaseDatabase().ref().push().key;
+}
+
 export function initFixedCharges() {
   log('📦 Initialisation module charges fixes');
 
@@ -115,6 +260,7 @@ export function initFixedCharges() {
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
   window.editFixedCharge = editFixedCharge;
   window.deleteFixedCharge = deleteFixedCharge;
+  window.declarerAbonnementsProposes = declarerAbonnementsProposes;
   /**
    * Bascule « dépense perso », et ce qu'elle rend impossible
    *
