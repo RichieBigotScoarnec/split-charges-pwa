@@ -9,7 +9,7 @@ vi.mock('../../public/js/components/modal.js', () => ({
 }));
 
 import { setState, resetState } from '../../public/js/state.js';
-import { ouvrirDetailPayeur } from '../../public/js/modules/detail-depenses.js';
+import { ouvrirDetailPayeur, ouvrirDetailCategorie } from '../../public/js/modules/detail-depenses.js';
 import { computeSummary } from '../../public/js/utils/calculations.js';
 
 /**
@@ -162,5 +162,82 @@ describe('TÉMOIN NÉGATIF — les termes du mois changent bien le chiffre', () 
     const enMoitie = totalAffiche({ modeDuMois: '50-50', modeGlobal: '50-50' });
 
     expect(enProrata).not.toBeCloseTo(enMoitie, 2);
+  });
+});
+
+
+/**
+ * Le montant de chaque ligne, dans l'ordre où la modale les rend
+ *
+ * `formatCurrency` sépare les milliers par une insécable étroite, et le
+ * fragment « part de 400,00 € » vit dans le MÊME bloc que le montant : on ne
+ * lit donc que le premier nombre de la cellule.
+ */
+function montantsDesLignes() {
+  return [...document.querySelectorAll('#modalDetailDepenses .detail-ligne-montant')]
+    .map(cellule => {
+      const premier = cellule.textContent.trim().match(/-?[\d\u202f\u00a0 ]+[,.]\d{2}/);
+      return premier ? Number(premier[0].replace(/[^\d,.-]/g, '').replace(',', '.')) : NaN;
+    });
+}
+
+describe('SUR LA PART AVANCÉE, et non sur le montant plein', () => {
+  /**
+   * Une charge PARTAGÉE de 400 € avancée par les deux n'entre au détail de
+   * Richard que pour ce qu'il a réellement avancé. Afficher 400 € ferait une
+   * liste qui DÉPASSE son propre total — et c'est le total qu'on mettrait en
+   * doute, pas la liste.
+   *
+   * Mesuré : `surLaPart: true` → `false` dans `ouvrirDetailPayeur` laissait les
+   * 2 422 contrôles verts. Le total, lui, ne bouge pas : il est calculé par
+   * `detailDuPayeur`, en amont du drapeau. Seules les LIGNES mentent, et rien
+   * ne les regardait.
+   */
+  it('la somme des lignes retombe sur le total affiché', () => {
+    // La propriété que l'en-tête du module présente comme sa raison d'être.
+    const total = totalAffiche({ modeDuMois: 'prorata', modeGlobal: 'prorata' });
+    const somme = montantsDesLignes().reduce((t, m) => t + m, 0);
+
+    expect(somme).toBeCloseTo(total, 2);
+  });
+
+  it('une charge partagée paraît pour la part, et le DIT', () => {
+    // Sans la mention, le lecteur additionne les montants affichés et ne
+    // retombe pas sur le total.
+    totalAffiche({ modeDuMois: 'prorata', modeGlobal: 'prorata' });
+
+    // Prorata 3 000 / 4 000 : Richard avance 75 % des 400 € partagés.
+    expect(montantsDesLignes()).toContain(300);
+    expect(montantsDesLignes()).not.toContain(400);
+    expect(document.querySelector('#modalDetailDepenses').textContent)
+      .toContain('part de');
+  });
+
+  it('et le mode figé du mois déplace CETTE part, pas seulement le total', () => {
+    // Au 50-50, la même charge partagée n'entre plus que pour 200 €.
+    totalAffiche({ modeDuMois: '50-50', modeGlobal: 'prorata' });
+
+    expect(montantsDesLignes()).toContain(200);
+    expect(montantsDesLignes()).not.toContain(300);
+  });
+
+  it('un détail de CATÉGORIE montre le montant plein, lui', () => {
+    // Le drapeau inverse, et c'est voulu : une catégorie contient des dépenses
+    // entières, pas des parts. Sans ce contrôle, poser `surLaPart: true` des
+    // deux côtés passerait.
+    resetState();
+    document.body.innerHTML = '';
+    setState('salaries', SALAIRES);
+    setState('fixedCharges', [FIXE]);
+    setState('variableCharges', CHARGES);
+    setState('reimbursements', []);
+    setState('currentPeriod', '2026-07');
+    setState('shareMode', 'prorata');
+
+    ouvrirDetailCategorie('Loisirs');
+
+    expect(montantsDesLignes()).toContain(400);
+    expect(document.querySelector('#modalDetailDepenses').textContent)
+      .not.toContain('part de');
   });
 });

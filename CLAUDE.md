@@ -504,11 +504,15 @@ pas. Toutes sont refermées ci-dessous, chacune avec son mutant mesuré.
 > d'avoir rejoué chaque mutant à la main sur le vrai code : sur vingt et un
 > candidats, huit tenaient.
 
-Restent connus et non traités, avec mutant vérifié : quatre nœuds que le relevé
-des chemins écrits ne voit pas (`import.js`, les deux racines privées de
-`prive.js`, et une tête de gabarit pointée `${DB_PATHS.X}/…`), et `surLaPart`
-dans `detail-depenses.js`, dont l'inversion affiche le montant plein au lieu de
-la part avancée.
+| **`surLaPart` inversé n'était vu par personne.** Le total du détail est calculé par `detailDuPayeur`, EN AMONT du drapeau : seules les LIGNES mentent, et aucun contrôle ne les regardait. Une charge partagée de 400 € y paraissait pour 400 € au lieu des 300 € réellement avancés — une liste qui DÉPASSE son propre total, et c'est le total qu'on mettrait en doute | `tests/modules/detail-mode-du-mois.test.js` | ✅ RÉSOLU 2026-08-30 — la somme des lignes doit retomber sur le total affiché, la mention « part de » doit paraître, et le détail d'une CATÉGORIE doit montrer le montant plein | Trois mutants, trois chutes ; le dernier interdit de poser `surLaPart: true` des deux côtés |
+| **Le relevé des chemins écrits était aveugle au lot multi-chemins.** `dbUpdate(undefined, ecritures)` n'a aucun chemin en premier argument : ils sont les CLÉS de l'objet. C'est ainsi qu'écrivent l'import CSV et le renommage — deux gestes qui touchent des centaines de charges d'un coup. Et le nœud vient d'un ternaire, donc de DEUX littéraux | `tests/regles-couvrent-les-ecritures.test.js` | ✅ RÉSOLU 2026-08-30 — les clés calculées portant une barre oblique sont relevées, et un `const` lié à un ternaire rend ses deux valeurs | Renommer les deux nœuds de l'import fait tomber 4 contrôles ; celui du renommage, 8 |
+| Et aveugle aux **trois racines privées**, qui vivent hors de `household` — `.write` cascade, donc aucune règle profonde n'aurait pu y réserver une lecture à une seule personne. Elles passent par les quatre accès absolus, que le relevé ne comptait pas parmi les écrivains : renommer `RACINE_PRIVE` laissait tout vert, et le détail privé se serait écrit dans un nœud que `$autre: false` refuse | `tests/regles-couvrent-les-ecritures.test.js` | ✅ RÉSOLU 2026-08-30 — relevés à part, et confrontés à la RACINE des règles | Un contrôle exige que chaque tête soit résolue : non résolue, elle vaudrait « n'importe quel enfant » et ne mesurerait rien |
+| L'expansion des gabarits ne faisait qu'UNE passe, et une constante peut être liée à un gabarit : `` const chemin = `${RACINE_PRIVE}/…` `` rendait le texte brut, tête comprise | `tests/regles-couvrent-les-ecritures.test.js` | ✅ RÉSOLU 2026-08-30 — expansion itérative, bornée à quatre passes et seize variantes | Sans cela, un des huit chemins privés restait permissif |
+| Une tête de gabarit POINTÉE — `` `${DB_PATHS.REMINDERS}/v2` `` — échappait au motif de résolution, le point n'y étant pas admis | `tests/regles-couvrent-les-ecritures.test.js` | ✅ RÉSOLU 2026-08-30 — le point est admis dans le nom | Le mutant fait tomber les deux espaces |
+
+Plus aucun mutant connu ne survit. **132 fichiers, 2 431 contrôles unitaires** ;
+bout en bout 467 passés, les 23 échecs étant ceux qui exigent les émulateurs
+Firebase, absents du conteneur et lancés par la CI.
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
