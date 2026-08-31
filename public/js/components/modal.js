@@ -1,4 +1,5 @@
 import { log } from '../utils/debug.js';
+import { empilerCouche, depilerCouche } from '../utils/retour.js';
 /**
  * FairSplit - Modal Management
  * @description Gestion centralisée des modales
@@ -117,6 +118,13 @@ export function showModal(modalId) {
   if (modal) {
     modal.classList.add('active');
 
+    // Le geste « retour » referme cette modale au lieu de quitter
+    // l'application. Sur Android c'est le geste le plus utilisé du système, et
+    // il fermait tout, sans avertissement, potentiellement en pleine saisie.
+    // `closeModal` dépile en miroir : voir `utils/retour.js` pour le piège de
+    // l'entrée d'historique qu'une fermeture ordinaire doit consommer.
+    empilerCouche(modalId, () => closeModal(modalId));
+
     // Focus first input if exists
     //
     // Sans champ de saisie, le focus RESTE SUR LE BOUTON DÉCLENCHEUR, dans la
@@ -161,6 +169,12 @@ export function closeModal(modalId, resetForm = true) {
   // ligne, la question restait ouverte et sa réponse arrivait à la
   // confirmation suivante — voir `_confirmEnCours`.
   if (modalId === 'modalConfirm') denouerConfirmation(false);
+
+  // Avant tout le reste : si la modale se ferme autrement que par le retour,
+  // l'entrée d'historique qu'elle avait poussée doit être consommée. Sans
+  // cela, la pile grossit et le geste retour devient inerte pendant autant
+  // d'appuis qu'il y a eu de modales ouvertes puis refermées.
+  depilerCouche(modalId);
 
   const modal = document.getElementById(modalId);
   if (modal) {

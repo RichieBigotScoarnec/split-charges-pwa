@@ -27,6 +27,7 @@
  */
 
 import { ecouterUneFois } from './ecouteur.js';
+import { empilerCouche, depilerCouche } from './retour.js';
 
 /** La classe qui montre un panneau sous le point de rupture */
 const CLASSE_ACTIF = 'panneau--actif';
@@ -50,6 +51,9 @@ const CLASSE_ACTIF = 'panneau--actif';
  * même raison qui fait que l'onglet de départ vient du balisage.
  */
 const defilementParPanneau = new Map();
+
+/** Le nom sous lequel la barre d'onglets s'inscrit dans l'historique */
+const COUCHE_ONGLET = 'onglet';
 
 /**
  * Les identifiants de panneaux que la barre propose réellement
@@ -157,6 +161,17 @@ export function initOnglets() {
     // d'une page qui vient de changer entièrement de contenu donne un effet de
     // glissement sans repère.
     window.scrollTo({ top: defilementParPanneau.get(affiche) || 0, behavior: 'auto' });
+
+    // Le retour ramène au premier onglet, et une seule fois.
+    //
+    // Une entrée par changement d'onglet exigerait dix retours pour sortir
+    // après dix allers-retours entre Bilan et Charges : le geste deviendrait
+    // une punition. `empilerCouche` refusant un nom déjà empilé, quitter le
+    // premier onglet pousse une entrée, et y revenir la consomme — quel que
+    // soit le trajet entre les deux.
+    const premier = panneauxProposes()[0];
+    if (affiche === premier) depilerCouche(COUCHE_ONGLET);
+    else empilerCouche(COUCHE_ONGLET, () => activerOnglet(premier));
   });
 
   // L'état de départ vient du balisage — `aria-current` posé sur le premier
