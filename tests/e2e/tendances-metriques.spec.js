@@ -38,6 +38,12 @@ async function poser(page, mois) {
       }
     }
     await dbUpdate(undefined, chemins);
+    // Écrire en base ne suffit pas : l'application ne relit pas d'elle-même.
+    // Après toute écriture elle rejoue `loadPeriodData`, qui recharge le mois
+    // et rend le bilan — c'est ce geste qui fait exister l'historique pour
+    // l'écran. Sans lui, le panneau des tendances reste masqué, à raison :
+    // rien de ce qui a été écrit ne lui a été présenté.
+    await window.changePeriod(document.getElementById('periodSelect').value);
   }, mois);
 }
 
@@ -124,7 +130,12 @@ test.describe('Quand les salaires manquent', () => {
         'periods/2026-07/variableCharges/a': { description: 'Courses', amount: 200, category: 'Courses', paidBy: 'vous' },
         'periods/2026-08/variableCharges/b': { description: 'Courses', amount: 260, category: 'Courses', paidBy: 'vous' }
       });
+      // Comme partout : écrire en base ne suffit pas, l'application ne relit
+      // pas d'elle-même. C'est `loadPeriodData` qui fait exister l'historique
+      // pour l'écran.
+      await window.changePeriod(document.getElementById('periodSelect').value);
     });
+    await page.waitForTimeout(600);
 
     await page.locator('#trendsToggle').click();
     await page.waitForTimeout(900);

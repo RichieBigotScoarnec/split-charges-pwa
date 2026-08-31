@@ -85,7 +85,11 @@ test.describe('Anticiper une charge annuelle', () => {
     await expect(veille).toBeVisible();
     await expect(veille).toContainText('Assurance habitation');
     // Le montant retenu est celui de la DERNIÈRE occurrence, pas la première.
-    await expect(veille).toContainText('512.00');
+    // Le montant est comparé dans la langue de l'application — virgule
+    // décimale, espace fine insécable des milliers — et non dans celle de
+    // `toFixed`. Écrire « 512.00 » ici verrouillait le défaut que ce format
+    // constitue : le test empêchait de le corriger.
+    await expect(veille).toContainText(/512,00/);
   });
 
   test('le bouton crée la cagnotte, puis la carte disparaît', async ({ page }) => {
@@ -202,7 +206,7 @@ test.describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
     const veille = page.locator('.summary-veille');
     await expect(veille).toBeVisible();
     await expect(veille).toContainText('Netflix');
-    await expect(veille).toContainText('161.88');          // 13,49 × 12
+    await expect(veille).toContainText(/161,88/);          // 13,49 × 12
     // Le panneau des charges fixes porte déjà le loyer : le répéter serait du bruit.
     await expect(veille).not.toContainText('Loyer');
   });

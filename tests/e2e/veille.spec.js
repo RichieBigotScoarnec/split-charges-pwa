@@ -84,7 +84,11 @@ test.describe('La veille sur le bilan', () => {
     // de base, soit 33,33 €/mois — et c'est très exactement le piège.
     await ouvrir(page, semer());
 
-    await expect(page.locator('.summary-veille')).toContainText('84.15');
+    // Le montant est comparé dans la langue de l'application — virgule
+    // décimale, espace fine insécable des milliers — et non dans celle de
+    // `toFixed`. Écrire « 512.00 » ici verrouillait le défaut que ce format
+    // constitue : le test empêchait de le corriger.
+    await expect(page.locator('.summary-veille')).toContainText(/84,15/);
   });
 
   test('l\'observation dit sur quoi elle se fonde', async ({ page }) => {
@@ -92,7 +96,7 @@ test.describe('La veille sur le bilan', () => {
 
     // La règle du module : un conseil dont on ne peut pas vérifier l'assise
     // n'est pas un conseil.
-    await expect(page.locator('.veille-fonde').first()).toContainText('1009.81');
+    await expect(page.locator('.veille-fonde').first()).toContainText(/1\s?009,81/);
   });
 
   test('rien à dire ne produit aucun encadré', async ({ page }) => {

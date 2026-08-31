@@ -45,6 +45,12 @@ async function poserDesMois(page, mois) {
         { description: 'Loyer', amount: montant * 0.6, category: 'Maison', paidBy: 'vous' };
     }
     await dbUpdate(undefined, chemins);
+    // Écrire en base ne suffit pas : l'application ne relit pas d'elle-même.
+    // Après toute écriture elle rejoue `loadPeriodData`, qui recharge le mois
+    // et rend le bilan — c'est ce geste qui fait exister l'historique pour
+    // l'écran. Sans lui, le panneau des tendances reste masqué, à raison :
+    // rien de ce qui a été écrit ne lui a été présenté.
+    await window.changePeriod(document.getElementById('periodSelect').value);
   }, mois);
 }
 

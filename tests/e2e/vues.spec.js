@@ -35,6 +35,13 @@ test.describe('Tendances sur 6 mois', () => {
   }
 
   test('la section existe et se déplie', async ({ page }) => {
+    // Une charge d'abord : le panneau des tendances ne se propose plus sur une
+    // application vide — un outil d'analyse au-dessus de zéro donnée enseigne
+    // que la moitié des boutons ne font rien. Ce contrôle porte sur le
+    // dépliement, pas sur la visibilité inconditionnelle ; il lui faut donc de
+    // quoi analyser.
+    await charge(page, 'Courses', 42);
+
     await expect(page.locator('#trendsSection')).toBeVisible();
     await expect(page.locator('#trendsContent')).toBeHidden();
 

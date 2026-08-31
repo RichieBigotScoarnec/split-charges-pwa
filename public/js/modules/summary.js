@@ -45,7 +45,7 @@ export function initSummary() {
  * CRÉENT quelque chose. Les masquer empêcherait d'ouvrir une cagnotte avant
  * d'avoir saisi une dépense, ce qui est un ordre parfaitement légitime.
  */
-function refreshTrendsVisibility() {
+function refreshTrendsVisibility(historique) {
   const section = document.getElementById('trendsSection');
   if (!section) return;
 
@@ -53,11 +53,14 @@ function refreshTrendsVisibility() {
     .flatMap(cle => getState(cle) || [])
     .some(charge => charge && !charge.deleted);
 
-  // L'historique conservé suffit à justifier le panneau même si le mois
-  // affiché est vide : c'est précisément le cas où une tendance se regarde.
-  const historique = getState('historiquePourLeRapport');
-  const passe = Boolean(historique && typeof historique === 'object'
-    && Object.keys(historique).length > 0);
+  // L'historique suffit à justifier le panneau même si le mois affiché est
+  // vide : c'est précisément le cas où une tendance se regarde. L'instantané
+  // frais d'abord — il fait autorité et arrive avant que l'état ne le porte —,
+  // puis celui que l'état a conservé des rendus précédents.
+  const rempli = (noeud) => Boolean(
+    noeud && typeof noeud === 'object' && Object.keys(noeud).length > 0
+  );
+  const passe = rempli(historique) || rempli(getState('historiquePourLeRapport'));
 
   section.hidden = !duMois && !passe;
 }
@@ -71,7 +74,15 @@ export function calculateSummary({ historique } = {}) {
   refreshSearchVisibility();
 
   // Les tendances non plus : elles analysent un historique.
-  refreshTrendsVisibility();
+  //
+  // L'instantané est passé EN PARAMÈTRE, et pas seulement relu dans l'état :
+  // `historiquePourLeRapport` n'y est déposé que plus bas, par
+  // `historiqueUtilisable`. S'en remettre à l'état seul masquait donc le
+  // panneau au PREMIER rendu — celui qui suit la connexion — même sur un foyer
+  // de trois ans d'historique, pour ne le faire reparaître qu'au rendu suivant.
+  // Douze contrôles de bout en bout l'ont dit ; aucun contrôle unitaire ne
+  // pouvait le voir, l'ordre de deux lignes n'étant pas une valeur.
+  refreshTrendsVisibility(historique);
 
   const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
   const fixedCharges = getState('fixedCharges') || [];

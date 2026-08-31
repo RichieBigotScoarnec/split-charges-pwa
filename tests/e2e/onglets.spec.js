@@ -270,11 +270,21 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
       .toBeLessThan(120);
   });
 
-  test('le badge « période actuelle » s\'efface au défilement, et revient', async ({ page }) => {
-    // Il répond à une question qu'on se pose en arrivant, pas à la douzième
-    // charge — mais il doit revenir quand on remonte.
+  test('l\'indication de période s\'efface au défilement, et revient', async ({ page }) => {
+    // Elle répond à une question qu'on se pose en arrivant, pas à la douzième
+    // charge — mais elle doit revenir quand on remonte.
+    //
+    // Sur le mois COURANT, `#periodInfo` est désormais vide : le sélecteur
+    // affiche déjà « août 2026 » et l'appareil sait quel mois on est ; un badge
+    // « ✓ Période actuelle » en dessous ne disait rien de plus et coûtait une
+    // ligne du premier écran. Ce qui reste — et qui, lui, est une information —
+    // c'est « 📁 Mois archivé ». On se place donc sur un mois passé, où
+    // l'indication a quelque chose à dire.
+    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+    await page.waitForTimeout(800);
     await allerAuPanneau(page, 'panneauCharges');
     await expect(page.locator('#periodInfo')).toBeVisible();
+    await expect(page.locator('#periodInfo')).toContainText('archivé');
 
     await page.evaluate(() => window.scrollTo(0, 500));
     await page.waitForTimeout(500);
