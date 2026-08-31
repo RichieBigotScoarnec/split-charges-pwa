@@ -40,7 +40,10 @@ test.describe('Tendances sur 6 mois', () => {
     // que la moitié des boutons ne font rien. Ce contrôle porte sur le
     // dépliement, pas sur la visibilité inconditionnelle ; il lui faut donc de
     // quoi analyser.
-    await charge(page, 'Courses', 42);
+    // Un libellé qui ne soit celui d'AUCUNE catégorie : « Courses » se
+    // retrouvait dans l'en-tête de groupe « 🛒 Courses 42,00 € » autant que
+    // dans la ligne, et le sélecteur en trouvait deux.
+    await charge(page, 'Une dépense du mois', 42);
 
     await expect(page.locator('#trendsSection')).toBeVisible();
     await expect(page.locator('#trendsContent')).toBeHidden();
