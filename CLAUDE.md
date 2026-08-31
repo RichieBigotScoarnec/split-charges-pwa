@@ -69,7 +69,10 @@ FairSplit/
 │                               # ecouteur (un écouteur posé une seule fois),
 │                               # periodes (les mois que le sélecteur propose),
 │                               # renommage (renommer sans détacher les charges),
-│                               # tendances (ce que six mois de dépenses disent),
+│                               # tendances (ce que six mois de dépenses disent,
+│                               # et ce que coûte « un mois ordinaire » — la
+│                               # fabrique unique que le bilan, le rapport et le
+│                               # panneau lisent tous les trois),
 │                               # raccourci (ce que l'URL demande à l'ouverture),
 │                               # attente-application (attendre d'avoir de quoi
 │                               # écrire), previsionnel (ce qui reste à passer
@@ -615,6 +618,51 @@ distinction que ce dépôt a payée pour apprendre.
 
 **500 contrôles de bout en bout verts** (contre 470 avant l'audit),
 **2 519 unitaires**, 23 rouges qui sont les 23 exigeant les émulateurs Firebase.
+
+### Les trois points laissés au foyer, tranchés — 2026-08-31
+
+L'audit du 31 août laissait trois constats sans correctif : le premier écran
+rétrospectif, le cadrage « dette » du bilan, et la géolocalisation déclenchée à
+l'ouverture. Le foyer a tranché les trois dans le même sens. Quatre conceptions
+et quatre sceptiques ont relu le terrain avant la première ligne de code ; le
+sceptique de la conception n° 1 a trouvé un défaut d'argent **préexistant**,
+mesuré, que ce lot ne pouvait pas exposer sans d'abord le refermer.
+
+| **« Un mois ordinaire » valait 950,00 € sur le bilan et 1 000,00 € dans la modale du rapport**, même mois, même application, même phrase, à un bouton de distance. Deux fabriques : `ecartAuHabituel` sur les cinq mois qui précèdent, zéros compris, pour les tendances et le rapport ; une seconde médiane sur SIX mois dont elle écartait les mois à zéro, pour la carte « à ce rythme ». Huitième occurrence du défaut `normalizePair` — et la seule qui restait ouverte. Le lot voulait afficher ce chiffre en PERMANENCE | `public/js/utils/tendances.js` | ✅ RÉSOLU 2026-08-31 — `moisOrdinaire`, fabrique unique lue par les trois surfaces ; `totalCommunDuMois` referme au passage la troisième rédaction du filtre de périmètre | Mesuré par moi avant d'y toucher, sur 600 · 700 · 800 · 900 · 1 000 · 1 100 · 1 200. Le mutant qui rétablit l'ancienne fenêtre fait tomber 4 contrôles, dont un préexistant |
+| Le jeu d'essai de `rythmeDuMois` était PLAT — trois mois à 1 000 € — et celui du rapport aussi. Sur une série constante, une médiane sur cinq mois et une médiane sur six donnent le même nombre : c'est pour cette raison exacte que la divergence a vécu si longtemps sans qu'un seul contrôle bronche | `tests/utils/anticipation.test.js` | ✅ RÉSOLU 2026-08-31 — toute comparaison de deux fabriques d'une même grandeur tourne désormais sur une série strictement croissante | Un contrôle qui ne mesure rien est pire qu'un contrôle absent — quatrième occurrence |
+| **Le premier écran restait rétrospectif** : il disait ce qui avait été dépensé, jamais où le mois allait. `rythmeDuMois` calculait pourtant la réponse — mais sous forme de carte d'ALERTE, qui ne paraissait qu'au-delà d'un seuil et disputait ses trois places à six autres détecteurs | `public/js/utils/anticipation.js`, `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — `projectionDuMois` rend le NOMBRE, `depasse` rend le jugement ; une ligne permanente sous le prévisionnel, et la carte d'alerte retirée de la veille | Une seule surface : deux annonces du même montant sur le même écran, l'une ambre l'autre neutre, auraient été le décor que ce fil combat |
+| La ligne aurait été peinte À L'INTÉRIEUR du lavis vert « ✅ Tout est passé ce mois-ci », qu'elle contredit à l'œil. Ce n'est pas un cas dégénéré : c'est le cas courant de la seconde moitié de chaque mois | `public/css/summary.css` | ✅ RÉSOLU 2026-08-31 — son propre bloc, ton neutre par défaut, ambre au-delà du seuil | Les huit combinaisons encre/fond mesurées dans les deux thèmes : jamais sous 4,72:1 |
+| Deux conventions de « jours restants » dans la même application : `resteParJour` compte le jour même (« 20 € par jour sur les 22 restants »), la projection l'aurait exclu. 22 ici, 21 là, le même jour, sur le même écran | `public/js/utils/date.js` | ✅ RÉSOLU 2026-08-31 — `joursRestantsDansLeMois` et `joursDeLaPeriode`, lues par les deux ; le troisième `new Date(a, m, 0)` du dépôt disparaît avec | Trouvé par le sceptique, pas par le concepteur |
+| **Le bilan ouvrait sur une créance.** « Conjointe vous doit 408,37 € », en 28 px, première ligne du premier écran, répétée par la barre collante — et lue chaque jour par celui des deux qui doit. Le calcul est juste ; le cadrage était un choix, et ce choix n'avait jamais été fait, il était arrivé par défaut | `public/js/modules/summary.js`, `public/js/utils/members.js` | ✅ RÉSOLU 2026-08-31 — la tête porte le fait SYMÉTRIQUE (« Ensemble ce mois : 1 717,39 € »), l'écart vient juste en dessous, entier et nommé. Aucun calcul ne change | `describeBalance` porte la seconde formulation (`sens`) : un état ajouté demain traverse les deux surfaces ou aucune |
+| Le mois n'était pas NOMMÉ selon son état : le sélecteur en propose un d'avance, où la reconduction inscrit les charges fixes dès le premier. « Ensemble ce mois » y aurait désigné un mois qui n'a pas commencé — le défaut exact que `etatDuMois` ferme depuis le 28 | `public/js/utils/date.js` | ✅ RÉSOLU 2026-08-31 — `etatDuMois` monte dans `date.js` et sert les deux écrans : « Ensemble en juillet 2026 », « Déjà engagé pour septembre 2026 » | Le rapport la portait seul ; en écrire un jumeau aurait été la neuvième occurrence |
+| La barre collante se masque sur la seule GÉOMÉTRIE de `.summary-balance`, sur la prémisse « le bilan dit déjà la même chose ». Un écart rendu conditionnellement l'aurait rendue fausse en silence : sur un mois équilibré, « Comptes équilibrés » n'aurait été NULLE PART à l'écran | `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — l'écart est rendu sans condition, zéro compris ; la barre, elle, garde le verbe « devoir », mot juste au moment de régler | Trouvé par le sceptique, qui a aussi montré que le contrôle jsdom proposé pour ce cas serait passé sans rien mesurer |
+| Le lavis vert ou rouge peignait tout le bloc, montant de tête compris. Un TOTAL n'est ni une bonne ni une mauvaise nouvelle, et `--success-color` tombe à 3,29:1 sur cette surface — sous le seuil d'un montant de 15 px | `public/css/summary.css` | ✅ RÉSOLU 2026-08-31 — surface neutre, sens du solde porté par un filet de 3 px | Mesuré : c'est le contraste qui a fait choisir le bord plutôt que le texte |
+| **La géolocalisation partait à chaque OUVERTURE de la modale** — y compris pour consulter, corriger ou annuler — et posait « 📍 Détection position... » en tête de fenêtre, avant qu'un chiffre soit tapé, à quelqu'un venu taper un chiffre | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-31 — à la première frappe dans le montant, une fois par ouverture : le seul signal fiable qu'une saisie réelle commence | Le géocodage travaille pendant que la description se tape |
+| Le témoin vivait en tête de la fenêtre, loin de ce qu'il explique. « ✓ Intermarché » n'a de sens qu'à côté du sélecteur de catégorie, là où il dit POURQUOI une tuile s'est allumée toute seule — le traitement que `memoire-libelle` applique déjà à son indice | `public/FairSplit.html`, `public/css/modals.css` | ✅ RÉSOLU 2026-08-31 — sous la grille, et il ne réserve plus sa ligne quand il n'a rien à dire | Volontairement pas `hidden` dans le balisage servi : un ancien script en cache le laisserait invisible pour toujours |
+| **Le témoin et la phrase pouvaient se contredire, durablement.** `reappliquerLaCategorie` ABANDONNE la catégorie que le foyer ne possède pas — ce qui arrive systématiquement sur le chemin du raccourci, où la modale s'ouvre sur les catégories par défaut. Le témoin continuait d'annoncer « "Courses" proposée d'après le lieu » pendant que la phrase redemandait une catégorie | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-31 — `direLeLieu` est la seule écriture, `redireLeLieu` la seule rédaction, et les deux chemins qui changent la catégorie la rejouent | Défaut BLOQUANT trouvé par le sceptique, qui l'a reproduit en exécutant la conception avant qu'elle ne soit écrite |
+| Un géocodage qui revient après la fermeture écrivait dans la saisie SUIVANTE. Le défaut préexistait ; déplacer le départ du GPS vers la frappe rapproche mécaniquement la réponse de la soumission | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-31 — jeton d'ouverture, avancé à l'ouverture comme à la fermeture | — |
+| Les trois états du témoin portaient des couleurs de PASTILLE là où il faut de l'encre : `--warning-color` rend 3,19:1 et `--success-color` 3,77:1 à 12 px, pour un seuil de 4,5. Et `.error` n'avait aucune règle — « ✗ Position introuvable » se peignait comme une information ordinaire | `public/css/variables.css` | ✅ RÉSOLU 2026-08-31 — `--success-ink`, `--warning-ink`, `--danger-ink`, jamais sous 4,79:1 sur les deux surfaces et dans les deux thèmes | Un jeton conforme appliqué au mauvais endroit reste illisible : constat déjà consigné, remède déjà appliqué aux lavis |
+| Le registre transversal du périmètre ne mesurait RIEN pour une entrée qui se tait : sa propriété est `f(communes) === f(communes + solo)`, et `null === null` la satisfait | `tests/utils/perimetre-transversal.test.js` | ✅ RÉSOLU 2026-08-31 — témoin positif exigé pour les onze entrées | Le trou que ce fichier existe pour fermer, laissé ouvert dans le fichier lui-même |
+
+| La suite de bout en bout **n'a exercé la ligne de projection dans aucun de ses 547 contrôles** : elle a tourné un 31, et la fabrique se tait le dernier jour du mois, à dessein. Le contrôle qui la cherche aurait été rouge cinq jours sur trente — et le job conditionne la publication | `tests/e2e/projection-du-mois.spec.js` | ✅ RÉSOLU 2026-08-31 — `page.clock.setFixedTime` au 12 août 2026, mois semés en clés absolues | Troisième fois que ce dépôt manque de livrer un contrôle qui dépend du calendrier : après l'heure qu'il était, puis le mois de décembre |
+| **Le mutant décisif a SURVÉCU à la première version de ce contrôle.** Le jeu d'essai semait cinq mois tous à 1 000 € : sur une série plate, une médiane sur cinq mois et une médiane sur six donnent le même nombre, et rétablir l'ancienne fenêtre ne faisait rien tomber. Le contrôle dont le titre EST l'égalité des deux fabriques ne mesurait rien | `tests/e2e/projection-du-mois.spec.js` | ✅ RÉSOLU 2026-08-31 — série strictement croissante sur sept mois ; le mutant rejoué fait tomber 2 contrôles | Trouvé en rejouant le mutant, jamais en relisant. La forme du jeu d'essai fait partie de ce qu'un contrôle mesure |
+| Le repère du mois ordinaire n'était pas nommé dans le balisage : le contrôle lisait la phrase et attrapait le SURCOÛT, qui la précède | `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — `.projection-ordinaire` | Un contrôle doit lire un élément nommé, pas analyser de la prose |
+| Le lecteur de montants des deux contrôles neufs écrivait ses séparateurs EN CLAIR : « 1 550,00 » s'y lisait « 550,00 » | les deux specs | ✅ RÉSOLU 2026-08-31 — ` `, ` ` et ` ` échappés | Défaut déjà consigné le 28 août pour la recherche par montant, refait deux jours plus tard dans un test |
+
+> **Ce que la relecture adversariale a coûté et rapporté.** Quatre conceptions,
+> quatre sceptiques, trois heures de machine — et un défaut d'argent que
+> personne ne cherchait, parce qu'il ne s'agissait pas de la fonctionnalité
+> demandée mais du chiffre qu'elle allait afficher. Les sceptiques ont aussi
+> repris quatorze numéros de ligne faux et démontré, en l'exécutant, qu'un
+> contrôle proposé passait sans rien mesurer. **Une conception qui n'a pas été
+> relue par quelqu'un qui ouvre les fichiers n'est pas une conception, c'est une
+> intention.**
+>
+> Et une leçon de plus, payée dans le même lot : **le sceptique avait écrit
+> qu'un jeu d'essai plat ne peut voir aucune divergence de fenêtre. Je l'ai
+> appliqué au contrôle unitaire, et pas à celui de bout en bout.** Le mutant y a
+> survécu, et seul le fait de le rejouer l'a dit. Onze mutants posés, onze
+> chutes — mais celui-là a demandé deux passes.
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
