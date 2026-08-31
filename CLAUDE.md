@@ -664,6 +664,12 @@ mesuré, que ce lot ne pouvait pas exposer sans d'abord le refermer.
 > survécu, et seul le fait de le rejouer l'a dit. Onze mutants posés, onze
 > chutes — mais celui-là a demandé deux passes.
 
+**510 contrôles de bout en bout verts** (contre 500 avant ce lot),
+**2 569 unitaires**, 23 rouges qui sont les 23 exigeant les émulateurs
+Firebase — un dans `auth-ui.spec.js`, vingt-deux dans `regles-donnees.spec.js`,
+composition identique au socle. Eslint : 0 erreur, 26 avertissements, le
+plafond exact de la CI.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles
