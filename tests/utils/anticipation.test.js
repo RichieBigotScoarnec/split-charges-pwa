@@ -5,9 +5,10 @@ import {
   capaciteDEpargne,
   depensesParLieu,
   abonnementsNonDeclares,
-  rythmeDuMois,
+  projectionDuMois,
   anticiper
 } from '../../public/js/utils/anticipation.js';
+import { rapportDuMois } from '../../public/js/utils/rapport-mensuel.js';
 // Les montants sont comparés PAR LA FABRIQUE, jamais par une chaîne écrite à
 // la main : `toContain('512.00')` verrouillait le point décimal anglais que
 // ces cartes affichaient — le test tenait le défaut en place. Comparer à
@@ -619,7 +620,7 @@ describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
   });
 });
 
-describe('À ce rythme, combien coûtera le mois', () => {
+describe('Où va le mois, si les jours qui restent ressemblent aux précédents', () => {
   /** Trois mois révolus à 1 000 €, et un mois en cours qui part plus vite */
   const socle = {
     '2026-05': mois([charge('Vie', 1000)]),
@@ -630,19 +631,29 @@ describe('À ce rythme, combien coûtera le mois', () => {
   it('projette la dépense sur le mois entier et la compare à l\'ordinaire', () => {
     const periods = { ...socle, '2026-08': mois([charge('Vie', 600)]) };
     // 600 € en 10 jours → 1 860 € sur 31 jours, contre 1 000 € d'ordinaire.
-    const vu = rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 });
+    const vu = projectionDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 });
 
-    expect(vu.urgence).toBe('attention');
-    expect(vu.montant).toBeCloseTo(1860, 2);
-    expect(vu.detail).toContain(formatCurrency(1000.00));
-    expect(vu.fonde).toContain('10 jours');
+    expect(vu.projection).toBeCloseTo(1860, 2);
+    expect(vu.ordinaire).toBeCloseTo(1000, 2);
+    expect(vu.surcout).toBeCloseTo(860, 2);
+    expect(vu.depasse).toBe(true);
+    expect(vu.ecoules).toBe(10);
+  });
+
+  it('compte les jours restants comme la cadence d\'une enveloppe : le jour même compris', () => {
+    // Deux surfaces annoncent ce nombre en toutes lettres. Comptés séparément,
+    // l'un inclusif et l'autre non, ils auraient dit 22 et 21 le même jour.
+    const periods = { ...socle, '2026-08': mois([charge('Vie', 600)]) };
+    const vu = projectionDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 });
+
+    expect(vu.joursRestants).toBe(22);
   });
 
   it('se tait les premiers jours du mois', () => {
     // Sur deux jours, une seule grosse course projette un dépassement qui n'en
     // est pas un.
     const periods = { ...socle, '2026-08': mois([charge('Vie', 400)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 2, joursDuMois: 31 }))
+    expect(projectionDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 2, joursDuMois: 31 }))
       .toBe(null);
   });
 
@@ -651,35 +662,120 @@ describe('À ce rythme, combien coûtera le mois', () => {
       '2026-07': mois([charge('Vie', 1000)]),
       '2026-08': mois([charge('Vie', 600)])
     };
-    expect(rythmeDuMois({ periods: court, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
+    expect(projectionDuMois({ periods: court, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
   });
 
-  it('un mois qui suit son cours ordinaire ne dit rien', () => {
-    // 320 € en 10 jours → 992 € sur 31 : c'est un mois normal.
+  it('un mois qui suit son cours ordinaire se dit quand même, sans hausser le ton', () => {
+    // 320 € en 10 jours → 992 € sur 31 : c'est un mois normal. La ligne est
+    // PERMANENTE — c'est tout ce qui la distingue de la carte d'alerte qu'elle
+    // remplace, laquelle ne paraissait qu'au-delà du seuil et laissait le
+    // premier écran muet sur la question qu'on se pose le 12.
     const periods = { ...socle, '2026-08': mois([charge('Vie', 320)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
-      .toBe(null);
+    const vu = projectionDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 });
+
+    expect(vu).not.toBe(null);
+    expect(vu.projection).toBeCloseTo(992, 2);
+    expect(vu.depasse).toBe(false);
   });
 
   it('un écart de quelques pour cent n\'est pas un dépassement', () => {
     // 360 € en 10 jours → 1 116 €, soit 11 % de plus : sous le seuil.
     const periods = { ...socle, '2026-08': mois([charge('Vie', 360)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
-      .toBe(null);
+    const vu = projectionDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 });
+
+    expect(vu.depasse).toBe(false);
+    expect(vu.projection).toBeCloseTo(1116, 2);
   });
 
   it('le dernier jour du mois, il n\'y a plus rien à projeter', () => {
     const periods = { ...socle, '2026-08': mois([charge('Vie', 1800)]) };
-    expect(rythmeDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 31, joursDuMois: 31 }))
+    expect(projectionDuMois({ periods, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 31, joursDuMois: 31 }))
       .toBe(null);
   });
 
   it('des entrées inexploitables ne font pas tomber le calcul', () => {
-    expect(rythmeDuMois({ periods: null, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
+    expect(projectionDuMois({ periods: null, moisCourant: '2026-08', moisReel: '2026-08', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
-    expect(rythmeDuMois({ periods: socle, moisCourant: 'pas un mois', moisReel: 'pas un mois', jourDuMois: 10, joursDuMois: 31 }))
+    expect(projectionDuMois({ periods: socle, moisCourant: 'pas un mois', moisReel: 'pas un mois', jourDuMois: 10, joursDuMois: 31 }))
       .toBe(null);
+  });
+
+  /**
+   * LE MÊME « MOIS ORDINAIRE » QUE LE RAPPORT — la propriété, pas une valeur
+   *
+   * Trois surfaces annonçaient ce nombre, et deux fabriques le calculaient :
+   * `ecartAuHabituel` sur les cinq mois qui précèdent, zéros compris, pour le
+   * panneau des tendances et le rapport ; une seconde médiane sur SIX mois dont
+   * elle écartait ceux à zéro, pour la carte du bilan. Mesuré : 950,00 € sur le
+   * bilan, 1 000,00 € dans la modale, à un bouton de distance.
+   *
+   * **La série doit être strictement croissante.** Le `socle` de ce fichier est
+   * plat — trois mois à 1 000 € — et sur une série constante une médiane sur
+   * cinq mois et une médiane sur six donnent le même nombre : le mutant qui
+   * rétablit l'ancienne fenêtre y survivrait sans qu'un seul contrôle bouge.
+   * C'est très exactement pour cette raison que la divergence a vécu si
+   * longtemps.
+   */
+  describe('LE MOIS ORDINAIRE VIENT D\'UNE SEULE FABRIQUE', () => {
+    /** Sept mois strictement croissants : la seule forme qui voit une fenêtre */
+    const croissant = {
+      '2026-01': mois([charge('Vie', 600)]),
+      '2026-02': mois([charge('Vie', 700)]),
+      '2026-03': mois([charge('Vie', 800)]),
+      '2026-04': mois([charge('Vie', 900)]),
+      '2026-05': mois([charge('Vie', 1000)]),
+      '2026-06': mois([charge('Vie', 1100)]),
+      '2026-07': mois([charge('Vie', 1200)]),
+      '2026-08': mois([charge('Vie', 700)])
+    };
+
+    it('le bilan et le rapport annoncent le même mois ordinaire', () => {
+      const vu = projectionDuMois({
+        periods: croissant, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 10, joursDuMois: 31
+      });
+      const rapport = rapportDuMois({
+        periods: croissant, mois: '2026-08', moisReel: '2026-08', bilan: { balance: 0 }
+      });
+
+      // Aucune valeur écrite à la main : c'est l'ÉGALITÉ qui est la propriété.
+      expect(vu).not.toBe(null);
+      expect(rapport.ordinaire).not.toBe(null);
+      expect(vu.ordinaire).toBeCloseTo(rapport.ordinaire, 2);
+    });
+
+    it('et ce mois ordinaire est bien celui des cinq mois qui précèdent', () => {
+      // Le témoin positif : sans lui, l'égalité ci-dessus serait satisfaite par
+      // deux fabriques également fausses. 800 · 900 · 1 000 · 1 100 · 1 200 →
+      // médiane 1 000. L'ancienne fenêtre de six mois donnait 950.
+      const vu = projectionDuMois({
+        periods: croissant, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 10, joursDuMois: 31
+      });
+
+      expect(vu.ordinaire).toBeCloseTo(1000, 2);
+      expect(vu.moisCompares).toBe(5);
+    });
+
+    it('un mois à zéro compte dans la médiane : il ne s\'efface pas', () => {
+      // L'ancienne fabrique l'écartait, l'actuelle le garde. Un foyer qui a
+      // vraiment peu dépensé un mois n'est pas un foyer sans historique — et
+      // c'était la seconde source de divergence, indépendante de la fenêtre.
+      const avecUnMoisVide = { ...croissant, '2026-06': mois([]) };
+
+      const vu = projectionDuMois({
+        periods: avecUnMoisVide, moisCourant: '2026-08', moisReel: '2026-08',
+        jourDuMois: 10, joursDuMois: 31
+      });
+      const rapport = rapportDuMois({
+        periods: avecUnMoisVide, mois: '2026-08', moisReel: '2026-08', bilan: { balance: 0 }
+      });
+
+      // 800 · 900 · 0 · 1 200 · … la médiane retombe sous 1 000, des DEUX côtés.
+      expect(vu.ordinaire).toBeCloseTo(rapport.ordinaire, 2);
+      expect(vu.ordinaire).toBeLessThan(1000);
+    });
   });
 
   /**
@@ -705,7 +801,7 @@ describe('À ce rythme, combien coûtera le mois', () => {
     };
 
     it('n\'étend que les dépenses variables', () => {
-      const vu = rythmeDuMois({
+      const vu = projectionDuMois({
         periods: AVEC_FIXE, moisCourant: '2026-08', moisReel: '2026-08',
         jourDuMois: 5, joursDuMois: 31
       });
@@ -713,19 +809,18 @@ describe('À ce rythme, combien coûtera le mois', () => {
       // 900 + 200 × 31/5 = 900 + 1 240 = 2 140.
       // Le défaut multipliait TOUT : 1 100 × 31/5 = 6 820 €.
       expect(vu).not.toBe(null);
-      expect(vu.montant).toBeCloseTo(2140, 2);
-      expect(vu.montant).toBeLessThan(6820);
+      expect(vu.projection).toBeCloseTo(2140, 2);
+      expect(vu.projection).toBeLessThan(6820);
     });
 
-    it('le fonde distingue les deux, sans quoi le chiffre serait invérifiable', () => {
-      const vu = rythmeDuMois({
+    it('rend les deux parts à part, sans quoi le chiffre serait invérifiable', () => {
+      const vu = projectionDuMois({
         periods: AVEC_FIXE, moisCourant: '2026-08', moisReel: '2026-08',
         jourDuMois: 5, joursDuMois: 31
       });
 
-      expect(vu.fonde).toContain(formatCurrency(200.00));
-      expect(vu.fonde).toContain(formatCurrency(900.00));
-      expect(vu.fonde).toContain('déjà inscrites');
+      expect(vu.fixe).toBeCloseTo(900, 2);
+      expect(vu.variable).toBeCloseTo(200, 2);
     });
 
     it('un mois où SEUL le fixe est passé ne projette aucun dépassement', () => {
@@ -735,13 +830,15 @@ describe('À ce rythme, combien coûtera le mois', () => {
         ...AVEC_FIXE,
         '2026-08': moisReconduit([charge('Loyer', 900)], [])
       };
-      const vu = rythmeDuMois({
+      const vu = projectionDuMois({
         periods: seulLeFixe, moisCourant: '2026-08', moisReel: '2026-08',
         jourDuMois: 6, joursDuMois: 31
       });
 
       // 900 € projetés contre 1 300 € d'ordinaire : rien à signaler.
-      expect(vu).toBe(null);
+      expect(vu).not.toBe(null);
+      expect(vu.projection).toBeCloseTo(900, 2);
+      expect(vu.depasse).toBe(false);
     });
   });
 
@@ -750,9 +847,9 @@ describe('À ce rythme, combien coûtera le mois', () => {
     // Sans le rapprochement, choisir un mois clos projetait ses dépenses sur
     // les jours écoulés d'aujourd'hui.
     //
-    // Les mois sont posés de façon que CHAQUE cas déclencherait l'observation
-    // sans la garde : quatre mois révolus à 1 000 € avant le plus ancien des
-    // trois qu'on interroge, et un total assez lourd dans chacun. Sans cette
+    // Les mois sont posés de façon que CHAQUE cas rendrait une projection sans
+    // la garde : quatre mois révolus à 1 000 € avant le plus ancien des trois
+    // qu'on interroge, et un total assez lourd dans chacun. Sans cette
     // précaution les contrôles passeraient pour la mauvaise raison — trop peu
     // d'historique, ou un mois vide — et ne mesureraient rien.
     const periods = {
@@ -767,7 +864,7 @@ describe('À ce rythme, combien coûtera le mois', () => {
 
     it('un mois révolu n\'a rien à projeter : il est connu', () => {
       // Sans la garde : 1 800 × 31/10 = 5 580 € « à la fin » d'un mois clos.
-      expect(rythmeDuMois({
+      expect(projectionDuMois({
         periods, moisCourant: '2026-07', moisReel: '2026-08',
         jourDuMois: 10, joursDuMois: 31
       })).toBe(null);
@@ -775,14 +872,14 @@ describe('À ce rythme, combien coûtera le mois', () => {
 
     it('un mois à venir non plus', () => {
       // Sans la garde : 600 × 31/10 = 1 860 € pour un mois pas encore commencé.
-      expect(rythmeDuMois({
+      expect(projectionDuMois({
         periods, moisCourant: '2026-09', moisReel: '2026-08',
         jourDuMois: 10, joursDuMois: 31
       })).toBe(null);
     });
 
     it('sans mois réel, on ne suppose pas que le mois affiché est celui d\'aujourd\'hui', () => {
-      expect(rythmeDuMois({
+      expect(projectionDuMois({
         periods, moisCourant: '2026-08', jourDuMois: 10, joursDuMois: 31
       })).toBe(null);
     });
@@ -790,13 +887,26 @@ describe('À ce rythme, combien coûtera le mois', () => {
     it('le mois réellement en cours, lui, se projette', () => {
       // Le témoin positif : sans lui, les trois contrôles ci-dessus seraient
       // satisfaits par une fonction qui rend toujours `null`.
-      const vu = rythmeDuMois({
+      const vu = projectionDuMois({
         periods, moisCourant: '2026-08', moisReel: '2026-08',
         jourDuMois: 10, joursDuMois: 31
       });
 
       expect(vu).not.toBe(null);
-      expect(vu.montant).toBeCloseTo(1860, 2);
+      expect(vu.projection).toBeCloseTo(1860, 2);
     });
+  });
+
+  it('la veille n\'annonce plus la projection : elle vit désormais sous le prévisionnel', () => {
+    // Deux annonces du même montant sur le même écran, l'une ambre et l'autre
+    // neutre, à quelques lignes d'écart. Le mutant qui remet la carte dans
+    // `anticiper` fait tomber ce contrôle.
+    const periods = { ...socle, '2026-08': mois([charge('Vie', 600)]) };
+    const vues = anticiper({
+      periods, moisCourant: '2026-08', moisReel: '2026-08',
+      jourDuMois: 10, joursDuMois: 31
+    });
+
+    expect(vues.some(vue => String(vue.cle).startsWith('rythme-du-mois'))).toBe(false);
   });
 });
