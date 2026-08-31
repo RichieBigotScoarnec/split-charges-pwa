@@ -417,3 +417,38 @@ describe('Le nom de l\'enveloppe qui prend la suite', () => {
     expect(libelleRenouvele(null, '2027-01-01')).toBe('2027');
   });
 });
+
+/**
+ * LE THÈME SE TRANSMET AU RENOUVELLEMENT
+ *
+ * `libelleRenouvele` fait de la suivante une enveloppe NEUVE, estampillée de
+ * son année — délibérément : repousser l'échéance de l'ancienne ferait démarrer
+ * le cycle avec les dépenses de l'année écoulée. Mais neuve, elle naissait sans
+ * thème, et quittait le groupe l'année même où le bilan par thème doit servir.
+ */
+describe('Le renouvellement reste dans son groupe', () => {
+  const cagnotte = (theme) => ({
+    id: 'vacances-2026', label: 'Vacances 2026', icon: '🏖️',
+    nature: 'cagnotte', budget: 800, fin: '2026-08-29', theme
+  });
+
+  it('reporte le thème sur la proposition', () => {
+    const vue = provisionARenouveler({
+      enveloppe: cagnotte('Vacances'), depenseReelle: 1244, moisCourant: '2026-08'
+    });
+
+    expect(vue).not.toBe(null);
+    expect(vue.proposition.theme).toBe('Vacances');
+    // Le libellé change d'année, le thème non : c'est ce qui les relie.
+    expect(vue.proposition.label).not.toBe('Vacances 2026');
+  });
+
+  it('et rend null quand l\'enveloppe n\'en porte aucun', () => {
+    const vue = provisionARenouveler({
+      enveloppe: cagnotte(null), depenseReelle: 1244, moisCourant: '2026-08'
+    });
+
+    expect(vue).not.toBe(null);
+    expect(vue.proposition.theme).toBe(null);
+  });
+});

@@ -177,7 +177,15 @@ export function provisionARenouveler({ enveloppe, depenseReelle, moisCourant }) 
       nature: enveloppe.nature,
       budget: depense,
       fin: prochaine,
-      debut: depart ? `${depart}-01` : null
+      debut: depart ? `${depart}-01` : null,
+      // LE THÈME SE TRANSMET, sinon le groupe perd une année sur deux.
+      //
+      // `libelleRenouvele` fait de la suivante une enveloppe NEUVE, estampillée
+      // de son année — c'est délibéré : repousser l'échéance de l'ancienne
+      // ferait démarrer le cycle avec les dépenses de l'année écoulée. Mais
+      // neuve, elle naissait sans thème, et quittait donc silencieusement le
+      // groupe l'année même où le bilan par thème doit servir.
+      theme: enveloppe.theme || null
     }
   };
 }

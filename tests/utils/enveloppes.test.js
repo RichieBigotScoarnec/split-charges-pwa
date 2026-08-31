@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  themeLisible,
+  cleDuTheme,
+  themesConnus,
+  themeExistant,
+  enveloppesDuTheme,
   normaliserEnveloppe,
   normaliserEnveloppes,
   budgetLisible,
@@ -61,7 +66,11 @@ describe('Lecture d\'une enveloppe venue de la base', () => {
       // Une enveloppe écrite avant que la provenance existe n'en porte pas, et
       // `null` se lit « on ne sait pas » — jamais « personne ».
       creePar: null,
-      creeLe: null
+      creeLe: null,
+      // Et pas de thème : le regroupement est arrivé après, et une enveloppe
+      // qui n'en porte pas reste parfaitement valide — c'est ce qui préserve
+      // tout l'existant sans une ligne de migration.
+      theme: null
     });
   });
 
@@ -419,5 +428,171 @@ describe('Le bilan d\'une enveloppe', () => {
   it('ne lève pas sur une liste vide', () => {
     expect(bilanEnveloppe([], { nature: 'cagnotte', budget: 500 }).total).toBe(0);
     expect(bilanEnveloppe(null, null).nombre).toBe(0);
+  });
+});
+
+/**
+ * LE THÈME : ce qui regroupe des enveloppes qui ne se suivent pas
+ *
+ * « Vacances 2026 », « Week-end Bretagne », « Vacances 2027 » parlent de la même
+ * chose. Le `rang` ne pouvait pas les réunir — il classe par rythme de
+ * trésorerie, à dessein.
+ *
+ * Deux fabriques distinctes, et c'est tout le sujet : `themeLisible` décide de
+ * ce qui s'AFFICHE, `cleDuTheme` de ce qui se COMPARE. Les confondre imposerait
+ * au foyer une casse qu'il n'a pas choisie ; les séparer sans les tenir ferait
+ * quatre thèmes de « Week-end », « week end », « Weekend » et « WEEK END ».
+ */
+describe('Le thème d\'une enveloppe', () => {
+  describe('themeLisible — ce qui sera écrit', () => {
+    it('garde le libellé tel que le foyer l\'a tapé', () => {
+      expect(themeLisible('Vacances')).toBe('Vacances');
+      expect(themeLisible('Week-end')).toBe('Week-end');
+      expect(themeLisible('  Noël 2026  ')).toBe('Noël 2026');
+    });
+
+    it('réduit les blancs multiples à un seul', () => {
+      expect(themeLisible('Week   end')).toBe('Week end');
+      expect(themeLisible('Vacances\tété')).toBe('Vacances été');
+    });
+
+    it('neutralise ce qui est INVISIBLE à l\'écran', () => {
+      // Un espace de largeur nulle survivait à `\s+` : le thème passait la
+      // validation serveur (longueur 1), s'écrivait en base, et donnait une
+      // option vide qu'on ne pouvait ni nommer ni retrouver.
+      expect(themeLisible('​')).toBe(null);
+      expect(themeLisible('﻿')).toBe(null);
+      expect(themeLisible('Week​end')).toBe('Week end');
+    });
+
+    it('mais garde le liant des emoji composés', () => {
+      // U+200D est un caractère de format, comme l'espace de largeur nulle. Le
+      // retirer couperait une famille en trois personnes.
+      const famille = '\u{1F468}‍\u{1F469}‍\u{1F467}';
+      expect(themeLisible(famille)).toBe(famille);
+    });
+
+    it('rend null pour tout ce qui ne se lit pas', () => {
+      expect(themeLisible('')).toBe(null);
+      expect(themeLisible('   ')).toBe(null);
+      expect(themeLisible(null)).toBe(null);
+      expect(themeLisible(42)).toBe(null);
+    });
+
+    it('borne à cent caractères, sans laisser de blanc en fin', () => {
+      const long = themeLisible('a'.repeat(120));
+      expect(long).toHaveLength(100);
+      // La coupe peut tomber juste après une espace : le libellé est retrimé.
+      expect(themeLisible('a'.repeat(99) + ' bcdef')).toBe('a'.repeat(99));
+    });
+  });
+
+  describe('cleDuTheme — ce qui se compare', () => {
+    it('réunit les orthographes d\'un même thème', () => {
+      const attendue = cleDuTheme('Week-end');
+      expect(cleDuTheme('week end')).toBe(attendue);
+      expect(cleDuTheme('Weekend')).toBe(attendue);
+      expect(cleDuTheme('WEEK END')).toBe(attendue);
+      expect(cleDuTheme('  week-END  ')).toBe(attendue);
+    });
+
+    it('plie les accents, comme la recherche', () => {
+      expect(cleDuTheme('Noël')).toBe(cleDuTheme('Noel'));
+      expect(cleDuTheme('Été')).toBe(cleDuTheme('ete'));
+    });
+
+    it('mais ne confond pas deux thèmes distincts', () => {
+      // Le témoin positif : sans lui, une fabrique qui rendrait toujours la
+      // même clé satisferait tout ce qui précède.
+      expect(cleDuTheme('Noël 2026')).not.toBe(cleDuTheme('Noël 2027'));
+      expect(cleDuTheme('Vacances')).not.toBe(cleDuTheme('Week-end'));
+    });
+
+    it('garde son identité à un thème fait d\'emoji', () => {
+      // Sans le repli, tous les thèmes sans lettre ni chiffre se confondraient
+      // sur la clé vide — deux pots distincts fusionnés en silence.
+      expect(cleDuTheme('🏖️')).not.toBe(cleDuTheme('🎿'));
+      expect(cleDuTheme('🏖️')).not.toBe('');
+    });
+
+    it('rend la chaîne vide pour ce qui ne se lit pas', () => {
+      expect(cleDuTheme('')).toBe('');
+      expect(cleDuTheme(null)).toBe('');
+      expect(cleDuTheme('   ')).toBe('');
+    });
+  });
+
+  describe('themesConnus — l\'ensemble EST ce qui est en usage', () => {
+    const enveloppe = (id, theme, extra = {}) => normaliserEnveloppe({
+      id, label: id, theme, ...extra
+    });
+
+    it('réunit les variantes sous un seul thème', () => {
+      const vus = themesConnus([
+        enveloppe('a', 'Vacances'),
+        enveloppe('b', 'vacances'),
+        enveloppe('c', 'Week-end')
+      ]);
+
+      expect(vus).toHaveLength(2);
+      expect(vus.map(t => t.label).sort()).toEqual(['Vacances', 'Week-end']);
+      expect(vus.find(t => t.label === 'Vacances').nombre).toBe(2);
+    });
+
+    it('nomme le thème comme le PREMIER qui l\'a nommé', () => {
+      const vus = themesConnus([enveloppe('a', 'vacances'), enveloppe('b', 'Vacances')]);
+      expect(vus[0].label).toBe('vacances');
+    });
+
+    it('compte les enveloppes CLOSES', () => {
+      // Le piège : « Vacances 2026 » est close le jour même où le bilan du
+      // thème se lit. La brancher sur `enveloppesOuvertes` ferait disparaître
+      // le thème au moment précis où il sert.
+      const vus = themesConnus([
+        enveloppe('a', 'Vacances', { cloturee: true }),
+        enveloppe('b', 'Vacances')
+      ]);
+
+      expect(vus).toHaveLength(1);
+      expect(vus[0].nombre).toBe(2);
+    });
+
+    it('ignore les enveloppes sans thème, et les entrées illisibles', () => {
+      expect(themesConnus([enveloppe('a', null), enveloppe('b', '  ')])).toEqual([]);
+      expect(themesConnus(null)).toEqual([]);
+      expect(themesConnus([null, undefined])).toEqual([]);
+    });
+
+    it('range les thèmes par ordre alphabétique français', () => {
+      const vus = themesConnus([
+        enveloppe('a', 'Week-end'), enveloppe('b', 'École'), enveloppe('c', 'Vacances')
+      ]);
+      expect(vus.map(t => t.label)).toEqual(['École', 'Vacances', 'Week-end']);
+    });
+  });
+
+  describe('themeExistant et enveloppesDuTheme', () => {
+    const enveloppe = (id, theme) => normaliserEnveloppe({ id, label: id, theme });
+    const liste = [
+      enveloppe('a', 'Vacances'),
+      enveloppe('b', 'week end'),
+      enveloppe('c', 'Vacances'),
+      enveloppe('d', null)
+    ];
+
+    it('retrouve un thème par n\'importe laquelle de ses orthographes', () => {
+      const themes = themesConnus(liste);
+      expect(themeExistant(themes, 'VACANCES').label).toBe('Vacances');
+      expect(themeExistant(themes, 'Week-End').label).toBe('week end');
+      expect(themeExistant(themes, 'Chantier')).toBe(null);
+      expect(themeExistant(themes, '')).toBe(null);
+    });
+
+    it('rassemble les enveloppes d\'un thème, quelle que soit l\'orthographe', () => {
+      expect(enveloppesDuTheme(liste, 'vacances').map(e => e.id)).toEqual(['a', 'c']);
+      expect(enveloppesDuTheme(liste, 'WEEK-END').map(e => e.id)).toEqual(['b']);
+      expect(enveloppesDuTheme(liste, 'Inconnu')).toEqual([]);
+      expect(enveloppesDuTheme(liste, '')).toEqual([]);
+    });
   });
 });

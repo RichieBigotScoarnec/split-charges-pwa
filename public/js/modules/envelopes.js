@@ -40,7 +40,8 @@ import {
   budgetLisible,
   dateLisible,
   fenetreCoherente,
-  totalEnveloppe
+  totalEnveloppe,
+  themeLisible
 } from '../utils/enveloppes.js';
 
 /** Nœud Firebase, sous la racine de l'espace de données */
@@ -135,7 +136,7 @@ export async function creerEnveloppeProposee(cle) {
     return false;
   }
 
-  const { label, icon, nature, budget, fin, debut } = vue.proposition;
+  const { label, icon, nature, budget, fin, debut, theme } = vue.proposition;
 
   const libelle = typeof label === 'string' ? label.trim() : '';
   // Les règles plafonnent le libellé à 100 caractères ; un refus après un toast
@@ -195,6 +196,12 @@ export async function creerEnveloppeProposee(cle) {
     // mensuelle, et deux façons de dire la même chose finissent par diverger.
     report: false,
     rang: RANGS.PROVISION,
+    // Le thème vient de la proposition quand elle en porte un — le
+    // renouvellement d'une cagnotte thématisée reste dans son groupe. Borné par
+    // `themeLisible` et non par le thème CANONIQUE : la liste des thèmes en
+    // usage a pu changer entre la carte et le clic, et un thème qu'on ne
+    // retrouve plus vaut mieux qu'un thème qu'on remplace.
+    theme: themeLisible(theme),
     perimetre: 'commun',
     proprietaire: null
   });

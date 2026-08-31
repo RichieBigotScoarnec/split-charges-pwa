@@ -1,5 +1,6 @@
 import { parseMontant } from './montant.js';
 import { joursRestantsDansLeMois } from './date.js';
+import { plier } from './recherche-texte.js';
 
 /**
  * L'enveloppe transversale, et ce qu'elle n'est pas
@@ -128,6 +129,17 @@ export function normaliserEnveloppe(brut) {
     // cagnotte n'a pas besoin du drapeau — elle reporte par nature.
     report: brut.nature === NATURES.MENSUELLE && brut.report === true,
     rang: Object.values(RANGS).includes(brut.rang) ? brut.rang : null,
+    // LE SUJET, distinct du rang qui dit le RYTHME.
+    //
+    // « Vacances 2026 », « Week-end Bretagne » et « Vacances 2027 » parlent de
+    // la même chose sans se suivre. Le rang ne pouvait pas les réunir : il
+    // classe par rythme de trésorerie, à dessein — sans quoi la provision de
+    // décembre financerait un samedi soir d'août.
+    //
+    // `null` quand il est absent, comme `proprietaire` et `creePar` : Firebase
+    // supprime une clé écrite à `null`, `.validate` n'est alors pas évaluée, et
+    // tout l'existant reste valide sans une ligne de migration.
+    theme: themeLisible(brut.theme),
     perimetre,
     proprietaire,
     // QUI l'a créée, et QUAND.
@@ -185,6 +197,139 @@ export function dateLisible(valeur) {
   if (typeof valeur !== 'string') return null;
   const propre = valeur.trim();
   return FORMAT_DATE.test(propre) ? propre : null;
+}
+
+/**
+ * Le libellé d'un thème, tel qu'il sera ÉCRIT
+ *
+ * Un thème regroupe des enveloppes qui parlent de la même chose sans se
+ * suivre : « Vacances 2026 », « Week-end Bretagne », « Vacances 2027 ». Le
+ * `rang` ne pouvait pas servir — il dit un rythme de trésorerie, pas un sujet.
+ *
+ * **Le thème reste une VALEUR, jamais une clé Firebase.** C'est ce qui le
+ * sépare de `categoryBudgets`, indexé par libellé, où « Eau/Gaz » rendait
+ * *tous* les budgets insauvegardables. Ici « Été/Hiver » s'écrit sans risque,
+ * et aucun validateur de caractères n'est nécessaire.
+ *
+ * Le nettoyage ramène à une espace ce qui est INVISIBLE — caractères de
+ * contrôle et de format — plutôt que de le refuser : deux thèmes qui se lisent
+ * pareil à l'écran doivent être le même thème. `\p{Cf}` couvre l'espace de
+ * largeur nulle et les marques de direction, mais **pas** le liant U+200D, qui
+ * tient ensemble les emoji composés : le retirer couperait une famille en trois.
+ *
+ * @param {*} valeur - Saisie ou valeur lue en base
+ * @returns {string|null} Libellé propre, ou null si rien de lisible
+ */
+export function themeLisible(valeur) {
+  if (typeof valeur !== 'string') return null;
+
+  const propre = valeur
+    // Le liant U+200D est ÉCHAPPÉ et non tapé : un caractère invisible dans la
+    // source est indétectable à la relecture, et la CI l'a déjà refusé une fois
+    // ce jour-là sur les séparateurs de milliers. Une fonction de remplacement
+    // plutôt qu'une soustraction d'ensembles `\p{Cf}--[\u200D]` : celle-ci
+    // exige le drapeau `v`, trop récent pour être supposé partout.
+    .replace(/[\p{Cc}\p{Cf}]/gu, (invisible) => (invisible === '\u200D' ? invisible : ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!propre) return null;
+
+  // Retrimé après la coupe : cent caractères peuvent tomber juste après une
+  // espace, et un libellé finissant par un blanc n'est pas le même que le
+  // même sans — pour `cleDuTheme` non, pour l'affichage si.
+  return propre.slice(0, LONGUEUR_LIBELLE).trim();
+}
+
+/**
+ * La clé sous laquelle deux thèmes sont LE MÊME
+ *
+ * « Week-end », « week end », « Weekend » et « WEEK END » désignent une seule
+ * chose. Sans cette fabrique, ils feraient quatre thèmes, et l'agrégation
+ * annuelle serait fausse sans que rien ne le dise — la classe de défaut la plus
+ * coûteuse de ce dépôt.
+ *
+ * Distincte de `themeLisible` **à dessein** : l'une décide de ce qui s'affiche,
+ * l'autre de ce qui se compare. Les confondre imposerait au foyer une casse et
+ * une orthographe qu'il n'a pas choisies.
+ *
+ * `racineDepuisLibelle` ne convenait pas : elle garde le tiret, parce qu'un
+ * identifiant doit rester lisible. Une clé de regroupement, non.
+ *
+ * @param {*} valeur
+ * @returns {string} Chaîne vide si rien de lisible
+ */
+export function cleDuTheme(valeur) {
+  const propre = themeLisible(valeur);
+  if (!propre) return '';
+
+  const plie = plier(propre);
+
+  // Le repli garde son identité à un thème fait d'emoji ou de ponctuation :
+  // sans lui, « 🏖️ » et « 🎿 » se confondraient sur la clé vide.
+  return plie.replace(/[^\p{L}\p{N}]/gu, '') || plie;
+}
+
+/**
+ * Les thèmes que les enveloppes du foyer portent déjà
+ *
+ * L'ensemble des thèmes EST l'ensemble des valeurs en usage : rien n'est stocké
+ * à part. Un thème sans enveloppe disparaît, ce qui est juste — il n'a plus
+ * rien à regrouper.
+ *
+ * **Toutes les enveloppes, closes comprises.** `enveloppesOuvertes` vit deux
+ * fonctions plus bas et c'est le piège : « Vacances 2026 » est close le jour
+ * même où le bilan du thème se lit, et son thème disparaîtrait avec elle.
+ *
+ * @param {Array<Object>} enveloppes - Enveloppes normalisées
+ * @returns {Array<{cle: string, label: string, nombre: number}>} Par ordre alphabétique
+ */
+export function themesConnus(enveloppes) {
+  const parCle = new Map();
+
+  for (const enveloppe of (Array.isArray(enveloppes) ? enveloppes : [])) {
+    const label = themeLisible(enveloppe && enveloppe.theme);
+    if (!label) continue;
+
+    const cle = cleDuTheme(label);
+    // Le premier qui l'a nommé le nomme : l'ordre de la liste est celui de
+    // création, `fusionnerListe` ajoutant à la fin.
+    if (!parCle.has(cle)) parCle.set(cle, { cle, label, nombre: 0 });
+    parCle.get(cle).nombre += 1;
+  }
+
+  return [...parCle.values()]
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr', { numeric: true }));
+}
+
+/**
+ * Le thème déjà connu qu'une saisie désigne, s'il existe
+ *
+ * C'est la canonicalisation : taper « vacances » quand « Vacances » existe doit
+ * rejoindre le thème existant, pas en créer un jumeau.
+ *
+ * @param {Array<Object>} themes - Sortie de `themesConnus`
+ * @param {*} valeur - Ce que le foyer a tapé
+ * @returns {{cle: string, label: string, nombre: number}|null}
+ */
+export function themeExistant(themes, valeur) {
+  const cle = cleDuTheme(valeur);
+  if (!cle) return null;
+  return (Array.isArray(themes) ? themes : []).find(theme => theme.cle === cle) || null;
+}
+
+/**
+ * Les enveloppes d'un thème
+ *
+ * @param {Array<Object>} enveloppes - Enveloppes normalisées
+ * @param {*} theme - Libellé ou clé du thème
+ * @returns {Array<Object>}
+ */
+export function enveloppesDuTheme(enveloppes, theme) {
+  const cle = cleDuTheme(theme);
+  if (!cle) return [];
+  return (Array.isArray(enveloppes) ? enveloppes : [])
+    .filter(enveloppe => cleDuTheme(enveloppe && enveloppe.theme) === cle);
 }
 
 /**
