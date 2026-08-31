@@ -184,20 +184,34 @@
   display: none;
 }
 
+/* Le témoin du lieu, sous les catégories : il dit POURQUOI l'une d'elles s'est
+   pré-sélectionnée. Il ne réserve plus sa ligne — `direLeLieu` le replie tant
+   qu'il n'a rien à dire, et un blanc de 18 px au milieu de la grille se lisait
+   comme un élément manquant. */
 .quick-add-location {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-align: center;
-  margin-bottom: 12px;
-  min-height: 18px;
+  margin: var(--space-sm) 0 12px;
+  line-height: 1.5;
 }
 
+/* Les trois états portent l'ENCRE sémantique, pas la couleur de pastille :
+   à 12 px le seuil est de 4,5:1, et `--warning-color` tombait à 3,19:1,
+   `--success-color` à 3,77:1 — sur la phrase même qui explique une catégorie
+   pré-sélectionnée. Mesuré, pas supposé. */
 .quick-add-location.loading {
-  color: var(--warning-color);
+  color: var(--warning-ink);
 }
 
 .quick-add-location.success {
-  color: var(--success-color);
+  color: var(--success-ink);
+}
+
+/* L'échec n'avait AUCUNE règle : il retombait sur la couleur de repos, et
+   « ✗ Position introuvable » se peignait comme une information ordinaire. */
+.quick-add-location.error {
+  color: var(--danger-ink);
 }
 
 /* Détacher le lieu : discret, mais assez grand pour le pouce (44 px minimum) */

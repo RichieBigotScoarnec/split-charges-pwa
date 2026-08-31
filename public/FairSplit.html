@@ -1034,17 +1034,6 @@
            pourquoi les catégories sont celles par défaut — sans elle, la
            modale mentirait par omission le temps de la connexion. -->
       <p class="quick-add-attente" id="quickAddAttente" role="status" aria-live="polite" hidden></p>
-      <div class="quick-add-location" id="quickAddLocation" aria-live="polite" aria-atomic="true">
-        <!-- GPS status will be shown here -->
-      </div>
-      <!-- La position détectée est celle du téléphone au moment de la saisie,
-           pas celle de la dépense. Régulariser le lendemain épinglait donc le
-           domicile sur la carte, et nommait la charge d'après lui. Ce bouton
-           détache le lieu ; il n'apparaît que lorsqu'il y a quelque chose à
-           détacher. -->
-      <button type="button" id="quickAddLocationDetach" class="quick-add-location-detach" hidden>
-        <span aria-hidden="true">✕</span> Ce n'est pas ici
-      </button>
 
       <!-- Le montant vient en premier, et ce n'est pas un détail de mise en
            page : c'est la seule chose qu'on connaisse toujours en saisissant
@@ -1121,6 +1110,33 @@
         <div class="category-grid" id="categoryGrid">
           <!-- Categories will be populated by JavaScript -->
         </div>
+
+        <!-- Le témoin du lieu vit ICI, sous les catégories, et non plus en tête
+             de la fenêtre. Ce qu'il annonce n'a de sens qu'à côté d'elles : il
+             dit POURQUOI une catégorie s'est pré-sélectionnée toute seule.
+             « ✓ Intermarché · "Courses" proposée d'après le lieu » à côté de la
+             tuile allumée s'explique ; la même phrase huit tuiles plus haut,
+             avant même qu'un montant soit tapé, ne parlait que du GPS à
+             quelqu'un venu taper un chiffre. C'est le traitement que la mémoire
+             des libellés applique déjà à son propre indice : une catégorie qui
+             se pose sans un mot se lit comme un bogue. -->
+        <div class="quick-add-location" id="quickAddLocation" aria-live="polite" aria-atomic="true">
+          <!-- Rempli par quick-add.js. Volontairement PAS `hidden` dans le
+               balisage servi : `direLeLieu('')` le replie sur les trois chemins
+               d'ouverture, et un ancien script encore en cache — qui n'écrit
+               que `textContent` — le laisserait sinon invisible pour toujours,
+               y compris « Sans lieu » après détachement. Même raisonnement que
+               les panneaux, pour la même raison, constatée en production. -->
+        </div>
+
+        <!-- La position détectée est celle du téléphone au moment de la saisie,
+             pas celle de la dépense. Régulariser le lendemain épinglait donc le
+             domicile sur la carte, et nommait la charge d'après lui. Ce bouton
+             détache le lieu ; il n'apparaît que lorsqu'il y a quelque chose à
+             détacher. -->
+        <button type="button" id="quickAddLocationDetach" class="quick-add-location-detach" hidden>
+          <span aria-hidden="true">✕</span> Ce n'est pas ici
+        </button>
       </div>
 
       <!-- Préremplis au jour et à l'heure courants : la saisie rapide doit

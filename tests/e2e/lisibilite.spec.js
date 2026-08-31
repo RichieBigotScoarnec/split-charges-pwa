@@ -188,3 +188,68 @@ test('P0 — le texte discret tient le seuil AA', async ({ page }) => {
     expect(bas, `${panneau} : ${JSON.stringify(bas)}`).toEqual([]);
   }
 });
+
+/**
+ * LA MODALE DE SAISIE RAPIDE, que les trois panneaux ne visitent pas
+ *
+ * `P0` ne parcourt que `panneauBilan`, `panneauCharges` et `panneauReglages` :
+ * une modale n'y est pas. Le témoin de lieu portait donc trois couleurs
+ * qu'aucune mesure ne regardait — `--warning-color` à 3,19:1 et
+ * `--success-color` à 3,77:1 sur `--card-bg`, pour un seuil de 4,5 à 12 px — et
+ * `.error` n'avait aucune règle du tout.
+ *
+ * Ce n'était pas un détail décoratif : ce témoin est devenu la phrase qui
+ * EXPLIQUE une catégorie posée toute seule. « Un jeton conforme appliqué au
+ * mauvais endroit produit un texte illisible sans qu'aucune mesure de jeton ne
+ * bronche » — c'est le constat fondateur de ce fichier, et il valait aussi pour
+ * ce que ce fichier ne visitait pas.
+ */
+test('P0 — le témoin de lieu tient le seuil AA dans ses trois états', async ({ page }) => {
+  test.setTimeout(180000);
+  await setupFirebaseMock(page);
+  await waitForApp(page);
+
+  await page.locator('.fab').click();
+  await expect(page.locator('#modalQuickAdd')).toHaveClass(/active/);
+
+  const mesures = await page.evaluate(() => {
+    const rgb = s => (s.match(/\d+/g) || []).slice(0, 3).map(Number);
+    const lum = c => { const v = c.map(x => { x /= 255; return x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4) }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2] };
+    const alpha = s => { const m = s.match(/rgba?\(([^)]+)\)/); if (!m) return 0; const p = m[1].split(',').map(parseFloat); return p.length > 3 ? p[3] : 1; };
+    const fond = el => { let e = el; while (e) { const b = getComputedStyle(e).backgroundColor; if (alpha(b) > 0.9) return rgb(b); e = e.parentElement } return [255, 255, 255] };
+
+    const zone = document.getElementById('quickAddLocation');
+    const vues = [];
+
+    for (const etat of ['', 'loading', 'success', 'error']) {
+      zone.hidden = false;
+      zone.textContent = 'Brioche Dorée, 35000 Rennes';
+      zone.className = etat ? `quick-add-location ${etat}` : 'quick-add-location';
+
+      const st = getComputedStyle(zone);
+      const f = rgb(st.color);
+      const b = fond(zone);
+      const l1 = lum(f), l2 = lum(b);
+      const px = parseFloat(st.fontSize);
+      const grand = px >= 24 || (px >= 18.66 && parseInt(st.fontWeight) >= 700);
+
+      vues.push({
+        etat: etat || 'repos',
+        ratio: Math.round(((Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05)) * 100) / 100,
+        seuil: grand ? 3 : 4.5,
+        px: Math.round(px),
+        couleur: st.color
+      });
+    }
+    return vues;
+  });
+
+  const bas = mesures.filter(m => m.ratio < m.seuil);
+  expect(bas, `états sous le seuil : ${JSON.stringify(bas)}`).toEqual([]);
+
+  // Témoin positif : les quatre états doivent avoir été MESURÉS, et ne pas
+  // partager tous la même couleur — sinon un `className` qui ne s'applique
+  // plus laisserait ce contrôle vert sans rien tenir.
+  expect(mesures).toHaveLength(4);
+  expect(new Set(mesures.map(m => m.couleur)).size).toBeGreaterThan(1);
+});
