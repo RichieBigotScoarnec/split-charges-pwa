@@ -187,6 +187,91 @@ export function dateDeLaCharge(charge) {
 }
 
 /**
+ * Où en est un mois par rapport au calendrier
+ *
+ * Trois états, et un seul autorise à QUALIFIER un chiffre : un mois révolu est
+ * complet, un mois en cours ne l'est pas, et le sélecteur propose un mois
+ * d'AVANCE où la reconduction a pu inscrire les charges fixes dès le premier.
+ * Le rapport a payé cette leçon — « 1 090 € de moins qu'un mois ordinaire »
+ * pour un mois qui n'avait pas commencé.
+ *
+ * Vit ici, et non dans le rapport qui l'a écrite en premier : le bilan pose
+ * désormais la même question pour nommer son total, et deux rédactions de
+ * « est-ce que ce mois est fini ? » finiraient par ne plus dire la même chose
+ * — c'est le défaut `normalizePair`, huit fois refermé dans ce dépôt.
+ *
+ * @param {string} mois - AAAA-MM regardé
+ * @param {string} [moisReel] - AAAA-MM du calendrier
+ * @returns {'revolu'|'en-cours'|'a-venir'|null}
+ */
+export function etatDuMois(mois, moisReel) {
+  const lisible = (valeur) =>
+    typeof valeur === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(valeur);
+
+  // Les DEUX sont exigés. Le mois regardé ne l'était pas, et `null < '2026-08'`
+  // vaut `false` en JavaScript : une période absente était donc classée
+  // « à venir », état sous lequel le bilan nomme le mois — et `formatPeriod`
+  // d'un mois absent lève. Un rendu qui tombe emporte tout l'écran.
+  if (!lisible(moisReel) || !lisible(mois)) return null;
+
+  if (mois === moisReel) return 'en-cours';
+  return mois < moisReel ? 'revolu' : 'a-venir';
+}
+
+/**
+ * Combien de jours compte un mois
+ *
+ * Le jour 0 du mois suivant est le dernier jour de celui-ci — l'astuce est
+ * juste, mais elle était écrite à trois endroits, dont deux qui affichent leur
+ * résultat à l'écran. Une seule fabrique, donc, et un février bissextile qui ne
+ * peut plus valoir 28 ici et 29 là.
+ *
+ * @param {string} periode - AAAA-MM
+ * @returns {number|null} 28 à 31, ou null si la période est illisible
+ */
+export function joursDeLaPeriode(periode) {
+  if (typeof periode !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(periode)) return null;
+
+  const annee = Number(periode.slice(0, 4));
+  const mois = Number(periode.slice(5, 7));
+
+  return new Date(annee, mois, 0).getDate();
+}
+
+/**
+ * Combien de jours il reste dans le mois, **le jour même compris**
+ *
+ * Deux surfaces annoncent ce nombre en toutes lettres : la cadence d'une
+ * enveloppe (« 20 € par jour sur les 22 restants ») et la projection du bilan
+ * (« il reste 22 jours »). Comptées séparément, l'une inclusive et l'autre
+ * exclusive, elles auraient affiché 22 et 21 le même jour sur le même écran —
+ * la famille de défaut de `normalizePair`, sur un nombre que la personne lit.
+ *
+ * Le jour même compte : ce qui reste doit tenir jusqu'à la fin de la journée en
+ * cours comprise, sinon le dernier jour du mois donnerait une division par
+ * zéro. Le minimum est donc 1, jamais 0.
+ *
+ * @param {string} periode - AAAA-MM, le mois consulté
+ * @param {string} aujourdhui - AAAA-MM-JJ, le jour de l'appareil
+ * @returns {number|null} null hors du mois en cours, ou si l'un des deux est illisible
+ */
+export function joursRestantsDansLeMois(periode, aujourdhui) {
+  if (typeof aujourdhui !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(aujourdhui)) return null;
+
+  const total = joursDeLaPeriode(periode);
+  if (total === null) return null;
+
+  // Un mois passé n'a plus de jours devant lui, un mois à venir n'a pas encore
+  // commencé : dans les deux cas, la question ne se pose pas.
+  if (aujourdhui.slice(0, 7) !== periode) return null;
+
+  const jourCourant = Number(aujourdhui.slice(8, 10));
+  const restants = total - jourCourant + 1;
+
+  return restants > 0 ? restants : null;
+}
+
+/**
  * Reporte une date dans une autre période, en gardant son quantième
  *
  * La reconduction recopie les charges fixes d'un mois sur le suivant. Recopiée
@@ -207,12 +292,7 @@ export function reporterDansLaPeriode(date, periode) {
   if (typeof periode !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(periode)) return null;
 
   const quantieme = Number(date.slice(8, 10));
-  const annee = Number(periode.slice(0, 4));
-  const mois = Number(periode.slice(5, 7));
-
-  // Le jour 0 du mois suivant est le dernier jour de celui-ci.
-  const dernierJour = new Date(annee, mois, 0).getDate();
-  const jour = Math.min(quantieme, dernierJour);
+  const jour = Math.min(quantieme, joursDeLaPeriode(periode));
 
   return `${periode}-${String(jour).padStart(2, '0')}`;
 }

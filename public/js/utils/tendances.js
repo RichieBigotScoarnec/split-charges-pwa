@@ -97,6 +97,97 @@ export function ecartAuHabituel(totaux) {
   };
 }
 
+/** Une clé de mois */
+const CLE_MOIS = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+/** Jusqu'où on remonte pour établir ce que coûte un mois ordinaire */
+export const PROFONDEUR_ORDINAIRE = 6;
+
+/** Et combien de mois où il s'est passé quelque chose il en faut */
+export const MOIS_POUR_UN_ORDINAIRE = 3;
+
+/**
+ * Le total des charges COMMUNES d'un mois
+ *
+ * Le même entonnoir que `totauxParCategorie`, sans le rangement : ni les
+ * charges à la corbeille, ni les dépenses solo — celles-ci n'ont jamais pesé
+ * sur ce que le FOYER dépense.
+ *
+ * @param {Object} periode - Contenu d'une période, tel que lu en base
+ * @returns {number}
+ */
+export function totalCommunDuMois(periode) {
+  let total = 0;
+
+  for (const collection of ['fixedCharges', 'variableCharges']) {
+    const noeud = periode && periode[collection];
+    if (!noeud || typeof noeud !== 'object') continue;
+
+    for (const charge of Object.values(noeud)) {
+      if (!charge || charge.deleted || estSolo(charge)) continue;
+      total += Number.isFinite(charge.amount) ? charge.amount : 0;
+    }
+  }
+
+  return total;
+}
+
+/**
+ * Ce que coûte un mois ordinaire, vu depuis un mois donné
+ *
+ * **Cette fabrique est la seule, et elle referme un écart mesuré.** Trois
+ * surfaces annonçaient « un mois ordinaire » : le panneau des tendances et le
+ * rapport mensuel par `ecartAuHabituel` sur les cinq mois qui précèdent, et la
+ * carte « à ce rythme » par une seconde médiane, sur SIX mois dont elle
+ * écartait ceux à zéro. Mesuré sur 600 · 700 · 800 · 900 · 1 000 · 1 100 ·
+ * 1 200 : **950,00 € sur le bilan, 1 000,00 € dans la modale du rapport**, même
+ * mois, même application, même phrase. Huitième occurrence du défaut
+ * `normalizePair`, et la seule qui restait ouverte.
+ *
+ * La fenêtre retenue est celle des tendances, parce que c'est elle que deux
+ * écrans sur trois lisaient déjà : les mois qui précèdent immédiatement, jamais
+ * celui qu'on regarde — un mois en cours est incomplet, et le comparer à
+ * lui-même n'apprend rien.
+ *
+ * **Un mois à zéro reste un mois.** Il entre dans la médiane : l'écarter
+ * ferait passer un foyer qui a vraiment peu dépensé pour un foyer sans
+ * historique. Il ne compte simplement pas dans le SEUIL, qui demande trois mois
+ * où il s'est passé quelque chose — sans quoi « ordinaire » ne veut rien dire.
+ *
+ * @param {Object} params
+ * @param {Object} params.periods - Instantané de l'historique
+ * @param {string} params.mois - AAAA-MM, le mois d'où l'on regarde
+ * @returns {{reference: number, dernier: number, variation: number,
+ *   part: number|null, moisCompares: number}|null}
+ */
+export function moisOrdinaire({ periods, mois }) {
+  if (!CLE_MOIS.test(mois || '')) return null;
+
+  const source = periods && typeof periods === 'object' ? periods : {};
+
+  const precedents = Object.keys(source)
+    .filter(cle => CLE_MOIS.test(cle) && cle < mois)
+    .sort()
+    .slice(-(PROFONDEUR_ORDINAIRE - 1))
+    .map(cle => totalCommunDuMois(source[cle]));
+
+  if (precedents.filter(total => total > 0).length < MOIS_POUR_UN_ORDINAIRE) return null;
+
+  const reference = mediane(precedents);
+  if (!(reference > 0)) return null;
+
+  const dernier = totalCommunDuMois(source[mois]);
+  const variation = dernier - reference;
+
+  return {
+    reference,
+    dernier,
+    variation,
+    part: (variation / reference) * 100,
+    moisCompares: precedents.length
+  };
+}
+
 /**
  * La part des revenus que les charges consomment
  *

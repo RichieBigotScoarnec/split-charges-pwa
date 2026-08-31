@@ -1,4 +1,5 @@
 import { parseMontant } from './montant.js';
+import { joursRestantsDansLeMois } from './date.js';
 
 /**
  * L'enveloppe transversale, et ce qu'elle n'est pas
@@ -509,19 +510,13 @@ export function resteParJour(bilan, moisConsulte, aujourdhui) {
   if (!CLE_PERIODE.test(String(moisConsulte))) return null;
   if (typeof aujourdhui !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(aujourdhui)) return null;
 
-  // Seulement pour le mois en cours : un mois passé n'a plus de jours devant
-  // lui, un mois à venir n'a pas encore commencé à se dépenser.
-  if (aujourdhui.slice(0, 7) !== moisConsulte) return null;
-
-  const [annee, mois] = moisConsulte.split('-').map(Number);
-  const dernierJour = new Date(annee, mois, 0).getDate();
-  const jourCourant = Number(aujourdhui.slice(8, 10));
-
-  // Le jour même compte : ce qui reste doit tenir jusqu'à la fin de la journée
-  // en cours comprise, sinon le dernier jour du mois donnerait une division
-  // par zéro.
-  const jours = dernierJour - jourCourant + 1;
-  if (jours <= 0) return null;
+  // Le compte des jours restants vit dans `date.js` : la projection du bilan
+  // l'affiche elle aussi, en toutes lettres, et deux comptages séparés — l'un
+  // inclusif, l'autre non — auraient annoncé 22 et 21 le même jour sur le même
+  // écran. Il ne rend rien hors du mois en cours : un mois passé n'a plus de
+  // jours devant lui, un mois à venir n'a pas commencé à se dépenser.
+  const jours = joursRestantsDansLeMois(moisConsulte, aujourdhui);
+  if (jours === null) return null;
 
   return { parJour: bilan.reste / jours, jours };
 }
