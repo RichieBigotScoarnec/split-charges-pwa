@@ -895,12 +895,54 @@
   padding: var(--space-xs) 0;
 }
 
-.budget-editor-label {
+/* Le libellé et, sous lui, ce que la catégorie coûte d'ordinaire. */
+.budget-editor-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   /* Sans cela, un nom long pousserait le champ hors de la modale. */
+  min-width: 0;
+}
+
+.budget-editor-label {
   min-width: 0;
   font-size: 14px;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+}
+
+/*
+   « environ 310 € par mois » : le chiffre qui manquait pour décider.
+
+   L'éditeur listait dix-neuf catégories à champs vides et demandait d'INVENTER
+   un nombre pour chacune. Un budget proposé se corrige d'un geste ; un budget
+   à inventer se remet à plus tard, indéfiniment — et tant qu'aucun budget
+   n'existe, toute la veille par catégorie n'a rien à surveiller.
+*/
+.budget-editor-indice {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/*
+   Les catégories dont l'application n'a rien à dire — ni dépense, ni médiane,
+   ni budget. Repliées, jamais retirées : sans elles on ne pourrait plus fixer
+   un budget avant la première dépense, ce qui est le cas normal.
+*/
+.budget-editor-repli {
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-sm);
+}
+
+.budget-editor-repli > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  /* La cible tactile que toute commande de cette application respecte. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .budget-editor-input {

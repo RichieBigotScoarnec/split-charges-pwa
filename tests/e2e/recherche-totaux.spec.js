@@ -52,16 +52,16 @@ async function semer(page) {
 
 /** Lit un montant français, séparateur de milliers compris */
 function euros(texte) {
-  const m = (texte || '').match(/([\d\s  ]+[,.]\d{2})/);
-  return m ? parseFloat(m[1].replace(/[\s  ]/g, '').replace(',', '.')) : null;
+  const m = (texte || '').match(/([\d\s\u202F\u00A0]+[,.]\d{2})/);
+  return m ? parseFloat(m[1].replace(/[\s\u202F\u00A0]/g, '').replace(',', '.')) : null;
 }
 
 /** Ce que l'écran affiche, à l'instant t */
 async function releve(page) {
   return page.evaluate(() => {
     const lire = (t) => {
-      const m = (t || '').match(/([\d\s  ]+[,.]\d{2})/);
-      return m ? parseFloat(m[1].replace(/[\s  ]/g, '').replace(',', '.')) : 0;
+      const m = (t || '').match(/([\d\s\u202F\u00A0]+[,.]\d{2})/);
+      return m ? parseFloat(m[1].replace(/[\s\u202F\u00A0]/g, '').replace(',', '.')) : 0;
     };
     const visibles = [...document.querySelectorAll('#variableChargesList .charge-item')]
       .filter(el => getComputedStyle(el).display !== 'none');
