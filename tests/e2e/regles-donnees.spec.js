@@ -135,6 +135,39 @@ test.describe('Ce que l\'application écrit reste accepté', () => {
     expect(code).toBe(200);
   });
 
+  test('une enveloppe complète, thème compris, passe', async ({ request }) => {
+    // Le champ `theme` est le dernier arrivé sur ce nœud, et le seul contrôle
+    // qui le tenait comparait la fabrique aux règles — deux fichiers, jamais le
+    // moteur. Celui-ci écrit contre l'émulateur réel.
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+    const code = await ecrire(request, 'household/envelopes/0', {
+      id: 'vacances-2026',
+      label: 'Vacances 2026',
+      icon: '🏖️',
+      budget: 1200,
+      debut: '2026-07-01',
+      fin: '2026-08-29',
+      cloturee: false,
+      nature: 'cagnotte',
+      report: false,
+      rang: 'provision',
+      perimetre: 'commun',
+      proprietaire: null,
+      creePar: 'vous',
+      creeLe: 1756600000000,
+      theme: 'Vacances'
+    }, jeton);
+    expect(code).toBe(200);
+  });
+
+  test('et une enveloppe SANS thème passe aussi : tout l\'existant est préservé', async ({ request }) => {
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+    const code = await ecrire(request, 'household/envelopes/0', {
+      id: 'ancienne', label: 'Écrite avant le thème', icon: '🧳'
+    }, jeton);
+    expect(code).toBe(200);
+  });
+
   test('une saisie rapide avec position GPS passe', async ({ request }) => {
     const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
     const code = await ecrire(request, 'household/periods/2026-08/variableCharges/c2', {
@@ -250,6 +283,21 @@ test.describe('Ce qui n\'a rien à faire en base est refusé', () => {
     expect(code).not.toBe(200);
   });
 
+  test('un champ inconnu sur une enveloppe est refusé', async ({ request }) => {
+    // LE CAS LE PLUS COÛTEUX DE CE NŒUD.
+    //
+    // `envelopes/$rang` ferme sa liste par `$autre: {".validate": false}`, et
+    // `fusionnerListe` réécrit le TABLEAU ENTIER par transaction : un champ non
+    // déclaré ne fait pas échouer la nouveauté, il fait refuser TOUTES les
+    // enveloppes du foyer — après un toast de succès. Le dépôt l'a déjà mesuré
+    // sur `versements`, et sur `reconductedFrom`.
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+    const code = await ecrire(request, 'household/envelopes/0', {
+      id: 'vacances', label: 'Vacances', couleur: '#FF0000'
+    }, jeton);
+    expect(code).not.toBe(200);
+  });
+
   test('un nœud inconnu à la racine de l\'espace est refusé', async ({ request }) => {
     const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
     const code = await ecrire(request, 'household/nimporte_quoi', { beaucoup: 'de données' }, jeton);
@@ -260,6 +308,25 @@ test.describe('Ce qui n\'a rien à faire en base est refusé', () => {
     const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
     const code = await ecrire(request, 'household/periods/pas-une-periode/variableCharges/c1',
       CHARGE_VALIDE, jeton);
+    expect(code).not.toBe(200);
+  });
+
+  test('un thème démesuré est refusé', async ({ request }) => {
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+    const code = await ecrire(request, 'household/envelopes/0', {
+      id: 'vacances', label: 'Vacances', theme: 'V'.repeat(101)
+    }, jeton);
+    expect(code).not.toBe(200);
+  });
+
+  test('un thème vide est refusé : l\'absence s\'écrit en n\'écrivant rien', async ({ request }) => {
+    // `normaliserEnveloppe` rend `null` quand il n'y a pas de thème, et Firebase
+    // supprime une clé écrite à `null` : la chaîne vide ne peut donc venir que
+    // d'un chemin qui contourne la fabrique.
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+    const code = await ecrire(request, 'household/envelopes/0', {
+      id: 'vacances', label: 'Vacances', theme: ''
+    }, jeton);
     expect(code).not.toBe(200);
   });
 
