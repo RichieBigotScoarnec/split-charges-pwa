@@ -23,7 +23,7 @@
 
 import { getState } from '../state.js';
 import { showModal, closeModal } from '../components/modal.js';
-import { escapeHtml, formatCurrency } from '../utils/format.js';
+import { escapeHtml, formatCurrency, pourcentageDePart } from '../utils/format.js';
 import { formatPeriod } from '../utils/date.js';
 import { memberLabel } from '../utils/members.js';
 import { log } from '../utils/debug.js';
@@ -231,7 +231,7 @@ function rendre(rapport) {
       <div class="rapport-grille">
         ${caseChiffre(
           'Taux d\'effort',
-          rapport.tauxDEffort === null ? null : `${rapport.tauxDEffort.toFixed(1)} %`,
+          rapport.tauxDEffort === null ? null : pourcentageDePart(rapport.tauxDEffort),
           'des revenus du foyer'
         )}
         ${caseChiffre(
@@ -241,7 +241,7 @@ function rendre(rapport) {
         )}
         ${caseChiffre(
           'Part du fixe',
-          rapport.partFixe === null ? null : `${rapport.partFixe.toFixed(0)} %`,
+          rapport.partFixe === null ? null : pourcentageDePart(rapport.partFixe),
           'charges fixes sur le total'
         )}
       </div>

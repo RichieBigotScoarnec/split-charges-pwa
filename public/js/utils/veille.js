@@ -24,6 +24,7 @@
  * Ce module ne fait que du calcul : aucune base, aucun DOM, aucun réseau.
  */
 
+import { formatCurrency } from './format.js';
 import { NATURES } from './enveloppes.js';
 import { moisRestants, provisionMensuelle } from './provisions.js';
 import { reporterDansLaPeriode } from './date.js';
@@ -164,11 +165,11 @@ export function provisionARenouveler({ enveloppe, depenseReelle, moisCourant }) 
     titre: `Remettre « ${enveloppe.label} » en route pour l'an prochain`,
     montant: parMois,
     urgence: 'info',
-    detail: `${parMois.toFixed(2)} € par mois pendant ${aVenir} mois, à partir de ${depart}, `
-      + `pour disposer de ${depense.toFixed(2)} € au ${prochaine}.`,
+    detail: `${formatCurrency(parMois)} par mois pendant ${aVenir} mois, à partir de ${depart}, `
+      + `pour disposer de ${formatCurrency(depense)} au ${prochaine}.`,
     fonde: encoreEnCours
-      ? `Sur ${depense.toFixed(2)} € dépensés à ce jour — le mois de l'échéance n'est pas fini.`
-      : `Sur ${depense.toFixed(2)} € réellement dépensés.`,
+      ? `Sur ${formatCurrency(depense)} dépensés à ce jour — le mois de l'échéance n'est pas fini.`
+      : `Sur ${formatCurrency(depense)} réellement dépensés.`,
     ecartAuPrevu: ecart,
     proposition: {
       label: libelleRenouvele(enveloppe.label, prochaine),
@@ -231,8 +232,8 @@ export function rythmeDuBudget({ enveloppe, depense, jourDuMois, joursDuMois, mo
     titre: `« ${enveloppe.label} » ne tiendra pas le mois à ce rythme`,
     montant: projection,
     urgence: 'attention',
-    detail: `${projection.toFixed(2)} € à la fin du mois pour un budget de ${budget.toFixed(2)} €.`,
-    fonde: `Sur ${sorti.toFixed(2)} € dépensés en ${ecoules} jours, étendus aux ${duree} du mois.`
+    detail: `${formatCurrency(projection)} à la fin du mois pour un budget de ${formatCurrency(budget)}.`,
+    fonde: `Sur ${formatCurrency(sorti)} dépensés en ${ecoules} jours, étendus aux ${duree} du mois.`
   };
 }
 

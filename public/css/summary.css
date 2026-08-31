@@ -75,14 +75,21 @@
 
 .summary-total-row strong {
   font-size: 15px;
-  color: var(--primary-light);
+  /* `--primary-color` et non `--primary-light` : mesuré sur le rendu, la teinte
+     claire tombe à 4,47:1 sur une carte blanche et 3,90:1 sur `--elevated-bg`.
+     Sous le seuil, et de peu — c'est-à-dire le genre d'écart qu'aucune capture
+     ne montre et qu'aucune relecture ne voit. La teinte pleine mesure 5,49:1 au
+     pire, pour une différence de nuance imperceptible sur du texte de cette
+     taille. `--primary-light` reste juste pour ce dont elle a la charge : les
+     bordures, les lavis, les états de survol. */
+  color: var(--primary-color);
 }
 
 .summary-percent {
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  color: var(--primary-light);
+  color: var(--primary-color);
   background: var(--primary-soft);
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -140,9 +147,64 @@
   color: var(--text-secondary);
 }
 
+/* La seule ligne prospective du bilan. Ton neutre par défaut : « le mois
+   finira autour de 1 050 € » n'est ni une bonne ni une mauvaise nouvelle, et
+   la peindre en couleur enseignerait qu'une projection est une alerte.
+
+   Son propre bloc, jamais une ligne du prévisionnel : celui-ci passe au vert
+   quand tout est passé, et une projection sur fond « tout va bien » se
+   contredirait à l'œil. */
+.summary-projection {
+  margin: calc(-1 * var(--space-xs)) 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  text-align: center;
+}
+
+/* Au-delà du seuil, le ton monte — c'est le rôle que tenait la carte d'alerte
+   retirée de la veille. Le montant ne change pas de place : la personne lit la
+   même ligne, elle n'a pas à chercher ailleurs ce qui a changé. */
+.summary-projection--attention {
+  border-color: var(--warning-edge);
+  background: var(--warning-soft);
+}
+
+.projection-montant {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.projection-montant strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* `--text-secondary` et non `--text-muted` : sur le lavis d'avertissement,
+   muted tombe sous le seuil AA en thème clair. Même mesure que le
+   prévisionnel, même conclusion. */
+.projection-detail {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* La tête du bilan porte un TOTAL, pas une créance : elle est donc neutre.
+
+   Elle a longtemps été peinte en vert ou en rouge selon le sens du solde. Vert
+   quand la conjointe vous doit, rouge quand c'est l'inverse — sur un écran que
+   les deux personnes lisent, et où la première ligne était « Conjointe vous
+   doit 408,37 € ». Ce que le foyer a dépensé ensemble n'est ni une bonne ni une
+   mauvaise nouvelle ; le lavis sémantique appartient à l'écart, plus bas, et à
+   la barre collante, qui n'a pas changé. */
 .summary-balance {
   padding: var(--space-lg);
   border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
   text-align: center;
   font-size: 15px;
   line-height: 1.6;
@@ -157,6 +219,34 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   margin: var(--space-xs) 0;
+}
+
+/* Le libellé du total : ce qui NOMME le chiffre. Sans lui, « 1 717,39 € » en
+   28 px ne dit pas de quoi il parle — et le titre de la carte est masqué sous
+   900 px, où la barre d'onglets nomme déjà le panneau « Bilan ». */
+.bilan-tete {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+/* L'écart, en second. Il reste entier et nommé — rien n'est caché — mais il ne
+   commande plus le premier regard. */
+.bilan-ecart {
+  margin: var(--space-sm) 0 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.bilan-ecart--nul {
+  color: var(--text-secondary);
+}
+
+.bilan-ecart-montant {
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
 .summary-balance small {
@@ -198,31 +288,24 @@
   color: var(--text-secondary);
 }
 
-.summary-balance.balance-positive {
-  background: var(--success-soft);
-  border: 1px solid var(--success-edge);
-}
+/* Le sens du solde se lit sur le BORD, jamais sur le montant du total.
 
-.summary-balance.balance-positive strong {
-  color: var(--success-color);
+   Un filet de 3 px : assez pour distinguer d'un coup d'œil un mois où l'on est
+   créditeur d'un mois où l'on doit, sans peindre en rouge un écran qu'on
+   consulte tous les jours. Le montant de l'écart, lui, reste en encre normale —
+   `--success-color` et `--danger-color` tombent respectivement à 3,77:1 et
+   4,83:1 sur cette surface, et un montant de 15 px exige 4,5:1. Mesuré, pas
+   supposé : c'est ce qui a fait choisir le bord plutôt que le texte. */
+.summary-balance.balance-positive {
+  border-left: 3px solid var(--success-color);
 }
 
 .summary-balance.balance-negative {
-  background: var(--danger-soft);
-  border: 1px solid var(--danger-edge);
-}
-
-.summary-balance.balance-negative strong {
-  color: var(--danger-color);
+  border-left: 3px solid var(--danger-color);
 }
 
 .summary-balance.balance-zero {
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-edge);
-}
-
-.summary-balance.balance-zero strong {
-  color: var(--primary-light);
+  border-left: 3px solid var(--primary-color);
 }
 
 /* ===== ANALYSE PAR CATEGORIE ===== */
@@ -888,12 +971,54 @@
   padding: var(--space-xs) 0;
 }
 
-.budget-editor-label {
+/* Le libellé et, sous lui, ce que la catégorie coûte d'ordinaire. */
+.budget-editor-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   /* Sans cela, un nom long pousserait le champ hors de la modale. */
+  min-width: 0;
+}
+
+.budget-editor-label {
   min-width: 0;
   font-size: 14px;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+}
+
+/*
+   « environ 310 € par mois » : le chiffre qui manquait pour décider.
+
+   L'éditeur listait dix-neuf catégories à champs vides et demandait d'INVENTER
+   un nombre pour chacune. Un budget proposé se corrige d'un geste ; un budget
+   à inventer se remet à plus tard, indéfiniment — et tant qu'aucun budget
+   n'existe, toute la veille par catégorie n'a rien à surveiller.
+*/
+.budget-editor-indice {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/*
+   Les catégories dont l'application n'a rien à dire — ni dépense, ni médiane,
+   ni budget. Repliées, jamais retirées : sans elles on ne pourrait plus fixer
+   un budget avant la première dépense, ce qui est le cas normal.
+*/
+.budget-editor-repli {
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-sm);
+}
+
+.budget-editor-repli > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  /* La cible tactile que toute commande de cette application respecte. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .budget-editor-input {

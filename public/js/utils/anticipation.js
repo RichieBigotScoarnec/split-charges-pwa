@@ -30,9 +30,10 @@
  * Ce module ne fait que du calcul : aucune base, aucun DOM, aucun réseau.
  */
 
+import { formatCurrency } from './format.js';
 import { estSolo } from './perimetre.js';
 import { moisRestants, provisionMensuelle } from './provisions.js';
-import { resteAVivre, mediane } from './tendances.js';
+import { resteAVivre, mediane, moisOrdinaire } from './tendances.js';
 import { veiller, moisSuivant, memeDateLAnProchain, JOURS_AVANT_DE_JUGER } from './veille.js';
 
 /** Une clé de mois */
@@ -82,14 +83,13 @@ const FENETRE_ANNUELLE = 12;
  */
 const RANGS = {
   'charges-disparues': 0,
-  'rythme-du-mois': 1,
-  'rythme-du-budget': 2,
-  'provision-a-renouveler': 3,
-  'charge-annuelle': 4,
-  'pic-saisonnier': 5,
-  'abonnements-non-declares': 6,
-  'capacite-epargne': 7,
-  'depenses-par-lieu': 8
+  'rythme-du-budget': 1,
+  'provision-a-renouveler': 2,
+  'charge-annuelle': 3,
+  'pic-saisonnier': 4,
+  'abonnements-non-declares': 5,
+  'capacite-epargne': 6,
+  'depenses-par-lieu': 7
 };
 
 /**
@@ -268,10 +268,10 @@ export function chargesAnnuelles({ periods, moisCourant }) {
       titre: `« ${suivi.libelle} » revient chaque année`,
       montant: parMois,
       urgence: 'info',
-      detail: `${parMois.toFixed(2)} € par mois pendant ${restants} mois `
-        + `pour disposer de ${montant.toFixed(2)} € au ${prochaine}.`,
+      detail: `${formatCurrency(parMois)} par mois pendant ${restants} mois `
+        + `pour disposer de ${formatCurrency(montant)} au ${prochaine}.`,
       fonde: `Vue ${suivi.mois.length} fois : ${suivi.mois.join(', ')}. `
-        + `Montant de la dernière, ${montant.toFixed(2)} €.`,
+        + `Montant de la dernière, ${formatCurrency(montant)}.`,
       proposition: {
         label: suivi.libelle,
         icon: typeof suivi.derniere.categoryIcon === 'string' ? suivi.derniere.categoryIcon : '📅',
@@ -367,10 +367,10 @@ export function picSaisonnier({ periods, moisCourant }) {
     titre: `${nomDuMois(meilleur.cible)} coûte plus cher que les autres mois`,
     montant: parMois,
     urgence: 'info',
-    detail: `${parMois.toFixed(2)} € par mois pendant ${restants} mois `
-      + `pour absorber les ${meilleur.surcout.toFixed(2)} € de surcoût.`,
-    fonde: `${meilleur.habituel.toFixed(2)} € en médiane sur ${meilleur.observees} `
-      + `observation${meilleur.observees > 1 ? 's' : ''}, contre ${ordinaire.toFixed(2)} € `
+    detail: `${formatCurrency(parMois)} par mois pendant ${restants} mois `
+      + `pour absorber les ${formatCurrency(meilleur.surcout)} de surcoût.`,
+    fonde: `${formatCurrency(meilleur.habituel)} en médiane sur ${meilleur.observees} `
+      + `observation${meilleur.observees > 1 ? 's' : ''}, contre ${formatCurrency(ordinaire)} `
       + 'pour un mois ordinaire.',
     proposition: {
       label: `${nomDuMois(meilleur.cible)} ${meilleur.cible.slice(0, 4)}`,
@@ -462,16 +462,16 @@ export function capaciteDEpargne({ periods, moisCourant, demandeMensuelle = 0 })
     cle: 'capacite-epargne',
     titre: demande > 0 && !tenable
       ? 'Les provisions proposées dépassent ce qui reste chaque mois'
-      : `Vous pourriez mettre jusqu'à ${disponible.toFixed(2)} € de côté par mois`,
+      : `Vous pourriez mettre jusqu'à ${formatCurrency(disponible)} de côté par mois`,
     montant: disponible,
     // Une somme intenable n'est pas un reproche : c'est un arbitrage à faire,
     // et le taire laisserait accepter trois provisions incompatibles.
     urgence: demande > 0 && !tenable ? 'attention' : 'info',
     detail: demande > 0
-      ? `Les propositions ci-dessus demandent ${demande.toFixed(2)} € par mois.`
+      ? `Les propositions ci-dessus demandent ${formatCurrency(demande)} par mois.`
       : 'Une fois les charges communes payées.',
     fonde: `Médiane du reste à vivre sur ${restes.length} mois révolus : `
-      + `${disponible.toFixed(2)} €.`
+      + `${formatCurrency(disponible)}.`
   };
 }
 
@@ -523,10 +523,10 @@ export function depensesParLieu({ periods, moisCourant }) {
 
   return {
     cle: `depenses-par-lieu:${tete.nom.toLowerCase()}`,
-    titre: `${tete.total.toFixed(2)} € chez ${tete.nom} sur douze mois`,
+    titre: `${formatCurrency(tete.total)} chez ${tete.nom} sur douze mois`,
     montant: tete.total,
     urgence: 'info',
-    detail: `${(tete.total / tete.passages).toFixed(2)} € par passage en moyenne.`,
+    detail: `${formatCurrency((tete.total / tete.passages))} par passage en moyenne.`,
     fonde: `Sur ${tete.passages} dépenses situées, entre ${mois[0]} et ${mois[mois.length - 1]}.`
   };
 }
@@ -696,7 +696,7 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
       : `${trouves.length} charges reviennent chaque mois sans être déclarées fixes`,
     montant: parMois,
     urgence: 'info',
-    detail: `${parMois.toFixed(2)} € par mois, soit ${parAn.toFixed(2)} € sur une année : `
+    detail: `${formatCurrency(parMois)} par mois, soit ${formatCurrency(parAn)} sur une année : `
       + trouves.map(t => t.libelle).join(', ') + '.',
     fonde: `Vues aux ${mois.length} derniers mois révolus (${mois.join(', ')}), `
       + 'à montant stable, et absentes des charges fixes.',
@@ -729,15 +729,27 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
  * le mois entier, et c'est la fonction que les agrégateurs bancaires vendent
  * le plus cher — à cette différence près qu'eux la fondent sur le solde du
  * compte, que cette application ne connaît pas. Ici, la projection ne porte
- * que sur les dépenses saisies.
+ * que sur les dépenses saisies, et le `fonde` le dit.
  *
- * La comparaison se fait au mois ORDINAIRE — la médiane des mois révolus — et
- * non à la moyenne, que le mois exceptionnel qu'on cherche à signaler
- * tirerait vers le haut.
+ * ## Elle rend un NOMBRE, jamais un jugement
  *
- * Deux silences : les premiers jours, où une seule grosse course projette un
- * dépassement qui n'en est pas un ; et un historique de moins de trois mois,
- * où « ordinaire » ne veut rien dire.
+ * Cette mesure a longtemps vécu sous la forme d'une carte d'alerte, qui ne
+ * paraissait qu'au-delà d'un seuil et disputait sa place à six autres
+ * détecteurs. Le premier écran restait donc rétrospectif : il disait ce qui
+ * avait été dépensé, jamais où le mois allait. La projection est maintenant
+ * annoncée à chaque ouverture, sous le prévisionnel ; `depasse` dit seulement
+ * si l'écart mérite qu'on hausse le ton, et c'est le rendu qui en décide.
+ *
+ * ## Le repère vient d'ailleurs, et c'est le sujet
+ *
+ * « Un mois ordinaire » est fabriqué par `moisOrdinaire`, dans `tendances.js`,
+ * avec le panneau des tendances et le rapport mensuel. Cette fonction en
+ * calculait autrefois un second, sur une fenêtre de six mois dont elle écartait
+ * ceux à zéro là où les deux autres en prenaient cinq sans les écarter. Mesuré
+ * sur 600 · 700 · 800 · 900 · 1 000 · 1 100 · 1 200 : **950,00 € annoncés par
+ * la carte du bilan, 1 000,00 € par la modale du rapport**, à un bouton de
+ * distance. Huitième occurrence du défaut `normalizePair` ; elle se referme ici
+ * comme les sept précédentes, en supprimant la seconde fabrique.
  *
  * ## Ce que la projection étend, et ce qu'elle n'étend pas
  *
@@ -746,8 +758,8 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
  * existe précisément pour dire que « au 3 du mois, le solde annonce 1 240 €
  * dont 900 ne sont pas encore sortis du compte ». Les multiplier par
  * `duree / ecoules` reviendrait à projeter douze loyers : au 5 d'un mois de 31
- * jours, 900 € de fixe deviendraient 5 580 €, et la carte se déclencherait
- * presque tous les mois sur un chiffre qui n'a aucun sens.
+ * jours, 900 € de fixe deviendraient 5 580 €, et la ligne annoncerait presque
+ * tous les mois un chiffre qui n'a aucun sens.
  *
  * Seules les dépenses variables se cumulent jour après jour. Elles seules sont
  * étendues ; le fixe est ajouté tel quel, une fois. Le repère, lui, reste le
@@ -760,15 +772,21 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
  * de dépenses sur les 28 écoulés d'aujourd'hui — une prévision sur un mois
  * terminé depuis trois mois. Un mois révolu n'a rien à projeter : il est connu.
  *
+ * Deux silences de plus : les premiers jours, où une seule grosse course
+ * projette un dépassement qui n'en est pas un ; et un historique trop court,
+ * où « ordinaire » ne veut rien dire — c'est `moisOrdinaire` qui en juge.
+ *
  * @param {Object} params
  * @param {Object} params.periods
  * @param {string} params.moisCourant - AAAA-MM, le mois affiché
  * @param {string} params.moisReel - AAAA-MM du calendrier, aujourd'hui
  * @param {number} params.jourDuMois
  * @param {number} params.joursDuMois
- * @returns {Object|null}
+ * @returns {{projection: number, ordinaire: number, surcout: number, fixe: number,
+ *   variable: number, ecoules: number, duree: number, joursRestants: number,
+ *   moisCompares: number, depasse: boolean}|null}
  */
-export function rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, joursDuMois }) {
+export function projectionDuMois({ periods, moisCourant, moisReel, jourDuMois, joursDuMois }) {
   if (!CLE_MOIS.test(moisCourant || '')) return null;
   // Projeter un mois qu'on ne vit pas n'a pas de sens : le passé est connu,
   // l'avenir est vide.
@@ -781,8 +799,6 @@ export function rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, jours
   const sommeDe = (charges) => charges
     .reduce((somme, charge) => somme + (Number.isFinite(charge.amount) ? charge.amount : 0), 0);
 
-  const totalDuMois = (cle) => sommeDe(chargesCommunesDuMois(periods && periods[cle]));
-
   const duMoisCourant = chargesCommunesParCollection(periods && periods[moisCourant]);
   const fixe = sommeDe(duMoisCourant.fixedCharges);
   const variable = sommeDe(duMoisCourant.variableCharges);
@@ -790,35 +806,37 @@ export function rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, jours
   const sorti = fixe + variable;
   if (!(sorti > 0)) return null;
 
-  const precedents = moisConnus(periods)
-    .filter(cle => cle < moisCourant)
-    .slice(-PROFONDEUR_EPARGNE)
-    .map(totalDuMois)
-    .filter(total => total > 0);
+  const habituel = moisOrdinaire({ periods, mois: moisCourant });
+  if (!habituel) return null;
 
-  if (precedents.length < MINIMUM_EPARGNE) return null;
-
-  const ordinaire = mediane(precedents);
-  if (!(ordinaire > 0)) return null;
+  const ordinaire = habituel.reference;
 
   // Le fixe est déjà entier ; seul le variable se projette.
   const projection = fixe + variable * (duree / ecoules);
   const surcout = projection - ordinaire;
 
-  // En deçà, la projection ne se distingue pas d'un mois normal — et une
-  // projection au dixième de jour près n'a pas cette précision.
-  if (surcout <= 0 || surcout < ordinaire * PART_DU_PIC) return null;
-
   return {
-    cle: `rythme-du-mois:${moisCourant}`,
-    titre: 'À ce rythme, le mois coûtera plus qu\'un mois ordinaire',
-    montant: projection,
-    urgence: 'attention',
-    detail: `${projection.toFixed(2)} € à la fin du mois, contre ${ordinaire.toFixed(2)} € `
-      + `d'ordinaire — soit ${surcout.toFixed(2)} € de plus.`,
-    fonde: `Sur ${variable.toFixed(2)} € de dépenses variables en ${ecoules} jours, étendues `
-      + `aux ${duree} du mois, plus ${fixe.toFixed(2)} € de charges fixes déjà inscrites — `
-      + `comparés à la médiane de ${precedents.length} mois révolus.`
+    projection,
+    ordinaire,
+    surcout,
+    fixe,
+    variable,
+    ecoules,
+    duree,
+    // Le jour même compte, comme pour la cadence d'une enveloppe : les deux
+    // nombres sont affichés en toutes lettres, et deux comptages séparés
+    // auraient dit 22 ici et 21 là le même jour. `ecoules >= duree` étant déjà
+    // sorti plus haut, le minimum est 2 — « il reste 1 jour » est donc
+    // inatteignable, et c'est juste : le dernier jour, il n'y a plus rien à
+    // projeter.
+    joursRestants: duree - ecoules + 1,
+    moisCompares: habituel.moisCompares,
+
+    // En deçà, la projection ne se distingue pas d'un mois normal — et une
+    // projection au dixième de jour près n'a pas cette précision. Le seuil vit
+    // ici, avec le nombre qu'il juge : une seule surface le lit, et le jour où
+    // il changera, elle changera avec lui.
+    depasse: surcout > 0 && surcout >= ordinaire * PART_DU_PIC
   };
 }
 
@@ -863,8 +881,14 @@ export function anticiper({
   const pic = picSaisonnier({ periods, moisCourant });
   if (pic) vues.push(pic);
 
-  const rythme = rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, joursDuMois });
-  if (rythme) vues.push(rythme);
+  // La projection du mois N'EST PLUS une observation.
+  //
+  // Elle a vécu ici sous forme de carte d'alerte, qui ne paraissait qu'au-delà
+  // d'un seuil et disputait ses trois places à six autres détecteurs. Elle est
+  // désormais annoncée en permanence sous le prévisionnel, par
+  // `projectionDuMois` — la même fabrique, une seule surface. L'y laisser
+  // aurait mis deux fois le même montant sur le même écran, à quelques lignes
+  // d'écart, l'un ambre et l'autre neutre.
 
   const abonnements = abonnementsNonDeclares({ periods, moisCourant });
   if (abonnements) vues.push(abonnements);

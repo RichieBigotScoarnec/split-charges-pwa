@@ -39,7 +39,7 @@ FairSplit/
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 25 modules fonctionnels
-│       └── utils/              # 45 aides pures — dont onglets (quel panneau
+│       └── utils/              # 59 aides pures — dont onglets (quel panneau
 │                               # l'écran montre, sous 900 px), entete (l'en-tête
 │                               # se compacte une fois sorti de l'écran),
 │                               # provisions (ce qu'il faut mettre de côté chaque
@@ -69,13 +69,24 @@ FairSplit/
 │                               # ecouteur (un écouteur posé une seule fois),
 │                               # periodes (les mois que le sélecteur propose),
 │                               # renommage (renommer sans détacher les charges),
-│                               # tendances (ce que six mois de dépenses disent),
+│                               # tendances (ce que six mois de dépenses disent,
+│                               # et ce que coûte « un mois ordinaire » — la
+│                               # fabrique unique que le bilan, le rapport et le
+│                               # panneau lisent tous les trois),
 │                               # raccourci (ce que l'URL demande à l'ouverture),
 │                               # attente-application (attendre d'avoir de quoi
 │                               # écrire), previsionnel (ce qui reste à passer
 │                               # ce mois-ci), rapport-mensuel (le mois écoulé
 │                               # en une page — ne calcule aucun chiffre neuf,
 │                               # il compose ceux du bilan et des tendances),
+│                               # totaux-liste (le total d'une liste de charges,
+│                               # lu par le rendu ET par la recherche — c'est
+│                               # elle qui affichait un chiffre faux),
+│                               # echelle (des graduations qu'un humain lit),
+│                               # budget-propose (ce que coûte un mois
+│                               # ordinaire, proposé plutôt que demandé),
+│                               # retour (le geste « retour » referme la
+│                               # dernière couche ouverte, il ne quitte pas),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
@@ -532,6 +543,142 @@ Firebase, absents du conteneur et lancés par la CI.
 Quinze mutants posés, quinze chutes — dont deux qui ont survécu à la première
 passe et ont dû être refermés : le payeur deviné, et le bouton absent de la
 carte. **134 fichiers, 2 484 contrôles unitaires** ; bout en bout 470 passés.
+
+### Audit UX conduit sur l'application exécutée, 2026-08-31
+
+Trente et une captures d'un foyer semé de trois mois d'historique, en 390×844 et
+1440×950, thèmes clair et sombre, états vides et remplis — puis les mesures que
+seule une capture ne donne pas : contrastes composés, géométrie des modales,
+recouvrements, historique de navigation, totaux de recherche.
+
+> **Trois constats écartés PAR LA MESURE**, et consignés pour qu'ils ne
+> reviennent pas : le bouton flottant ne recouvre rien (artefact de capture
+> pleine page — un élément `fixed` se peint à sa position d'écran dans l'image
+> longue) ; `formatCurrency` est correct, son séparateur de milliers est une
+> espace fine insécable de 3,5 px ; les cibles tactiles passent bien 44 px,
+> `@media (pointer: coarse)` les agrandit sur un vrai doigt. Une capture montre
+> ce qui est peint, pas ce qui est.
+
+| **La recherche affichait un total faux.** Elle masquait les lignes par `style.display` sans jamais toucher aux totaux, posés au rendu. Mesuré sur « intermarche » : trois lignes visibles valant 294,32 €, un total resté à 464,32 €, et l'en-tête « Courses » affichant lui aussi le mois entier. « Combien je dépense chez cette enseigne » est la question la plus naturelle qu'on pose à une recherche de dépenses ; elle recevait une réponse fausse de 170 €, avec le même aplomb qu'une réponse juste | `public/js/utils/totaux-liste.js` | ✅ RÉSOLU 2026-08-31 — trois lecteurs, une seule fabrique. `afficherTotal` était dupliquée mot pour mot dans les deux modules de liste — 823 caractères identiques — et la recherche ne la lisait pas | Le seul constat de cet audit qui relève de la justesse, pas du confort |
+| Le contrôle qui tient ce correctif ne compare à aucune valeur écrite à la main : **la somme des lignes visibles DOIT être le total affiché** | `tests/e2e/recherche-totaux.spec.js` | ✅ RÉSOLU 2026-08-31 — propriété vraie quel que soit le jeu d'essai, qui tombe si l'un des deux chemins cesse de passer par la fabrique | Le chiffre mesuré reste, comme témoin du cas fondateur |
+| **`--text-muted` était sous le seuil AA, et cette décision était consignée comme appartenant au foyer.** Le foyer a tranché, et la mesure lui donne raison contre la crainte qui l'avait figée : #7A6A5B franchit 4,5:1 en gardant 32 % de luminance de plus que `--text-secondary` — les deux paliers restent séparés à l'œil. Deux faits l'emportaient de toute façon : ce jeton portait des libellés de section, la phrase qui explique le solde et le chevron d'une commande ; et le thème sombre avait fondu les deux paliers dans la même couleur depuis toujours | `public/css/variables.css`, `tests/contraste.test.js` | ✅ RÉSOLU 2026-08-31 — le cas qui disait « remplacer ce constat par une vraie exigence le jour où la décision sera prise » est devenu cette exigence | Ce qui tient un palier, c'est la taille et la graisse, pas un contraste insuffisant |
+| Un jeton conforme appliqué au mauvais endroit produit un texte illisible sans qu'aucune mesure de jeton ne bronche : `.category-total` — un MONTANT — à 2,42:1, « Payé par … » — l'attribut qui décide du sens du solde — à 2,78:1 en 11 px dans un ambre qui ne distinguait pas les deux payeurs, `--primary-light` à 4,47:1 sur les montants du bilan et 3,90:1 sur le mode de partage retenu | `tests/e2e/lisibilite.spec.js` | ✅ RÉSOLU 2026-08-31 — le contrôle mesure le RENDU et non la feuille de style, sur les trois panneaux. Zéro manquement restant | `tests/contraste.test.js` mesure les jetons ; c'est nécessaire et insuffisant |
+| **Le bouton « Ajouter » tombait 374 px sous l'écran** d'un iPhone 13, avant même l'ouverture du clavier, derrière 502 px de défilement qu'aucun indice n'annonçait | `public/css/modals.css` | ✅ RÉSOLU 2026-08-31 — barre d'action collée au bas de la modale | Le remboursement et la saisie rapide n'étaient pas concernés : cinq champs |
+| Le correctif de formatage écrit et documenté dans `trends.js` — « `toFixed(1)` rend “231.2”, avec un point décimal, au milieu d'un écran où tous les montants s'écrivent “1 259,97 €” » — **n'avait jamais quitté ce fichier.** Vingt-huit sites écrivaient « 2909.02 € », dont les cartes de conseil du bilan et des enveloppes. Et `rapport.js` affichait « 38.2 % » là où les tendances affichaient « 38 % » pour le même taux d'effort | `public/js/utils/format.js` | ✅ RÉSOLU 2026-08-31 — `pourcentageDeVariation` et `pourcentageDePart` montent à côté de `formatCurrency` | Septième occurrence du défaut de `normalizePair` |
+| Les tests VERROUILLAIENT le défaut : `toContain('512.00')` | `tests/utils/anticipation.test.js`, `veille.test.js`, `rappels.test.js` | ✅ RÉSOLU 2026-08-31 — `toContain(formatCurrency(512))`, quatorze montants comparés par la fabrique | Un test qui écrit le format à la main empêche de le corriger |
+| **L'axe du graphe graduait en divisant le maximum par cinq, sans arrondir** : « 1 997,47 · 1 597,97 · 1 198,48 · 798,99 · 399,49 · 0 ». Six graduations dont pas une ne se retient. Un axe sert à SITUER une courbe d'un coup d'œil, pas à donner des valeurs — celles-ci sont dans la courbe | `public/js/utils/echelle.js` | ✅ RÉSOLU 2026-08-31 — plus petit pas rond (1, 2, 2,5 ou 5 × 10ⁿ) couvrant les données. Mesuré à l'écran : « 2 500 · 2 000 · 1 500 · 1 000 · 500 · 0 » | Remplace aussi la marge de 10 % posée à la main, qui ne garantissait rien de rond |
+| **Le geste « retour » quittait l'application.** Mesuré : après trois changements d'onglet, `history.length` valait toujours 2 et un `goBack()` sortait — page blanche. Sur Android c'est le geste le plus utilisé du système ; la personne apprend donc à ne plus s'en servir, et à ne fermer les modales que par « Annuler » — qu'elle doit d'abord trouver | `public/js/utils/retour.js` | ✅ RÉSOLU 2026-08-31 — pile de couches refermables. Les onglets ne poussent qu'UNE entrée quel que soit le trajet ; fermer par un bouton consomme l'entrée poussée | Sans cette consommation, la pile grossit et le retour devient inerte pendant N appuis |
+| **L'éditeur de budgets demandait d'inventer dix-neuf nombres**, par ordre alphabétique — « Autre, Bar, Boulangerie, Bricolage… » —, alors que sept catégories seulement portaient une dépense. Tant qu'aucun budget n'existe, `veille.js` et `rythmeDuBudget` n'ont rien à surveiller : une fonctionnalité entière dormait par friction d'amorçage | `public/js/utils/budget-propose.js` | ✅ RÉSOLU 2026-08-31 — la médiane de chaque catégorie, sur l'historique déjà conservé en état, sans une lecture de plus. Mesuré : quatre catégories classées par dépense, « environ 292,00 € par mois », quinze repliées | La proposition est un `placeholder`, jamais une `value` : l'application propose, elle ne décide pas |
+| Un mois sans la catégorie compte pour ZÉRO, pas pour absent — sans quoi une dépense trimestrielle proposerait son montant entier comme budget mensuel | `public/js/utils/budget-propose.js` | ✅ RÉSOLU 2026-08-31 — et le mois affiché est exclu : le 3 du mois, il proposerait 40 € de courses | Se tait sous deux mois révolus : une médiane d'un seul mois est un hasard présenté comme un conseil |
+| **Le formulaire complet comptait quinze champs et demandait la description avant le montant**, à rebours du choix déjà tranché et documenté dans la saisie rapide. Le chemin qu'on emprunte pour CORRIGER une charge était donc le chemin coûteux — et ce sont ces champs qui alimentent la carte, les enveloppes et le périmètre, trois fonctions qui paraissaient inutiles alors qu'elles n'étaient que sous-alimentées | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-31 — montant en tête ; lieu et enveloppe repliés, 231 px rendus. Rouvrir une charge qui en porte déplie | Le formulaire de charge FIXE garde sa description en tête : on n'y capture pas une dépense, on y configure une ligne récurrente |
+| **`toBeVisible()` ne voit pas `content-visibility: hidden`.** Un contenu de `<details>` fermé garde sa géométrie — 40 px de haut — et Playwright le tient donc pour visible : les dix contrôles de `lieu-apres-coup.spec.js` sont passés au vert sur un champ que personne ne voyait, sans une ligne changée de leur côté | `tests/e2e/formulaire-saisie.spec.js` | ✅ RÉSOLU 2026-08-31 — `checkVisibility()` dit la vérité : mesuré `false` replié, `true` déplié. Les deux suites l'utilisent | Un contrôle qui ne mesure rien est pire qu'un contrôle absent — troisième occurrence dans ce dépôt |
+| Sur mobile, `grid-template-columns: 1fr` empilait le montant SOUS le libellé : chaque charge tenait deux étages, et douze charges deux écrans et demi. Or la liste est un objet de balayage — on y cherche une ligne pour la corriger, et chaque pixel superflu est du défilement | `public/css/responsive.css` | ✅ RÉSOLU 2026-08-31 — deux colonnes, la disposition que l'application montre déjà au-delà de 600 px | `min-width: 0` sur l'information : sans lui, une longue description repousse les boutons hors de l'écran |
+| Revenir sur un onglet repartait de zéro. Remonter est juste pour une DESTINATION nouvelle, faux pour un RETOUR — or l'aller-retour bilan ↔ charges est exactement le geste d'une vérification | `public/js/utils/onglets.js` | ✅ RÉSOLU 2026-08-31 — trois entrées en mémoire vive, jamais persistées | Rouvrir l'application doit poser la question à laquelle elle répond |
+| Le bilan proposait « 📈 Tendances sur 6 mois » sur un écran sans une seule donnée. Un état vide est le SEUL moment où l'application a l'attention entière de quelqu'un qui ne sait rien : le remplir d'outils inertes enseigne que la moitié des boutons ne font rien | `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — même raisonnement que la recherche, que le bouton de la carte et que celui du rapport | « Enveloppes » et « Privé » restent : elles CRÉENT quelque chose |
+| L'onglet Charges montrait trois sections identiques à 0,00 € sans un mot sur ce qui les distingue — alors que fixe/variable structure la reconduction, le coût annuel et le prévisionnel. On la découvrait par essais | les trois modules de liste | ✅ RÉSOLU 2026-08-31 — chaque état vide dit ce que sa section attend, et l'explication s'efface dès la première charge | Sinon elle deviendrait un décor permanent |
+| « Prénom (emplacement 1) » : « emplacement » est le nom de la CASE dans laquelle vit la personne. Et « Custom » était le seul libellé anglais entre « Prorata » et « 50-50 » | `public/FairSplit.html` | ✅ RÉSOLU 2026-08-31 — « Votre prénom », « Le prénom de votre partenaire », « Personnalisé » | Tant que les prénoms ne sont pas saisis, tout l'écran dit « Conjointe » — une étiquette générique et genrée à la place d'une personne |
+| Trois répétitions mangeaient le premier écran : « Aucun budget défini » sous CHACUNE des sept catégories, le badge « ✓ Période actuelle » sous un sélecteur affichant « août 2026 », et le titre « 📊 Résumé du Mois » au-dessus d'un panneau que la barre d'onglets nomme « Bilan » | `category-budgets.js`, `period.js`, `onglets.css` | ✅ RÉSOLU 2026-08-31 — la mention des budgets est dite UNE fois, en pied de carte ; le titre est masqué sous 899 px seulement | Une information répétée sept fois n'est plus une information, c'est une texture |
+| Masquer le seul titre laissait un bandeau vide de 55 px surmonté d'un filet orphelin : on avait retiré le texte et gardé le décor | `public/css/onglets.css` | ✅ RÉSOLU 2026-08-31 — l'en-tête est aplati, et le titre CLIPPÉ plutôt que retiré : la `<section>` le désigne par `aria-labelledby` | Trouvé sur une capture, pas par un test — comme les deux défauts qui ont motivé `coherence-visuelle.spec.js` |
+| Le toast « FairSplit chargé » paraissait à chaque ouverture. Un retour d'interface confirme une action de l'utilisateur ; personne ne demande à l'application de se charger | `public/js/modules/auth.js` | ✅ RÉSOLU 2026-08-31 — retiré. Le contrôle qui l'exigeait devient celui qui l'interdit, et vérifie que le seul succès de `auth.js` confirme une action de la personne | Répété, il apprenait à ignorer le coin où s'affichent les erreurs d'écriture |
+| **Le premier écran reste rétrospectif** : il répond à « qu'est-ce qui s'est passé », jamais à « qu'est-ce que je peux faire ». `rythmeDuMois` et `rythmeDuBudget` calculent déjà la seule réponse honnête — « il reste 11 jours et environ 240 € prévus sur un budget de 450 » — mais ne sont exposés nulle part comme telle | — | ⚠️ ANALYSÉ, NON FAIT — c'est une décision de produit, pas une correction : elle change ce que l'application est | L'application n'a pas de solde bancaire et n'en aura pas ; « combien puis-je encore dépenser » n'a pas d'autre réponse honnête |
+| **Le titre du bilan est une DETTE**, lue chaque jour par celui des deux qui doit. Le calcul est juste ; le cadrage est un choix | — | ⚠️ SUBJECTIF, LAISSÉ AU FOYER — une application de couple qui ouvre sur une créance transforme une organisation commune en comptabilité entre deux parties | Splitwise assume ce cadrage parce qu'il sert des colocataires |
+| La géolocalisation se déclenche à chaque ouverture de la saisie rapide, avant même qu'un montant soit tapé | — | ⚠️ SUBJECTIF — si la pré-sélection de catégorie par le lieu fonctionne bien en usage réel, le compromis se défend | Non mesuré : la géolocalisation réelle n'est pas reproductible ici |
+
+#### Vérification par mutants, 2026-08-31
+
+Dix mutants posés — un par correctif —, chacun joué seul contre le contrôle
+qui le vise, l'arbre restauré entre chaque. **Neuf tombent.**
+
+Le dixième SURVIT, et c'est un mutant **équivalent** : il remet
+`.category-total` sur `--text-muted`, or ce jeton a été porté à 4,54:1 dans le
+même lot. Les deux paliers passent désormais le seuil — 4,54 et 5,54 — et le
+mutant ne réintroduit donc aucun défaut mesurable. Ce qui reste est un choix
+de hiérarchie typographique : un chiffre d'argent relève du palier secondaire,
+pas du discret. Cela se défend, cela ne se mesure pas, et inventer un contrôle
+pour faire tomber ce mutant reviendrait à figer une préférence en exigence.
+
+> **Trois passes de la suite complète ont été nécessaires**, et chacune a
+> trouvé ce que les précédentes ne pouvaient pas voir. La première : seize
+> régressions, dont un vrai défaut de production — `refreshTrendsVisibility`
+> lisait un état que `calculateSummary` ne dépose que plus bas, et masquait
+> donc le panneau au PREMIER rendu, sur un foyer de trois ans d'historique. La
+> deuxième : trois collisions entre mes propres textes et les jeux d'essai —
+> « loyer » dans l'explication d'un état vide contre `getByText('Loyer')`, qui
+> cherche un fragment n'importe où dans le conteneur. La troisième : 500 verts,
+> 23 rouges, exactement la composition de référence.
+>
+> **Je rejouais après chaque correction les suites que je croyais concernées.**
+> Quatre des seize étaient précisément là où je ne regardais pas. Un
+> sous-ensemble choisi par le correcteur mesure ce qu'il a prévu de casser.
+
+Le diagnostic des deux régressions de reconduction est venu d'un contrôle joué
+contre le commit d'AVANT, dans un worktree séparé : les six y passaient. La
+régression était donc la mienne, et non un contrôle déjà fragile — la
+distinction que ce dépôt a payée pour apprendre.
+
+**500 contrôles de bout en bout verts** (contre 470 avant l'audit),
+**2 519 unitaires**, 23 rouges qui sont les 23 exigeant les émulateurs Firebase.
+
+### Les trois points laissés au foyer, tranchés — 2026-08-31
+
+L'audit du 31 août laissait trois constats sans correctif : le premier écran
+rétrospectif, le cadrage « dette » du bilan, et la géolocalisation déclenchée à
+l'ouverture. Le foyer a tranché les trois dans le même sens. Quatre conceptions
+et quatre sceptiques ont relu le terrain avant la première ligne de code ; le
+sceptique de la conception n° 1 a trouvé un défaut d'argent **préexistant**,
+mesuré, que ce lot ne pouvait pas exposer sans d'abord le refermer.
+
+| **« Un mois ordinaire » valait 950,00 € sur le bilan et 1 000,00 € dans la modale du rapport**, même mois, même application, même phrase, à un bouton de distance. Deux fabriques : `ecartAuHabituel` sur les cinq mois qui précèdent, zéros compris, pour les tendances et le rapport ; une seconde médiane sur SIX mois dont elle écartait les mois à zéro, pour la carte « à ce rythme ». Huitième occurrence du défaut `normalizePair` — et la seule qui restait ouverte. Le lot voulait afficher ce chiffre en PERMANENCE | `public/js/utils/tendances.js` | ✅ RÉSOLU 2026-08-31 — `moisOrdinaire`, fabrique unique lue par les trois surfaces ; `totalCommunDuMois` referme au passage la troisième rédaction du filtre de périmètre | Mesuré par moi avant d'y toucher, sur 600 · 700 · 800 · 900 · 1 000 · 1 100 · 1 200. Le mutant qui rétablit l'ancienne fenêtre fait tomber 4 contrôles, dont un préexistant |
+| Le jeu d'essai de `rythmeDuMois` était PLAT — trois mois à 1 000 € — et celui du rapport aussi. Sur une série constante, une médiane sur cinq mois et une médiane sur six donnent le même nombre : c'est pour cette raison exacte que la divergence a vécu si longtemps sans qu'un seul contrôle bronche | `tests/utils/anticipation.test.js` | ✅ RÉSOLU 2026-08-31 — toute comparaison de deux fabriques d'une même grandeur tourne désormais sur une série strictement croissante | Un contrôle qui ne mesure rien est pire qu'un contrôle absent — quatrième occurrence |
+| **Le premier écran restait rétrospectif** : il disait ce qui avait été dépensé, jamais où le mois allait. `rythmeDuMois` calculait pourtant la réponse — mais sous forme de carte d'ALERTE, qui ne paraissait qu'au-delà d'un seuil et disputait ses trois places à six autres détecteurs | `public/js/utils/anticipation.js`, `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — `projectionDuMois` rend le NOMBRE, `depasse` rend le jugement ; une ligne permanente sous le prévisionnel, et la carte d'alerte retirée de la veille | Une seule surface : deux annonces du même montant sur le même écran, l'une ambre l'autre neutre, auraient été le décor que ce fil combat |
+| La ligne aurait été peinte À L'INTÉRIEUR du lavis vert « ✅ Tout est passé ce mois-ci », qu'elle contredit à l'œil. Ce n'est pas un cas dégénéré : c'est le cas courant de la seconde moitié de chaque mois | `public/css/summary.css` | ✅ RÉSOLU 2026-08-31 — son propre bloc, ton neutre par défaut, ambre au-delà du seuil | Les huit combinaisons encre/fond mesurées dans les deux thèmes : jamais sous 4,72:1 |
+| Deux conventions de « jours restants » dans la même application : `resteParJour` compte le jour même (« 20 € par jour sur les 22 restants »), la projection l'aurait exclu. 22 ici, 21 là, le même jour, sur le même écran | `public/js/utils/date.js` | ✅ RÉSOLU 2026-08-31 — `joursRestantsDansLeMois` et `joursDeLaPeriode`, lues par les deux ; le troisième `new Date(a, m, 0)` du dépôt disparaît avec | Trouvé par le sceptique, pas par le concepteur |
+| **Le bilan ouvrait sur une créance.** « Conjointe vous doit 408,37 € », en 28 px, première ligne du premier écran, répétée par la barre collante — et lue chaque jour par celui des deux qui doit. Le calcul est juste ; le cadrage était un choix, et ce choix n'avait jamais été fait, il était arrivé par défaut | `public/js/modules/summary.js`, `public/js/utils/members.js` | ✅ RÉSOLU 2026-08-31 — la tête porte le fait SYMÉTRIQUE (« Ensemble ce mois : 1 717,39 € »), l'écart vient juste en dessous, entier et nommé. Aucun calcul ne change | `describeBalance` porte la seconde formulation (`sens`) : un état ajouté demain traverse les deux surfaces ou aucune |
+| Le mois n'était pas NOMMÉ selon son état : le sélecteur en propose un d'avance, où la reconduction inscrit les charges fixes dès le premier. « Ensemble ce mois » y aurait désigné un mois qui n'a pas commencé — le défaut exact que `etatDuMois` ferme depuis le 28 | `public/js/utils/date.js` | ✅ RÉSOLU 2026-08-31 — `etatDuMois` monte dans `date.js` et sert les deux écrans : « Ensemble en juillet 2026 », « Déjà engagé pour septembre 2026 » | Le rapport la portait seul ; en écrire un jumeau aurait été la neuvième occurrence |
+| La barre collante se masque sur la seule GÉOMÉTRIE de `.summary-balance`, sur la prémisse « le bilan dit déjà la même chose ». Un écart rendu conditionnellement l'aurait rendue fausse en silence : sur un mois équilibré, « Comptes équilibrés » n'aurait été NULLE PART à l'écran | `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — l'écart est rendu sans condition, zéro compris ; la barre, elle, garde le verbe « devoir », mot juste au moment de régler | Trouvé par le sceptique, qui a aussi montré que le contrôle jsdom proposé pour ce cas serait passé sans rien mesurer |
+| Le lavis vert ou rouge peignait tout le bloc, montant de tête compris. Un TOTAL n'est ni une bonne ni une mauvaise nouvelle, et `--success-color` tombe à 3,29:1 sur cette surface — sous le seuil d'un montant de 15 px | `public/css/summary.css` | ✅ RÉSOLU 2026-08-31 — surface neutre, sens du solde porté par un filet de 3 px | Mesuré : c'est le contraste qui a fait choisir le bord plutôt que le texte |
+| **La géolocalisation partait à chaque OUVERTURE de la modale** — y compris pour consulter, corriger ou annuler — et posait « 📍 Détection position... » en tête de fenêtre, avant qu'un chiffre soit tapé, à quelqu'un venu taper un chiffre | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-31 — à la première frappe dans le montant, une fois par ouverture : le seul signal fiable qu'une saisie réelle commence | Le géocodage travaille pendant que la description se tape |
+| Le témoin vivait en tête de la fenêtre, loin de ce qu'il explique. « ✓ Intermarché » n'a de sens qu'à côté du sélecteur de catégorie, là où il dit POURQUOI une tuile s'est allumée toute seule — le traitement que `memoire-libelle` applique déjà à son indice | `public/FairSplit.html`, `public/css/modals.css` | ✅ RÉSOLU 2026-08-31 — sous la grille, et il ne réserve plus sa ligne quand il n'a rien à dire | Volontairement pas `hidden` dans le balisage servi : un ancien script en cache le laisserait invisible pour toujours |
+| **Le témoin et la phrase pouvaient se contredire, durablement.** `reappliquerLaCategorie` ABANDONNE la catégorie que le foyer ne possède pas — ce qui arrive systématiquement sur le chemin du raccourci, où la modale s'ouvre sur les catégories par défaut. Le témoin continuait d'annoncer « "Courses" proposée d'après le lieu » pendant que la phrase redemandait une catégorie | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-31 — `direLeLieu` est la seule écriture, `redireLeLieu` la seule rédaction, et les deux chemins qui changent la catégorie la rejouent | Défaut BLOQUANT trouvé par le sceptique, qui l'a reproduit en exécutant la conception avant qu'elle ne soit écrite |
+| Un géocodage qui revient après la fermeture écrivait dans la saisie SUIVANTE. Le défaut préexistait ; déplacer le départ du GPS vers la frappe rapproche mécaniquement la réponse de la soumission | `public/js/modules/quick-add.js` | ✅ RÉSOLU 2026-08-31 — jeton d'ouverture, avancé à l'ouverture comme à la fermeture | — |
+| Les trois états du témoin portaient des couleurs de PASTILLE là où il faut de l'encre : `--warning-color` rend 3,19:1 et `--success-color` 3,77:1 à 12 px, pour un seuil de 4,5. Et `.error` n'avait aucune règle — « ✗ Position introuvable » se peignait comme une information ordinaire | `public/css/variables.css` | ✅ RÉSOLU 2026-08-31 — `--success-ink`, `--warning-ink`, `--danger-ink`, jamais sous 4,79:1 sur les deux surfaces et dans les deux thèmes | Un jeton conforme appliqué au mauvais endroit reste illisible : constat déjà consigné, remède déjà appliqué aux lavis |
+| Le registre transversal du périmètre ne mesurait RIEN pour une entrée qui se tait : sa propriété est `f(communes) === f(communes + solo)`, et `null === null` la satisfait | `tests/utils/perimetre-transversal.test.js` | ✅ RÉSOLU 2026-08-31 — témoin positif exigé pour les onze entrées | Le trou que ce fichier existe pour fermer, laissé ouvert dans le fichier lui-même |
+
+| La suite de bout en bout **n'a exercé la ligne de projection dans aucun de ses 547 contrôles** : elle a tourné un 31, et la fabrique se tait le dernier jour du mois, à dessein. Le contrôle qui la cherche aurait été rouge cinq jours sur trente — et le job conditionne la publication | `tests/e2e/projection-du-mois.spec.js` | ✅ RÉSOLU 2026-08-31 — `page.clock.setFixedTime` au 12 août 2026, mois semés en clés absolues | Troisième fois que ce dépôt manque de livrer un contrôle qui dépend du calendrier : après l'heure qu'il était, puis le mois de décembre |
+| **Le mutant décisif a SURVÉCU à la première version de ce contrôle.** Le jeu d'essai semait cinq mois tous à 1 000 € : sur une série plate, une médiane sur cinq mois et une médiane sur six donnent le même nombre, et rétablir l'ancienne fenêtre ne faisait rien tomber. Le contrôle dont le titre EST l'égalité des deux fabriques ne mesurait rien | `tests/e2e/projection-du-mois.spec.js` | ✅ RÉSOLU 2026-08-31 — série strictement croissante sur sept mois ; le mutant rejoué fait tomber 2 contrôles | Trouvé en rejouant le mutant, jamais en relisant. La forme du jeu d'essai fait partie de ce qu'un contrôle mesure |
+| Le repère du mois ordinaire n'était pas nommé dans le balisage : le contrôle lisait la phrase et attrapait le SURCOÛT, qui la précède | `public/js/modules/summary.js` | ✅ RÉSOLU 2026-08-31 — `.projection-ordinaire` | Un contrôle doit lire un élément nommé, pas analyser de la prose |
+| Le lecteur de montants des deux contrôles neufs écrivait ses séparateurs EN CLAIR : « 1 550,00 » s'y lisait « 550,00 » | les deux specs | ✅ RÉSOLU 2026-08-31 — ` `, ` ` et ` ` échappés | Défaut déjà consigné le 28 août pour la recherche par montant, refait deux jours plus tard dans un test |
+
+> **Ce que la relecture adversariale a coûté et rapporté.** Quatre conceptions,
+> quatre sceptiques, trois heures de machine — et un défaut d'argent que
+> personne ne cherchait, parce qu'il ne s'agissait pas de la fonctionnalité
+> demandée mais du chiffre qu'elle allait afficher. Les sceptiques ont aussi
+> repris quatorze numéros de ligne faux et démontré, en l'exécutant, qu'un
+> contrôle proposé passait sans rien mesurer. **Une conception qui n'a pas été
+> relue par quelqu'un qui ouvre les fichiers n'est pas une conception, c'est une
+> intention.**
+>
+> Et une leçon de plus, payée dans le même lot : **le sceptique avait écrit
+> qu'un jeu d'essai plat ne peut voir aucune divergence de fenêtre. Je l'ai
+> appliqué au contrôle unitaire, et pas à celui de bout en bout.** Le mutant y a
+> survécu, et seul le fait de le rejouer l'a dit. Onze mutants posés, onze
+> chutes — mais celui-là a demandé deux passes.
+>
+> **Et la troisième, payée en rouge sur la CI :** je vérifiais `npx eslint
+> public/js` parce que c'est la commande dont ce fichier parle. La CI en lance
+> DEUX, et la première est `npx eslint .` — qui couvre `tests/`, où vivaient mes
+> deux contrôles neufs. Un sous-ensemble choisi par le correcteur mesure ce
+> qu'il a prévu de casser : c'est écrit trois sections plus haut, à propos des
+> suites de tests. La règle vaut pour les commandes de la CI, et la seule façon
+> de la tenir est de les rejouer TOUTES, verbatim.
+
+| **La CI est tombée sur six erreurs de lint que ma vérification locale ne pouvait pas voir** : je lançais `npx eslint public/js`, la CI lance `npx eslint .` — et mes deux contrôles neufs vivent dans `tests/`. Les caractères fautifs étaient les séparateurs de milliers, écrits EN CLAIR dans les classes de caractères, sous un commentaire affirmant qu'ils étaient échappés | `tests/e2e/bilan-hierarchie.spec.js`, `projection-du-mois.spec.js` | ✅ RÉSOLU 2026-08-31 — `\u00A0`, `\u202F` et `\u2009`, et les trois commandes de la CI rejouées telles quelles en local | Le défaut d'espace irrégulier était déjà consigné le 31 août au matin, pour la même raison, dans un autre fichier |
+
+**510 contrôles de bout en bout verts** (contre 500 avant ce lot),
+**2 569 unitaires**, 23 rouges qui sont les 23 exigeant les émulateurs
+Firebase — un dans `auth-ui.spec.js`, vingt-deux dans `regles-donnees.spec.js`,
+composition identique au socle. Eslint : 0 erreur, 26 avertissements, le
+plafond exact de la CI.
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

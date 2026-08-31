@@ -121,7 +121,14 @@ function updatePeriodInfo() {
   const actualCurrentPeriod = getCurrentPeriod();
 
   if (currentPeriod === actualCurrentPeriod) {
-    info.innerHTML = '<span class="current-period-badge">✓ Période actuelle</span>';
+    // Rien. Le sélecteur affiche déjà « août 2026 », et l'appareil sait quel
+    // mois on est : un badge « ✓ Période actuelle » sous ce sélecteur ne dit
+    // rien de plus, et il occupe une ligne du premier écran — la ressource la
+    // plus rare de l'application, où le solde doit tenir sans défiler.
+    //
+    // Le cas contraire, lui, est une information : rien à l'écran ne dirait
+    // qu'on lit un mois qui n'est pas celui d'aujourd'hui.
+    info.innerHTML = '';
   } else {
     // « lecture seule » était faux : rien n'empêche de modifier un mois passé,
     // et c'est voulu — corriger une charge oubliée est un besoin normal, et

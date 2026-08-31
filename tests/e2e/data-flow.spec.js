@@ -1193,13 +1193,20 @@ test.describe('Charges récurrentes', () => {
 
     await page.locator('#fixedChargesList .btn-delete').first().click();
     await page.locator('#modalConfirmOk').click();
-    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0, { timeout: 5000 });
+    // Le contrôle porte sur une LIGNE DE CHARGE, pas sur un texte quelconque
+    // de la carte. `getByText('Loyer')` cherchait dans tout le conteneur, sans
+    // distinguer la casse ni exiger le mot entier : depuis que l'état vide
+    // explique ce qu'est une charge fixe — « loyer, assurance, abonnements » —
+    // il trouvait cette phrase et concluait que la charge était toujours là.
+    // Une absence se vérifie sur l'objet qu'on cherche, pas sur la présence de
+    // son nom quelque part dans la page.
+    await expect(page.locator('#fixedChargesList .charge-item').filter({ hasText: 'Loyer' })).toHaveCount(0, { timeout: 5000 });
 
     // Aller-retour : le mois est rouvert
     await versMoisPrecedent(page);
     await versMoisSuivant(page);
 
-    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
+    await expect(page.locator('#fixedChargesList .charge-item').filter({ hasText: 'Loyer' })).toHaveCount(0);
   });
 
   test('la reconduction ne se rejoue pas et ne duplique rien', async ({ page }) => {
@@ -1222,7 +1229,7 @@ test.describe('Charges récurrentes', () => {
     await versMoisSuivant(page);
 
     await expect(page.locator('#fixedChargesList').getByText('Saisie manuelle')).toBeVisible();
-    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
+    await expect(page.locator('#fixedChargesList .charge-item').filter({ hasText: 'Loyer' })).toHaveCount(0);
   });
 
   test('ouvrir un mois ancien et vide n\'y déverse rien', async ({ page }) => {
@@ -1233,7 +1240,7 @@ test.describe('Charges récurrentes', () => {
 
     await versMoisPrecedent(page);
 
-    await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(0);
+    await expect(page.locator('#fixedChargesList .charge-item').filter({ hasText: 'Loyer' })).toHaveCount(0);
   });
 });
 

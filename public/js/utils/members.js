@@ -95,7 +95,10 @@ export function describeBalance(balance, members) {
   const nomme = hasCustomName('vous', members) || hasCustomName('conjointe', members);
 
   if (balance === 0) {
-    return { prefixe: 'Comptes équilibrés', suffixe: '', texte: 'Comptes équilibrés', debiteur: null, crediteur: null };
+    return {
+      prefixe: 'Comptes équilibrés', suffixe: '', texte: 'Comptes équilibrés',
+      debiteur: null, crediteur: null, sens: ''
+    };
   }
 
   const conjointeDoit = balance > 0;
@@ -120,7 +123,21 @@ export function describeBalance(balance, members) {
     suffixe,
     texte: suffixe ? `${prefixe} ${suffixe}` : prefixe,
     debiteur,
-    crediteur
+    crediteur,
+
+    // LE MÊME SENS, DIT SANS LE VERBE « DEVOIR »
+    //
+    // Le bilan ouvre désormais sur ce que le foyer a dépensé ENSEMBLE, et
+    // range l'écart en dessous : « À rééquilibrer : 408,37 € — Claire vers
+    // vous ». « Doit » reste le mot juste au moment de régler, et la barre
+    // collante le garde ; il n'a pas à être la première phrase que lit, chaque
+    // jour, celui des deux qui est débiteur.
+    //
+    // Cette seconde formulation vit ICI et non dans le rendu : c'est la
+    // fabrique unique du sens du solde, et un état ajouté demain doit traverser
+    // les deux surfaces ou aucune. La rédiger dans `summary.js` aurait fait un
+    // second registre de « qui doit à qui » sur le même écran.
+    sens: `${debiteur} vers ${crediteur}`
   };
 }
 

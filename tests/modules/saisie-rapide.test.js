@@ -291,8 +291,13 @@ describe('Le lieu enregistré dit où la dépense a eu lieu', () => {
   };
 
   /**
-   * Ouvre la modale avec une position en cache et un géocodage simulé, puis
-   * attend que la réponse ait été traitée.
+   * Ouvre la modale avec une position en cache et un géocodage simulé, tape le
+   * premier caractère du montant, puis attend que la réponse ait été traitée.
+   *
+   * **La frappe fait partie du geste.** Le lieu ne part plus à l'OUVERTURE de
+   * la modale — celle-ci s'ouvre aussi pour consulter, corriger ou annuler, et
+   * chaque ouverture demandait alors la position. Il part à la première frappe
+   * dans le montant, seul signal fiable qu'une saisie réelle commence.
    */
   async function ouvrirAvecPosition(reponse = REPONSE_BRIOCHE) {
     navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
@@ -303,10 +308,52 @@ describe('Le lieu enregistré dit où la dépense a eu lieu', () => {
     initQuickAdd();
     window.showQuickAddModal();
 
+    premiereFrappe();
+
     await vi.waitFor(() => {
       expect(document.getElementById('quickAddLocation').textContent).toMatch(/^✓/);
     });
   }
+
+  /** La frappe qui déclenche la recherche du lieu */
+  function premiereFrappe() {
+    const champ = document.getElementById('quickAddAmount');
+    champ.value = '9';
+    champ.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  it('ne demande RIEN tant que personne n\'a tapé', async () => {
+    // Une modale ouverte pour consulter ou corriger ne doit pas demander la
+    // position. Le mutant qui remet `startGPSDetection()` dans
+    // `showQuickAddModal` fait tomber ce contrôle.
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(REPONSE_BRIOCHE) }));
+
+    setState('cachedGpsPosition', { lat: 48.11, lng: -1.68, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+
+    // Laisser tourner les microtâches : si un géocodage était parti, il aurait
+    // eu le temps d'écrire.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(document.getElementById('quickAddLocation').textContent).toBe('');
+    expect(document.getElementById('quickAddLocation').hidden).toBe(true);
+  });
+
+  it('et ne la demande qu\'UNE fois, quel que soit le nombre de frappes', async () => {
+    await ouvrirAvecPosition();
+
+    const apresLaPremiere = global.fetch.mock.calls.length;
+    premiereFrappe();
+    premiereFrappe();
+    await Promise.resolve();
+
+    expect(global.fetch.mock.calls.length).toBe(apresLaPremiere);
+  });
 
   it('réclame l\'adresse décomposée à Nominatim', async () => {
     // Sans `addressdetails=1`, la réponse ne porte ni rue, ni code postal, ni
@@ -320,8 +367,11 @@ describe('Le lieu enregistré dit où la dépense a eu lieu', () => {
   it('affiche l\'enseigne et sa commune pendant la saisie', async () => {
     await ouvrirAvecPosition();
 
+    // `toContain` et non `toBe` : le témoin peut ajouter la catégorie qu'il a
+    // proposée, et c'est tout son intérêt sous la grille — il dit POURQUOI une
+    // tuile s'est allumée toute seule.
     expect(document.getElementById('quickAddLocation').textContent)
-      .toBe('✓ Brioche Dorée, 35000 Rennes');
+      .toContain('✓ Brioche Dorée, 35000 Rennes');
   });
 
   it('ne reprend pas la rue', async () => {
@@ -370,6 +420,8 @@ describe('Le lieu enregistré dit où la dépense a eu lieu', () => {
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
+
+    premiereFrappe();
 
     await vi.waitFor(() => {
       expect(document.getElementById('quickAddLocation').textContent).toBe('✓ Position enregistrée');
@@ -490,6 +542,44 @@ describe('Le balisage livré, et non celui des tests', () => {
 });
 
 describe('La catégorie déduite du lieu', () => {
+  /** La frappe qui déclenche la recherche du lieu — voir `surMontantSaisi` */
+  function taperLePremierChiffre() {
+    const champ = document.getElementById('quickAddAmount');
+    champ.value = '9';
+    champ.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  it('et le témoin dit d\'où vient la catégorie proposée', async () => {
+    // Une catégorie qui se pose toute seule sans un mot se lit comme un bogue.
+    // C'est le traitement que la mémoire des libellés applique déjà à son
+    // propre indice, et la raison pour laquelle le témoin a quitté la tête de
+    // la fenêtre pour venir sous la grille.
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'Brioche Dorée',
+        type: 'bakery',
+        display_name: 'Brioche Dorée, Rue de Nantes, 35000 Rennes',
+        address: { shop: 'Brioche Dorée', road: 'Rue de Nantes', postcode: '35000', city: 'Rennes' }
+      })
+    }));
+
+    setState('cachedGpsPosition', { lat: 48.11, lng: -1.68, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    initQuickAdd();
+    window.showQuickAddModal();
+    taperLePremierChiffre();
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.category-btn.selected')).not.toBeNull();
+    });
+
+    const temoin = document.getElementById('quickAddLocation').textContent;
+    expect(temoin).toContain('Brioche Dorée');
+    expect(temoin).toContain('proposée d\'après le lieu');
+  });
+
   /**
    * Signalé à l'usage : à la Brioche Dorée, aucune catégorie n'était proposée.
    * La table n'en connaissait que quatre — supermarché, station-service,
@@ -511,6 +601,7 @@ describe('La catégorie déduite du lieu', () => {
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
+    taperLePremierChiffre();
 
     await vi.waitFor(() => {
       expect(document.querySelector('.category-btn.selected')).not.toBeNull();
@@ -539,6 +630,7 @@ describe('La catégorie déduite du lieu', () => {
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
+    taperLePremierChiffre();
 
     await vi.waitFor(() => {
       expect(document.getElementById('quickAddLocation').textContent).toMatch(/Argelès/);
@@ -1061,16 +1153,23 @@ describe('La page livre bien ce que le module manipule', () => {
  * que ce qui a été tapé pendant l'attente survive.
  */
 describe('Saisie ouverte avant que l\'application soit prête', () => {
+  /** Les catégories du foyer, telles que le double les rend par défaut */
+  const CATEGORIES_DU_FOYER = getCategories();
 
   beforeEach(() => {
     // L'état d'avant l'authentification : le marqueur n'est pas encore posé.
     delete document.body.dataset.appReady;
     document.body.innerHTML = BALISAGE;
     vi.clearAllMocks();
+    getCategories.mockReturnValue(CATEGORIES_DU_FOYER);
   });
 
   afterEach(() => {
     document.body.dataset.appReady = 'true';
+    // Un contrôle de ce bloc remplace les listes du foyer en cours de route :
+    // sans cette remise en place, tous ceux qui suivent verraient une
+    // application à une seule catégorie.
+    getCategories.mockReturnValue(CATEGORIES_DU_FOYER);
   });
 
   it('n\'écrit rien tant que l\'application n\'est pas prête', async () => {
@@ -1124,6 +1223,64 @@ describe('Saisie ouverte avant que l\'application soit prête', () => {
 
     const modale = document.getElementById('modalQuickAdd');
     expect(modale.classList.contains('modal-overlay--anticipee')).toBe(false);
+  });
+
+  /**
+   * LE TÉMOIN ET LA PHRASE NE PEUVENT PAS SE CONTREDIRE
+   *
+   * Sur ce chemin, la modale s'ouvre sur les catégories PAR DÉFAUT avant que
+   * Firebase ait répondu. Le lieu peut donc proposer une catégorie que le foyer
+   * ne possède pas — et `reappliquerLaCategorie` l'abandonne quand les vraies
+   * listes arrivent, en le laissant à la phrase de le redemander.
+   *
+   * Le témoin, lui, n'était réécrit par personne : il continuait d'annoncer
+   * « "Courses" proposée d'après le lieu » pendant que la phrase, deux lignes
+   * plus haut, réclamait une catégorie. Deux surfaces du même écran qui se
+   * contredisent, et de façon PERSISTANTE là où un toast se serait effacé.
+   */
+  it('le témoin se rétracte quand la catégorie proposée est abandonnée', async () => {
+    navigator.geolocation = { getCurrentPosition: vi.fn(), watchPosition: vi.fn(), clearWatch: vi.fn() };
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'Brioche Dorée',
+        type: 'bakery',
+        display_name: 'Brioche Dorée, Rue de Nantes, 35000 Rennes',
+        address: { shop: 'Brioche Dorée', road: 'Rue de Nantes', postcode: '35000', city: 'Rennes' }
+      })
+    }));
+    setState('cachedGpsPosition', { lat: 48.11, lng: -1.68, accuracy: 10, timestamp: Date.now() });
+
+    initQuickAdd();
+    window.showQuickAddModal({ anticipee: true });
+
+    const champ = document.getElementById('quickAddAmount');
+    champ.value = '9';
+    champ.dispatchEvent(new Event('input', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.getElementById('quickAddLocation').textContent)
+        .toContain('proposée d\'après le lieu');
+    });
+
+    // Les vraies listes du foyer arrivent, et elles ne portent PAS la catégorie
+    // que le lieu avait proposée.
+    getCategories.mockReturnValue([
+      { id: 'sante', icon: '💊', label: 'Santé', color: '#0EA5E9' }
+    ]);
+    // `showModal` est doublé : la classe que la vraie modale poserait est
+    // ajoutée à la main, sinon la complétion se retire sans rien faire.
+    document.getElementById('modalQuickAdd').classList.add('active');
+    document.body.dataset.appReady = 'true';
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.category-btn.selected')).toBeNull();
+    });
+
+    const temoin = document.getElementById('quickAddLocation').textContent;
+    // Le lieu reste — il est juste. C'est la CATÉGORIE qui ne l'est plus.
+    expect(temoin).toContain('Brioche Dorée');
+    expect(temoin).not.toContain('proposée d\'après le lieu');
   });
 
   it('un payeur choisi à la main survit à l\'arrivée des données', async () => {

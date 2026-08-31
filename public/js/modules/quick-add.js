@@ -9,7 +9,7 @@ import { showModal, closeModal } from '../components/modal.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
 import { getCategories } from './custom-lists.js';
-import { escapeHtml } from '../utils/format.js';
+import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
 import { dateDuJour, heureDuJour, heureValide } from '../utils/date.js';
@@ -78,8 +78,36 @@ const quickAddState = {
   splitMode: 'prorata',    // 'prorata' | '50-50' | 'perso'
   paidBy: 'vous',          // 'vous' | 'conjointe' | 'partage'
   envelope: '',            // identifiant d'enveloppe, ou '' pour aucune
-  gpsLocation: null        // { lat, lng, accuracy, timestamp, name? }
+  gpsLocation: null,       // { lat, lng, accuracy, timestamp, name? }
+
+  // Ce que le lieu a permis d'annoncer : son étiquette, et la catégorie qu'il a
+  // PROPOSÉE. Retenu plutôt que rendu directement en phrase, parce que deux
+  // chemins peuvent le démentir après coup — voir `redireLeLieu`.
+  lieuDit: null            // { etiquette, categorieProposee } | null
 };
+
+/**
+ * La demande de position a-t-elle déjà été lancée pour cette ouverture ?
+ *
+ * Le GPS partait à l'OUVERTURE de la modale, laquelle s'ouvre aussi pour
+ * consulter, corriger ou annuler : chaque ouverture demandait la position, et
+ * la première ligne de la fenêtre parlait du GPS à quelqu'un venu taper un
+ * chiffre. Il part désormais à la première frappe dans le montant — le seul
+ * signal fiable qu'une saisie réelle commence — ce qui laisse au géocodage le
+ * temps de la description, et ne coûte rien à qui ouvre pour regarder.
+ */
+let _lieuDemande = false;
+
+/**
+ * Le numéro de l'ouverture en cours
+ *
+ * Le géocodage est asynchrone et n'a aucune date de péremption : une réponse
+ * qui revient après la fermeture — ou après une réouverture — écrivait dans la
+ * saisie SUIVANTE, y posant un lieu et une catégorie venus de la précédente.
+ * Déplacer le départ du GPS vers la frappe rapproche mécaniquement cette
+ * réponse de la soumission : le jeton devient nécessaire.
+ */
+let _ouverture = 0;
 
 // ===== INITIALISATION =====
 
@@ -197,6 +225,31 @@ function surFondDeModale(e) {
 }
 
 /**
+ * La première frappe dans le montant lance la recherche du lieu
+ *
+ * Le seul signal fiable qu'une saisie RÉELLE commence. L'ouverture n'en est pas
+ * un : la modale s'ouvre aussi pour consulter, pour corriger, pour annuler — et
+ * elle annonçait alors « 📍 Détection position... » en tête de fenêtre, avant
+ * qu'un chiffre soit tapé, à quelqu'un venu taper un chiffre.
+ *
+ * Le lieu part donc ici, une seule fois par ouverture, et le géocodage travaille
+ * pendant que la description se tape. Sur un appareil sans `navigator.permissions`
+ * — iOS Safari — il n'y a pas de veille de fond pour alimenter le cache, et la
+ * proposition de catégorie peut arriver après qu'on l'a choisie à la main :
+ * `processGPSPosition` ne la pose que si aucune catégorie n'est retenue, donc
+ * elle se tait au lieu d'écraser. Ce délai n'a pas été mesuré sur un téléphone
+ * réel ; ce qui est mesuré, c'est qu'aucune position n'est plus demandée pour
+ * une modale qu'on referme sans rien saisir.
+ *
+ * @returns {void}
+ */
+function surMontantSaisi() {
+  if (_lieuDemande) return;
+  _lieuDemande = true;
+  startGPSDetection();
+}
+
+/**
  * Configure les event listeners
  */
 function setupEventListeners() {
@@ -214,6 +267,7 @@ function setupEventListeners() {
   document.addEventListener('keydown', _keydownHandler);
 
   poserUnique(document.getElementById('quickAddAmount'), 'keypress', surEntree);
+  poserUnique(document.getElementById('quickAddAmount'), 'input', surMontantSaisi);
   poserUnique(document.getElementById('quickAddDescription'), 'keypress', surEntree);
   poserUnique(document.getElementById('quickSplitProrata'), 'click', surProrata);
   poserUnique(document.getElementById('quickSplit5050'), 'click', surCinquanteCinquante);
@@ -337,12 +391,12 @@ function showQuickAddModal({ anticipee = false } = {}) {
   // Peupler la grille catégories avec les catégories dynamiques
   populateCategoryGrid();
 
-  // Reset GPS display
-  const locationEl = document.getElementById('quickAddLocation');
-  if (locationEl) {
-    locationEl.textContent = '';
-    locationEl.className = 'quick-add-location';
-  }
+  // Une nouvelle ouverture : le témoin repart vide, la demande de position est
+  // à refaire, et tout géocodage encore en vol appartient à l'ouverture d'avant.
+  _ouverture += 1;
+  _lieuDemande = false;
+  quickAddState.lieuDit = null;
+  direLeLieu('');
 
   // Ouvrir la modale
   showModal('modalQuickAdd');
@@ -389,8 +443,9 @@ function showQuickAddModal({ anticipee = false } = {}) {
     chargerHistoriqueFrequentes();
   }
 
-  // Lancer détection GPS en arrière-plan
-  startGPSDetection();
+  // Le GPS ne part plus d'ici : voir `surMontantSaisi`. Une modale s'ouvre
+  // aussi pour consulter, corriger ou annuler, et chaque ouverture demandait
+  // alors la position.
 }
 
 /**
@@ -480,11 +535,16 @@ function reappliquerLaCategorie() {
   const connue = getCategories().find(c => c.id === choisie.id);
   if (!connue) {
     quickAddState.selectedCategory = null;
+    // Le témoin annonçait « proposée d'après le lieu » pour une catégorie qu'on
+    // vient d'abandonner : il doit se rétracter, sinon deux surfaces du même
+    // écran se contredisent.
+    redireLeLieu();
     return;
   }
 
   quickAddState.selectedCategory = connue;
   marquerLaCategorie(connue.id);
+  redireLeLieu();
 }
 
 /**
@@ -518,12 +578,13 @@ function closeQuickAddModal() {
   annoncerLAttente(false);
   resetState();
 
-  // Reset UI spécifique
-  const locationEl = document.getElementById('quickAddLocation');
-  if (locationEl) {
-    locationEl.textContent = '';
-    locationEl.className = 'quick-add-location';
-  }
+  // Reset UI spécifique. Le jeton avance aussi à la FERMETURE : sans cela, une
+  // réponse partie avant la fermeture reviendrait écrire dans une modale close,
+  // dont l'état vient d'être remis à zéro.
+  _ouverture += 1;
+  _lieuDemande = false;
+  quickAddState.lieuDit = null;
+  direLeLieu('');
   const descriptionInput = document.getElementById('quickAddDescription');
   if (descriptionInput) descriptionInput.value = '';
 
@@ -928,6 +989,62 @@ function updatePayer(payeur) {
 // ===== LIEU =====
 
 /**
+ * La SEULE écriture du témoin de lieu
+ *
+ * Six endroits y écrivaient `textContent` et `className` à la main. Ce n'était
+ * pas encore un défaut, c'en était la configuration : six rédactions de la même
+ * ligne, dont l'une finit toujours par oublier ce que les autres font.
+ *
+ * @param {string} texte - Vide replie la zone
+ * @param {''|'loading'|'success'|'error'} [etat]
+ * @returns {void}
+ */
+function direLeLieu(texte, etat = '') {
+  const zone = document.getElementById('quickAddLocation');
+  if (!zone) return;
+
+  zone.textContent = texte || '';
+  zone.className = etat ? `quick-add-location ${etat}` : 'quick-add-location';
+  // Sans texte, la zone ne réserve pas sa ligne : une modale qui s'ouvre sur un
+  // blanc de 18 px au milieu des catégories se lit comme un élément manquant.
+  zone.hidden = !texte;
+}
+
+/**
+ * Recompose le témoin d'après ce que la saisie sait à cet instant
+ *
+ * Deux chemins peuvent démentir ce que le géocodage vient d'annoncer, et le
+ * second n'écrivait rien : `reappliquerLaCategorie` ABANDONNE la catégorie
+ * quand le foyer ne la possède pas — ce qui arrive systématiquement sur le
+ * chemin du raccourci, où la modale s'ouvre sur les catégories par défaut avant
+ * que Firebase ait répondu. Le témoin continuait alors d'annoncer
+ * « "Courses" proposée d'après le lieu » pendant que la phrase, deux lignes
+ * plus haut, redemandait une catégorie. Deux surfaces du même écran qui se
+ * contredisent, et de façon PERSISTANTE là où un toast se serait effacé.
+ *
+ * La phrase est donc composée à un seul endroit, et rejouée par ceux qui
+ * changent ce dont elle parle — le motif que `dessinerLaPhrase` applique déjà.
+ *
+ * @returns {void}
+ */
+function redireLeLieu() {
+  const lieu = quickAddState.lieuDit;
+  if (!lieu) return;
+
+  const retenue = quickAddState.selectedCategory;
+  const vientDuLieu = Boolean(
+    lieu.categorieProposee && retenue && retenue.id === lieu.categorieProposee
+  );
+
+  direLeLieu(
+    vientDuLieu
+      ? `✓ ${lieu.etiquette} · « ${retenue.label} » proposée d'après le lieu`
+      : `✓ ${lieu.etiquette}`,
+    'success'
+  );
+}
+
+/**
  * Détache la position de la dépense en cours
  *
  * Le lieu détecté est celui du téléphone à l'instant de la saisie. Régulariser
@@ -938,13 +1055,9 @@ function updatePayer(payeur) {
  */
 function detachLocation() {
   quickAddState.gpsLocation = null;
+  quickAddState.lieuDit = null;
 
-  const locationEl = document.getElementById('quickAddLocation');
-  if (locationEl) {
-    locationEl.textContent = 'Sans lieu';
-    locationEl.className = 'quick-add-location';
-  }
-
+  direLeLieu('Sans lieu');
   hideLocationDetach();
 }
 
@@ -1119,7 +1232,7 @@ async function soumettre() {
     // de sortir du solde — le même défaut que le `splitMode` qui n'était lu
     // par personne, et que ce toast affichait pourtant.
     const modeLabel = { prorata: 'Prorata', '50-50': '50-50', perso: 'Perso' }[splitMode] || 'Prorata';
-    toast.success(`${category.icon} ${description} — ${amount.toFixed(2)} € (${modeLabel})`);
+    toast.success(`${category.icon} ${description} — ${formatCurrency(amount)} (${modeLabel})`);
 
     // Refresh données
     await loadVariableCharges();
@@ -1204,13 +1317,13 @@ function getCachedPosition() {
  * Utilise la position en cache si disponible, sinon getCurrentPosition.
  */
 function startGPSDetection() {
-  const locationEl = document.getElementById('quickAddLocation');
-  if (!locationEl) return;
+  // Le jeton de l'ouverture qui demande : une réponse qui revient après une
+  // fermeture n'écrira pas dans la saisie suivante.
+  const pour = _ouverture;
 
   if (!navigator.geolocation) {
     warn('⚠️ [GPS] Géolocalisation non disponible');
-    locationEl.textContent = '';
-    locationEl.className = 'quick-add-location';
+    direLeLieu('');
     return;
   }
 
@@ -1218,16 +1331,14 @@ function startGPSDetection() {
   const cached = getCachedPosition();
   if (cached) {
     log('⚡ [GPS] Position en cache utilisée (âge:', Date.now() - cached.timestamp, 'ms)');
-    locationEl.textContent = '📍 Géocodage...';
-    locationEl.className = 'quick-add-location loading';
-    processGPSPosition(cached, locationEl);
+    direLeLieu('📍 Géocodage...', 'loading');
+    processGPSPosition(cached, pour);
     return;
   }
 
   // Pas de cache — lancer getCurrentPosition classique
   try {
-    locationEl.textContent = '📍 Détection position...';
-    locationEl.className = 'quick-add-location loading';
+    direLeLieu('📍 Détection position...', 'loading');
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -1244,11 +1355,11 @@ function startGPSDetection() {
           startBackgroundGPS();
         }
 
-        processGPSPosition(gpsData, locationEl);
+        processGPSPosition(gpsData, pour);
       },
       (error) => {
-        locationEl.textContent = '';
-        locationEl.className = 'quick-add-location';
+        if (pour !== _ouverture) return;
+        direLeLieu('');
 
         if (error.code === 1) {
           warn('⚠️ [GPS] Permission refusée');
@@ -1266,15 +1377,17 @@ function startGPSDetection() {
     );
   } catch (globalError) {
     logError('❌ [GPS] Erreur critique:', globalError);
-    locationEl.textContent = '';
-    locationEl.className = 'quick-add-location';
+    direLeLieu('');
   }
 }
 
 /**
  * Traite une position GPS (cache ou fraîche) : reverse geocoding + auto-catégorie
  */
-async function processGPSPosition(gpsData, locationEl) {
+async function processGPSPosition(gpsData, pour = _ouverture) {
+  // La modale a pu se fermer, ou se rouvrir, pendant que la position arrivait.
+  if (pour !== _ouverture) return;
+
   try {
     quickAddState.gpsLocation = gpsData;
 
@@ -1284,6 +1397,8 @@ async function processGPSPosition(gpsData, locationEl) {
     // Géocodage inversé pour obtenir le nom du lieu
     try {
       const place = await reverseGeocode(gpsData.lat, gpsData.lng);
+      if (pour !== _ouverture) return;
+
       if (place?.etiquette) {
         // « Brioche Dorée » seul ne disait pas laquelle ; « Brioche Dorée,
         // 35000 Rennes » le dit, et reste lisible dans une liste de charges.
@@ -1292,27 +1407,33 @@ async function processGPSPosition(gpsData, locationEl) {
         gpsData.codePostal = place.codePostal;
         quickAddState.gpsLocation = gpsData;
 
-        locationEl.textContent = `✓ ${place.etiquette}`;
-        locationEl.className = 'quick-add-location success';
-
         // Auto-détection catégorie
         const detected = categoriePourLieu(place, getCategories(), habitudesDuFoyer());
-        if (detected && !quickAddState.selectedCategory) {
-          selectCategory(detected.id);
-          toast.info(`📍 ${detected.label} détecté`);
-        }
+        const proposable = Boolean(detected && !quickAddState.selectedCategory);
+        if (proposable) selectCategory(detected.id);
+
+        // Ce que le témoin aura à dire — la phrase, elle, est composée par
+        // `redireLeLieu`, seule à la rédiger, et rejouée si la catégorie est
+        // abandonnée plus tard.
+        quickAddState.lieuDit = {
+          etiquette: place.etiquette,
+          categorieProposee: proposable ? detected.id : null
+        };
+        redireLeLieu();
       } else {
-        locationEl.textContent = '✓ Position enregistrée';
-        locationEl.className = 'quick-add-location success';
+        quickAddState.lieuDit = { etiquette: 'Position enregistrée', categorieProposee: null };
+        redireLeLieu();
       }
     } catch {
-      locationEl.textContent = '✓ Position enregistrée';
-      locationEl.className = 'quick-add-location success';
+      if (pour !== _ouverture) return;
+      quickAddState.lieuDit = { etiquette: 'Position enregistrée', categorieProposee: null };
+      redireLeLieu();
     }
   } catch (err) {
     logError('❌ [GPS] Erreur traitement position:', err);
-    locationEl.textContent = '✗ Erreur GPS';
-    locationEl.className = 'quick-add-location error';
+    if (pour !== _ouverture) return;
+    quickAddState.lieuDit = null;
+    direLeLieu('✗ Position introuvable', 'error');
     hideLocationDetach();
   }
 }

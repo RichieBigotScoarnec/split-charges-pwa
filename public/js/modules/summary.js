@@ -9,10 +9,12 @@ import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolv
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
-import { anticiper } from '../utils/anticipation.js';
+import { anticiper, projectionDuMois } from '../utils/anticipation.js';
 import { rapportDuMois } from '../utils/rapport-mensuel.js';
 import { chargesDeLEnveloppeTousMois, totalEnveloppe } from '../utils/enveloppes.js';
-import { jourEtMois, getCurrentPeriod } from '../utils/date.js';
+import {
+  jourEtMois, dateDuJour, joursDeLaPeriode, etatDuMois, formatPeriod
+} from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
@@ -26,12 +28,63 @@ export function initSummary() {
 }
 
 /**
+ * N'affiche les tendances que s'il y a quelque chose à analyser
+ *
+ * Sur une application encore vide, le premier écran proposait « 📈 Tendances
+ * sur 6 mois » à côté d'« Enveloppes » et « Privé » — trois commandes au-dessus
+ * de zéro donnée. Un état vide est pourtant le seul moment où l'application a
+ * l'attention entière de quelqu'un qui ne sait rien : le remplir d'outils
+ * inertes gaspille ce moment, et enseigne que la moitié des boutons ne font
+ * rien.
+ *
+ * Le même raisonnement que `refreshSearchVisibility`, et que le bouton de la
+ * carte — masqué tant qu'aucune dépense n'est localisée — ou celui du rapport,
+ * qui n'est pas rendu sans historique. Ce qui change ici, c'est seulement
+ * qu'un dépliant vide se remarque moins qu'un panneau vide : personne ne
+ * l'avait vu.
+ *
+ * Les deux autres commandes restent, elles : « Enveloppes » et « Privé »
+ * CRÉENT quelque chose. Les masquer empêcherait d'ouvrir une cagnotte avant
+ * d'avoir saisi une dépense, ce qui est un ordre parfaitement légitime.
+ */
+function refreshTrendsVisibility(historique) {
+  const section = document.getElementById('trendsSection');
+  if (!section) return;
+
+  const duMois = ['fixedCharges', 'variableCharges']
+    .flatMap(cle => getState(cle) || [])
+    .some(charge => charge && !charge.deleted);
+
+  // L'historique suffit à justifier le panneau même si le mois affiché est
+  // vide : c'est précisément le cas où une tendance se regarde. L'instantané
+  // frais d'abord — il fait autorité et arrive avant que l'état ne le porte —,
+  // puis celui que l'état a conservé des rendus précédents.
+  const rempli = (noeud) => Boolean(
+    noeud && typeof noeud === 'object' && Object.keys(noeud).length > 0
+  );
+  const passe = rempli(historique) || rempli(getState('historiquePourLeRapport'));
+
+  section.hidden = !duMois && !passe;
+}
+
+/**
  * Calcule le bilan financier complet
  * @returns {Object} Résumé du bilan
  */
 export function calculateSummary({ historique } = {}) {
   // La recherche n'a de sens que s'il existe des charges à filtrer
   refreshSearchVisibility();
+
+  // Les tendances non plus : elles analysent un historique.
+  //
+  // L'instantané est passé EN PARAMÈTRE, et pas seulement relu dans l'état :
+  // `historiquePourLeRapport` n'y est déposé que plus bas, par
+  // `historiqueUtilisable`. S'en remettre à l'état seul masquait donc le
+  // panneau au PREMIER rendu — celui qui suit la connexion — même sur un foyer
+  // de trois ans d'historique, pour ne le faire reparaître qu'au rendu suivant.
+  // Douze contrôles de bout en bout l'ont dit ; aucun contrôle unitaire ne
+  // pouvait le voir, l'ordre de deux lignes n'étant pas une valeur.
+  refreshTrendsVisibility(historique);
 
   const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
   const fixedCharges = getState('fixedCharges') || [];
@@ -103,11 +156,21 @@ export function calculateSummary({ historique } = {}) {
     shareMode, salaries: incomeBase, totalSalaries, customPercents
   });
 
+  // Un seul instantané d'historique pour les deux lectures qui en dépendent.
+  //
+  // `historiqueUtilisable` porte un effet de bord — elle dépose l'instantané
+  // frais dans l'état, pour les rendus qui suivront une écriture. L'appeler
+  // deux fois n'était pas faux, mais c'était une règle d'ordre à tenir de plus,
+  // et ce fichier en a déjà payé une (le panneau des tendances lisait un état
+  // que `calculateSummary` ne dépose que plus bas).
+  const periods = historiqueUtilisable(historique);
+
   // Afficher le résumé
   renderSummary({
     previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
+    projection: projectionAffichee(periods),
     observations: observationsDuMois(historique),
-    rapport: rapportDuMoisAffiche(historique, summary, salaries),
+    rapport: rapportDuMoisAffiche(periods, summary, salaries),
     totalCharges: summary.total,
     yourTheoricalShare: summary.yourShare,
     partnerTheoricalShare: summary.partnerShare,
@@ -196,14 +259,12 @@ function historiqueUtilisable(historique) {
  * rapport vaut alors `null` et le bouton n'est pas rendu — plutôt qu'un bouton
  * qui ouvre une page à moitié vide.
  *
- * @param {Object} [historique] - Nœud `periods`, lu dans le même geste
+ * @param {Object|null} periods - Sortie de `historiqueUtilisable`
  * @param {Object} bilan - Sortie de `computeSummary` pour le mois affiché
  * @param {Object} salaries - Instantané de revenus du mois
  * @returns {Object|null}
  */
-function rapportDuMoisAffiche(historique, bilan, salaries) {
-  const periods = historiqueUtilisable(historique);
-
+function rapportDuMoisAffiche(periods, bilan, salaries) {
   if (!periods) {
     setState('rapportDuMois', null);
     return null;
@@ -215,7 +276,7 @@ function rapportDuMoisAffiche(historique, bilan, salaries) {
       mois: getState('currentPeriod'),
       // Le mois du calendrier : c'est lui qui dit si le mois rapporté est
       // encore en cours, donc incomplet, donc incomparable à des mois entiers.
-      moisReel: getCurrentPeriod(),
+      moisReel: jourDuCalendrier().moisReel,
       bilan,
       salaries
     });
@@ -227,6 +288,63 @@ function rapportDuMoisAffiche(historique, bilan, salaries) {
     // bilan, qui, lui, l'est.
     warn('⚠️ Rapport du mois indisponible :', erreur);
     setState('rapportDuMois', null);
+    return null;
+  }
+}
+
+/**
+ * Ce que l'horloge de l'appareil dit du mois en cours
+ *
+ * Trois grandeurs que deux mesures réclament — la veille et la projection — et
+ * qui doivent venir du MÊME instant : lues séparément, elles peuvent enjamber
+ * minuit, et le 1ᵉʳ du mois à 00 h 00 la projection s'appliquerait au mois
+ * précédent.
+ *
+ * Une seule lecture d'horloge, donc, et par `dateDuJour`, qui est la fabrique
+ * du dépôt pour « aujourd'hui dans le fuseau de l'appareil » — une dépense de
+ * 00 h 30 y était datée de la veille tant que le calcul se faisait en UTC.
+ * `joursDeLaPeriode` fait le reste : c'est la même qui dit combien de jours il
+ * reste à une enveloppe.
+ *
+ * @returns {{moisReel: string, jourDuMois: number, joursDuMois: number}}
+ */
+function jourDuCalendrier() {
+  const aujourdhui = dateDuJour();
+  const moisReel = aujourdhui.slice(0, 7);
+
+  return {
+    moisReel,
+    jourDuMois: Number(aujourdhui.slice(8, 10)),
+    joursDuMois: joursDeLaPeriode(moisReel)
+  };
+}
+
+/**
+ * Où va le mois, si les jours qui restent ressemblent à ceux qui ont passé
+ *
+ * Le premier écran était RÉTROSPECTIF : il répondait à « qu'est-ce qui s'est
+ * passé », jamais à « où va-t-on ». Le calcul existait pourtant — sous forme
+ * d'une carte d'alerte qui ne paraissait qu'au-delà d'un seuil, et qui
+ * disputait ses trois places à six autres détecteurs. Il est désormais annoncé
+ * à chaque ouverture, sous les échéances qu'il complète.
+ *
+ * Rendue `null` en cas d'échec, comme la veille et le rapport : une projection
+ * n'est jamais indispensable, le bilan l'est.
+ *
+ * @param {Object|null} periods - Sortie de `historiqueUtilisable`
+ * @returns {Object|null} Sortie de `projectionDuMois`, ou `null`
+ */
+function projectionAffichee(periods) {
+  if (!periods) return null;
+
+  try {
+    return projectionDuMois({
+      periods,
+      moisCourant: getState('currentPeriod'),
+      ...jourDuCalendrier()
+    });
+  } catch (erreur) {
+    warn('⚠️ Projection du mois indisponible :', erreur);
     return null;
   }
 }
@@ -267,7 +385,6 @@ function observationsDuMois(historique) {
       depenseDuMois: totalEnveloppe(duMois, enveloppe.id)
     }));
 
-    const aujourdhui = new Date();
     // Rangées dans l'état : le bouton d'une carte ne porte que sa clé, et
     // c'est ici que le gestionnaire retrouve la proposition correspondante.
     const vues = anticiper({
@@ -277,13 +394,11 @@ function observationsDuMois(historique) {
       listeEnveloppes: getState('envelopes') || [],
       periods: historique,
       moisCourant: getState('currentPeriod'),
-      // Le mois du CALENDRIER, distinct de celui du sélecteur. Le jour et la
-      // durée qui suivent viennent de l'horloge : sans ce rapprochement, la
-      // projection du mois s'appliquerait au mois affiché quel qu'il soit, et
-      // prévoirait la fin d'un mois clos depuis trois mois.
-      moisReel: getCurrentPeriod(),
-      jourDuMois: aujourdhui.getDate(),
-      joursDuMois: new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() + 1, 0).getDate()
+      // Le mois du CALENDRIER, distinct de celui du sélecteur, plus le jour et
+      // la durée. Sans ce rapprochement, une mesure de rythme s'appliquerait au
+      // mois affiché quel qu'il soit, et jugerait un budget clos depuis trois
+      // mois sur les jours écoulés d'aujourd'hui.
+      ...jourDuCalendrier()
     });
 
     setState('observations', vues);
@@ -397,6 +512,34 @@ function renderObservations(observations) {
  * @param {number} montant - Solde du mois
  * @returns {string} Fragment HTML
  */
+/**
+ * Comment nommer le total qui ouvre le bilan
+ *
+ * « Ensemble ce mois » n'est vrai que du mois en cours. Le sélecteur en propose
+ * un d'AVANCE — la reconduction peut y avoir inscrit les charges fixes dès le
+ * premier — et l'historique en propose des dizaines derrière. Nommer les trois
+ * états de la même façon ferait dire au bilan qu'un mois qui n'a pas commencé
+ * a déjà coûté 1 717 €.
+ *
+ * L'état vient d'`etatDuMois`, la fabrique que le rapport lisait déjà : c'est
+ * la même question, et deux réponses finiraient par différer.
+ *
+ * @param {string} mois - AAAA-MM affiché
+ * @param {'revolu'|'en-cours'|'a-venir'|null} etat
+ * @returns {string} Texte brut, à échapper par l'appelant
+ */
+function libelleDuTotal(mois, etat) {
+  if (etat === 'en-cours') return 'Ensemble ce mois';
+  if (etat === 'revolu') return `Ensemble en ${formatPeriod(mois)}`;
+  // Un mois à venir ne porte que ce que la reconduction y a posé d'avance :
+  // « dépensé » serait faux, « engagé » est exact.
+  if (etat === 'a-venir') return `Déjà engagé pour ${formatPeriod(mois)}`;
+
+  // Sans repère de calendrier, on ne situe pas le mois plutôt que de supposer
+  // qu'il est en cours.
+  return 'Dépensé ensemble';
+}
+
 function phraseSolde(solde, montant) {
   const somme = `<strong>${formatCurrency(Math.abs(montant))}</strong>`;
   return solde.suffixe
@@ -417,6 +560,7 @@ function renderSummary(summary) {
 
   const {
     previsionnel,
+    projection,
     observations,
     rapport,
     totalCharges,
@@ -453,6 +597,43 @@ function renderSummary(summary) {
     balanceText = `<strong>Comptes équilibrés</strong> — rien à se rembourser`;
     balanceClass = 'balance-zero';
   }
+
+  // LA TÊTE DU BILAN DIT CE QUI EST COMMUN ; L'ÉCART VIENT APRÈS
+  //
+  // Elle disait « Conjointe vous doit 408,37 € », en 28 px, sur la première
+  // ligne du premier écran. Le calcul est juste ; le CADRAGE était un choix, et
+  // ce choix n'avait jamais été fait — il était arrivé par défaut. Une
+  // application de couple qui ouvre sur une créance transforme une organisation
+  // commune en comptabilité entre deux parties, et c'est celui des deux qui
+  // doit qui le lit chaque jour.
+  //
+  // Ce qui passe en tête est donc le fait SYMÉTRIQUE : ce que le foyer a
+  // dépensé ensemble. L'écart reste, entier, juste en dessous — rien n'est
+  // caché, rien n'est recalculé, et le bouton qui le règle n'a pas bougé.
+  // « Doit » garde sa place là où c'est le mot juste : au moment de régler, et
+  // sur la barre collante qui rappelle le solde pendant qu'on parcourt les
+  // charges.
+  //
+  // Le mois est NOMMÉ selon son état. Le sélecteur propose un mois d'avance, et
+  // la reconduction peut y avoir inscrit les charges fixes dès le premier :
+  // « Ensemble ce mois » y désignerait un mois qui n'a pas commencé. Même
+  // fabrique que le rapport, `etatDuMois` — c'est la leçon que ce dépôt a payée
+  // en annonçant « 1 090 € de moins qu'un mois ordinaire » pour un mois à venir.
+  const moisAffiche = getState('currentPeriod');
+  const teteDuBilan = libelleDuTotal(moisAffiche, etatDuMois(moisAffiche, jourDuCalendrier().moisReel));
+
+  // L'écart est rendu SANS CONDITION, y compris à zéro.
+  //
+  // `barre-solde.js` masque la barre collante sur la seule GÉOMÉTRIE de
+  // `.summary-balance`, sur la prémisse écrite dans `responsive.css` :
+  // « repliée tant que le bilan dit déjà la même chose ». Un bilan qui, dans un
+  // cas, ne porterait plus le solde rendrait cette prémisse fausse en silence —
+  // et « Comptes équilibrés » ne serait alors nulle part à l'écran.
+  const ecartDuBilan = finalBalance === 0
+    ? '<p class="bilan-ecart bilan-ecart--nul">Comptes équilibrés — rien à se rembourser</p>'
+    : `<p class="bilan-ecart">À rééquilibrer :
+        <span class="bilan-ecart-montant">${formatCurrency(Math.abs(finalBalance))}</span>
+        — ${escapeHtml(soldeDit.sens)}</p>`;
 
   // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
   let balanceExplanation = '';
@@ -498,12 +679,15 @@ function renderSummary(summary) {
   summaryElement.innerHTML = `
     <div class="summary-card">
       <div class="summary-balance ${balanceClass}">
-        ${balanceText}
+        <span class="bilan-tete">${escapeHtml(teteDuBilan)}</span>
+        <strong>${formatCurrency(totalCharges)}</strong>
+        ${ecartDuBilan}
         ${balanceExplanation}
         ${settleButton}
       </div>
 
       ${renderPrevisionnel(previsionnel)}
+      ${renderProjection(projection)}
       ${renderObservations(observations)}
 
       <details class="summary-details">
@@ -695,6 +879,63 @@ function renderPrevisionnel(previsionnel) {
       </div>
       <small class="previsionnel-detail">
         ${liste} — déjà comptés dans le solde ci-dessus
+      </small>
+    </div>
+  `;
+}
+
+/**
+ * Où va le mois — la seule ligne prospective du premier écran
+ *
+ * Tout le reste du bilan est rétrospectif : ce qui a été dépensé, ce qui reste
+ * à passer parmi les échéances DÉJÀ inscrites. Aucune ligne ne disait où le
+ * mois allait, alors que c'est la question qu'on se pose le 12.
+ *
+ * **Son propre bloc, et non une ligne du prévisionnel.** Le prévisionnel se
+ * peint en vert quand tout est passé — et « ✅ Tout est passé ce mois-ci »
+ * suivi de « il reste 21 jours, le mois finira autour de 2 400 € » se serait
+ * contredit à l'œil, dans un lavis qui dit que tout va bien. Ce n'est pas un
+ * cas dégénéré : c'est le cas courant de la seconde moitié d'un mois, où les
+ * charges datées sont toutes derrière.
+ *
+ * Les deux nombres se raccordent, et la phrase le dit : ce qui est engagé
+ * aujourd'hui est le point de départ de la projection, pas un chiffre à côté.
+ * « Un chiffre qu'on ne sait pas raccorder au précédent est pire qu'un chiffre
+ * absent » — c'est écrit dans le contrôle du prévisionnel.
+ *
+ * Un seul montant, et le ton porte l'urgence : la carte d'alerte qui disait la
+ * même chose en ambre a été retirée de la veille, sans quoi le même nombre
+ * aurait paru deux fois sur le même écran.
+ *
+ * @param {Object|null} projection - Sortie de `projectionDuMois`
+ * @returns {string} Fragment HTML, ou chaîne vide
+ */
+function renderProjection(projection) {
+  if (!projection) return '';
+
+  const { projection: fin, ordinaire, surcout, joursRestants, moisCompares, depasse } = projection;
+
+  // `joursRestants` vaut au moins 2 : la fabrique se tait dès que le mois est
+  // fini. Le pluriel est donc toujours juste, et une garde au singulier serait
+  // une branche que rien ne peut atteindre.
+  // Le repère porte sa propre classe : c'est le nombre que le rapport annonce
+  // aussi, et la propriété qui les tient ensemble doit pouvoir le LIRE plutôt
+  // que d'analyser la phrase — sans quoi elle attraperait le surcoût, qui la
+  // précède, et passerait pour la mauvaise raison.
+  const habituel = `<span class="projection-ordinaire">${formatCurrency(ordinaire)}</span>`;
+  const repere = depasse
+    ? `soit ${formatCurrency(surcout)} de plus qu'un mois ordinaire (${habituel})`
+    : `un mois ordinaire coûte ${habituel}`;
+
+  return `
+    <div class="summary-projection${depasse ? ' summary-projection--attention' : ''}">
+      <div class="projection-montant">
+        <span aria-hidden="true">📈</span>
+        Il reste ${joursRestants} jours — à ce rythme, le mois finira autour de
+        <strong>${formatCurrency(fin)}</strong>
+      </div>
+      <small class="projection-detail">
+        ${repere}, sur les ${moisCompares} mois précédents
       </small>
     </div>
   `;

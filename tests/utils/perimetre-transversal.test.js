@@ -32,7 +32,7 @@ import { previsionnelDuMois } from '../../public/js/utils/previsionnel.js';
 import { coutDesChargesFixes } from '../../public/js/utils/cout-annuel.js';
 import { detailDuPayeur, detailDeLaCategorie } from '../../public/js/utils/detail.js';
 import { rapportDuMois } from '../../public/js/utils/rapport-mensuel.js';
-import { rythmeDuMois } from '../../public/js/utils/anticipation.js';
+import { projectionDuMois } from '../../public/js/utils/anticipation.js';
 
 /** Un foyer ordinaire : salaires inégaux, prorata, une charge de chaque sorte */
 const SALAIRES = { vous: 2000, conjointe: 3000 };
@@ -132,8 +132,8 @@ const FONCTIONS = [
     })
   },
   {
-    nom: 'rythmeDuMois — à ce rythme, combien coûtera le mois',
-    appel: (fixes, variables) => rythmeDuMois({
+    nom: 'projectionDuMois — où va le mois, si les jours qui restent ressemblent aux précédents',
+    appel: (fixes, variables) => projectionDuMois({
       periods: {
         '2026-05': MOIS_ORDINAIRE, '2026-06': MOIS_ORDINAIRE, '2026-07': MOIS_ORDINAIRE,
         '2026-08': {
@@ -151,6 +151,19 @@ describe('Aucune fonction d\'argent ne compte une dépense solo', () => {
   for (const { nom, appel } of FONCTIONS) {
     it(nom, () => {
       const sansSolo = appel(COMMUNES_FIXES, COMMUNES_VARIABLES);
+
+      // LE TÉMOIN POSITIF, sans lequel ce registre ne mesure rien.
+      //
+      // La propriété est `f(communes) === f(communes + solo)` : `null === null`
+      // la satisfait. Une fonction qui se tairait — parce qu'un seuil
+      // d'historique n'est pas atteint, parce qu'un jeu d'essai a dérivé —
+      // passerait donc au vert en n'ayant jamais regardé une seule charge, et
+      // neutraliser `estSolo` ne ferait rien tomber pour cette entrée. C'est
+      // exactement le trou que ce fichier existe pour fermer, laissé ouvert
+      // dans le fichier lui-même.
+      expect(sansSolo).not.toBe(null);
+      expect(sansSolo).not.toEqual([]);
+      expect(sansSolo).not.toEqual({});
 
       const fixesMelangees = [COMMUNES_FIXES[0], SOLOS[0], SOLOS[3], COMMUNES_FIXES[1], SOLOS[1]];
       const variablesMelangees = [SOLOS[2], COMMUNES_VARIABLES[0], COMMUNES_VARIABLES[1]];

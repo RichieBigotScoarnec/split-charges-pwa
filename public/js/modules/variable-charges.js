@@ -17,6 +17,7 @@ import {
   heureDuJour, heureSaisissable, heureValide
 } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
+import { afficherTotalDeListe } from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
@@ -28,7 +29,7 @@ import { parseMontant } from '../utils/montant.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { categorieProposee } from '../utils/memoire-libelle.js';
-import { estSolo, totauxParPerimetre, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -81,6 +82,12 @@ export function showAddVariableChargeModal() {
   window.toggleVariableChargePerso?.();
 
   accorderModaleVariable(false);
+
+  // Une saisie neuve repart replié — même si la précédente avait déplié pour
+  // montrer son lieu. `form.reset()` ne touche pas à l'attribut `open` d'un
+  // `<details>` : sans ce rappel, le dépliant resterait ouvert de saisie en
+  // saisie, et le repli n'aurait servi qu'une fois.
+  deplierSiRenseigne(false);
 
   showModal('modalAddVariableCharge');
 }
@@ -587,7 +594,24 @@ export function editVariableCharge(chargeId) {
   poserLieu(charge.location || null);
   accorderModaleVariable(true);
 
+  // Le lieu et l'enveloppe sont repliés par défaut : ils ne concernent qu'une
+  // charge sur dix. Mais rouvrir une charge QUI EN PORTE et les cacher serait
+  // pire que de les montrer toujours — on croirait la donnée perdue, et on la
+  // ressaisirait. Le dépliant s'ouvre donc quand il a quelque chose à montrer.
+  deplierSiRenseigne(Boolean(charge.location) || Boolean(charge.envelope));
+
   showModal('modalAddVariableCharge');
+}
+
+/**
+ * Ouvre le dépliant « Lieu, enveloppe » quand la charge en porte un
+ *
+ * @param {boolean} renseigne - La charge a-t-elle un lieu ou une enveloppe ?
+ */
+function deplierSiRenseigne(renseigne) {
+  const repli = document.querySelector('#modalAddVariableCharge .form-repli');
+  if (!repli) return;
+  repli.open = renseigne;
 }
 
 /**
@@ -641,27 +665,6 @@ export async function deleteVariableCharge(chargeId) {
 /**
  * Affiche la liste des charges variables dans le DOM
  */
-/**
- * Le pied de liste : le total commun, et le perso seulement s'il existe
- *
- * Sans dépense solo, la phrase est celle d'avant — c'est le cas de tous les
- * mois déjà en base. Avec, elle nomme les deux, parce qu'un total unique
- * contredirait le bilan affiché juste au-dessus.
- *
- * `textContent` et non `innerHTML` : la politique de sécurité du dépôt plafonne
- * les sites d'injection, et un total n'a aucune raison d'en ouvrir un de plus.
- *
- * @param {HTMLElement|null} element - Le `<span>` du total
- * @param {Array<Object>} charges - Les charges affichées
- */
-function afficherTotal(element, charges) {
-  if (!element) return;
-  const { commun, solo } = totauxParPerimetre(charges);
-  element.textContent = solo > 0
-    ? `${formatCurrency(commun)} + ${formatCurrency(solo)} perso`
-    : formatCurrency(commun);
-}
-
 export function renderVariableCharges() {
   const charges = getState('variableCharges') || [];
   const listElement = document.getElementById('variableChargesList');
@@ -676,8 +679,10 @@ export function renderVariableCharges() {
   listElement.innerHTML = '';
 
   if (charges.length === 0) {
-    listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période</p>';
-    afficherTotal(totalElement, []);
+    listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période'
+      + '<small>Les dépenses du quotidien, dont le montant change : courses,'
+      + ' essence, restaurant.</small></p>';
+    afficherTotalDeListe(totalElement, []);
     return;
   }
 
@@ -693,6 +698,11 @@ export function renderVariableCharges() {
   groupes.forEach(({ categorie: category, charges: categoryCharges, total: categoryTotal }) => {
     const categoryDiv = document.createElement('div');
     categoryDiv.className = 'charge-category';
+    // Le libellé de la catégorie, porté par l'élément plutôt que relu depuis
+    // l'en-tête : celui-ci mêle l'emoji, le nom et le montant dans le même
+    // nœud de texte. `accorderLesSousTotaux` s'en sert pour refléter une
+    // recherche.
+    categoryDiv.dataset.categorie = category;
     categoryDiv.innerHTML = `
       <h4 class="category-header">
         ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
@@ -760,7 +770,7 @@ export function renderVariableCharges() {
   });
 
   // Afficher le total — commun d'abord, perso à part.
-  afficherTotal(totalElement, charges);
+  afficherTotalDeListe(totalElement, charges);
 }
 
 /**

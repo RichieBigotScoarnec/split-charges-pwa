@@ -519,7 +519,10 @@ export function renderReimbursements() {
   listElement.innerHTML = '';
 
   if (reimbursements.length === 0) {
-    listElement.innerHTML = '<p class="empty-state">Aucun remboursement pour cette période</p>';
+    listElement.innerHTML = '<p class="empty-state">Aucun remboursement pour cette période'
+      + '<small>Les virements que vous vous faites l\'un à l\'autre pour solder'
+      + ' le mois. Ce ne sont pas des dépenses : ils ne comptent que dans le'
+      + ' solde.</small></p>';
     if (totalElement) totalElement.textContent = formatCurrency(0);
     return;
   }

@@ -2,7 +2,8 @@
 // Fonctionnalités : visualisation évolution dépenses, comparaison périodes
 
 import { getState } from '../state.js';
-import { formatCurrency, escapeHtml } from '../utils/format.js';
+import { formatCurrency, escapeHtml, pourcentageDeVariation, pourcentageDePart } from '../utils/format.js';
+import { echelleLisible } from '../utils/echelle.js';
 import { formatPeriod, getCurrentPeriod } from '../utils/date.js';
 import { resolveIncomeBase, resolveSalaries } from '../utils/salaries.js';
 import {
@@ -346,7 +347,26 @@ function renderTrendsChart(canvas, data) {
   const fixedTotals = periods.map(p => data.data[p].fixedCharges);
   const variableTotals = periods.map(p => data.data[p].variableCharges);
 
-  const maxValue = Math.max(...totals) * 1.1 || 1;
+  // L'échelle vient AVANT les marges, parce que la largeur du libellé le plus
+  // long en dépend — mais elle a besoin du nombre de graduations, qui dépend
+  // de la hauteur du tracé. Celle-ci ne dépend que des marges verticales, qui
+  // sont fixes : on peut donc la calculer d'abord, sans tourner en rond.
+  const HAUTEUR_LEGENDE = 24;
+  const hautDisponible = height - 28 - (26 + HAUTEUR_LEGENDE);
+
+  // Trois graduations sur un graphe court se lisent, six s'y empilent.
+  const gridLines = hautDisponible >= 160 ? 5 : 3;
+
+  // L'axe se graduait en divisant le maximum par cinq, sans rien arrondir :
+  // « 1 997,47 · 1 597,97 · 1 198,48 · 798,99 · 399,49 · 0 ». Six graduations
+  // dont pas une ne se retient. Un axe sert à SITUER une courbe d'un coup
+  // d'œil, pas à donner des valeurs — celles-ci sont dans la courbe.
+  //
+  // `echelleLisible` rend un pas rond et un sommet qui couvre les données :
+  // elle remplace donc aussi la marge de 10 % appliquée ici à la main, qui ne
+  // garantissait rien de rond.
+  const echelle = echelleLisible(Math.max(...totals), gridLines);
+  const maxValue = echelle.maximum;
 
   // Les marges se déduisent de la place, elles ne sont plus écrites en dur.
   //
@@ -358,7 +378,6 @@ function renderTrendsChart(canvas, data) {
   ctx.font = `12px ${police}`;
   const largeurLibelle = Math.ceil(ctx.measureText(formatCurrency(maxValue)).width);
 
-  const HAUTEUR_LEGENDE = 24;
   const margin = {
     top: 28,
     right: 16,
@@ -376,14 +395,13 @@ function renderTrendsChart(canvas, data) {
   ctx.fillStyle = couleurs.fond;
   ctx.fillRect(margin.left, margin.top, chartWidth, chartHeight);
 
-  // Grille et graduations. Leur nombre suit la hauteur : trois graduations sur
-  // un graphe court se lisent, six s'y empilent.
-  const gridLines = chartHeight >= 160 ? 5 : 3;
+  // Grille et graduations : une par pas de l'échelle, toutes rondes.
+  const graduations = echelle.graduations;
   ctx.strokeStyle = couleurs.grille;
   ctx.lineWidth = 1;
 
-  for (let i = 0; i <= gridLines; i++) {
-    const y = margin.top + (chartHeight / gridLines) * i;
+  for (let i = 0; i <= graduations; i++) {
+    const y = margin.top + (chartHeight / graduations) * i;
     ctx.beginPath();
     ctx.moveTo(margin.left, y);
     ctx.lineTo(margin.left + chartWidth, y);
@@ -392,7 +410,7 @@ function renderTrendsChart(canvas, data) {
     ctx.fillStyle = couleurs.texte;
     ctx.font = `12px ${police}`;
     ctx.textAlign = 'right';
-    ctx.fillText(formatCurrency(maxValue * (1 - i / gridLines)), margin.left - 8, y + 4);
+    ctx.fillText(formatCurrency(maxValue - echelle.pas * i), margin.left - 8, y + 4);
   }
 
   // Courbes
@@ -561,23 +579,6 @@ function classeTendance(variation) {
 }
 
 /**
- * Une variation en pourcentage, écrite en français
- *
- * `toFixed(1)` rend « 231.2 », avec un point décimal — au milieu d'un écran où
- * tous les montants s'écrivent « 1 259,97 € ».
- *
- * @param {number} variation - En pourcentage
- * @returns {string}
- */
-function pourcentageLisible(variation) {
-  const signe = variation > 0 ? '+' : '';
-  return `${signe}${variation.toLocaleString('fr-FR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  })} %`;
-}
-
-/**
  * La flèche d'une tendance
  * @param {number} variation - En euros
  * @returns {string}
@@ -658,7 +659,7 @@ function carteEcart(ecart, periode, enCours) {
     `;
   }
 
-  const part = ecart.part === null ? '' : pourcentageLisible(ecart.part);
+  const part = ecart.part === null ? '' : pourcentageDeVariation(ecart.part);
   const legende = enCours
     ? 'mois en cours, encore incomplet'
     : `${part} par rapport à l'ordinaire`;
@@ -701,7 +702,7 @@ function carteTaux(taux, fixe) {
   return `
     <div class="stat-card">
       <div class="stat-label">Taux d'effort</div>
-      <div class="stat-value">${escapeHtml(partLisible(taux))}</div>
+      <div class="stat-value">${escapeHtml(pourcentageDePart(taux))}</div>
       <div class="stat-period">${escapeHtml(detail)}</div>
     </div>
   `;
@@ -757,16 +758,6 @@ function ligneCategorie(bougee, precedent) {
       ${formatCurrency(Math.abs(bougee.variation))} ${sens} qu'en ${escapeHtml(formatPeriod(precedent))}.
     </p>
   `;
-}
-
-/**
- * Un taux, écrit en français
- *
- * @param {number} valeur - Pourcentage
- * @returns {string}
- */
-function partLisible(valeur) {
-  return `${Math.round(valeur)} %`;
 }
 
 /**

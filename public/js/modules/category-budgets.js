@@ -17,6 +17,7 @@ import { computeCategoryBudgets, summarizeBudgets } from '../utils/budgets.js';
 import { getCategories } from './custom-lists.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
+import { budgetsProposes, ordonnerCategories } from '../utils/budget-propose.js';
 
 /** Chemin du réglage en base — global : un budget vaut pour tous les mois */
 const BUDGETS_PATH = 'categoryBudgets';
@@ -94,11 +95,33 @@ function renderLigne(ligne) {
       ? `Dépassé de ${formatCurrency(Math.abs(ligne.remaining))}`
       : `Reste ${formatCurrency(ligne.remaining)}`;
     bloc.appendChild(el('div', 'budget-row-status', `${Math.round(ligne.percentage)} % — ${etat}`));
-  } else {
-    bloc.appendChild(el('div', 'budget-row-status', 'Aucun budget défini'));
   }
+  // Sans budget : aucune ligne d'état ici. Le montant dépensé est déjà là et
+  // il se suffit ; le fait qu'aucun budget ne soit fixé se dit UNE fois, en
+  // pied de carte, par `mentionSansBudget`.
 
   return bloc;
+}
+
+/**
+ * Ce qu'il reste à dire des catégories sans budget — une fois, pas sept
+ *
+ * « Aucun budget défini » s'écrivait sous CHACUNE des sept catégories du mois.
+ * Une information répétée sept fois n'est plus une information, c'est une
+ * texture : l'œil la saute, et elle occupe sept lignes du premier écran — la
+ * ressource la plus rare de l'application.
+ *
+ * Elle reste dite, parce qu'elle explique une absence : sans elle, une ligne
+ * sans jauge se lirait comme une jauge qui n'a pas fini de charger.
+ *
+ * @param {Array<Object>} lignes - Sortie de computeCategoryBudgets
+ * @returns {string} Le texte, ou '' si toutes les catégories ont un budget
+ */
+function mentionSansBudget(lignes) {
+  const sans = lignes.filter(ligne => !(ligne.budget > 0)).length;
+  if (sans === 0) return '';
+  if (sans === lignes.length) return 'Aucun budget défini';
+  return `Aucun budget défini pour ${sans} ${sans > 1 ? 'catégories' : 'catégorie'}`;
 }
 
 /**
@@ -136,6 +159,9 @@ export function renderCategoryBudgets() {
 
   lignes.forEach(ligne => contenu.appendChild(renderLigne(ligne)));
 
+  const mention = mentionSansBudget(lignes);
+  if (mention) contenu.appendChild(el('div', 'budget-sans-budget', mention));
+
   const action = el('button', 'btn btn-secondary btn-block', 'Définir les budgets');
   action.type = 'button';
   action.dataset.action = 'showBudgetEditor';
@@ -155,6 +181,16 @@ export function showBudgetEditor() {
   const budgets = getState('categoryBudgets') || {};
   const depenses = analyzeCategoriesData().total;
 
+  // Ce que chaque catégorie coûte un mois ordinaire, sur l'historique déjà
+  // porté par l'état — aucune lecture supplémentaire. Vide tant que deux mois
+  // révolus ne sont pas là : une proposition tirée d'un seul mois serait un
+  // chiffre pris au hasard présenté comme un conseil.
+  // `currentPeriod` — le mois AFFICHÉ — et non le mois réel : c'est celui
+  // qu'on budgète, et l'assiette est donc tout ce qui le précède. Sans
+  // historique conservé, la fonction rend un objet vide et l'éditeur retombe
+  // sur son comportement d'avant, en un peu mieux rangé.
+  const proposes = budgetsProposes(getState('historiquePourLeRapport'), getState('currentPeriod'));
+
   // `getCategories()` rend des objets {id, icon, label} : les mêler à des clés
   // de chaînes produisait une ligne « [object Object] » par catégorie
   // configurée, dont le budget ne pouvait ni se lire ni s'enregistrer — la clé
@@ -167,33 +203,91 @@ export function showBudgetEditor() {
     ...getCategories().map(c => c.label),
     ...Object.keys(depenses),
     ...Object.keys(budgets)
-  ])].sort();
+  ])];
+
+  // Dix-neuf catégories par ordre alphabétique, dont sept seulement portaient
+  // une dépense : il fallait lire « Autre, Bar, Boulangerie, Bricolage… »
+  // avant d'atteindre « Courses ». Celles dont l'application n'a rien à dire
+  // passent derrière un dépliant — sans disparaître, faute de quoi on ne
+  // pourrait plus leur fixer de budget du tout.
+  const { utilisees, dormantes } = ordonnerCategories(noms, depenses, proposes, budgets);
 
   liste.replaceChildren();
 
-  noms.forEach((nom, index) => {
-    const rangee = el('div', 'budget-editor-row');
+  let index = 0;
+  const rangee = (nom) => construireRangee(nom, index++, budgets, depenses, proposes);
 
-    const etiquette = el('label', 'budget-editor-label', nom);
-    const champId = `budgetInput_${index}`;
-    etiquette.setAttribute('for', champId);
+  for (const nom of utilisees) liste.appendChild(rangee(nom));
 
-    const champ = document.createElement('input');
-    champ.type = 'text';
-    champ.inputMode = 'decimal';
-    champ.id = champId;
-    champ.className = 'budget-editor-input';
-    champ.placeholder = '0';
-    champ.value = budgets[nom] > 0 ? String(budgets[nom]) : '';
-    // Le nom transite par une propriété, jamais par l'identifiant : une
-    // catégorie peut contenir espaces, accents ou caractères spéciaux.
-    champ.dataset.category = nom;
+  if (dormantes.length > 0) {
+    const repli = document.createElement('details');
+    repli.className = 'budget-editor-repli';
 
-    rangee.append(etiquette, champ);
-    liste.appendChild(rangee);
-  });
+    const titre = document.createElement('summary');
+    titre.textContent = dormantes.length > 1
+      ? `${dormantes.length} autres catégories`
+      : '1 autre catégorie';
+    repli.appendChild(titre);
+
+    for (const nom of dormantes) repli.appendChild(rangee(nom));
+    liste.appendChild(repli);
+  }
 
   showModal('modalBudgets');
+}
+
+/**
+ * Une ligne de l'éditeur : le libellé, ce qu'il coûte d'ordinaire, le champ
+ *
+ * La proposition est un `placeholder`, jamais une `value` : un champ prérempli
+ * s'enregistrerait sans qu'on l'ait voulu, et fixerait dix-neuf budgets d'un
+ * clic sur « Enregistrer ». Le foyer voit le chiffre, le recopie s'il lui
+ * convient — ou tape le sien. L'application propose, elle ne décide pas.
+ *
+ * @param {string} nom - Libellé de la catégorie, tel qu'il indexe la base
+ * @param {number} index - Rang, pour l'identifiant du champ
+ * @param {Object} budgets - Budgets déjà fixés
+ * @param {Object} depenses - Dépense du mois affiché
+ * @param {Object} proposes - Médiane par catégorie
+ * @returns {HTMLElement}
+ */
+function construireRangee(nom, index, budgets, depenses, proposes) {
+  const rangee = el('div', 'budget-editor-row');
+
+  const bloc = el('div', 'budget-editor-libelle');
+  const etiquette = el('label', 'budget-editor-label', nom);
+  const champId = `budgetInput_${index}`;
+  etiquette.setAttribute('for', champId);
+  bloc.appendChild(etiquette);
+
+  // « vous dépensez environ 310 € par mois » : le chiffre qui manquait pour
+  // décider. Sans lui, le champ demandait d'inventer un nombre — et un nombre
+  // à inventer se remet à plus tard, indéfiniment.
+  if (proposes[nom] > 0) {
+    bloc.appendChild(el(
+      'span', 'budget-editor-indice',
+      `environ ${formatCurrency(proposes[nom])} par mois`
+    ));
+  } else if (depenses[nom] > 0) {
+    bloc.appendChild(el(
+      'span', 'budget-editor-indice',
+      `${formatCurrency(depenses[nom])} ce mois-ci`
+    ));
+  }
+
+  const champ = document.createElement('input');
+  champ.type = 'text';
+  champ.inputMode = 'decimal';
+  champ.id = champId;
+  champ.className = 'budget-editor-input';
+  champ.placeholder = proposes[nom] > 0 ? String(proposes[nom]) : '0';
+  champ.value = budgets[nom] > 0 ? String(budgets[nom]) : '';
+  // Le nom transite par une propriété, jamais par l'identifiant : une
+  // catégorie peut contenir espaces, accents ou caractères spéciaux.
+  champ.dataset.category = nom;
+
+  rangee.append(bloc, champ);
+  return rangee;
 }
 
 /**

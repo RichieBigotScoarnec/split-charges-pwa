@@ -76,10 +76,78 @@
   letter-spacing: -0.02em;
 }
 
+/*
+   L'action principale ne descend jamais sous l'écran.
+
+   `.modal` plafonne à 80vh et défile ; les actions défilaient avec le reste.
+   Mesuré sur un iPhone 13, avant l'ouverture du clavier : le bouton
+   « Ajouter » du formulaire de charge variable tombait à 1038 px sur 664 px
+   utiles — 374 px sous la ligne de flottaison, derrière 502 px de défilement
+   qu'aucun indice n'annonçait. Le formulaire complet devenait le chemin cher,
+   et la saisie rapide le seul praticable ; les charges restaient donc
+   incomplètes.
+
+   `bottom` compense le `padding` de `.modal` pour que la barre se colle au
+   bord bas réel et non à 24 px au-dessus. Le fond est plein — sans lui, le
+   contenu défilerait visiblement sous les boutons.
+*/
+/*
+   Ce qu'un formulaire ne demande qu'à une minorité de saisies.
+
+   Le lieu et l'enveloppe occupaient à eux deux le tiers du formulaire de
+   charge variable — quinze champs au total — alors qu'ils ne concernent
+   qu'une charge sur dix. Repliés, ils restent à un geste de distance pour qui
+   en a besoin, et cessent d'éloigner le bouton de validation de tous les
+   autres.
+*/
+.form-repli {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-md);
+}
+
+.form-repli > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  /* La cible tactile que toute commande de cette application respecte. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  /* `list-style` retire le triangle par défaut sur Firefox, le pseudo-élément
+     WebKit sur Safari : le dépliant porte son propre chevron. */
+  list-style: none;
+}
+
+.form-repli > summary::-webkit-details-marker { display: none; }
+
+.form-repli > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.form-repli[open] > summary::after { content: "▴"; }
+
+.form-repli[open] > summary {
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-md);
+}
+
 .modal-actions {
   display: flex;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
+  position: sticky;
+  bottom: calc(var(--space-lg) * -1);
+  z-index: 1;
+  background: var(--card-bg);
+  padding-block: var(--space-md);
+  margin-bottom: calc(var(--space-lg) * -1);
+  box-shadow: 0 -1px 0 var(--border-color);
 }
 
 .modal-actions .btn {
@@ -116,20 +184,34 @@
   display: none;
 }
 
+/* Le témoin du lieu, sous les catégories : il dit POURQUOI l'une d'elles s'est
+   pré-sélectionnée. Il ne réserve plus sa ligne — `direLeLieu` le replie tant
+   qu'il n'a rien à dire, et un blanc de 18 px au milieu de la grille se lisait
+   comme un élément manquant. */
 .quick-add-location {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-align: center;
-  margin-bottom: 12px;
-  min-height: 18px;
+  margin: var(--space-sm) 0 12px;
+  line-height: 1.5;
 }
 
+/* Les trois états portent l'ENCRE sémantique, pas la couleur de pastille :
+   à 12 px le seuil est de 4,5:1, et `--warning-color` tombait à 3,19:1,
+   `--success-color` à 3,77:1 — sur la phrase même qui explique une catégorie
+   pré-sélectionnée. Mesuré, pas supposé. */
 .quick-add-location.loading {
-  color: var(--warning-color);
+  color: var(--warning-ink);
 }
 
 .quick-add-location.success {
-  color: var(--success-color);
+  color: var(--success-ink);
+}
+
+/* L'échec n'avait AUCUNE règle : il retombait sur la couleur de repos, et
+   « ✗ Position introuvable » se peignait comme une information ordinaire. */
+.quick-add-location.error {
+  color: var(--danger-ink);
 }
 
 /* Détacher le lieu : discret, mais assez grand pour le pouce (44 px minimum) */

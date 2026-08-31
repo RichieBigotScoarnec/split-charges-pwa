@@ -103,7 +103,7 @@ describe('Ordre d\'initialisation', () => {
    * d'attente, à côté de « Connexion… ». Deux affirmations contraires dans le
    * même coup d'œil, et la fausse était la rassurante.
    */
-  it('la confirmation de chargement n\'est émise qu\'une fois les données lues', () => {
+  it('aucun message ne confirme le simple fait d\'avoir chargé', () => {
     const entree = readFileSync(resolve(process.cwd(), 'public/js/app.js'), 'utf8');
 
     // Le contrôle portait sur le fichier entier, faute de quoi que ce soit
@@ -117,12 +117,25 @@ describe('Ordre d\'initialisation', () => {
     expect(corpsInitApp, 'initApp ne peut rien confirmer : Firebase n\'a pas répondu')
       .not.toContain('toast.success(');
 
-    const confirmation = source.indexOf("toast.success('FairSplit chargé')");
-    expect(confirmation, 'confirmation introuvable dans auth.js').toBeGreaterThan(-1);
-    expect(
-      confirmation,
-      'la confirmation doit suivre la fin des étapes de chargement'
-    ).toBeGreaterThan(source.indexOf('appInitialized = true'));
+    // La confirmation a d'abord été DÉPLACÉE après la lecture des données, pour
+    // qu'elle dise vrai. Elle est désormais RETIRÉE, et c'est un cran plus
+    // loin dans le même raisonnement : même exacte, elle ne confirmait aucune
+    // action de l'utilisateur. Personne ne demande à l'application de se
+    // charger — c'est son minimum. Répétée à chaque ouverture, elle apprenait
+    // surtout à ignorer le coin de l'écran où s'affichent les erreurs
+    // d'écriture, et elle recouvrait le bouton flottant sur un écran vide.
+    //
+    // L'échec du chargement, lui, continue de parler : `runStep` nomme l'étape
+    // fautive dans « Chargement partiel ».
+    expect(source, 'un chargement réussi se constate, il ne s\'annonce pas')
+      .not.toContain("toast.success('FairSplit chargé')");
+
+    // Et la garde tient au-delà de cette seule chaîne : le seul message de
+    // succès que `auth.js` a le droit d'émettre confirme une action de la
+    // personne — la création de son compte —, jamais un état de l'application.
+    const succes = [...source.matchAll(/toast\.success\(([^)]*)\)/g)].map(m => m[1]);
+    expect(succes, 'auth.js ne confirme qu\'une action de l\'utilisateur')
+      .toEqual(["'Compte créé avec succès'"]);
   });
 
   it('le rejeu hors ligne ne confirme rien tant que rien n\'est parti', () => {

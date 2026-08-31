@@ -8,6 +8,12 @@ import {
   chargesDisparues,
   veiller
 } from '../../public/js/utils/veille.js';
+// Les montants sont comparés PAR LA FABRIQUE, jamais par une chaîne écrite à
+// la main : `toContain('512.00')` verrouillait le point décimal anglais que
+// ces cartes affichaient — le test tenait le défaut en place. Comparer à
+// `formatCurrency(512)` dit ce qu'on veut vraiment (le montant paraît, écrit
+// comme l'application écrit les montants) et suivra une évolution du format.
+import { formatCurrency } from '../../public/js/utils/format.js';
 
 /**
  * Ce que l'application remarque d'elle-même
@@ -90,7 +96,7 @@ describe('provisionARenouveler — le cas qui a motivé ce module', () => {
 
     expect(vu.ecartAuPrevu).toBeCloseTo(209.81, 2);
     expect(vu.montant).not.toBeCloseTo(800 / 12, 2);
-    expect(vu.fonde).toContain('1009.81');
+    expect(vu.fonde).toContain(formatCurrency(1009.81));
   });
 
   it('se déclenche dès le mois de l\'échéance, en disant que le total est provisoire', () => {

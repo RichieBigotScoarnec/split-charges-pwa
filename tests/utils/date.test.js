@@ -9,6 +9,9 @@ import {
   heureSaisissable,
   heureValide,
   formatDateEtHeure,
+  joursDeLaPeriode,
+  joursRestantsDansLeMois,
+  etatDuMois,
 } from '../../public/js/utils/date.js';
 
 // ===== getCurrentPeriod =====
@@ -235,5 +238,102 @@ describe('formatDateEtHeure', () => {
 
     expect(lisible).toMatch(/25/);
     expect(lisible).not.toContain('21:14');
+  });
+});
+
+/**
+ * Combien de jours compte un mois, et combien il en reste
+ *
+ * Deux surfaces affichent ce dernier nombre en toutes lettres : la cadence
+ * d'une enveloppe (« 20 € par jour sur les 22 restants ») et la projection du
+ * bilan (« il reste 22 jours »). Comptés séparément, l'un inclusif et l'autre
+ * exclusif, ils auraient dit 22 et 21 le même jour sur le même écran.
+ */
+describe('joursDeLaPeriode', () => {
+  it('rend la longueur réelle du mois, février bissextile compris', () => {
+    expect(joursDeLaPeriode('2026-01')).toBe(31);
+    expect(joursDeLaPeriode('2026-04')).toBe(30);
+    expect(joursDeLaPeriode('2026-02')).toBe(28);
+    // 2028 est bissextile : c'est le cas que deux comptages séparés
+    // finissaient par ne pas partager.
+    expect(joursDeLaPeriode('2028-02')).toBe(29);
+  });
+
+  it('refuse ce qui n\'est pas une période', () => {
+    expect(joursDeLaPeriode('2026-13')).toBe(null);
+    expect(joursDeLaPeriode('2026-00')).toBe(null);
+    expect(joursDeLaPeriode('2026-08-15')).toBe(null);
+    expect(joursDeLaPeriode('')).toBe(null);
+    expect(joursDeLaPeriode(null)).toBe(null);
+    expect(joursDeLaPeriode(202608)).toBe(null);
+  });
+});
+
+describe('joursRestantsDansLeMois', () => {
+  it('compte le jour même : le 10 d\'un mois de 31 jours, il en reste 22', () => {
+    expect(joursRestantsDansLeMois('2026-08', '2026-08-10')).toBe(22);
+  });
+
+  it('le dernier jour du mois, il en reste un — jamais zéro', () => {
+    // Sans le « +1 », la cadence d'une enveloppe divisait par zéro le 31.
+    expect(joursRestantsDansLeMois('2026-08', '2026-08-31')).toBe(1);
+    expect(joursRestantsDansLeMois('2026-02', '2026-02-28')).toBe(1);
+  });
+
+  it('le premier jour, le mois entier est devant', () => {
+    expect(joursRestantsDansLeMois('2026-08', '2026-08-01')).toBe(31);
+    expect(joursRestantsDansLeMois('2026-04', '2026-04-01')).toBe(30);
+  });
+
+  it('se tait hors du mois consulté : un mois clos n\'a plus de jours devant lui', () => {
+    expect(joursRestantsDansLeMois('2026-07', '2026-08-10')).toBe(null);
+    expect(joursRestantsDansLeMois('2026-09', '2026-08-10')).toBe(null);
+  });
+
+  it('refuse ce qui n\'est pas une date', () => {
+    expect(joursRestantsDansLeMois('2026-08', '10/08/2026')).toBe(null);
+    expect(joursRestantsDansLeMois('2026-08', '')).toBe(null);
+    expect(joursRestantsDansLeMois('2026-08', null)).toBe(null);
+    expect(joursRestantsDansLeMois('pas un mois', '2026-08-10')).toBe(null);
+  });
+});
+
+/**
+ * Où en est un mois par rapport au calendrier
+ *
+ * Trois états, et un seul autorise à QUALIFIER un chiffre. Le rapport a payé
+ * cette leçon en annonçant « 1 090 € de moins qu'un mois ordinaire » pour un
+ * mois qui n'avait pas commencé ; le bilan pose désormais la même question pour
+ * nommer son total, et deux rédactions auraient fini par diverger.
+ */
+describe('etatDuMois', () => {
+  it('distingue les trois états', () => {
+    expect(etatDuMois('2026-08', '2026-08')).toBe('en-cours');
+    expect(etatDuMois('2026-07', '2026-08')).toBe('revolu');
+    // Le sélecteur propose un mois d'avance, où la reconduction a pu inscrire
+    // les charges fixes dès le premier.
+    expect(etatDuMois('2026-09', '2026-08')).toBe('a-venir');
+  });
+
+  it('franchit l\'année sans se tromper', () => {
+    expect(etatDuMois('2025-12', '2026-01')).toBe('revolu');
+    expect(etatDuMois('2026-01', '2025-12')).toBe('a-venir');
+  });
+
+  it('exige les DEUX mois, et pas seulement le repère', () => {
+    // `null < '2026-08'` vaut `false` en JavaScript : sans cette garde, une
+    // période absente était classée « à venir » — l'état sous lequel le bilan
+    // NOMME le mois, et `formatPeriod` d'un mois absent lève. Un rendu qui
+    // tombe emporte tout l'écran.
+    expect(etatDuMois(null, '2026-08')).toBe(null);
+    expect(etatDuMois(undefined, '2026-08')).toBe(null);
+    expect(etatDuMois('', '2026-08')).toBe(null);
+    expect(etatDuMois('2026-13', '2026-08')).toBe(null);
+    expect(etatDuMois('2026-08-10', '2026-08')).toBe(null);
+  });
+
+  it('et se tait sans repère de calendrier', () => {
+    expect(etatDuMois('2026-08', null)).toBe(null);
+    expect(etatDuMois('2026-08', 'pas un mois')).toBe(null);
   });
 });

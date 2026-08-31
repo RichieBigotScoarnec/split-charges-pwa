@@ -441,9 +441,16 @@
   font-weight: 500;
 }
 
+/* Qui a avancé l'argent décide du sens du solde : c'est l'information la plus
+   chargée de la ligne, et elle était la moins lisible de l'écran —
+   `--warning-color` mesure 2,78:1 sur `--elevated-bg`, en 11 px.
+   L'ambre était doublement fautif : sémantiquement, payer n'est pas un
+   avertissement ; les deux payeurs portaient d'ailleurs la même teinte, elle
+   ne distinguait donc personne. Le palier secondaire, en 12 px, dit la même
+   chose à 5,54:1. */
 .charge-payer {
-  font-size: 11px;
-  color: var(--warning-color);
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .charge-location {
@@ -462,11 +469,23 @@
 /* La date de la dépense, en tête de la ligne « Payé par ». Aucune vue n'en
    affichait : une charge était située dans son mois, jamais dans son jour.
    Chiffres à chasse fixe pour que la colonne s'aligne d'une ligne à l'autre. */
+/*
+   La date sur sa ligne, le payeur sur la sienne.
+
+   Les deux vivent dans le même `<span>` — « 14 août 2026 à 18:40 Payé par
+   Vous » — et se lisaient d'un trait tant que la colonne était large. Depuis
+   que le montant a rejoint la ligne du libellé, elle ne l'est plus : la phrase
+   se coupait au hasard, « Payé par » restant en fin de ligne et « Conjointe »
+   passant seule à la suivante. Deux blocs valent mieux qu'un retour arbitraire
+   au milieu d'une locution.
+
+   La marge droite n'a plus d'objet une fois les deux séparés.
+*/
 .charge-date {
+  display: block;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
-  margin-right: 8px;
 }
 
 /* L'étiquette d'enveloppe, sur une charge fixe comme sur une charge variable.
@@ -811,7 +830,11 @@
 .share-mode-option.selected {
   border-color: var(--primary-color);
   background: var(--primary-glow);
-  color: var(--primary-light);
+  /* Mesuré à 3,90:1 avec `--primary-light` : c'est le libellé du mode de
+     partage RETENU — la règle qui décide qui paie quoi —, et c'était le texte
+     le moins lisible du panneau. La teinte pleine passe à 5,49:1 ; la
+     bordure et le lavis continuent de porter la sélection. */
+  color: var(--primary-color);
 }
 
 .custom-percentages {
@@ -943,6 +966,28 @@
      elle est vide. --text-secondary atteint 4,76:1. */
   color: var(--text-secondary);
   padding: var(--space-xl) var(--space-lg);
+}
+
+/*
+   Ce qu'une section vide explique d'elle-même.
+
+   Un état vide est le seul moment où l'application a l'attention entière de
+   quelqu'un qui ne sait rien. L'onglet Charges en montrait trois d'affilée —
+   « Variables », « Fixes », « Remboursements » —, identiques à 0,00 €, sans un
+   mot sur ce qui les distingue. Or cette distinction structure tout le reste :
+   la reconduction, le coût annuel, le prévisionnel. On la découvrait par
+   essais.
+
+   `display: block` sur un `<small>` : la phrase prend sa ligne sous le
+   constat, au lieu de le prolonger.
+*/
+.empty-state small {
+  display: block;
+  max-width: 42ch;
+  margin: var(--space-sm) auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 @keyframes emptyBounce {
@@ -1156,10 +1201,15 @@
   color: var(--text-secondary);
 }
 
+/* Un montant, et non un ornement : `--text-muted` mesure 2,42:1 sur
+   `--elevated-bg`, et le dépôt a délibérément gardé ce palier sous le seuil
+   (tests/contraste.test.js). La décision porte sur la MISE EN FORME ; un
+   chiffre d'argent n'en relève pas. `--text-secondary` mesure 5,54:1 au pire,
+   et la taille comme la fonte monospace suffisent à le tenir au second plan. */
 .category-total {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .charges-list {

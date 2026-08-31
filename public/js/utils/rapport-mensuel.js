@@ -23,18 +23,13 @@
  */
 
 import { estSolo } from './perimetre.js';
+import { etatDuMois } from './date.js';
 import {
-  ecartAuHabituel, tauxDEffort, resteAVivre, partDuFixe, categorieQuiABouge, totauxParCategorie
+  moisOrdinaire, tauxDEffort, resteAVivre, partDuFixe, categorieQuiABouge, totauxParCategorie
 } from './tendances.js';
 
 /** Une clé de mois */
 const CLE_MOIS = /^(\d{4})-(0[1-9]|1[0-2])$/;
-
-/** Combien de mois révolus font un « mois ordinaire » */
-const MOIS_POUR_UN_ORDINAIRE = 3;
-
-/** Et jusqu'où on remonte pour l'établir */
-const PROFONDEUR = 6;
 
 /** En deçà, un solde est réglé — même garde que `settleBalance` */
 const SOLDE_NEGLIGEABLE = 0.01;
@@ -75,19 +70,6 @@ function moisPrecedent(periode) {
 }
 
 /**
- * Où en est un mois par rapport au calendrier
- *
- * @param {string} mois - AAAA-MM rapporté
- * @param {string} [moisReel] - AAAA-MM du calendrier
- * @returns {'revolu'|'en-cours'|'a-venir'|null}
- */
-function etatDuMois(mois, moisReel) {
-  if (!CLE_MOIS.test(moisReel || '')) return null;
-  if (mois === moisReel) return 'en-cours';
-  return mois < moisReel ? 'revolu' : 'a-venir';
-}
-
-/**
  * Le mois écoulé, prêt pour l'écran
  *
  * @param {Object} params
@@ -115,8 +97,9 @@ export function rapportDuMois({ periods, mois, bilan, salaries, moisReel }) {
     return { mois, vide: true };
   }
 
-  // Le mois ordinaire vient de `ecartAuHabituel`, LA MÊME FABRIQUE que le
-  // panneau des tendances — et non d'une seconde médiane.
+  // Le mois ordinaire vient de `moisOrdinaire`, LA MÊME FABRIQUE que le
+  // panneau des tendances et que la projection du bilan — et non d'une seconde
+  // médiane.
   //
   // L'en-tête de ce module promet qu'il ne calcule aucun chiffre d'argent
   // nouveau ; il refaisait pourtant celui-ci, sur une autre fenêtre. Mesuré sur
@@ -125,22 +108,11 @@ export function rapportDuMois({ periods, mois, bilan, salaries, moisReel }) {
   // Deux réponses à la même question, dans la même application, pour le même
   // mois — le défaut de `normalizePair` et de `resolveShareMode`, reproduit.
   //
-  // La fenêtre est donc celle des tendances : les `PROFONDEUR` mois qui se
-  // terminent par le mois affiché, dont `ecartAuHabituel` écarte le dernier
-  // pour établir la référence.
-  const fenetre = Object.keys(periods)
-    .filter(cle => CLE_MOIS.test(cle) && cle <= mois)
-    .sort()
-    .slice(-PROFONDEUR)
-    .map(cle => {
-      const { fixes: f, variables: v } = chargesDuMois(periods[cle]);
-      return somme(f) + somme(v);
-    });
-
-  // Le seuil reste celui de ce module : sans trois mois révolus, « ordinaire »
-  // ne veut rien dire, et `ecartAuHabituel` se contenterait d'un seul.
-  const revolus = fenetre.slice(0, -1).filter(valeur => valeur > 0);
-  const habituel = revolus.length >= MOIS_POUR_UN_ORDINAIRE ? ecartAuHabituel(fenetre) : null;
+  // La fenêtre, le seuil et le traitement des mois à zéro ont donc quitté ce
+  // fichier pour la fabrique : les reconstruire ici, fût-ce à l'identique,
+  // c'était garder deux rédactions d'une même règle — et c'est très exactement
+  // par là que la carte « à ce rythme » a divergé du rapport pendant des mois.
+  const habituel = moisOrdinaire({ periods, mois });
 
   const ordinaire = habituel ? habituel.reference : null;
 

@@ -17,6 +17,7 @@ import {
 } from './db.js';
 import { setState } from './state.js';
 import { initModals } from './components/modal.js';
+import { initRetour } from './utils/retour.js';
 import { toast } from './components/toast.js';
 import { initAuth, revelerFormulaireConnexion } from './modules/auth.js';
 import { log, warn, error as logError } from './utils/debug.js';
@@ -119,6 +120,12 @@ async function initApp() {
     initConnectionBanner(retenterLaLiaison);
 
     // 3. Initialize UI components
+    //
+    // Le geste « retour » d'abord : il doit être branché avant la première
+    // modale et le premier onglet, faute de quoi une couche pousserait son
+    // entrée d'historique sans que rien n'écoute le `popstate` qui la rendra.
+    initRetour();
+
     initModals();
 
     // La barre d'onglets ne dépend ni de Firebase ni de l'authentification :
