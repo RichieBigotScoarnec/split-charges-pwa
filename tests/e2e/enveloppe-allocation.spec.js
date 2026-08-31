@@ -173,6 +173,10 @@ test.describe('L\'enveloppe à allocation', () => {
     await page.locator('#variableChargeAmount').fill('240');
     await page.locator('#variableChargeCategory').selectOption('Courses');
     await page.locator('#variableChargePaidBy').selectOption('vous');
+    // L'enveloppe est repliée avec le lieu : elle ne concerne qu'une charge sur
+    // dix, et les deux occupaient le tiers du formulaire. Le test fait donc ce
+    // que fait la personne — il déplie.
+    await page.locator('#modalAddVariableCharge .form-repli > summary').click();
     await page.locator('#variableChargeEnvelope').selectOption({ index: 1 });
     await page.locator('#saveVariableCharge').click();
     await page.waitForTimeout(500);

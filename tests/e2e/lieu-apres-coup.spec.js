@@ -41,10 +41,28 @@ test.describe('Rattacher un lieu à une dépense', () => {
     }));
   });
 
-  /** Ouvre le formulaire d'ajout de charge variable */
+  /**
+   * Ouvre le formulaire d'ajout de charge variable, et déplie le lieu
+   *
+   * Le lieu et l'enveloppe sont repliés derrière un `<details>` : ils ne
+   * concernent qu'une charge sur dix et occupaient le tiers du formulaire. Le
+   * test fait donc ce que fait la personne — il déplie.
+   *
+   * `toBeVisible()` ne suffit PAS à le prouver, et c'est le piège qui a failli
+   * rendre toute cette suite vacuse : un contenu de `<details>` fermé est
+   * masqué par `content-visibility: hidden`, qui n'annule pas la géométrie.
+   * Playwright le tient donc pour visible, et ces contrôles seraient passés
+   * sur un champ que personne ne voit. `checkVisibility()`, lui, dit la
+   * vérité — mesuré : `false` replié, `true` déplié.
+   */
   async function ouvrirFormulaire(page) {
     await page.locator('#addVariableChargeBtn').click();
+    await page.locator('#modalAddVariableCharge .form-repli > summary').click();
     await expect(page.locator('#variableChargeLieuRecherche')).toBeVisible();
+    expect(
+      await page.locator('#variableChargeLieuRecherche').evaluate(el => el.checkVisibility()),
+      'le champ doit être réellement rendu, pas seulement dimensionné'
+    ).toBe(true);
   }
 
   test('le champ de recherche est présent dans la page livrée', async ({ page }) => {

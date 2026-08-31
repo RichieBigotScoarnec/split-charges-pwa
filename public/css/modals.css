@@ -91,6 +91,52 @@
    bord bas réel et non à 24 px au-dessus. Le fond est plein — sans lui, le
    contenu défilerait visiblement sous les boutons.
 */
+/*
+   Ce qu'un formulaire ne demande qu'à une minorité de saisies.
+
+   Le lieu et l'enveloppe occupaient à eux deux le tiers du formulaire de
+   charge variable — quinze champs au total — alors qu'ils ne concernent
+   qu'une charge sur dix. Repliés, ils restent à un geste de distance pour qui
+   en a besoin, et cessent d'éloigner le bouton de validation de tous les
+   autres.
+*/
+.form-repli {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-md);
+}
+
+.form-repli > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  /* La cible tactile que toute commande de cette application respecte. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  /* `list-style` retire le triangle par défaut sur Firefox, le pseudo-élément
+     WebKit sur Safari : le dépliant porte son propre chevron. */
+  list-style: none;
+}
+
+.form-repli > summary::-webkit-details-marker { display: none; }
+
+.form-repli > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.form-repli[open] > summary::after { content: "▴"; }
+
+.form-repli[open] > summary {
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-md);
+}
+
 .modal-actions {
   display: flex;
   gap: var(--space-sm);

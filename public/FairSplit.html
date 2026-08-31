@@ -691,14 +691,21 @@
       <form id="variableChargeForm">
         <input type="hidden" id="variableChargeId" value="" />
 
-        <div class="form-group">
-          <label for="variableChargeDescription">Description</label>
-          <input type="text" id="variableChargeDescription" placeholder="Ex: Courses, Restaurant..." maxlength="100" required />
-        </div>
-
+        <!-- Le montant vient en premier, comme dans la saisie rapide, et pour
+             la même raison : c'est la seule chose qu'on connaisse toujours en
+             saisissant une dépense. Le libellé se retrouve, la catégorie se
+             devine — `memoire-libelle.js` la propose d'après les saisies
+             passées du foyer —, le montant non. Le formulaire complet
+             demandait pourtant la description d'abord, à rebours du choix
+             déjà tranché deux modales plus loin. -->
         <div class="form-group">
           <label for="variableChargeAmount">Montant (€)</label>
           <input type="text" id="variableChargeAmount" placeholder="Ex: 150,50" inputmode="decimal" maxlength="10" required />
+        </div>
+
+        <div class="form-group">
+          <label for="variableChargeDescription">Description</label>
+          <input type="text" id="variableChargeDescription" placeholder="Ex: Courses, Restaurant..." maxlength="100" required />
         </div>
 
         <!-- La date de la DÉPENSE, pas celle de la saisie. Le formulaire n'en
@@ -730,6 +737,20 @@
                `modules/variable-charges.js`, vide le reste du temps. -->
           <p class="form-hint form-hint--proposee" id="variableChargeCategoryHint" hidden></p>
         </div>
+
+        <!-- Le lieu et l'enveloppe sont repliés, et ce n'est pas de la
+             cosmétique : ils concernent une minorité de charges, et ils
+             occupaient à eux deux le tiers d'un formulaire dont le bouton de
+             validation tombait 374 px sous l'écran. Les replier ramène la
+             saisie complète à ce qu'elle demande vraiment — un montant, un
+             libellé, une date, une catégorie, un payeur — et laisse le reste à
+             un geste de distance pour qui en a besoin.
+
+             `<details>` et non un affichage piloté en JavaScript : le repli
+             fonctionne sans script, et le contenu reste dans le document donc
+             dans l'ordre de tabulation une fois ouvert. -->
+        <details class="form-repli">
+          <summary>Lieu, enveloppe</summary>
 
         <!-- Le lieu ne s'écrivait que par le GPS, au moment de la saisie rapide.
              C'est le bon moment quand on paie, le mauvais dès qu'on note la
@@ -771,6 +792,7 @@
             <option value="">-- Aucune --</option>
           </select>
         </div>
+        </details>
 
         <div class="form-group">
           <label for="variableChargePaidBy">Payé par</label>

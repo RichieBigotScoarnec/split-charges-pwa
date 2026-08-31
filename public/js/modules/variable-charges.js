@@ -83,6 +83,12 @@ export function showAddVariableChargeModal() {
 
   accorderModaleVariable(false);
 
+  // Une saisie neuve repart replié — même si la précédente avait déplié pour
+  // montrer son lieu. `form.reset()` ne touche pas à l'attribut `open` d'un
+  // `<details>` : sans ce rappel, le dépliant resterait ouvert de saisie en
+  // saisie, et le repli n'aurait servi qu'une fois.
+  deplierSiRenseigne(false);
+
   showModal('modalAddVariableCharge');
 }
 
@@ -588,7 +594,24 @@ export function editVariableCharge(chargeId) {
   poserLieu(charge.location || null);
   accorderModaleVariable(true);
 
+  // Le lieu et l'enveloppe sont repliés par défaut : ils ne concernent qu'une
+  // charge sur dix. Mais rouvrir une charge QUI EN PORTE et les cacher serait
+  // pire que de les montrer toujours — on croirait la donnée perdue, et on la
+  // ressaisirait. Le dépliant s'ouvre donc quand il a quelque chose à montrer.
+  deplierSiRenseigne(Boolean(charge.location) || Boolean(charge.envelope));
+
   showModal('modalAddVariableCharge');
+}
+
+/**
+ * Ouvre le dépliant « Lieu, enveloppe » quand la charge en porte un
+ *
+ * @param {boolean} renseigne - La charge a-t-elle un lieu ou une enveloppe ?
+ */
+function deplierSiRenseigne(renseigne) {
+  const repli = document.querySelector('#modalAddVariableCharge .form-repli');
+  if (!repli) return;
+  repli.open = renseigne;
 }
 
 /**
