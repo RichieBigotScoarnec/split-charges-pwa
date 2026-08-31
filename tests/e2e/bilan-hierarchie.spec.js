@@ -50,9 +50,9 @@ const nombre = (texte) => {
   // sépare les milliers par une espace fine insécable (U+202F) et pose une
   // insécable (U+00A0) devant l'euro. Une classe à espaces littéraux ne les
   // contient pas, et « 1 550,00 » s'y lit « 550,00 » — mesuré, une fois.
-  const trouve = String(texte).match(/-?[\d    ]+,\d{2}/);
+  const trouve = String(texte).match(/-?[\d\u00A0\u202F\u2009 ]+,\d{2}/);
   return trouve
-    ? Number(trouve[0].replace(/[    ]/g, '').replace(',', '.'))
+    ? Number(trouve[0].replace(/[\u00A0\u202F\u2009 ]/g, '').replace(',', '.'))
     : null;
 };
 

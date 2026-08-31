@@ -663,6 +663,16 @@ mesuré, que ce lot ne pouvait pas exposer sans d'abord le refermer.
 > appliqué au contrôle unitaire, et pas à celui de bout en bout.** Le mutant y a
 > survécu, et seul le fait de le rejouer l'a dit. Onze mutants posés, onze
 > chutes — mais celui-là a demandé deux passes.
+>
+> **Et la troisième, payée en rouge sur la CI :** je vérifiais `npx eslint
+> public/js` parce que c'est la commande dont ce fichier parle. La CI en lance
+> DEUX, et la première est `npx eslint .` — qui couvre `tests/`, où vivaient mes
+> deux contrôles neufs. Un sous-ensemble choisi par le correcteur mesure ce
+> qu'il a prévu de casser : c'est écrit trois sections plus haut, à propos des
+> suites de tests. La règle vaut pour les commandes de la CI, et la seule façon
+> de la tenir est de les rejouer TOUTES, verbatim.
+
+| **La CI est tombée sur six erreurs de lint que ma vérification locale ne pouvait pas voir** : je lançais `npx eslint public/js`, la CI lance `npx eslint .` — et mes deux contrôles neufs vivent dans `tests/`. Les caractères fautifs étaient les séparateurs de milliers, écrits EN CLAIR dans les classes de caractères, sous un commentaire affirmant qu'ils étaient échappés | `tests/e2e/bilan-hierarchie.spec.js`, `projection-du-mois.spec.js` | ✅ RÉSOLU 2026-08-31 — `\u00A0`, `\u202F` et `\u2009`, et les trois commandes de la CI rejouées telles quelles en local | Le défaut d'espace irrégulier était déjà consigné le 31 août au matin, pour la même raison, dans un autre fichier |
 
 **510 contrôles de bout en bout verts** (contre 500 avant ce lot),
 **2 569 unitaires**, 23 rouges qui sont les 23 exigeant les émulateurs

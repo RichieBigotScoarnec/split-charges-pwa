@@ -81,9 +81,9 @@ const nombre = (texte) => {
   // sépare les milliers par une espace fine insécable (U+202F) et pose une
   // insécable (U+00A0) devant l'euro. Une classe à espaces littéraux ne les
   // contient pas, et « 1 550,00 » s'y lit « 550,00 » — mesuré, une fois.
-  const trouve = String(texte).match(/-?[\d    ]+,\d{2}/);
+  const trouve = String(texte).match(/-?[\d\u00A0\u202F\u2009 ]+,\d{2}/);
   return trouve
-    ? Number(trouve[0].replace(/[    ]/g, '').replace(',', '.'))
+    ? Number(trouve[0].replace(/[\u00A0\u202F\u2009 ]/g, '').replace(',', '.'))
     : null;
 };
 
@@ -153,8 +153,8 @@ test('le mois ordinaire du bilan est celui du rapport, sur la même page', async
   // Le rapport écrit « un mois ordinaire coûte X € ». On compare des NOMBRES
   // relevés sur les deux surfaces, et non une chaîne : c'est l'égalité qui est
   // la propriété, et elle survivrait à un changement de format.
-  const tousLesMontants = [...dansLeRapport.matchAll(/-?[\d    ]+,\d{2}/g)]
-    .map(m => Number(m[0].replace(/[    ]/g, '').replace(',', '.')));
+  const tousLesMontants = [...dansLeRapport.matchAll(/-?[\d\u00A0\u202F\u2009 ]+,\d{2}/g)]
+    .map(m => Number(m[0].replace(/[\u00A0\u202F\u2009 ]/g, '').replace(',', '.')));
 
   expect(tousLesMontants, `montants du rapport : ${tousLesMontants}`)
     .toContainEqual(expect.closeTo(repere, 2));
