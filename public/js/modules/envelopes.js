@@ -41,7 +41,9 @@ import {
   dateLisible,
   fenetreCoherente,
   totalEnveloppe,
-  themeLisible
+  themeLisible,
+  themesConnus,
+  themeExistant
 } from '../utils/enveloppes.js';
 
 /** Nœud Firebase, sous la racine de l'espace de données */
@@ -531,6 +533,7 @@ function showManageEnvelopesModal() {
                 <option value="conjointe">Ma conjointe seule</option>
               </select>
             </div>
+            ${champTheme('envelopeNew', themesConnus(enveloppes))}
             <div class="envelope-field">
               <label for="envelopeNewDebut">Du (facultatif)</label>
               <input type="date" id="envelopeNewDebut" />
@@ -554,6 +557,97 @@ function showManageEnvelopesModal() {
 
   modal.style.display = 'flex';
   requestAnimationFrame(() => modal.classList.add('active'));
+}
+
+/**
+ * Le champ de thème, identique à la création et à l'édition
+ *
+ * **Les valeurs des options sont des RANGS, jamais des libellés.** Le sélecteur
+ * doit porter une entrée « + Nouveau thème », donc une sentinelle — et une
+ * sentinelle qui cohabite avec des libellés est atteignable : `cleDuTheme('+')`
+ * rend `'+'`, un foyer nommant son thème « + » entrerait en collision avec
+ * elle. Trois domaines disjoints par construction : `''` aucun, un entier un
+ * thème connu, `'+'` un thème neuf.
+ *
+ * @param {string} prefixe - `envelopeNew` ou `envelopeEdit`
+ * @param {Array<Object>} themes - Sortie de `themesConnus`
+ * @param {string|null} [actuel] - Thème porté par l'enveloppe éditée
+ * @returns {string} Fragment HTML échappé
+ */
+function champTheme(prefixe, themes, actuel = null) {
+  const courant = themeExistant(themes, actuel);
+
+  const options = themes.map((theme, rang) => `
+    <option value="${rang}"${courant && courant.cle === theme.cle ? ' selected' : ''}>${
+      escapeHtml(theme.label)
+    }</option>`).join('');
+
+  return `
+    <div class="envelope-field">
+      <label for="${prefixe}Theme">Thème (facultatif)</label>
+      <select id="${prefixe}Theme">
+        <option value=""${courant ? '' : ' selected'}>— aucun —</option>
+        ${options}
+        <option value="+">+ Nouveau thème…</option>
+      </select>
+      <input type="text" id="${prefixe}ThemeNouveau" class="envelope-theme-nouveau"
+             placeholder="Ex : Vacances" maxlength="100" hidden />
+    </div>
+  `;
+}
+
+/**
+ * Le thème que le formulaire désigne, et s'il a été ramené à un existant
+ *
+ * Taper « vacances » quand « Vacances » existe rejoint le thème existant plutôt
+ * que d'en créer un jumeau. Mais cela doit se DIRE : sans un mot, le foyer croit
+ * avoir créé un thème et ne le retrouve nulle part — le même défaut que la carte
+ * de veille dont le montant migrait derrière la loupe en silence.
+ *
+ * @param {HTMLElement} modal
+ * @param {string} prefixe
+ * @param {Array<Object>} themes - Relu au moment du geste, jamais capturé
+ * @returns {{label: string|null, canonicalise: boolean}}
+ */
+function themeChoisi(modal, prefixe, themes) {
+  const select = modal.querySelector(`#${prefixe}Theme`);
+  if (!select) return { label: null, canonicalise: false };
+
+  const choix = select.value;
+  if (choix === '') return { label: null, canonicalise: false };
+
+  if (choix !== '+') {
+    const connu = themes[Number(choix)];
+    return { label: connu ? connu.label : null, canonicalise: false };
+  }
+
+  // « + Nouveau thème » choisi mais champ laissé vide : l'enveloppe se crée sans
+  // thème plutôt que de refuser tout le formulaire pour un champ facultatif.
+  const saisi = themeLisible(modal.querySelector(`#${prefixe}ThemeNouveau`)?.value);
+  if (!saisi) return { label: null, canonicalise: false };
+
+  const connu = themeExistant(themes, saisi);
+  return connu
+    ? { label: connu.label, canonicalise: connu.label !== saisi }
+    : { label: saisi, canonicalise: false };
+}
+
+/**
+ * Révèle le champ de saisie quand « + Nouveau thème » est choisi
+ *
+ * @param {HTMLElement} modal
+ * @param {string} prefixe
+ * @returns {void}
+ */
+function brancherLeTheme(modal, prefixe) {
+  const select = modal.querySelector(`#${prefixe}Theme`);
+  const champ = modal.querySelector(`#${prefixe}ThemeNouveau`);
+  if (!select || !champ) return;
+
+  select.addEventListener('change', () => {
+    champ.hidden = select.value !== '+';
+    if (!champ.hidden) champ.focus();
+  });
 }
 
 /**
@@ -614,6 +708,7 @@ function formulaireEdition(enveloppe, index) {
             <option value="oui"${enveloppe.report ? ' selected' : ''}>Oui — le reliquat s'ajoute</option>
           </select>
         </div>
+        ${champTheme('envelopeEdit', themesConnus(getEnveloppes()), enveloppe.theme)}
         <div class="envelope-field">
           <label for="envelopeEditDebut">Du (facultatif)</label>
           <input type="date" id="envelopeEditDebut" value="${escapeHtml(enveloppe.debut || '')}" />
@@ -711,13 +806,19 @@ function ligneEnveloppe(enveloppe, index, charges) {
   const persoTag = enveloppe.perimetre === 'solo'
     ? '<span class="envelope-perso">perso</span>'
     : '';
+  // Le thème se voit sur la ligne : sans cela, il serait une propriété qu'on
+  // pose et qu'on ne relit jamais, et rien ne dirait que deux enveloppes se
+  // rejoignent quelque part.
+  const themeTag = enveloppe.theme
+    ? `<span class="envelope-theme">${escapeHtml(enveloppe.theme)}</span>`
+    : '';
   const fenetre = decrireFenetre(enveloppe);
 
   return `
     <div class="manage-list-item envelope-item${enveloppe.cloturee ? ' envelope-close' : ''}" data-index="${index}">
       <span class="manage-item-icon">${escapeHtml(enveloppe.icon)}</span>
       <span class="manage-item-label">
-        ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}${natureTag}${persoTag}
+        ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}${natureTag}${persoTag}${themeTag}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>
         <small class="envelope-detail envelope-detail--indice">${indiceDeLaLoupe(enveloppe)}</small>
       </span>
@@ -904,6 +1005,13 @@ function brancherEcran(modal) {
       ? NATURES.MENSUELLE
       : NATURES.CAGNOTTE;
 
+    // Les thèmes sont relus ICI, jamais capturés au rendu : `ajouter` relit
+    // déjà la base au clic — même garde que le doublon d'enveloppe — et une
+    // capture réintroduirait la péremption que cette relecture existe pour
+    // fermer. L'autre téléphone a pu créer un thème entre l'affichage et le
+    // geste.
+    const theme = themeChoisi(modal, 'envelopeNew', themesConnus(existantes));
+
     const enveloppe = enveloppeNeuve({
       // `identifiantEnveloppe`, et non `identifiantDepuisLibelle` : un
       // identifiant entièrement dérivé du libellé faisait hériter une
@@ -923,6 +1031,7 @@ function brancherEcran(modal) {
       report: nature === NATURES.MENSUELLE
         && modal.querySelector('#envelopeNewReport').value === 'oui',
       rang: modal.querySelector('#envelopeNewRang').value || null,
+      theme: theme.label,
       perimetre: pourQui === 'commun' ? 'commun' : 'solo',
       proprietaire: pourQui === 'commun' ? null : pourQui
     });
@@ -935,12 +1044,19 @@ function brancherEcran(modal) {
 
     if (!await enregistrer([...existantes, enveloppe], existantes)) return;
 
-    toast.success(`Enveloppe "${libelle}" créée`);
+    // Le thème retenu est NOMMÉ quand il diffère de ce qui a été tapé : sans
+    // ce mot, taper « vacances » quand « Vacances » existe donnerait le
+    // sentiment d'avoir créé un thème qu'on ne retrouve nulle part.
+    toast.success(theme.canonicalise
+      ? `Enveloppe "${libelle}" créée, rangée dans « ${theme.label} »`
+      : `Enveloppe "${libelle}" créée`);
     populateAllEnvelopeSelects();
     showManageEnvelopesModal();
   };
 
   modal.querySelector('#envelopeAddBtn').addEventListener('click', ajouter);
+  brancherLeTheme(modal, 'envelopeNew');
+  brancherLeTheme(modal, 'envelopeEdit');
 
   // Entrée depuis le nom avance au champ suivant, elle ne valide pas.
   //
@@ -1066,7 +1182,8 @@ function brancherEcran(modal) {
       nature: natureChoisie,
       report: natureChoisie === NATURES.MENSUELLE
         && modal.querySelector('#envelopeEditReport').value === 'oui',
-      rang: modal.querySelector('#envelopeEditRang').value || null
+      rang: modal.querySelector('#envelopeEditRang').value || null,
+      theme: themeChoisi(modal, 'envelopeEdit', themesConnus(avant)).label
     }) : enveloppe));
 
     if (apres.some(entree => !entree)) {

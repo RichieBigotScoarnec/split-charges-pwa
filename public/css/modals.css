@@ -1262,7 +1262,8 @@
 /* La nature se lit sur la ligne : une mensuelle et une cagnotte ne répondent
    pas à la même question, et rien d'autre ne les distinguait. */
 .envelope-nature,
-.envelope-perso {
+.envelope-perso,
+.envelope-theme {
   display: inline-block;
   font-size: 10px;
   padding: 1px 6px;
@@ -1270,6 +1271,24 @@
   margin-left: var(--space-xs);
   font-weight: 500;
   vertical-align: middle;
+}
+
+/* Le SUJET, distinct du rang qui dit le rythme. Sans cette marque, le thème
+   serait une propriété qu'on pose et qu'on ne relit jamais, et rien ne dirait
+   que deux enveloppes se rejoignent quelque part.
+
+   L'encre, pas la couleur de pastille : `--success-color` rend 3,77:1 sur cette
+   surface, pour un seuil de 4,5 à 10 px. Mesuré à 4,86 en clair et 7,38 en
+   sombre avec `--success-ink`. */
+.envelope-theme {
+  background: var(--success-soft);
+  color: var(--success-ink);
+}
+
+/* Le champ n'apparaît qu'après « + Nouveau thème » : le proposer d'emblée
+   ferait deux façons de dire la même chose sur la même ligne. */
+.envelope-theme-nouveau {
+  margin-top: var(--space-xs);
 }
 
 .envelope-nature {
