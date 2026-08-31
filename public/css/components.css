@@ -956,6 +956,28 @@
   padding: var(--space-xl) var(--space-lg);
 }
 
+/*
+   Ce qu'une section vide explique d'elle-même.
+
+   Un état vide est le seul moment où l'application a l'attention entière de
+   quelqu'un qui ne sait rien. L'onglet Charges en montrait trois d'affilée —
+   « Variables », « Fixes », « Remboursements » —, identiques à 0,00 €, sans un
+   mot sur ce qui les distingue. Or cette distinction structure tout le reste :
+   la reconduction, le coût annuel, le prévisionnel. On la découvrait par
+   essais.
+
+   `display: block` sur un `<small>` : la phrase prend sa ligne sous le
+   constat, au lieu de le prolonger.
+*/
+.empty-state small {
+  display: block;
+  max-width: 42ch;
+  margin: var(--space-sm) auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 @keyframes emptyBounce {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }

@@ -26,12 +26,52 @@ export function initSummary() {
 }
 
 /**
+ * N'affiche les tendances que s'il y a quelque chose à analyser
+ *
+ * Sur une application encore vide, le premier écran proposait « 📈 Tendances
+ * sur 6 mois » à côté d'« Enveloppes » et « Privé » — trois commandes au-dessus
+ * de zéro donnée. Un état vide est pourtant le seul moment où l'application a
+ * l'attention entière de quelqu'un qui ne sait rien : le remplir d'outils
+ * inertes gaspille ce moment, et enseigne que la moitié des boutons ne font
+ * rien.
+ *
+ * Le même raisonnement que `refreshSearchVisibility`, et que le bouton de la
+ * carte — masqué tant qu'aucune dépense n'est localisée — ou celui du rapport,
+ * qui n'est pas rendu sans historique. Ce qui change ici, c'est seulement
+ * qu'un dépliant vide se remarque moins qu'un panneau vide : personne ne
+ * l'avait vu.
+ *
+ * Les deux autres commandes restent, elles : « Enveloppes » et « Privé »
+ * CRÉENT quelque chose. Les masquer empêcherait d'ouvrir une cagnotte avant
+ * d'avoir saisi une dépense, ce qui est un ordre parfaitement légitime.
+ */
+function refreshTrendsVisibility() {
+  const section = document.getElementById('trendsSection');
+  if (!section) return;
+
+  const duMois = ['fixedCharges', 'variableCharges']
+    .flatMap(cle => getState(cle) || [])
+    .some(charge => charge && !charge.deleted);
+
+  // L'historique conservé suffit à justifier le panneau même si le mois
+  // affiché est vide : c'est précisément le cas où une tendance se regarde.
+  const historique = getState('historiquePourLeRapport');
+  const passe = Boolean(historique && typeof historique === 'object'
+    && Object.keys(historique).length > 0);
+
+  section.hidden = !duMois && !passe;
+}
+
+/**
  * Calcule le bilan financier complet
  * @returns {Object} Résumé du bilan
  */
 export function calculateSummary({ historique } = {}) {
   // La recherche n'a de sens que s'il existe des charges à filtrer
   refreshSearchVisibility();
+
+  // Les tendances non plus : elles analysent un historique.
+  refreshTrendsVisibility();
 
   const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
   const fixedCharges = getState('fixedCharges') || [];

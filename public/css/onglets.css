@@ -223,6 +223,40 @@
 }
 
 @media (max-width: 899px) {
+  /*
+     Le titre de la carte répète le nom de l'onglet dont on vient.
+
+     Sous 899 px la barre d'onglets nomme déjà le panneau : « Bilan » en bas de
+     l'écran, « 📊 Résumé du Mois » en haut de la carte. Deux fois la même
+     chose, pour une ligne du premier écran — la ressource la plus rare de
+     l'application, celle où le solde doit tenir sans défiler. Au-delà, la
+     barre disparaît et les trois panneaux prennent leurs colonnes : le titre
+     redevient le seul repère, et il reste.
+
+     Le titre est CLIPPÉ, pas retiré : la `<section>` le désigne par
+     `aria-labelledby`, et un lecteur d'écran continue de l'annoncer. Ce qui
+     n'a plus lieu d'être, c'est la bande de l'en-tête — sa marge, son
+     remplissage et son filet. `display: none` sur le seul titre laissait un
+     bandeau vide de 55 px surmonté d'un trait orphelin : on avait retiré le
+     texte et gardé le décor.
+  */
+  section[aria-labelledby="sectionResume"] > .card > .card-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  #sectionResume {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
   .bandeau-colle {
     display: block;
     position: sticky;

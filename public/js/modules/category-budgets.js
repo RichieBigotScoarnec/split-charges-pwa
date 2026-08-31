@@ -95,11 +95,33 @@ function renderLigne(ligne) {
       ? `Dépassé de ${formatCurrency(Math.abs(ligne.remaining))}`
       : `Reste ${formatCurrency(ligne.remaining)}`;
     bloc.appendChild(el('div', 'budget-row-status', `${Math.round(ligne.percentage)} % — ${etat}`));
-  } else {
-    bloc.appendChild(el('div', 'budget-row-status', 'Aucun budget défini'));
   }
+  // Sans budget : aucune ligne d'état ici. Le montant dépensé est déjà là et
+  // il se suffit ; le fait qu'aucun budget ne soit fixé se dit UNE fois, en
+  // pied de carte, par `mentionSansBudget`.
 
   return bloc;
+}
+
+/**
+ * Ce qu'il reste à dire des catégories sans budget — une fois, pas sept
+ *
+ * « Aucun budget défini » s'écrivait sous CHACUNE des sept catégories du mois.
+ * Une information répétée sept fois n'est plus une information, c'est une
+ * texture : l'œil la saute, et elle occupe sept lignes du premier écran — la
+ * ressource la plus rare de l'application.
+ *
+ * Elle reste dite, parce qu'elle explique une absence : sans elle, une ligne
+ * sans jauge se lirait comme une jauge qui n'a pas fini de charger.
+ *
+ * @param {Array<Object>} lignes - Sortie de computeCategoryBudgets
+ * @returns {string} Le texte, ou '' si toutes les catégories ont un budget
+ */
+function mentionSansBudget(lignes) {
+  const sans = lignes.filter(ligne => !(ligne.budget > 0)).length;
+  if (sans === 0) return '';
+  if (sans === lignes.length) return 'Aucun budget défini';
+  return `Aucun budget défini pour ${sans} ${sans > 1 ? 'catégories' : 'catégorie'}`;
 }
 
 /**
@@ -136,6 +158,9 @@ export function renderCategoryBudgets() {
   }
 
   lignes.forEach(ligne => contenu.appendChild(renderLigne(ligne)));
+
+  const mention = mentionSansBudget(lignes);
+  if (mention) contenu.appendChild(el('div', 'budget-sans-budget', mention));
 
   const action = el('button', 'btn btn-secondary btn-block', 'Définir les budgets');
   action.type = 'button';

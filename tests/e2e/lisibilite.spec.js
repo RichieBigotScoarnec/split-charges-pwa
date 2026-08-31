@@ -128,13 +128,20 @@ test('P1 — revenir sur un onglet retrouve sa position', async ({ page }) => {
   await allerAuPanneau(page, 'panneauCharges');
   await page.waitForTimeout(500);
   const retour = await page.evaluate(() => window.scrollY);
-  // Tolérance de 20 px, et non l'égalité stricte : la barre de solde collante
-  // paraît ou s'efface selon la part visible du bilan, ce qui fait varier la
-  // hauteur de page de quelques pixels entre l'aller et le retour. Mesuré à
-  // 4 px d'écart. Ce que le contrôle doit prouver, c'est qu'on ne repart pas
-  // de zéro — pas que le navigateur soit au pixel près.
-  expect(Math.abs(retour - pose), `retour=${retour} contre pose=${pose}`).toBeLessThan(20);
-  expect(retour, 'le retour ne doit pas remettre en haut').toBeGreaterThan(300);
+  // Tolérance, et non égalité stricte.
+  //
+  // La barre de solde collante paraît ou s'efface selon la part visible du
+  // bilan, et sa hauteur — une cinquantaine de pixels — entre ou sort du flux
+  // avec elle. La position lue ici et celle que la barre d'onglets enregistre
+  // à l'instant du clic peuvent donc différer de cette hauteur, sans que rien
+  // ne soit faux : c'est le même phénomène que `barre-solde.js` documente et
+  // borne par son hystérésis.
+  //
+  // Ce que ce contrôle doit prouver, c'est qu'on ne repart pas de zéro. La
+  // tolérance est donc large mais très inférieure à la position elle-même :
+  // une régression qui remettrait en haut donnerait 0, pas 640.
+  expect(Math.abs(retour - pose), `retour=${retour} contre pose=${pose}`).toBeLessThan(80);
+  expect(retour, 'le retour ne doit pas remettre en haut').toBeGreaterThan(pose / 2);
 });
 
 test('P0 — le texte discret tient le seuil AA', async ({ page }) => {

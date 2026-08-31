@@ -737,7 +737,10 @@ export function renderFixedCharges() {
   listElement.innerHTML = '';
 
   if (charges.length === 0) {
-    listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période</p>';
+    listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période'
+      + '<small>Ce qui revient chaque mois pour le même montant : loyer,'
+      + ' assurance, abonnements. Elles sont reportées automatiquement d\'un'
+      + ' mois sur l\'autre.</small></p>';
     afficherTotalDeListe(totalElement, []);
     afficherLeCoutAnnuel([]);
     return;

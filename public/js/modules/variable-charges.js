@@ -656,7 +656,9 @@ export function renderVariableCharges() {
   listElement.innerHTML = '';
 
   if (charges.length === 0) {
-    listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période</p>';
+    listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période'
+      + '<small>Les dépenses du quotidien, dont le montant change : courses,'
+      + ' essence, restaurant.</small></p>';
     afficherTotalDeListe(totalElement, []);
     return;
   }
