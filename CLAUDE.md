@@ -581,6 +581,41 @@ recouvrements, historique de navigation, totaux de recherche.
 | **Le titre du bilan est une DETTE**, lue chaque jour par celui des deux qui doit. Le calcul est juste ; le cadrage est un choix | — | ⚠️ SUBJECTIF, LAISSÉ AU FOYER — une application de couple qui ouvre sur une créance transforme une organisation commune en comptabilité entre deux parties | Splitwise assume ce cadrage parce qu'il sert des colocataires |
 | La géolocalisation se déclenche à chaque ouverture de la saisie rapide, avant même qu'un montant soit tapé | — | ⚠️ SUBJECTIF — si la pré-sélection de catégorie par le lieu fonctionne bien en usage réel, le compromis se défend | Non mesuré : la géolocalisation réelle n'est pas reproductible ici |
 
+#### Vérification par mutants, 2026-08-31
+
+Dix mutants posés — un par correctif —, chacun joué seul contre le contrôle
+qui le vise, l'arbre restauré entre chaque. **Neuf tombent.**
+
+Le dixième SURVIT, et c'est un mutant **équivalent** : il remet
+`.category-total` sur `--text-muted`, or ce jeton a été porté à 4,54:1 dans le
+même lot. Les deux paliers passent désormais le seuil — 4,54 et 5,54 — et le
+mutant ne réintroduit donc aucun défaut mesurable. Ce qui reste est un choix
+de hiérarchie typographique : un chiffre d'argent relève du palier secondaire,
+pas du discret. Cela se défend, cela ne se mesure pas, et inventer un contrôle
+pour faire tomber ce mutant reviendrait à figer une préférence en exigence.
+
+> **Trois passes de la suite complète ont été nécessaires**, et chacune a
+> trouvé ce que les précédentes ne pouvaient pas voir. La première : seize
+> régressions, dont un vrai défaut de production — `refreshTrendsVisibility`
+> lisait un état que `calculateSummary` ne dépose que plus bas, et masquait
+> donc le panneau au PREMIER rendu, sur un foyer de trois ans d'historique. La
+> deuxième : trois collisions entre mes propres textes et les jeux d'essai —
+> « loyer » dans l'explication d'un état vide contre `getByText('Loyer')`, qui
+> cherche un fragment n'importe où dans le conteneur. La troisième : 500 verts,
+> 23 rouges, exactement la composition de référence.
+>
+> **Je rejouais après chaque correction les suites que je croyais concernées.**
+> Quatre des seize étaient précisément là où je ne regardais pas. Un
+> sous-ensemble choisi par le correcteur mesure ce qu'il a prévu de casser.
+
+Le diagnostic des deux régressions de reconduction est venu d'un contrôle joué
+contre le commit d'AVANT, dans un worktree séparé : les six y passaient. La
+régression était donc la mienne, et non un contrôle déjà fragile — la
+distinction que ce dépôt a payée pour apprendre.
+
+**500 contrôles de bout en bout verts** (contre 470 avant l'audit),
+**2 519 unitaires**, 23 rouges qui sont les 23 exigeant les émulateurs Firebase.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles
