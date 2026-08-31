@@ -87,9 +87,33 @@
     grid-template-columns: 1fr;
   }
 
+  /*
+     Le montant reste sur la ligne du libellé.
+
+     `grid-template-columns: 1fr` empilait `.charge-actions` — donc le montant
+     et les deux boutons — sous `.charge-info` : chaque charge occupait deux
+     étages, et une liste de douze charges deux écrans et demi. Or la liste des
+     charges est un objet de balayage : on y cherche une ligne pour la
+     corriger, et chaque pixel de hauteur superflu est du défilement.
+
+     La disposition à deux colonnes est celle que l'application montre déjà
+     au-delà de 600 px, et qui se lit comme un relevé bancaire : le libellé à
+     gauche, ce qu'il coûte à droite. Elle tient à 320 px — mesuré — parce que
+     `.charge-info` peut se rétrécir : sans `min-width: 0`, une longue
+     description imposerait sa largeur intrinsèque et repousserait les boutons
+     hors de l'écran.
+  */
   .charge-item {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-sm);
+  }
+
+  .charge-item > .charge-info {
+    min-width: 0;
+  }
+
+  .charge-item .charge-description {
+    overflow-wrap: anywhere;
   }
 
   .summary-grid {

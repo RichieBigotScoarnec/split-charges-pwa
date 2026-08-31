@@ -544,7 +544,15 @@ async function initializeAppData() {
     // données du mois sont lues et affichées. Cette confirmation était émise
     // par `initApp`, juste après la pose de l'écouteur d'authentification —
     // avant toute réponse de Firebase, donc par-dessus « Connexion… ».
-    toast.success('FairSplit chargé');
+    // Aucun message ici, et c'est délibéré.
+    //
+    // « FairSplit chargé » s'affichait à chaque ouverture. Un retour
+    // d'interface confirme une action de l'utilisateur ; personne n'a demandé
+    // à l'application de se charger, c'est son minimum. Répété à chaque
+    // ouverture, il apprenait surtout à ignorer le coin où s'affichent les
+    // erreurs d'écriture — et il recouvrait le bouton flottant sur un écran
+    // vide. Un chargement réussi se constate ; seul l'échec mérite un mot,
+    // et `runStep` le dit déjà par « Chargement partiel ».
   }
 
   // Les saisies gardées hors réseau partent maintenant, et pas avant : la

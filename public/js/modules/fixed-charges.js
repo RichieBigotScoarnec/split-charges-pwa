@@ -14,6 +14,7 @@ import { showModal, closeModal, showConfirmModal } from '../components/modal.js'
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
+import { afficherTotalDeListe } from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
@@ -24,7 +25,7 @@ import { parseMontant } from '../utils/montant.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
-import { estSolo, totauxParPerimetre, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 import { coutDesChargesFixes } from '../utils/cout-annuel.js';
 
 /**
@@ -628,27 +629,6 @@ export async function deleteFixedCharge(chargeId) {
 }
 
 /**
- * Le pied de liste : le total commun, et le perso seulement s'il existe
- *
- * Sans dépense solo, la phrase est celle d'avant — c'est le cas de tous les
- * mois déjà en base. Avec, elle nomme les deux, parce qu'un total unique
- * contredirait le bilan affiché juste au-dessus.
- *
- * `textContent` et non `innerHTML` : la politique de sécurité du dépôt plafonne
- * les sites d'injection, et un total n'a aucune raison d'en ouvrir un de plus.
- *
- * @param {HTMLElement|null} element - Le `<span>` du total
- * @param {Array<Object>} charges - Les charges affichées
- */
-function afficherTotal(element, charges) {
-  if (!element) return;
-  const { commun, solo } = totauxParPerimetre(charges);
-  element.textContent = solo > 0
-    ? `${formatCurrency(commun)} + ${formatCurrency(solo)} perso`
-    : formatCurrency(commun);
-}
-
-/**
  * Ce que ces charges coûtent sur une année, et ce qui a augmenté
  *
  * Un loyer se lit par mois : c'est ainsi qu'il se paie. Un abonnement, non —
@@ -758,7 +738,7 @@ export function renderFixedCharges() {
 
   if (charges.length === 0) {
     listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période</p>';
-    afficherTotal(totalElement, []);
+    afficherTotalDeListe(totalElement, []);
     afficherLeCoutAnnuel([]);
     return;
   }
@@ -775,6 +755,11 @@ export function renderFixedCharges() {
   groupes.forEach(({ categorie: category, charges: categoryCharges, total: categoryTotal }) => {
     const categoryDiv = document.createElement('div');
     categoryDiv.className = 'charge-category';
+    // Le libellé de la catégorie, porté par l'élément plutôt que relu depuis
+    // l'en-tête : celui-ci mêle l'emoji, le nom et le montant dans le même
+    // nœud de texte. `accorderLesSousTotaux` s'en sert pour refléter une
+    // recherche.
+    categoryDiv.dataset.categorie = category;
     categoryDiv.innerHTML = `
       <h4 class="category-header">
         ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
@@ -832,7 +817,7 @@ export function renderFixedCharges() {
   });
 
   // Afficher le total — commun d'abord, perso à part.
-  afficherTotal(totalElement, charges);
+  afficherTotalDeListe(totalElement, charges);
   afficherLeCoutAnnuel(charges);
 }
 

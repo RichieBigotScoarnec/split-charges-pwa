@@ -10,6 +10,7 @@ import { montantCorrespond } from '../utils/recherche-montant.js';
 import { log, error as logError } from '../utils/debug.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { formatCurrency } from '../utils/format.js';
+import { afficherTotalDeListe, accorderLesSousTotaux } from '../utils/totaux-liste.js';
 import { moisLisible } from './envelopes.js';
 import { chargesDeTousLesMois, grouperParMois, moisRepresentes } from '../utils/recherche-historique.js';
 
@@ -476,6 +477,57 @@ function filterChargesDisplay(results) {
 
   // Masquer catégories vides
   hideEmptyCategories();
+
+  // Et accorder les totaux à ce qui reste visible.
+  refleterLesTotaux(results);
+}
+
+/**
+ * Accorde les totaux affichés aux charges réellement visibles
+ *
+ * Le défaut que cette fonction ferme : la recherche masquait les lignes sans
+ * jamais toucher aux totaux. Mesuré avant correction, sur « intermarche » —
+ * trois lignes visibles valant 294,32 €, un total resté à 464,32 €, et
+ * l'en-tête « Courses » affichant lui aussi le mois entier. La question la
+ * plus naturelle qu'on pose à une recherche de dépenses recevait une réponse
+ * fausse de 170 €, avec le même aplomb qu'une réponse juste.
+ *
+ * `results` porte les charges des deux listes ET les remboursements, chacune
+ * estampillée par `searchInCharges`. On les redistribue à leur liste : un
+ * remboursement n'entre dans aucun des deux totaux, comme au rendu.
+ *
+ * @param {Array<Object>|null} results - Résultats, ou `null` pour tout rendre
+ */
+function refleterLesTotaux(results) {
+  // `null` : on sort de la recherche, chaque liste retrouve son mois entier.
+  const parType = results === null
+    ? {
+      variable: (getState('variableCharges') || []).filter(c => !c.deleted),
+      fixed: (getState('fixedCharges') || []).filter(c => !c.deleted)
+    }
+    : {
+      variable: results.filter(r => r.type === 'variable'),
+      fixed: results.filter(r => r.type === 'fixed')
+    };
+
+  for (const [type, listeId, totalId] of [
+    ['variable', 'variableChargesList', 'variableChargesTotal'],
+    ['fixed', 'fixedChargesList', 'fixedChargesTotal']
+  ]) {
+    afficherTotalDeListe(document.getElementById(totalId), parType[type]);
+    accorderLesSousTotaux(document.getElementById(listeId), parType[type]);
+  }
+
+  // Le coût annuel parle de TOUTES les charges fixes du mois, pas du
+  // sous-ensemble trouvé : le laisser sous une liste filtrée le ferait lire
+  // comme le coût annuel de ce qu'on cherche. On le retire le temps de la
+  // recherche, et `renderFixedCharges` le rétablira — mais la sortie de
+  // recherche ne rejoue pas le rendu, donc on le rétablit aussi ici.
+  const annuel = document.getElementById('fixedChargesAnnuel');
+  if (annuel) {
+    if (results === null) annuel.hidden = !annuel.textContent.trim();
+    else annuel.hidden = true;
+  }
 }
 
 /**
@@ -543,6 +595,9 @@ function showAllCharges() {
   categories.forEach(category => {
     category.style.display = '';
   });
+
+  // Les totaux avaient été accordés au sous-ensemble : ils retrouvent le mois.
+  refleterLesTotaux(null);
 }
 
 // Exposer globalement pour compatibilité

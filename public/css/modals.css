@@ -76,10 +76,32 @@
   letter-spacing: -0.02em;
 }
 
+/*
+   L'action principale ne descend jamais sous l'écran.
+
+   `.modal` plafonne à 80vh et défile ; les actions défilaient avec le reste.
+   Mesuré sur un iPhone 13, avant l'ouverture du clavier : le bouton
+   « Ajouter » du formulaire de charge variable tombait à 1038 px sur 664 px
+   utiles — 374 px sous la ligne de flottaison, derrière 502 px de défilement
+   qu'aucun indice n'annonçait. Le formulaire complet devenait le chemin cher,
+   et la saisie rapide le seul praticable ; les charges restaient donc
+   incomplètes.
+
+   `bottom` compense le `padding` de `.modal` pour que la barre se colle au
+   bord bas réel et non à 24 px au-dessus. Le fond est plein — sans lui, le
+   contenu défilerait visiblement sous les boutons.
+*/
 .modal-actions {
   display: flex;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
+  position: sticky;
+  bottom: calc(var(--space-lg) * -1);
+  z-index: 1;
+  background: var(--card-bg);
+  padding-block: var(--space-md);
+  margin-bottom: calc(var(--space-lg) * -1);
+  box-shadow: 0 -1px 0 var(--border-color);
 }
 
 .modal-actions .btn {

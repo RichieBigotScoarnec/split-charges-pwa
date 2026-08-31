@@ -102,6 +102,7 @@ const STATIC_ASSETS = [
   './js/utils/soft-delete.js',
   './js/utils/soumission.js',
   './js/utils/tendances.js',
+  './js/utils/totaux-liste.js',
   './js/utils/tri.js',
   './js/utils/validation.js',
   './js/utils/abonnements.js',

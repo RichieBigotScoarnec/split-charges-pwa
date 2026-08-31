@@ -441,9 +441,16 @@
   font-weight: 500;
 }
 
+/* Qui a avancé l'argent décide du sens du solde : c'est l'information la plus
+   chargée de la ligne, et elle était la moins lisible de l'écran —
+   `--warning-color` mesure 2,78:1 sur `--elevated-bg`, en 11 px.
+   L'ambre était doublement fautif : sémantiquement, payer n'est pas un
+   avertissement ; les deux payeurs portaient d'ailleurs la même teinte, elle
+   ne distinguait donc personne. Le palier secondaire, en 12 px, dit la même
+   chose à 5,54:1. */
 .charge-payer {
-  font-size: 11px;
-  color: var(--warning-color);
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .charge-location {
@@ -1156,10 +1163,15 @@
   color: var(--text-secondary);
 }
 
+/* Un montant, et non un ornement : `--text-muted` mesure 2,42:1 sur
+   `--elevated-bg`, et le dépôt a délibérément gardé ce palier sous le seuil
+   (tests/contraste.test.js). La décision porte sur la MISE EN FORME ; un
+   chiffre d'argent n'en relève pas. `--text-secondary` mesure 5,54:1 au pire,
+   et la taille comme la fonte monospace suffisent à le tenir au second plan. */
 .category-total {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .charges-list {
