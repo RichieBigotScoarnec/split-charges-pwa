@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  themesARenouveler,
   libelleRenouvele,
   moisSuivant,
   memeDateLAnProchain,
@@ -450,5 +451,143 @@ describe('Le renouvellement reste dans son groupe', () => {
 
     expect(vue).not.toBe(null);
     expect(vue.proposition.theme).toBe(null);
+  });
+});
+
+/**
+ * LE BILAN D'UN CYCLE DE THÈME — la question que le foyer a posée
+ *
+ * « Si j'ai plusieurs budgets vacances ou week-ends, combien j'ai dépensé en
+ * tout, et combien mensualiser — ou, si une mensualisation existe déjà, combien
+ * ajouter ou baisser ? »
+ *
+ * `provisionARenouveler` y répond pour UNE enveloppe et ne sait pas additionner.
+ */
+describe('Le cycle d\'un thème', () => {
+  const cagnotte = (id, label, theme, budget, fin) => ({
+    id, label, icon: '🏖️', nature: 'cagnotte', budget, fin, theme, cloturee: false
+  });
+
+  /** Deux séjours arrivés à terme, un troisième qui court encore */
+  const entrees = [
+    { enveloppe: cagnotte('v26', 'Vacances 2026', 'Vacances', 800, '2026-08-29'), depense: 1500 },
+    { enveloppe: cagnotte('wt', 'Week-end Toussaint', 'Vacances', 400, '2026-11-02'), depense: 980 },
+    { enveloppe: cagnotte('v27', 'Vacances 2027', 'Vacances', 1200, '2027-08-29'), depense: 0 }
+  ];
+
+  it('additionne ce que le cycle a coûté', () => {
+    const [vue] = themesARenouveler({ enveloppes: entrees, moisCourant: '2027-02' });
+
+    expect(vue).toBeDefined();
+    expect(vue.titre).toContain('Vacances');
+    expect(vue.titre).toContain(formatCurrency(2480));
+    expect(vue.fonde).toContain('Vacances 2026');
+    expect(vue.fonde).toContain('Week-end Toussaint');
+  });
+
+  /**
+   * LA PROPRIÉTÉ, et ce qu'elle garantit — ni plus, ni moins
+   *
+   * Le total mensuel du thème doit être la somme des montants que
+   * `provisionARenouveler` annonce pour chacune de ses enveloppes — celles-là
+   * mêmes qui s'affichent juste en dessous sur le même écran.
+   *
+   * **Ce contrôle ne peut PAS distinguer cette somme d'un `total ÷ 12`.**
+   * `memeDateLAnProchain` rend toujours douze mois, donc `Σ(dᵢ/12)` et
+   * `(Σdᵢ)/12` sont arithmétiquement égaux : mesuré 206,6667 des deux côtés.
+   * Le mutant correspondant est ÉQUIVALENT, et le dire vaut mieux que
+   * prétendre le contraire.
+   *
+   * Ce qu'il attrape réellement : toute fenêtre AUTRE que celle des cartes.
+   * `total ÷ 6` le fait tomber.
+   */
+  it('sa part mensuelle est la SOMME de celles de ses composantes', () => {
+    const [vue] = themesARenouveler({ enveloppes: entrees, moisCourant: '2027-02' });
+
+    const composantes = entrees
+      .map(e => provisionARenouveler({
+        enveloppe: e.enveloppe, depenseReelle: e.depense, moisCourant: '2027-02'
+      }))
+      .filter(Boolean);
+
+    // Le témoin positif : sans lui, deux fabriques également fausses
+    // satisferaient l'égalité.
+    expect(composantes).toHaveLength(2);
+    expect(composantes[0].montant).not.toBeCloseTo(composantes[1].montant, 2);
+
+    const somme = composantes.reduce((total, c) => total + c.montant, 0);
+    expect(vue.montant).toBeCloseTo(somme, 2);
+  });
+
+  it('dit combien il faut AJOUTER quand les provisions en cours n\'y suffisent pas', () => {
+    const [vue] = themesARenouveler({ enveloppes: entrees, moisCourant: '2027-02' });
+
+    // « Vacances 2027 » court encore : 1 200 € sur les mois qui restent.
+    expect(vue.detail).toContain('il manque');
+    expect(vue.detail).toContain('Vos provisions en cours totalisent');
+  });
+
+  it('et combien on peut BAISSER quand elles dépassent', () => {
+    const genereuse = [
+      ...entrees.slice(0, 2),
+      { enveloppe: cagnotte('v27', 'Vacances 2027', 'Vacances', 9000, '2027-04-29'), depense: 0 }
+    ];
+    const [vue] = themesARenouveler({ enveloppes: genereuse, moisCourant: '2027-02' });
+
+    expect(vue.detail).toContain('vous pouvez baisser de');
+  });
+
+  it('le dit aussi quand rien n\'est encore provisionné', () => {
+    const [vue] = themesARenouveler({ enveloppes: entrees.slice(0, 2), moisCourant: '2027-02' });
+
+    expect(vue.detail).toContain('Aucune provision en cours');
+  });
+
+  it('se tait sous deux enveloppes à terme : une seule carte dit déjà tout', () => {
+    expect(themesARenouveler({
+      enveloppes: [entrees[0], entrees[2]], moisCourant: '2027-02'
+    })).toEqual([]);
+  });
+
+  it('ne mêle pas deux thèmes', () => {
+    const deux = [
+      ...entrees.slice(0, 2),
+      { enveloppe: cagnotte('t1', 'Cuisine', 'Travaux', 500, '2026-05-01'), depense: 600 },
+      { enveloppe: cagnotte('t2', 'Salle de bain', 'Travaux', 500, '2026-06-01'), depense: 700 }
+    ];
+    const vues = themesARenouveler({ enveloppes: deux, moisCourant: '2027-02' });
+
+    expect(vues).toHaveLength(2);
+    const travaux = vues.find(v => v.titre.includes('Travaux'));
+    expect(travaux.titre).toContain(formatCurrency(1300));
+    expect(travaux.titre).not.toContain(formatCurrency(2480));
+  });
+
+  it('réunit les orthographes d\'un même thème', () => {
+    const variantes = [
+      { enveloppe: cagnotte('a', 'Été', 'Week-end', 400, '2026-08-01'), depense: 500 },
+      { enveloppe: cagnotte('b', 'Toussaint', 'week end', 400, '2026-11-01'), depense: 300 }
+    ];
+    const vues = themesARenouveler({ enveloppes: variantes, moisCourant: '2027-02' });
+
+    expect(vues).toHaveLength(1);
+    expect(vues[0].titre).toContain(formatCurrency(800));
+  });
+
+  it('ne porte AUCUNE proposition : le même argent serait compté deux fois', () => {
+    // `anticiper` additionne les montants de toutes les cartes qui en portent
+    // une pour juger la capacité d'épargne. Une proposition ici ferait compter
+    // le total du thème EN PLUS de ses composantes.
+    const [vue] = themesARenouveler({ enveloppes: entrees, moisCourant: '2027-02' });
+
+    expect(vue.proposition).toBeUndefined();
+  });
+
+  it('ignore les enveloppes sans thème, et les entrées illisibles', () => {
+    const sansTheme = entrees.map(e => ({ ...e, enveloppe: { ...e.enveloppe, theme: null } }));
+
+    expect(themesARenouveler({ enveloppes: sansTheme, moisCourant: '2027-02' })).toEqual([]);
+    expect(themesARenouveler({ enveloppes: null, moisCourant: '2027-02' })).toEqual([]);
+    expect(themesARenouveler({ enveloppes: [null], moisCourant: '2027-02' })).toEqual([]);
   });
 });

@@ -84,12 +84,16 @@ const FENETRE_ANNUELLE = 12;
 const RANGS = {
   'charges-disparues': 0,
   'rythme-du-budget': 1,
-  'provision-a-renouveler': 2,
-  'charge-annuelle': 3,
-  'pic-saisonnier': 4,
-  'abonnements-non-declares': 5,
-  'capacite-epargne': 6,
-  'depenses-par-lieu': 7
+  // Le total d'un thème passe AVANT les cartes qui le composent : on lit ce que
+  // le cycle a coûté en tout, puis les enveloppes qui s'y renouvellent une à
+  // une. L'ordre inverse ferait découvrir le total après avoir déjà décidé.
+  'theme-a-renouveler': 2,
+  'provision-a-renouveler': 3,
+  'charge-annuelle': 4,
+  'pic-saisonnier': 5,
+  'abonnements-non-declares': 6,
+  'capacite-epargne': 7,
+  'depenses-par-lieu': 8
 };
 
 /**
