@@ -469,11 +469,23 @@
 /* La date de la dépense, en tête de la ligne « Payé par ». Aucune vue n'en
    affichait : une charge était située dans son mois, jamais dans son jour.
    Chiffres à chasse fixe pour que la colonne s'aligne d'une ligne à l'autre. */
+/*
+   La date sur sa ligne, le payeur sur la sienne.
+
+   Les deux vivent dans le même `<span>` — « 14 août 2026 à 18:40 Payé par
+   Vous » — et se lisaient d'un trait tant que la colonne était large. Depuis
+   que le montant a rejoint la ligne du libellé, elle ne l'est plus : la phrase
+   se coupait au hasard, « Payé par » restant en fin de ligne et « Conjointe »
+   passant seule à la suivante. Deux blocs valent mieux qu'un retour arbitraire
+   au milieu d'une locution.
+
+   La marge droite n'a plus d'objet une fois les deux séparés.
+*/
 .charge-date {
+  display: block;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
-  margin-right: 8px;
 }
 
 /* L'étiquette d'enveloppe, sur une charge fixe comme sur une charge variable.
