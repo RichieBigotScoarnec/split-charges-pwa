@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('../../public/js/components/toast.js', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
+}));
+
 import { setState, resetState } from '../../public/js/state.js';
+import { toast } from '../../public/js/components/toast.js';
 import {
   getEnveloppes,
   etiquetteEnveloppe,
@@ -24,7 +30,24 @@ import {
 beforeEach(() => {
   resetState();
   document.body.innerHTML = '';
+  vi.clearAllMocks();
 });
+
+/**
+ * Referme un formulaire d'édition laissé ouvert par un cas précédent
+ *
+ * `_enEdition` est un état de MODULE : il survit d'un cas à l'autre, et l'écran
+ * rouvre alors le formulaire tout seul — la ligne éditée disparaît, avec son
+ * bouton ✏️. Trouvé en écrivant le contrôle du thème à l'édition.
+ */
+function ecranPropre() {
+  window.showManageEnvelopesModal();
+  const annuler = document.getElementById('envelopeEditAnnuler');
+  if (annuler) {
+    annuler.click();
+    window.showManageEnvelopesModal();
+  }
+}
 
 const VACANCES = {
   id: 'vacances-ete',
@@ -285,6 +308,18 @@ vi.mock('../../public/js/db.js', () => ({
   dbGet: async () => noeudEnBase
 }));
 
+/**
+ * Le double de `fusionnerListe` rend la liste voulue telle quelle
+ *
+ * C'est une transaction Firebase en production. Ce qu'on mesure ici n'est pas
+ * l'écriture — `tests/e2e/regles-donnees.spec.js` s'en charge contre le moteur
+ * réel — mais ce que le formulaire COMPOSE avant de l'envoyer.
+ */
+vi.mock('../../public/js/modules/custom-lists.js', async (original) => ({
+  ...(await original()),
+  fusionnerListe: async (_chemin, voulue) => voulue
+}));
+
 describe('Chargement depuis la base', () => {
   it('ne retient rien quand le nœud est vide — c\'est l\'état de départ', async () => {
     // Contrairement aux catégories, il n'existe aucune enveloppe par défaut :
@@ -310,5 +345,226 @@ describe('Chargement depuis la base', () => {
 
     expect(getEnveloppes().map(e => e.id)).toEqual(['vacances-ete', 'chantier']);
     expect(getEnveloppes()[1].cloturee).toBe(true);
+  });
+});
+
+/**
+ * LE THÈME À L'ÉCRAN
+ *
+ * Les fabriques pures sont couvertes par `tests/utils/enveloppes.test.js`. Ici,
+ * le CÂBLAGE : ce que le sélecteur propose, ce que le formulaire écrit, et ce
+ * que le foyer lit en retour.
+ *
+ * Le harnais est celui qui existe — `showManageEnvelopesModal` y est déjà monté
+ * avec ses doubles. En écrire un second aurait dérivé du premier, ce qui est
+ * exactement le défaut que ce fichier a déjà consigné pour la planche d'emoji.
+ */
+describe('Le thème, sur l\'écran de gestion', () => {
+  const enveloppeAvecTheme = (id, label, theme) => ({
+    id, label, icon: '🏖️', budget: null, debut: null, fin: null,
+    cloturee: false, theme
+  });
+
+  it('propose les thèmes déjà en usage, plus une entrée pour en créer un', () => {
+    setState('envelopes', [
+      enveloppeAvecTheme('a', 'Vacances 2026', 'Vacances'),
+      enveloppeAvecTheme('b', 'Week-end Bretagne', 'Week-ends'),
+      enveloppeAvecTheme('c', 'Vacances 2027', 'vacances')
+    ]);
+    window.showManageEnvelopesModal();
+
+    const select = document.getElementById('envelopeNewTheme');
+    const valeurs = [...select.options].map(o => o.textContent.trim());
+
+    // « Vacances » et « vacances » sont UN thème : trois enveloppes, deux
+    // thèmes, plus « aucun » et « nouveau ».
+    expect(valeurs).toEqual(['— aucun —', 'Vacances', 'Week-ends', '+ Nouveau thème…']);
+  });
+
+  it('porte des RANGS en valeur, jamais des libellés', () => {
+    // Le sélecteur doit cohabiter avec la sentinelle « + ». Un foyer nommant
+    // son thème « + » entrerait en collision avec elle si les valeurs
+    // portaient les libellés.
+    setState('envelopes', [enveloppeAvecTheme('a', 'Vacances 2026', '+')]);
+    window.showManageEnvelopesModal();
+
+    const select = document.getElementById('envelopeNewTheme');
+    const valeurs = [...select.options].map(o => o.value);
+
+    expect(valeurs).toEqual(['', '0', '+']);
+    // Le thème « + » est bien proposé, et distinct de la sentinelle.
+    expect([...select.options][1].textContent.trim()).toBe('+');
+  });
+
+  it('cache le champ de saisie tant que « nouveau thème » n\'est pas choisi', () => {
+    setState('envelopes', []);
+    window.showManageEnvelopesModal();
+
+    const champ = document.getElementById('envelopeNewThemeNouveau');
+    const select = document.getElementById('envelopeNewTheme');
+
+    expect(champ.hidden).toBe(true);
+
+    select.value = '+';
+    select.dispatchEvent(new Event('change'));
+    expect(champ.hidden).toBe(false);
+
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    expect(champ.hidden).toBe(true);
+  });
+
+  it('affiche le thème sur la ligne de l\'enveloppe', () => {
+    // Sans cette marque, le thème serait une propriété qu'on pose et qu'on ne
+    // relit jamais.
+    setState('envelopes', [enveloppeAvecTheme('a', 'Vacances 2026', 'Vacances')]);
+    window.showManageEnvelopesModal();
+
+    const marque = document.querySelector('.envelope-theme');
+    expect(marque).not.toBeNull();
+    expect(marque.textContent.trim()).toBe('Vacances');
+  });
+
+  it('échappe le libellé d\'un thème : il vient du foyer', () => {
+    setState('envelopes', [
+      enveloppeAvecTheme('a', 'Vacances', '<img src=x onerror=alert(1)>')
+    ]);
+    window.showManageEnvelopesModal();
+
+    expect(document.querySelector('#modalManageEnvelopes img')).toBeNull();
+    expect(document.querySelector('.envelope-theme').textContent)
+      .toContain('<img');
+  });
+
+  it('préselectionne le thème de l\'enveloppe qu\'on édite', () => {
+    setState('envelopes', [
+      enveloppeAvecTheme('a', 'Vacances 2026', 'Vacances'),
+      enveloppeAvecTheme('b', 'Chantier', 'Travaux')
+    ]);
+    window.showManageEnvelopesModal();
+
+    document.querySelectorAll('.envelope-editer')[1].click();
+
+    const select = document.getElementById('envelopeEditTheme');
+    const retenue = [...select.options].find(o => o.selected);
+    expect(retenue.textContent.trim()).toBe('Travaux');
+  });
+
+  it('ouvre sur « aucun » quand l\'enveloppe n\'en porte pas', () => {
+    setState('envelopes', [enveloppeAvecTheme('a', 'Vacances', null)]);
+    window.showManageEnvelopesModal();
+
+    document.querySelector('.envelope-editer').click();
+
+    const select = document.getElementById('envelopeEditTheme');
+    expect([...select.options].find(o => o.selected).value).toBe('');
+  });
+});
+
+/**
+ * CE QUE LE FORMULAIRE ÉCRIT RÉELLEMENT
+ *
+ * Les contrôles ci-dessus mesurent ce que l'écran PROPOSE. Ceux-ci mesurent ce
+ * qu'il COMPOSE — la moitié qui manquait, et celle par laquelle un thème choisi
+ * mais jamais écrit passerait inaperçu.
+ */
+describe('Le thème que le formulaire enregistre', () => {
+  const remplir = (nom) => {
+    document.getElementById('envelopeNewLabel').value = nom;
+  };
+
+  const ajouter = async () => {
+    document.getElementById('envelopeAddBtn').click();
+    // Deux tours : `ajouter` est asynchrone et attend `enregistrer`.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  it('écrit le thème choisi dans la liste', async () => {
+    setState('envelopes', [{
+      id: 'a', label: 'Vacances 2026', icon: '🏖️', budget: null,
+      debut: null, fin: null, cloturee: false, theme: 'Vacances'
+    }]);
+    window.showManageEnvelopesModal();
+
+    remplir('Vacances 2027');
+    const select = document.getElementById('envelopeNewTheme');
+    select.value = '0';
+
+    await ajouter();
+
+    const creee = getEnveloppes().find(e => e.label === 'Vacances 2027');
+    expect(creee).toBeDefined();
+    expect(creee.theme).toBe('Vacances');
+  });
+
+  it('crée un thème neuf quand on le tape', async () => {
+    setState('envelopes', []);
+    window.showManageEnvelopesModal();
+
+    remplir('Chantier salle de bain');
+    document.getElementById('envelopeNewTheme').value = '+';
+    document.getElementById('envelopeNewThemeNouveau').value = 'Travaux';
+
+    await ajouter();
+
+    expect(getEnveloppes()[0].theme).toBe('Travaux');
+  });
+
+  it('ramène une variante au thème existant, et le DIT', async () => {
+    // Sans ce mot, taper « vacances » quand « Vacances » existe donnerait le
+    // sentiment d'avoir créé un thème qu'on ne retrouve nulle part.
+    setState('envelopes', [{
+      id: 'a', label: 'Vacances 2026', icon: '🏖️', budget: null,
+      debut: null, fin: null, cloturee: false, theme: 'Vacances'
+    }]);
+    window.showManageEnvelopesModal();
+
+    remplir('Vacances 2027');
+    document.getElementById('envelopeNewTheme').value = '+';
+    document.getElementById('envelopeNewThemeNouveau').value = 'VACANCES';
+
+    await ajouter();
+
+    const creee = getEnveloppes().find(e => e.label === 'Vacances 2027');
+    expect(creee.theme).toBe('Vacances');
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Vacances'));
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('rangée dans'));
+  });
+
+  it('« nouveau thème » laissé vide crée l\'enveloppe sans thème', async () => {
+    // Un champ facultatif ne doit pas faire échouer tout le formulaire.
+    setState('envelopes', []);
+    window.showManageEnvelopesModal();
+
+    remplir('Sans thème');
+    document.getElementById('envelopeNewTheme').value = '+';
+    document.getElementById('envelopeNewThemeNouveau').value = '   ';
+
+    await ajouter();
+
+    expect(getEnveloppes()).toHaveLength(1);
+    expect(getEnveloppes()[0].theme).toBe(null);
+  });
+
+  it('l\'édition change le thème sans toucher à l\'identifiant', async () => {
+    // L'identifiant porte les charges rattachées : le déplacer les détacherait.
+    setState('envelopes', [{
+      id: 'vacances-2026', label: 'Vacances 2026', icon: '🏖️', budget: null,
+      debut: null, fin: null, cloturee: false, theme: null
+    }]);
+    ecranPropre();
+
+    document.querySelector('.envelope-editer').click();
+    document.getElementById('envelopeEditTheme').value = '+';
+    document.getElementById('envelopeEditThemeNouveau').value = 'Vacances';
+    document.getElementById('envelopeEditValider').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getEnveloppes()[0].id).toBe('vacances-2026');
+    expect(getEnveloppes()[0].theme).toBe('Vacances');
   });
 });

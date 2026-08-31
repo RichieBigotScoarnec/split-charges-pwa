@@ -680,6 +680,40 @@ Firebase — un dans `auth-ui.spec.js`, vingt-deux dans `regles-donnees.spec.js`
 composition identique au socle. Eslint : 0 erreur, 26 avertissements, le
 plafond exact de la CI.
 
+### Le thème d'enveloppe, et le bilan d'un cycle — 2026-08-31
+
+Le foyer demandait : « pour 2027, si j'ai plusieurs budgets vacances ou
+week-ends, combien j'ai dépensé en tout, et combien mensualiser — ou, si une
+mensualisation existe déjà, combien ajouter ou baisser ? » Quatre conceptions et
+quatre sceptiques ont relu le terrain ; les sceptiques ont rendu quatre fois
+« à corriger », avec sept défauts BLOQUANTS, tous mesurés.
+
+| **`provisionARenouveler` REVIT indéfiniment après l'échéance** : sa garde est `moisRestants(fin, moisCourant) > 1 → null`, et `moisRestants` rend 0 pour une échéance passée. Une carte de thème portant une proposition aurait donc fait compter trois fois le même argent — mesuré en février 2027 : trois cartes simultanées, 125,00 € + 81,67 € + 225,45 € pour les MÊMES 2 480 €, et `capaciteDEpargne` basculant en « attention » sur 432,12 €/mois au lieu de 225,45 € | `public/js/utils/veille.js` | ✅ RÉSOLU 2026-08-31 — la carte de thème ne porte AUCUNE proposition ; les cartes individuelles gardent leur bouton, elle donne le total et l'écart | Un contrôle exige `vue.proposition === undefined` |
+| **Le total annuel n'avait aucune fabrique unique.** `totalEnveloppe(chargesDeLEnveloppeTousMois(...))` ne filtre ni le périmètre ni l'année ; la conception exigeait pourtant les deux. Mesuré sur une enveloppe portant 400 € commun, 100 € solo et 250 € sur l'année suivante : la carte aurait annoncé 500 €, l'écran des enveloppes 750 €, à un clic d'écart | `public/js/utils/veille.js` | ✅ RÉSOLU 2026-08-31 — le total réutilise ce que l'écran affiche déjà, sans second filtre, et le cycle se découpe sur les ÉCHÉANCES et non sur l'année civile | Une enveloppe ne pèse jamais sur le solde : le registre transversal du périmètre ne s'y applique pas, et l'inventer aurait fabriqué la divergence |
+| `themeLisible` employait `/[\x00-\x1f]/`. `no-control-regex` fait partie de `js.configs.recommended`, sans clause `files` : c'est une ERREUR, et la CI lance `npx eslint .` | `public/js/utils/enveloppes.js` | ✅ RÉSOLU 2026-08-31 — `\p{Cc}\p{Cf}` par une fonction de remplacement, le liant U+200D préservé | Mesuré : `eslint .` passait de 0 à 1 erreur |
+| `themes` était hors portée dans `ajouter` : `ReferenceError` à CHAQUE clic « Ajouter l'enveloppe », promesse rejetée en silence, création morte | `public/js/modules/envelopes.js` | ✅ RÉSOLU 2026-08-31 — les thèmes sont relus DANS chaque gestionnaire, jamais capturés au rendu | C'est aussi la garde contre la péremption : l'autre téléphone a pu créer un thème entre l'affichage et le clic |
+| `acquisSurObjectif` rend le DÉPENSÉ sur une enveloppe sans versement : le récapitulatif aurait annoncé « 2 340,00 € encore dans les pots » sur de l'argent sorti | — | ⚠️ ÉCARTÉ AVANT ÉCRITURE — la carte ne parle pas du contenu des pots, elle compare deux mensualisations | Le double comptage que `cagnotte-versements.spec.js` verrouille depuis le premier jour |
+| `provisionsDuMois` n'a AUCUN appelant dans `public/js` : la justification « la fabrique que le bilan lit déjà » était fausse | — | ⚠️ ÉCARTÉ — la conception qui s'appuyait dessus n'a pas été retenue | Un commentaire faux est ce qui a fait vivre huit occurrences de `normalizePair` |
+| `dbGet` ne lève pas hors ligne : il sert le miroir. Une dégradation fondée sur l'exception aurait annoncé « Vacances : 0,00 € » à un foyer qui y a mis 2 340 € | — | ⚠️ ÉCARTÉ — la carte lit l'instantané que `summary.js` a déjà en main, sans lecture supplémentaire | Le défaut fondateur de `totaux-liste.js` |
+| Le thème restait une VALEUR, jamais une clé Firebase — et c'est l'argument le plus fort du choix, trouvé par la conception : `categoryBudgets` est indexé par libellé, et « Eau/Gaz » y rendait TOUS les budgets insauvegardables | `public/js/utils/enveloppes.js` | ✅ RÉSOLU 2026-08-31 — aucun validateur de caractères n'est nécessaire, « Été/Hiver » s'écrit sans risque | Et aucun nœud neuf : l'ensemble des thèmes EST l'ensemble des valeurs en usage |
+| Le renouvellement ne portait pas le thème : « Vacances 2027 », créée par `provisionARenouveler`, quittait le groupe l'année même où le bilan doit servir | `public/js/utils/veille.js` | ✅ RÉSOLU 2026-08-31 — `theme` dans la proposition, relu par `creerEnveloppeProposee` | Le mutant qui le retire fait tomber un contrôle |
+| Un espace de largeur nulle survivait à `\s+` : il passait la validation serveur, s'écrivait, et donnait une option vide qu'on ne pouvait ni nommer ni retrouver | `public/js/utils/enveloppes.js` | ✅ RÉSOLU 2026-08-31 — `\p{Cf}` couvre U+200B..U+200F et U+FEFF | Mesuré par le sceptique, qui a exécuté la fonction |
+| `_enEdition` est un état de MODULE : il survivait d'un cas de test à l'autre, et l'écran rouvrait le formulaire d'édition tout seul dans le suivant. Et `enveloppes-ecran.test.js` n'avait aucun double de `toast` — il ne pouvait rien mesurer de ce que l'application dit | `tests/modules/enveloppes-ecran.test.js` | ✅ RÉSOLU 2026-08-31 — un `ecranPropre()`, et le double de toast | Trouvés en écrivant les contrôles, pas en relisant |
+| `regles-donnees.spec.js` ne contenait AUCUN contrôle d'enveloppe : 0 occurrence sur 346 lignes. Le nœud dont l'écriture est la plus large — `fusionnerListe` réécrit le tableau entier — n'était jamais rejoué contre le moteur réel | `tests/e2e/regles-donnees.spec.js` | ✅ RÉSOLU 2026-08-31 — cinq contrôles : l'enveloppe complète passe, celle sans thème aussi, un champ inconnu est refusé, un thème démesuré et un thème vide le sont | 22 → 27 contrôles contre l'émulateur |
+
+> **Un mutant équivalent, et le dire vaut mieux que le maquiller.** Le mutant qui
+> recalcule la part mensuelle du thème en `total ÷ 12` au lieu de sommer ses
+> composantes SURVIT aux 51 contrôles. Ce n'est pas un trou : `memeDateLAnProchain`
+> rend toujours une fenêtre de douze mois, donc `Σ(dᵢ/12)` et `(Σdᵢ)/12` sont
+> arithmétiquement égaux — mesuré 206,6667 des deux côtés. Aucun contrôle ne peut
+> les séparer. La forme sommée est gardée pour ce qu'elle garantit vraiment : le
+> total suivra `provisionARenouveler` le jour où celle-ci changera de formule. Et
+> le contrôle attrape bien toute fenêtre AUTRE — `total ÷ 6` le fait tomber.
+
+Onze autres mutants posés sur les trois tranches, onze chutes.
+**2 611 unitaires**, 510 de bout en bout verts, 23 rouges qui sont les 23
+exigeant les émulateurs — et qui en compteront 27 en CI.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles

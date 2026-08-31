@@ -25,7 +25,7 @@
  */
 
 import { formatCurrency } from './format.js';
-import { NATURES } from './enveloppes.js';
+import { NATURES, cleDuTheme, themeLisible } from './enveloppes.js';
 import { moisRestants, provisionMensuelle } from './provisions.js';
 import { reporterDansLaPeriode } from './date.js';
 import { estSolo } from './perimetre.js';
@@ -177,9 +177,165 @@ export function provisionARenouveler({ enveloppe, depenseReelle, moisCourant }) 
       nature: enveloppe.nature,
       budget: depense,
       fin: prochaine,
-      debut: depart ? `${depart}-01` : null
+      debut: depart ? `${depart}-01` : null,
+      // LE THÈME SE TRANSMET, sinon le groupe perd une année sur deux.
+      //
+      // `libelleRenouvele` fait de la suivante une enveloppe NEUVE, estampillée
+      // de son année — c'est délibéré : repousser l'échéance de l'ancienne
+      // ferait démarrer le cycle avec les dépenses de l'année écoulée. Mais
+      // neuve, elle naissait sans thème, et quittait donc silencieusement le
+      // groupe l'année même où le bilan par thème doit servir.
+      theme: enveloppe.theme || null
     }
   };
+}
+
+/**
+ * Le bilan d'un CYCLE de thème, et ce qu'il faudrait mettre de côté
+ *
+ * C'est la question que le foyer a posée : « si j'ai plusieurs budgets vacances
+ * ou week-ends, combien j'ai dépensé en tout sur l'année, et combien
+ * mensualiser — ou, si une mensualisation existe déjà, combien ajouter ou
+ * baisser ? »
+ *
+ * `provisionARenouveler` y répond pour UNE enveloppe. Elle ne sait pas
+ * additionner : trois cagnottes arrivées à terme donnaient trois cartes, trois
+ * montants, et aucun total. Or c'est le total qui décide d'un virement
+ * permanent.
+ *
+ * ## Le cycle se découpe sur les ÉCHÉANCES, jamais sur l'année civile
+ *
+ * Une cagnotte « Vacances 2027 » ouverte en septembre 2026 chevauche deux
+ * années civiles : lui demander « combien en 2026 » n'a pas de réponse juste.
+ * Un cycle, lui, est net — les enveloppes du thème arrivées à terme, et ce
+ * qu'elles ont coûté en tout.
+ *
+ * ## Aucun chiffre n'est recalculé — et une honnêteté sur ce que cela garantit
+ *
+ * La part mensuelle du thème est la SOMME des parts que `provisionARenouveler`
+ * a déjà calculées, chacune par `provisionMensuelle`. Le total affiché est donc
+ * celui des cartes qui le composent, juste en dessous sur le même écran.
+ *
+ * **Mais aujourd'hui, aucun contrôle ne peut distinguer cette somme d'un
+ * `total ÷ 12`.** `memeDateLAnProchain` rend toujours une fenêtre de douze mois,
+ * donc `Σ(dᵢ/12)` et `(Σdᵢ)/12` sont arithmétiquement égaux — mesuré :
+ * 206,6667 des deux côtés. Le mutant qui recalcule sur douze mois SURVIT, et
+ * c'est un mutant équivalent, pas un défaut qui passe.
+ *
+ * La forme sommée est gardée quand même, pour ce qu'elle garantit vraiment : le
+ * total suivra `provisionARenouveler` le jour où celle-ci changera de formule —
+ * si elle se met à tenir compte de ce qui dort déjà dans le pot, par exemple.
+ * Un recalcul, lui, divergerait ce jour-là sans que rien ne le dise. Le
+ * contrôle attrape d'ailleurs toute fenêtre AUTRE que douze mois : `total ÷ 6`
+ * le fait tomber.
+ *
+ * ## Elle ne porte AUCUNE proposition, à dessein
+ *
+ * `anticiper` additionne les montants de toutes les cartes qui en portent une
+ * pour juger la capacité d'épargne. Une carte de thème avec proposition ferait
+ * compter deux fois le même argent — mesuré ailleurs à 432 €/mois au lieu de
+ * 225 €. Les cartes individuelles gardent leur bouton ; celle-ci donne le total
+ * et l'écart, qui n'ont pas de geste à un clic.
+ *
+ * @param {Object} params
+ * @param {Array<{enveloppe: Object, depense: number}>} params.enveloppes
+ * @param {string} params.moisCourant - AAAA-MM
+ * @returns {Array<Object>} Une observation par thème concerné
+ */
+export function themesARenouveler({ enveloppes = [], moisCourant }) {
+  const parTheme = new Map();
+
+  const retenir = (cle, label) => {
+    if (!parTheme.has(cle)) {
+      parTheme.set(cle, { label, aTerme: [], enCours: [] });
+    }
+    return parTheme.get(cle);
+  };
+
+  for (const entree of Array.isArray(enveloppes) ? enveloppes : []) {
+    const enveloppe = entree && entree.enveloppe;
+    const cle = cleDuTheme(enveloppe && enveloppe.theme);
+    if (!cle) continue;
+
+    const groupe = retenir(cle, themeLisible(enveloppe.theme));
+
+    // À terme : `provisionARenouveler` s'en saisit déjà. On reprend SON montant,
+    // jamais un second calcul.
+    const renouvellement = provisionARenouveler({
+      enveloppe, depenseReelle: entree.depense, moisCourant
+    });
+    if (renouvellement) {
+      groupe.aTerme.push({ enveloppe, depense: entree.depense, renouvellement });
+      continue;
+    }
+
+    // En cours : ce qu'elle réclame déjà chaque mois. Même fabrique, même
+    // convention — `dansLePot: 0`, comme `provisionARenouveler` — sans quoi les
+    // deux côtés de la soustraction ne seraient pas comparables.
+    if (enveloppe.nature === NATURES.MENSUELLE) continue;
+    const objectif = Number.isFinite(enveloppe.budget) ? enveloppe.budget : 0;
+    const restants = moisRestants(enveloppe.fin, moisCourant);
+    if (objectif > 0 && restants > 0) {
+      groupe.enCours.push(provisionMensuelle(objectif, 0, restants));
+    }
+  }
+
+  const vues = [];
+
+  for (const [cle, groupe] of parTheme) {
+    // Une seule enveloppe à terme : `provisionARenouveler` dit déjà tout, et un
+    // total d'un seul terme n'ajoute rien. C'est précisément à partir de deux
+    // que la question du foyer se pose.
+    if (groupe.aTerme.length < 2) continue;
+
+    const depense = groupe.aTerme.reduce((somme, m) => somme + m.depense, 0);
+    const souhaite = groupe.aTerme.reduce((somme, m) => somme + m.renouvellement.montant, 0);
+    const actuel = groupe.enCours.reduce((somme, part) => somme + part, 0);
+    const ecart = souhaite - actuel;
+
+    const noms = groupe.aTerme.map(m => m.enveloppe.label);
+
+    vues.push({
+      cle: `theme-a-renouveler:${cle}`,
+      titre: `« ${groupe.label} » : ${formatCurrency(depense)} sur ce cycle`,
+      montant: souhaite,
+      urgence: 'info',
+      detail: `Pour tenir le même rythme : ${formatCurrency(souhaite)} par mois. `
+        + phraseDeLEcart(actuel, ecart),
+      fonde: `Sur ${groupe.aTerme.length} enveloppes arrivées à terme : ${noms.join(', ')}.`
+    });
+  }
+
+  return vues;
+}
+
+/**
+ * « Il manque X », « vous pouvez baisser de X », ou « rien de prévu »
+ *
+ * La question porte sur un DELTA, et un delta ne se lit pas sans son point de
+ * départ : « il manque 45 € » sans dire ce qui est déjà mis de côté laisse
+ * croire que rien ne l'est.
+ *
+ * @param {number} actuel - Ce que les provisions en cours réclament par mois
+ * @param {number} ecart - Souhaité moins actuel
+ * @returns {string}
+ */
+function phraseDeLEcart(actuel, ecart) {
+  if (actuel <= 0) {
+    return 'Aucune provision en cours pour ce thème.';
+  }
+
+  // Sous le centime, l'écart n'en est pas un : l'annoncer ferait réclamer un
+  // ajustement de zéro.
+  if (Math.abs(ecart) < 0.01) {
+    return `Vos provisions en cours y suffisent déjà (${formatCurrency(actuel)} par mois).`;
+  }
+
+  return ecart > 0
+    ? `Vos provisions en cours totalisent ${formatCurrency(actuel)} par mois — `
+      + `il manque ${formatCurrency(ecart)}.`
+    : `Vos provisions en cours totalisent ${formatCurrency(actuel)} par mois — `
+      + `vous pouvez baisser de ${formatCurrency(-ecart)}.`;
 }
 
 /**
@@ -380,6 +536,11 @@ export function veiller({
     });
     if (provision) vues.push(provision);
   }
+
+  // Le total par thème vient APRÈS les cartes individuelles dans le tableau,
+  // mais son rang le place avant elles à l'écran : on lit le total, puis ce qui
+  // le compose.
+  vues.push(...themesARenouveler({ enveloppes, moisCourant }));
 
   const disparues = chargesDisparues({ periods, moisCourant });
   if (disparues) vues.push(disparues);
