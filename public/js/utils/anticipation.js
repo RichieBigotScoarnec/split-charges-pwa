@@ -30,6 +30,7 @@
  * Ce module ne fait que du calcul : aucune base, aucun DOM, aucun réseau.
  */
 
+import { formatCurrency } from './format.js';
 import { estSolo } from './perimetre.js';
 import { moisRestants, provisionMensuelle } from './provisions.js';
 import { resteAVivre, mediane } from './tendances.js';
@@ -268,10 +269,10 @@ export function chargesAnnuelles({ periods, moisCourant }) {
       titre: `« ${suivi.libelle} » revient chaque année`,
       montant: parMois,
       urgence: 'info',
-      detail: `${parMois.toFixed(2)} € par mois pendant ${restants} mois `
-        + `pour disposer de ${montant.toFixed(2)} € au ${prochaine}.`,
+      detail: `${formatCurrency(parMois)} par mois pendant ${restants} mois `
+        + `pour disposer de ${formatCurrency(montant)} au ${prochaine}.`,
       fonde: `Vue ${suivi.mois.length} fois : ${suivi.mois.join(', ')}. `
-        + `Montant de la dernière, ${montant.toFixed(2)} €.`,
+        + `Montant de la dernière, ${formatCurrency(montant)}.`,
       proposition: {
         label: suivi.libelle,
         icon: typeof suivi.derniere.categoryIcon === 'string' ? suivi.derniere.categoryIcon : '📅',
@@ -367,10 +368,10 @@ export function picSaisonnier({ periods, moisCourant }) {
     titre: `${nomDuMois(meilleur.cible)} coûte plus cher que les autres mois`,
     montant: parMois,
     urgence: 'info',
-    detail: `${parMois.toFixed(2)} € par mois pendant ${restants} mois `
-      + `pour absorber les ${meilleur.surcout.toFixed(2)} € de surcoût.`,
-    fonde: `${meilleur.habituel.toFixed(2)} € en médiane sur ${meilleur.observees} `
-      + `observation${meilleur.observees > 1 ? 's' : ''}, contre ${ordinaire.toFixed(2)} € `
+    detail: `${formatCurrency(parMois)} par mois pendant ${restants} mois `
+      + `pour absorber les ${formatCurrency(meilleur.surcout)} de surcoût.`,
+    fonde: `${formatCurrency(meilleur.habituel)} en médiane sur ${meilleur.observees} `
+      + `observation${meilleur.observees > 1 ? 's' : ''}, contre ${formatCurrency(ordinaire)} `
       + 'pour un mois ordinaire.',
     proposition: {
       label: `${nomDuMois(meilleur.cible)} ${meilleur.cible.slice(0, 4)}`,
@@ -462,16 +463,16 @@ export function capaciteDEpargne({ periods, moisCourant, demandeMensuelle = 0 })
     cle: 'capacite-epargne',
     titre: demande > 0 && !tenable
       ? 'Les provisions proposées dépassent ce qui reste chaque mois'
-      : `Vous pourriez mettre jusqu'à ${disponible.toFixed(2)} € de côté par mois`,
+      : `Vous pourriez mettre jusqu'à ${formatCurrency(disponible)} de côté par mois`,
     montant: disponible,
     // Une somme intenable n'est pas un reproche : c'est un arbitrage à faire,
     // et le taire laisserait accepter trois provisions incompatibles.
     urgence: demande > 0 && !tenable ? 'attention' : 'info',
     detail: demande > 0
-      ? `Les propositions ci-dessus demandent ${demande.toFixed(2)} € par mois.`
+      ? `Les propositions ci-dessus demandent ${formatCurrency(demande)} par mois.`
       : 'Une fois les charges communes payées.',
     fonde: `Médiane du reste à vivre sur ${restes.length} mois révolus : `
-      + `${disponible.toFixed(2)} €.`
+      + `${formatCurrency(disponible)}.`
   };
 }
 
@@ -523,10 +524,10 @@ export function depensesParLieu({ periods, moisCourant }) {
 
   return {
     cle: `depenses-par-lieu:${tete.nom.toLowerCase()}`,
-    titre: `${tete.total.toFixed(2)} € chez ${tete.nom} sur douze mois`,
+    titre: `${formatCurrency(tete.total)} chez ${tete.nom} sur douze mois`,
     montant: tete.total,
     urgence: 'info',
-    detail: `${(tete.total / tete.passages).toFixed(2)} € par passage en moyenne.`,
+    detail: `${formatCurrency((tete.total / tete.passages))} par passage en moyenne.`,
     fonde: `Sur ${tete.passages} dépenses situées, entre ${mois[0]} et ${mois[mois.length - 1]}.`
   };
 }
@@ -696,7 +697,7 @@ export function abonnementsNonDeclares({ periods, moisCourant }) {
       : `${trouves.length} charges reviennent chaque mois sans être déclarées fixes`,
     montant: parMois,
     urgence: 'info',
-    detail: `${parMois.toFixed(2)} € par mois, soit ${parAn.toFixed(2)} € sur une année : `
+    detail: `${formatCurrency(parMois)} par mois, soit ${formatCurrency(parAn)} sur une année : `
       + trouves.map(t => t.libelle).join(', ') + '.',
     fonde: `Vues aux ${mois.length} derniers mois révolus (${mois.join(', ')}), `
       + 'à montant stable, et absentes des charges fixes.',
@@ -814,10 +815,10 @@ export function rythmeDuMois({ periods, moisCourant, moisReel, jourDuMois, jours
     titre: 'À ce rythme, le mois coûtera plus qu\'un mois ordinaire',
     montant: projection,
     urgence: 'attention',
-    detail: `${projection.toFixed(2)} € à la fin du mois, contre ${ordinaire.toFixed(2)} € `
-      + `d'ordinaire — soit ${surcout.toFixed(2)} € de plus.`,
-    fonde: `Sur ${variable.toFixed(2)} € de dépenses variables en ${ecoules} jours, étendues `
-      + `aux ${duree} du mois, plus ${fixe.toFixed(2)} € de charges fixes déjà inscrites — `
+    detail: `${formatCurrency(projection)} à la fin du mois, contre ${formatCurrency(ordinaire)} `
+      + `d'ordinaire — soit ${formatCurrency(surcout)} de plus.`,
+    fonde: `Sur ${formatCurrency(variable)} de dépenses variables en ${ecoules} jours, étendues `
+      + `aux ${duree} du mois, plus ${formatCurrency(fixe)} de charges fixes déjà inscrites — `
       + `comparés à la médiane de ${precedents.length} mois révolus.`
   };
 }

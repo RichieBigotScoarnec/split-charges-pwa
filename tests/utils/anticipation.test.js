@@ -8,6 +8,12 @@ import {
   rythmeDuMois,
   anticiper
 } from '../../public/js/utils/anticipation.js';
+// Les montants sont comparés PAR LA FABRIQUE, jamais par une chaîne écrite à
+// la main : `toContain('512.00')` verrouillait le point décimal anglais que
+// ces cartes affichaient — le test tenait le défaut en place. Comparer à
+// `formatCurrency(512)` dit ce qu'on veut vraiment (le montant paraît, écrit
+// comme l'application écrit les montants) et suivra une évolution du format.
+import { formatCurrency } from '../../public/js/utils/format.js';
 
 /**
  * Ce qui reviendra, et ce qu'il faut mettre de côté pour l'attendre
@@ -59,7 +65,7 @@ describe('Les charges qui reviennent tous les ans', () => {
     // manquerait la cible, et le manque ne se verrait qu'au moment de payer.
     const [vue] = chargesAnnuelles({ periods: AVEC_DEUX_ANS, moisCourant: '2026-08' });
     expect(vue.proposition.budget).toBe(512);
-    expect(vue.fonde).toContain('512.00');
+    expect(vue.fonde).toContain(formatCurrency(512.00));
   });
 
   it('dit sur quoi elle se fonde, les mois nommés', () => {
@@ -139,7 +145,7 @@ describe('Le mois de l\'année qui coûte plus cher', () => {
     // l'enveloppe. La carte divisait par onze — les mois qui SÉPARENT du pic —
     // et annonçait 54,55 € quand l'enveloppe en montrait 50,00.
     expect(vue.montant).toBeCloseTo(600 / 12, 6);
-    expect(vue.fonde).toContain('1000.00');
+    expect(vue.fonde).toContain(formatCurrency(1000.00));
   });
 
   it('se tait sans une année complète', () => {
@@ -190,7 +196,7 @@ describe('Ce que le foyer peut mettre de côté', () => {
       periods: QUATRE_MOIS, moisCourant: '2026-08', demandeMensuelle: 900
     });
     expect(vue.urgence).toBe('attention');
-    expect(vue.detail).toContain('900.00');
+    expect(vue.detail).toContain(formatCurrency(900.00));
   });
 
   it('reste informative quand la demande tient', () => {
@@ -234,8 +240,8 @@ describe('Les dépenses par lieu', () => {
     const vue = depensesParLieu({ periods, moisCourant: '2026-08' });
 
     expect(vue.titre).toContain('Intermarché');
-    expect(vue.titre).toContain('330.00');
-    expect(vue.detail).toContain('110.00');
+    expect(vue.titre).toContain(formatCurrency(330.00));
+    expect(vue.detail).toContain(formatCurrency(110.00));
   });
 
   it('n\'a AUCUNE proposition : des courses ne se provisionnent pas', () => {
@@ -307,13 +313,13 @@ describe('Tout ce que l\'application a remarqué', () => {
 
     const avec = anticiper({ periods, moisCourant: '2026-08' })
       .find(v => v.cle === 'capacite-epargne');
-    expect(avec.detail).toContain('73.14');   // 512 / 7, les mois de la cagnotte
+    expect(avec.detail).toContain(formatCurrency(73.14));   // 512 / 7, les mois de la cagnotte
 
     const sans = anticiper({
       periods, moisCourant: '2026-08',
       listeEnveloppes: [{ id: 'x', label: 'Assurance auto' }]
     }).find(v => v.cle === 'capacite-epargne');
-    expect(sans.detail).not.toContain('73.14');
+    expect(sans.detail).not.toContain(formatCurrency(73.14));
   });
 
   it('un mois qui se passe bien ne produit rien', () => {
@@ -349,8 +355,8 @@ describe('Ce qui revient chaque mois sans être déclaré fixe', () => {
     const vu = abonnementsNonDeclares({ periods: TROIS_MOIS, moisCourant: '2026-08' });
 
     expect(vu.montant).toBeCloseTo(25.48, 2);
-    expect(vu.detail).toContain('25.48');
-    expect(vu.detail).toContain('305.76');   // 25,48 × 12
+    expect(vu.detail).toContain(formatCurrency(25.48));
+    expect(vu.detail).toContain(formatCurrency(305.76));   // 25,48 × 12
     expect(vu.detail).toContain('Netflix');
     expect(vu.detail).toContain('Spotify');
   });
@@ -628,7 +634,7 @@ describe('À ce rythme, combien coûtera le mois', () => {
 
     expect(vu.urgence).toBe('attention');
     expect(vu.montant).toBeCloseTo(1860, 2);
-    expect(vu.detail).toContain('1000.00');
+    expect(vu.detail).toContain(formatCurrency(1000.00));
     expect(vu.fonde).toContain('10 jours');
   });
 
@@ -717,8 +723,8 @@ describe('À ce rythme, combien coûtera le mois', () => {
         jourDuMois: 5, joursDuMois: 31
       });
 
-      expect(vu.fonde).toContain('200.00');
-      expect(vu.fonde).toContain('900.00');
+      expect(vu.fonde).toContain(formatCurrency(200.00));
+      expect(vu.fonde).toContain(formatCurrency(900.00));
       expect(vu.fonde).toContain('déjà inscrites');
     });
 

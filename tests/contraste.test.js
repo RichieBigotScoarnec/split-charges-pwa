@@ -124,25 +124,45 @@ describe('Le calcul lui-même', () => {
   });
 });
 
-describe('Le palier « muted », en thème clair', () => {
+describe('Le palier « muted »', () => {
   /**
-   * Ce cas ne réclame rien : il consigne un écart connu, non traité.
+   * Ce cas était un CONSTAT ; il est devenu une EXIGENCE.
    *
-   * `--text-muted` mesure moins de 3:1 sur toutes les surfaces claires. Le
-   * porter à 4,5 le rendrait indiscernable de `--text-secondary` — le palier
-   * cesserait d'exister. C'est un choix de mise en forme, pas une correction
-   * mécanique, et il appartient au foyer.
+   * Il consignait un écart assumé : `--text-muted` mesurait 2,42:1, et le
+   * porter à 4,5 devait le rendre « indiscernable de `--text-secondary` ».
+   * Le cas disait lui-même quoi faire le jour où la décision serait prise :
+   * le remplacer par une vraie exigence. C'est fait.
    *
-   * Le thème sombre, lui, a déjà fondu les deux paliers en une seule couleur.
+   * Ce qui a emporté la décision, c'est la mesure. #7A6A5B franchit le seuil
+   * en gardant 32 % de luminance de plus que `--text-secondary` : les deux
+   * paliers restent séparés à l'œil. La crainte n'était pas fondée.
    *
-   * Le jour où la décision sera prise, ce cas échouera et rappellera qu'il
-   * faut le remplacer par une vraie exigence.
+   * Et l'usage l'imposait : ce jeton portait les libellés de section, la
+   * phrase qui explique le solde et le chevron d'une commande. Du texte qu'on
+   * lit — pas de l'ornement.
    */
-  it('reste en deçà du seuil — écart connu, décision en attente', () => {
-    const pire = Math.min(...SURFACES.map(
-      surface => contraste(jeton('text-muted', 'clair'), jeton(surface, 'clair'))
-    ));
+  it('tient le seuil AA sur chaque surface, dans les deux thèmes', () => {
+    for (const theme of ['clair', 'sombre']) {
+      for (const surface of SURFACES) {
+        const mesure = contraste(jeton('text-muted', theme), jeton(surface, theme));
+        expect(mesure, `text-muted sur ${surface} en thème ${theme} : ${mesure.toFixed(2)}:1`)
+          .toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
 
-    expect(pire, `si ce cas échoue, --text-muted a été corrigé : remplacer ce constat par l'exigence de 4,5:1 (mesure actuelle ${pire.toFixed(2)}:1)`).toBeLessThan(4.5);
+  it('reste un palier : plus clair que le texte secondaire', () => {
+    // Sans ce cas, « corriger » le contraste en alignant `--text-muted` sur
+    // `--text-secondary` passerait — et supprimerait le palier pour de bon,
+    // c'est-à-dire ferait exactement ce que l'ancienne décision redoutait.
+    // En thème clair, où les trois paliers existent réellement.
+    const surface = jeton('card-bg', 'clair');
+    const discret = contraste(jeton('text-muted', 'clair'), surface);
+    const secondaire = contraste(jeton('text-secondary', 'clair'), surface);
+
+    expect(discret, 'le palier discret doit rester moins contrasté que le secondaire')
+      .toBeLessThan(secondaire);
+    expect(secondaire - discret, 'et l\'écart doit rester perceptible')
+      .toBeGreaterThan(0.5);
   });
 });

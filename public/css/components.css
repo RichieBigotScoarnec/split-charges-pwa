@@ -818,7 +818,11 @@
 .share-mode-option.selected {
   border-color: var(--primary-color);
   background: var(--primary-glow);
-  color: var(--primary-light);
+  /* Mesuré à 3,90:1 avec `--primary-light` : c'est le libellé du mode de
+     partage RETENU — la règle qui décide qui paie quoi —, et c'était le texte
+     le moins lisible du panneau. La teinte pleine passe à 5,49:1 ; la
+     bordure et le lavis continuent de porter la sélection. */
+  color: var(--primary-color);
 }
 
 .custom-percentages {

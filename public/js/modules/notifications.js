@@ -6,6 +6,7 @@ import { toast } from '../components/toast.js';
 import { saveReminders, loadReminders } from '../db.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
+import { formatCurrency } from '../utils/format.js';
 
 let _hourlyIntervalId = null;
 let _dailyTimeoutId = null;
@@ -338,7 +339,7 @@ function checkSoldeNonRegle() {
 
   return {
     title: '💰 Solde du mois non réglé',
-    body: `Il reste ${Math.abs(solde).toFixed(2)} € à régler entre vous.`,
+    body: `Il reste ${formatCurrency(Math.abs(solde))} à régler entre vous.`,
     data: { type: 'solde-non-regle', montant: solde }
   };
 }

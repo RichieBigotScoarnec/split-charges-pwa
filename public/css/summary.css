@@ -75,14 +75,21 @@
 
 .summary-total-row strong {
   font-size: 15px;
-  color: var(--primary-light);
+  /* `--primary-color` et non `--primary-light` : mesuré sur le rendu, la teinte
+     claire tombe à 4,47:1 sur une carte blanche et 3,90:1 sur `--elevated-bg`.
+     Sous le seuil, et de peu — c'est-à-dire le genre d'écart qu'aucune capture
+     ne montre et qu'aucune relecture ne voit. La teinte pleine mesure 5,49:1 au
+     pire, pour une différence de nuance imperceptible sur du texte de cette
+     taille. `--primary-light` reste juste pour ce dont elle a la charge : les
+     bordures, les lavis, les états de survol. */
+  color: var(--primary-color);
 }
 
 .summary-percent {
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  color: var(--primary-light);
+  color: var(--primary-color);
   background: var(--primary-soft);
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -222,7 +229,7 @@
 }
 
 .summary-balance.balance-zero strong {
-  color: var(--primary-light);
+  color: var(--primary-color);
 }
 
 /* ===== ANALYSE PAR CATEGORIE ===== */

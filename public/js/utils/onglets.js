@@ -32,6 +32,26 @@ import { ecouterUneFois } from './ecouteur.js';
 const CLASSE_ACTIF = 'panneau--actif';
 
 /**
+ * Où on en était dans chaque panneau
+ *
+ * Changer d'onglet remontait en haut — c'est juste pour une DESTINATION
+ * nouvelle : arriver au milieu des charges après avoir quitté le bas du bilan
+ * donne l'impression que rien ne s'est passé. Mais c'était appliqué aussi au
+ * RETOUR, et là c'est faux : mesuré, défiler à 844 px dans « Charges », passer
+ * au bilan, revenir — on repartait de zéro, la position perdue.
+ *
+ * Or l'aller-retour bilan ↔ charges est exactement le geste d'une session de
+ * vérification : on relit une charge, on va contrôler le solde, on revient. Il
+ * était puni à chaque passage, et combiné à une liste haute, retrouver une
+ * dépense de la semaine passée devenait une expédition.
+ *
+ * Trois entrées, en mémoire vive seulement : rouvrir l'application doit poser
+ * la question à laquelle elle répond, pas restaurer l'écran d'avant — c'est la
+ * même raison qui fait que l'onglet de départ vient du balisage.
+ */
+const defilementParPanneau = new Map();
+
+/**
  * Les identifiants de panneaux que la barre propose réellement
  *
  * Lus du balisage plutôt que codés en dur : un onglet ajouté à la page suffit,
@@ -123,15 +143,20 @@ export function initOnglets() {
     const onglet = evenement.target.closest('.onglet[data-panneau]');
     if (!onglet || !barre.contains(onglet)) return;
 
+    // Où on en était ici, avant de partir ailleurs.
+    const quitte = ongletCourant();
+    if (quitte) defilementParPanneau.set(quitte, window.scrollY || 0);
+
     const affiche = activerOnglet(onglet.dataset.panneau);
     if (!affiche) return;
 
-    // Changer d'onglet sans remonter laisserait le nouveau panneau ouvert au
+    // Changer d'onglet sans rien faire laisserait le nouveau panneau ouvert au
     // milieu : on aurait quitté le bas du bilan pour le bas des charges, en
-    // paraissant n'avoir rien fait. `auto` et non `smooth` : le défilement
-    // animé d'une page qui vient de changer entièrement de contenu donne un
-    // effet de glissement sans repère.
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    // paraissant n'avoir rien fait. On remonte donc — sauf si on REVIENT, et
+    // qu'on sait où on en était. `auto` et non `smooth` : le défilement animé
+    // d'une page qui vient de changer entièrement de contenu donne un effet de
+    // glissement sans repère.
+    window.scrollTo({ top: defilementParPanneau.get(affiche) || 0, behavior: 'auto' });
   });
 
   // L'état de départ vient du balisage — `aria-current` posé sur le premier

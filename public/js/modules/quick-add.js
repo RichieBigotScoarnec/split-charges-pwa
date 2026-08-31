@@ -9,7 +9,7 @@ import { showModal, closeModal } from '../components/modal.js';
 import { loadVariableCharges } from './variable-charges.js';
 import { calculateSummary } from './summary.js';
 import { getCategories } from './custom-lists.js';
-import { escapeHtml } from '../utils/format.js';
+import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
 import { dateDuJour, heureDuJour, heureValide } from '../utils/date.js';
@@ -1119,7 +1119,7 @@ async function soumettre() {
     // de sortir du solde — le même défaut que le `splitMode` qui n'était lu
     // par personne, et que ce toast affichait pourtant.
     const modeLabel = { prorata: 'Prorata', '50-50': '50-50', perso: 'Perso' }[splitMode] || 'Prorata';
-    toast.success(`${category.icon} ${description} — ${amount.toFixed(2)} € (${modeLabel})`);
+    toast.success(`${category.icon} ${description} — ${formatCurrency(amount)} (${modeLabel})`);
 
     // Refresh données
     await loadVariableCharges();

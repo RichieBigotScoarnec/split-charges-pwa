@@ -153,11 +153,27 @@
      Le thème sombre redéfinit ce jeton plus bas et n'est pas concerné : il
      mesure déjà 4,98:1. */
   --text-secondary: #6B5D50;
-  /* Reste volontairement sous le seuil AA : c'est un palier de mise en forme,
-     pas du texte courant. Le monter à 4,5 le rendrait indiscernable de
-     `--text-secondary` et supprimerait le palier. Consigné dans
-     tests/contraste.test.js, qui échouera le jour où la décision changera. */
-  --text-muted: #A8998A;
+  /* Le palier « discret », désormais AU-DESSUS du seuil AA — 4,54:1 au pire,
+     sur `--elevated-bg`.
+
+     Il valait #A8998A, soit 2,42:1, et cet écart était consigné comme une
+     décision assumée : « le monter à 4,5 le rendrait indiscernable de
+     `--text-secondary` et supprimerait le palier ». La mesure dit le
+     contraire. #7A6A5B est la teinte la plus CLAIRE de cette famille qui
+     franchisse le seuil, et sa luminance reste 32 % au-dessus de celle de
+     `--text-secondary` : l'œil sépare toujours les deux paliers, le lecteur
+     n'a simplement plus à deviner le second.
+
+     Deux faits ont emporté la décision. D'abord l'usage réel : ce jeton
+     portait des libellés de section, la phrase qui explique le solde et le
+     chevron d'une commande — du texte qu'on lit, pas de l'ornement. Ensuite
+     le thème sombre, qui a fondu `--text-secondary` et `--text-muted` dans la
+     même couleur depuis toujours : le système à trois paliers n'existait déjà
+     qu'à moitié, et personne ne s'en est plaint.
+
+     Ce qui tient un palier, ce n'est pas un contraste insuffisant — c'est la
+     taille, la graisse et l'espacement. Ils sont inchangés. */
+  --text-muted: #7A6A5B;
 
   /* Interactive */
   --hover-bg: rgba(0, 0, 0, 0.04);

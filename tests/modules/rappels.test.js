@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// Les montants sont comparés PAR LA FABRIQUE, jamais par une chaîne écrite à
+// la main : `toContain('512.00')` verrouillait le point décimal anglais que
+// ces cartes affichaient — le test tenait le défaut en place. Comparer à
+// `formatCurrency(512)` dit ce qu'on veut vraiment (le montant paraît, écrit
+// comme l'application écrit les montants) et suivra une évolution du format.
+import { formatCurrency } from '../../public/js/utils/format.js';
 
 /**
  * Les rappels : ce qu'ils annoncent, et à qui ils obéissent
@@ -136,7 +142,7 @@ describe('Le rappel de solde porte sur un état réel', () => {
     const notifs = await notifierAvec({ finMois: false, budget: false, reimbursement: true });
 
     expect(notifs).toHaveLength(1);
-    expect(notifs[0].body).toContain('128.40');
+    expect(notifs[0].body).toContain(formatCurrency(128.40));
   });
 
   it('un écart inférieur à l\'euro relève de l\'arrondi, pas d\'une dette', async () => {

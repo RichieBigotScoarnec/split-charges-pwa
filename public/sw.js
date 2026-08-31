@@ -66,6 +66,7 @@ const STATIC_ASSETS = [
   './js/utils/connection-banner.js',
   './js/utils/cout-annuel.js',
   './js/utils/date.js',
+  './js/utils/echelle.js',
   './js/utils/detail.js',
   './js/utils/rapport-mensuel.js',
   './js/utils/debug.js',
