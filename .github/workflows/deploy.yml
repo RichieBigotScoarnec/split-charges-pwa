@@ -245,7 +245,7 @@ jobs:
       # publish_dir: public — seul ce dossier est publié. Auparavant la racine
       # entière l'était, filtrée par une liste d'exclusion de 26 entrées : tout
       # fichier ajouté à la racine était publié par défaut, sauf oubli près.
-      # Cette denylist a laissé fuiter package.json, vitest.config.js, tools/ et
+      # Cette denylist a laissé fuiter package.json, vitest.config.mjs, tools/ et
       # eslint.config.mjs. Un dossier dédié inverse la logique : publier devient
       # un acte délibéré.
       #

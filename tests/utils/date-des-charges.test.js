@@ -31,13 +31,13 @@ describe('Le banc d\'essai lui-même', () => {
    * y compris avec le défaut réintroduit. Mesuré — le sabotage n'échouait qu'en
    * forçant le fuseau à la main.
    *
-   * `vitest.config.js` fixe donc `TZ=Europe/Paris`, le fuseau du foyer. Si ce
+   * `vitest.config.mjs` fixe donc `TZ=Europe/Paris`, le fuseau du foyer. Si ce
    * réglage disparaît, c'est ici que ça se voit, plutôt que nulle part.
    */
   it('s\'exécute dans le fuseau du foyer, seul endroit où ces cas prouvent quelque chose', () => {
     expect(
       Intl.DateTimeFormat().resolvedOptions().timeZone,
-      'les tests de date ne prouvent rien hors d\'un fuseau décalé d\'UTC : voir test.env.TZ dans vitest.config.js'
+      'les tests de date ne prouvent rien hors d\'un fuseau décalé d\'UTC : voir test.env.TZ dans vitest.config.mjs'
     ).toBe('Europe/Paris');
   });
 
