@@ -48,6 +48,25 @@ const COMPTEUR = `
   })();
 `;
 
+/**
+ * L'HORLOGE EST FIGÉE — l'historique semé ci-dessous est ANCRÉ à août 2026
+ *
+ * `Date.UTC(2026, 7 - m, 1)` part du mois d'août, celui où ce fichier a été
+ * écrit, et descend sur six mois. Deux contrôles exigent ensuite que l'écran
+ * porte les charges du mois AFFICHÉ — c'est le garde-fou qui empêche d'avoir
+ * échangé une lenteur contre un écran vide.
+ *
+ * Le 1er septembre 2026, l'application a ouvert sur `2026-09`, mois où rien
+ * n'est semé : zéro ligne, et les deux contrôles sont tombés sans qu'une ligne
+ * de code change.
+ *
+ * Le mois est CALCULÉ ici, jamais écrit en toutes lettres : un relevé des clés
+ * de mois littérales ne voit pas ce fichier. C'est ce qui l'a fait manquer au
+ * premier passage, alors que `tendances.spec.js` et `tendances-metriques.spec.js`
+ * tombaient le même jour pour la même raison.
+ */
+const LE_15_AOUT = new Date('2026-08-15T10:00:00');
+
 /** Un historique de six mois, garni : la relecture doit coûter quelque chose */
 function semer() {
   const db = {};
@@ -80,6 +99,7 @@ async function lectures(page) {
 }
 
 async function ouvrir(page, { refuserPeriods = false } = {}) {
+  await page.clock.setFixedTime(LE_15_AOUT);
   await setupFirebaseMock(page);
   await page.addInitScript(COMPTEUR);
   await page.addInitScript(`window.__db = ${JSON.stringify(semer())};
