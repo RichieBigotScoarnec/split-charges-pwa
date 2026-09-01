@@ -71,8 +71,33 @@ export default defineConfig({
     // disque et téléversable.
     trace: 'off'
   },
+  // Deux natures de contrôles, et elles ne peuvent pas s'exécuter au même
+  // moment de la chaîne.
+  //
+  // `chromium` parle aux émulateurs : il valide `database.rules.json` AVANT
+  // que la CI ne le publie, et c'est lui qui doit garder le déploiement.
+  //
+  // `reel` s'adresse au vrai Firebase, donc aux règles DÉJÀ publiées. Le faire
+  // garder le déploiement crée un cycle : une règle corrigée ne peut pas être
+  // publiée tant que les contrôles ne passent pas, et ils ne peuvent pas passer
+  // sans elle. C'est arrivé le 2026-09-01 — le correctif du bac à sable a bloqué
+  // sa propre publication, et avec elle celle du site.
+  //
+  // Le workflow les enchaîne donc : `chromium` → publication → `reel`.
+  //
+  // En local, `npx playwright test` sans argument exécute les deux, comme
+  // avant : la séparation ne sert qu'à ordonner la CI.
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    {
+      name: 'chromium',
+      use: { browserName: 'chromium' },
+      testIgnore: /(scenario-reel|bouclier-navigateur)\.spec\.js/
+    },
+    {
+      name: 'reel',
+      use: { browserName: 'chromium' },
+      testMatch: /(scenario-reel|bouclier-navigateur)\.spec\.js/
+    },
   ],
   webServer: {
     command: 'npx http-server public -p 3333 -c-1 --silent',
