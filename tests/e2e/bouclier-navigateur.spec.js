@@ -89,12 +89,31 @@ test.describe('Base injoignable (bouclier de navigateur)', () => {
 
     const bandeau = page.locator('#offlineBanner');
     await expect(bandeau).toBeVisible({ timeout: 30000 });
-    await expect(bandeau).toContainText('injoignable');
+    // Le mot attendu ici était « injoignable ». Le bandeau ne le dit plus
+    // depuis le 2026-08-24 (`fix(bandeau): dire la cause etablie, au lieu
+    // d'une hypothese fausse`), qui a remplacé la phrase générique par le
+    // constat de la sonde : « La base ne répond pas du tout. » C'est un
+    // progrès, et le contrôle aurait dû suivre — il ne l'a pas fait parce
+    // qu'il ne s'exécute pas en CI, faute du mot de passe du compte de test.
+    // L'intention est inchangée : le bandeau NOMME la coupure.
+    await expect(bandeau).toContainText('ne répond pas');
     // Personne ne fera spontanément le lien entre « mes salaires ne
     // s'enregistrent pas » et « mon navigateur me protège ».
     await expect(bandeau).toContainText(/bloqueur|Brave|pare-feu/i);
     // Et il doit dire ce que ça coûte, pas seulement ce qui se passe.
-    await expect(bandeau).toContainText(/pas enregistr/i);
+    //
+    // Le motif attendu était `/pas enregistr/i`. Il datait d'avant la file
+    // d'attente hors ligne (`43b476f`) : les saisies sont désormais gardées sur
+    // l'appareil et rejouées à la reconnexion, si bien que « vos saisies ne
+    // sont pas enregistrées » serait FAUX. `connection-banner.js` le dit dans
+    // son en-tête — une phrase fausse « aurait appris à ne plus lire le
+    // bandeau ».
+    //
+    // Le coût n'a pas disparu, il a changé de nature : ce qui est en jeu n'est
+    // plus la perte immédiate mais la fragilité de ce qui attend. C'est cela
+    // que le bandeau doit énoncer, et c'est cela qu'on vérifie.
+    await expect(bandeau).toContainText(/ne vivent que sur cet appareil/i);
+    await expect(bandeau).toContainText(/perdrait/i);
   });
 
   // Le retour à la normale n'est pas vérifié ici : `unroute` ne défait pas
@@ -122,22 +141,45 @@ test.describe('Base injoignable (bouclier de navigateur)', () => {
     expect(erreurs, `erreurs non rattrapées : ${erreurs.join(' | ')}`).toEqual([]);
   });
 
-  test("une saisie rapide échouée est signalée, jamais silencieuse", async ({ page }) => {
+  test("une saisie rapide sans base est comptée, jamais silencieuse", async ({ page }) => {
     // La panne exacte : « j'appuie sur Ajouter et il ne se passe rien ».
     // Realtime Database met les écritures en file d'attente quand il ne joint
     // pas le serveur — la promesse ne se résout jamais, le gestionnaire du
     // bouton reste suspendu sur son `await`, et aucun retour n'atteint l'écran.
-    // Un délai de garde transforme ce silence en échec visible.
+    //
+    // Ce contrôle attendait un toast d'erreur. Il n'en vient plus, et c'est
+    // volontaire : depuis la file hors ligne, la saisie n'ÉCHOUE plus, elle
+    // attend. Le signal a changé de place — le bandeau la compte.
+    //
+    // L'ancienne assertion cherchait `/rreur/i` dans `.toast, #toast`. Outre
+    // qu'elle violait le mode strict — quatre toasts d'erreur de CHARGEMENT
+    // sont déjà là quand la base est coupée —, elle aurait été satisfaite par
+    // ces quatre-là. Elle serait donc restée verte alors même que la saisie
+    // repartait en silence : elle ne prouvait pas ce que son nom annonçait.
+    //
+    // Mesuré : un toast « 🛒 Courses — 12,00 € (Prorata) » paraît puis
+    // s'efface, et le bandeau passe à « 1 saisie est conservée sur cet
+    // appareil ». C'est ce compteur qui tient la promesse, parce qu'il reste.
     await ouvrirSansBase(page);
 
     await page.locator('[data-action="showQuickAddModal"]').click();
+    // La modale s'ouvre bien base coupée — vérifié, et c'est ce que garantit
+    // le contrôle voisin sur les boutons d'ajout. Ce qui a changé, c'est
+    // l'intérieur : la saisie rapide est passée à des panneaux dépliants, et
+    // les catégories vivent maintenant derrière le leur. Elles restent dans le
+    // DOM, invisibles — d'où l'attente de 180 s sur un bouton qui ne
+    // s'afficherait jamais. Mesuré : 7 boutons présents, 0 visibles, 7 après
+    // le clic sur le segment.
+    await expect(page.locator('#modalQuickAdd')).toHaveClass(/active/, { timeout: 10000 });
+    await page.locator('.quick-add-segment[data-panneau="quickAddPanneauCategorie"]').click();
     await page.locator('.category-btn').first().click();
     await page.locator('#quickAddAmount').fill('12');
-    await page.locator('.payer-toggle button').first().click();
     await page.locator('#btnQuickAdd').click();
 
-    // Le délai de garde des écritures est de 15 s : la marge couvre la
-    // détection sans masquer une régression.
-    await expect(page.locator('.toast, #toast')).toContainText(/rreur/i, { timeout: 30000 });
+    // Le bandeau, et non un toast : un toast s'efface au bout de quelques
+    // secondes, le compteur reste tant que la file n'est pas partie. C'est lui
+    // qu'on retrouve en revenant sur l'écran cinq minutes plus tard.
+    await expect(page.locator('#offlineBanner'))
+      .toContainText(/1 saisie est conservée sur cet appareil/i, { timeout: 30000 });
   });
 });

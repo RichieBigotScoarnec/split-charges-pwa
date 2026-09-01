@@ -41,6 +41,11 @@ problème sans le résoudre, en gagnant une impression de sécurité.
 Ce qui protège réellement tient en quatre points :
 
 1. **Le fichier ne quitte pas la machine.** `.gitignore` couvre `.env.local`.
+   Sa *valeur*, elle, en sort désormais : elle est aussi déposée en secret
+   Actions, pour que la CI puisse exécuter les contrôles qui en dépendent
+   (voir « Ce que la CI en fait »). GitHub la chiffre au repos, la masque dans
+   les journaux et ne l'expose qu'aux exécutions autorisées — mais l'affirmer
+   sans le dire aurait laissé croire à un cantonnement qui n'existe plus.
 2. **Rien ne l'affiche.** Les tests le lisent depuis l'environnement du
    processus. Il ne doit jamais être affiché dans un terminal, ni recopié dans
    un message ou un rapport — c'est par là qu'un secret fuit en pratique, pas
@@ -54,13 +59,65 @@ Ce qui protège réellement tient en quatre points :
 
 ## Lancer les tests contre le vrai Firebase
 
+Deux fichiers en dépendent — `tests/e2e/reel.spec.js`, cité ici jusqu'au
+2026-09-01, n'a jamais existé :
+
 ```bash
-npx playwright test tests/e2e/reel.spec.js
+npx playwright test tests/e2e/scenario-reel.spec.js tests/e2e/bouclier-navigateur.spec.js
 ```
 
-Sans `FAIRSPLIT_TEST_PASSWORD`, la suite est **ignorée** plutôt qu'en échec :
-la validation contre le vrai Firebase est facultative, et ne doit jamais
-bloquer la CI, qui n'a pas — et ne doit pas avoir — le secret.
+Sans `FAIRSPLIT_TEST_PASSWORD`, ces suites sont **ignorées** plutôt qu'en
+échec.
+
+## Ce que la CI en fait
+
+Cette page a longtemps dit que la CI « n'a pas — et ne doit pas avoir — le
+secret ». La position se défendait : une validation contre un service réel est
+lente, dépend du réseau, et ne devrait pas retenir une livraison.
+
+Elle avait un coût qu'on n'avait pas mesuré. Relevé le 2026-09-01 : **558
+contrôles passés, 17 sautés**. Ces 17 couvrent le chemin de l'argent, la
+concurrence entre deux appareils et l'aller-retour de sauvegarde — ce qu'on
+veut précisément voir tomber avant une livraison. Verts par absence, ils ne
+prouvaient rien, et **9 d'entre eux étaient cassés depuis des semaines** : le
+bac à sable ne pouvait plus être vidé depuis le durcissement des règles du
+2026-08-27, et deux contrôles mesuraient des libellés que l'application
+n'affiche plus.
+
+Le compromis retenu garde les deux intentions :
+
+| | |
+| --- | --- |
+| Sur une **pull request** | Le secret n'est pas passé. Les 17 se sautent, comme avant. Aucune PR n'est retenue par le réseau ni par un service tiers. |
+| Sur un **push vers `main`** | Le secret est passé, les 17 s'exécutent. Une rupture est vue tout de suite, sur la fusion qui l'a causée. |
+
+Le bornage à `push` n'est pas que de la prudence : ces contrôles **vident le
+nœud `sandbox`** avant chaque scénario. Deux exécutions simultanées — deux PR
+ouvertes le même jour — se marcheraient dessus. Les fusions sur `main`, elles,
+sont sérialisées.
+
+## Faire tourner le mot de passe
+
+Le point 4 ci-dessus repose sur cette rotation ; elle demande maintenant deux
+gestes au lieu d'un. L'oublier laisserait la CI s'authentifier avec un mot de
+passe révoqué.
+
+1. Changer le mot de passe du compte dans la console Firebase.
+2. Mettre à jour `.env.local`.
+3. Le déposer en secret Actions :
+
+   ```bash
+   grep '^FAIRSPLIT_TEST_PASSWORD=' .env.local | gh secret set -f -
+   ```
+
+Le filtre `grep` n'est pas un ornement : `gh secret set -f .env.local`
+déposerait **toutes** les clés du fichier. Et la valeur transite par l'entrée
+standard, donc jamais par `argv` ni par l'historique du shell — c'est le
+point 2 ci-dessus, appliqué à la commande elle-même.
+
+Rien ne compare les deux copies : un secret Actions ne se relit pas. Le
+détecteur d'écart est la CI — un mot de passe périmé fait tomber les 17
+contrôles sur `main`, bruyamment.
 
 ## Lancer les émulateurs Firebase en local
 
@@ -111,6 +168,24 @@ remède serait pire.
 La position retenue : ne rien rétrograder, et réexaminer quand `firebase-tools`
 publiera une version corrigeant ses dépendances transitives. Le point mérite
 d'être revu à chaque montée de version, pas ignoré.
+
+### Réexamens
+
+**2026-09-01, `firebase-tools` 15.28.2** — toujours vulnérable. La dernière
+version publiée tire encore `@opentelemetry/core@1.30.1` (corrigé en 2.8.0) et
+`uuid@9.0.1` (corrigé en 11.1.1). Rien à faire côté amont.
+
+La voie restante serait des `overrides` npm. Elle a été écartée : elle
+forcerait deux montées de version **majeures** à l'intérieur de
+`@google-cloud/pubsub` et `gaxios`, donc de l'outil qui lance les émulateurs et
+détient le compte de service dans `deploy-rules`. Le seul test réel serait une
+exécution complète des émulateurs, et le casser en silence coûterait plus que
+les deux failles.
+
+Ni l'une ni l'autre n'est d'ailleurs atteignable par l'usage qu'on en fait : la
+première exige de traiter des en-têtes `baggage` non fiables, la seconde un
+appel à `uuid` avec un argument `buf`. La CLI n'emprunte aucun des deux
+chemins.
 
 ## Pourquoi `@playwright/test` est épinglé sans `^`
 

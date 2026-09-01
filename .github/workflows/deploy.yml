@@ -153,7 +153,23 @@ jobs:
       # emulators:exec démarre auth + database, exécute la suite, puis arrête
       # tout. Les émulateurs chargent database.rules.json : firebase-integration
       # valide donc les règles de sécurité réelles, et non un mock.
+      # `FAIRSPLIT_TEST_PASSWORD` ouvre 17 contrôles que `scenario-reel.spec.js`
+      # et `bouclier-navigateur.spec.js` sautent quand il manque — 558 passés,
+      # 17 sautés au dernier relevé. Ils couvrent le chemin de l'argent, la
+      # concurrence et l'aller-retour de sauvegarde : exactement ce qu'on veut
+      # voir tomber avant une livraison. Verts par absence, ils ne prouvaient
+      # rien, et deux libellés avaient dérivé sans que personne le voie.
+      #
+      # Tant que le secret n'existe pas, la variable est vide et les 17
+      # continuent de se sauter : cette étape ne change rien d'ici là.
+      #
+      # Volontairement borné à `push` : ces contrôles s'adressent au VRAI
+      # Firebase et vident le nœud `sandbox` avant chaque scénario. Deux
+      # exécutions simultanées — deux PR ouvertes le même jour — se
+      # marcheraient dessus. Sur `main`, les fusions sont sérialisées.
       - name: Run E2E tests
+        env:
+          FAIRSPLIT_TEST_PASSWORD: ${{ github.event_name == 'push' && secrets.FAIRSPLIT_TEST_PASSWORD || '' }}
         run: npx firebase emulators:exec --only auth,database --project fairsplit-foyer "npx playwright test --reporter=line"
 
       - name: Upload traces on failure
