@@ -14,7 +14,8 @@ import { showModal, closeModal, showConfirmModal } from '../components/modal.js'
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import {
   formatDateEtHeure, dateDuJour, dateSaisissable,
-  heureDuJour, heureSaisissable, heureValide
+  heureDuJour, heureSaisissable, heureValide,
+  periodeDeLaDate, formatPeriod
 } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
 import { afficherTotalDeListe } from '../utils/totaux-liste.js';
@@ -501,14 +502,35 @@ async function enregistrerVariableCharge() {
 
     let key;
     if (chargeId) {
-      // Édition
+      // Édition : la charge reste dans le mois où elle est rangée.
+      //
+      // La déplacer demanderait de l'écrire ailleurs PUIS de la supprimer ici,
+      // deux écritures que rien ne rend atomiques — une coupure entre les deux
+      // la duplique ou la perd. Le formulaire ne permet donc pas de changer de
+      // mois par la date : c'est une limite assumée, pas un oubli. Corriger un
+      // rangement se fait en supprimant puis ressaisissant.
       key = chargeId;
       await dbUpdate(`periods/${currentPeriod}/variableCharges/${key}`, chargeData);
       toast.success('Charge modifiée');
     } else {
-      // Ajout
-      key = await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
-      toast.success('Charge ajoutée');
+      // Ajout : la date décide du mois, pas l'écran depuis lequel on saisit.
+      //
+      // Les deux valeurs vivaient séparément — le champ se pré-remplit du jour
+      // courant, l'écriture visait le mois affiché. Consulter juillet le
+      // 1er septembre et saisir une dépense la rangeait sous `periods/2026-07`
+      // en la datant du 1er septembre : total de juillet gonflé, solde faux
+      // d'autant entre les deux personnes. Cf. `periodeDeLaDate`.
+      const periodeCible = periodeDeLaDate(chargeData.date) || currentPeriod;
+      key = await dbPush(`periods/${periodeCible}/variableCharges`, chargeData);
+
+      // Nommer le mois d'arrivée quand ce n'est pas celui qu'on regarde : la
+      // liste à l'écran est celle d'un autre mois, la charge n'y paraîtra pas,
+      // et sans un mot elle semblerait ne s'être enregistrée nulle part.
+      toast.success(
+        periodeCible === currentPeriod
+          ? 'Charge ajoutée'
+          : `Charge ajoutée en ${formatPeriod(periodeCible)}, sa date`
+      );
     }
 
     // Mettre à jour le state local

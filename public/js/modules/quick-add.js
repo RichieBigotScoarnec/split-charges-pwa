@@ -12,7 +12,7 @@ import { getCategories } from './custom-lists.js';
 import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { parseMontant } from '../utils/montant.js';
-import { dateDuJour, heureDuJour, heureValide } from '../utils/date.js';
+import { dateDuJour, heureDuJour, heureValide, periodeDeLaDate, formatPeriod } from '../utils/date.js';
 import { uneSeuleFois, relacher } from '../utils/soumission.js';
 import { segmentsDeLaPhrase } from '../utils/phrase-saisie.js';
 import { decrireLieu } from '../utils/lieu.js';
@@ -1223,16 +1223,34 @@ async function soumettre() {
     if (gps.codePostal) chargeData.location.codePostal = gps.codePostal;
   }
 
+  // La date décide du mois, pas l'écran depuis lequel on saisit. Les deux
+  // valeurs vivaient séparément : le champ se pré-remplit du jour courant, et
+  // l'écriture visait le mois affiché. Consulter juillet et saisir le
+  // 1er septembre rangeait la dépense en juillet, en la datant de septembre.
+  // Cf. `periodeDeLaDate`.
+  const periodeCible = periodeDeLaDate(chargeData.date) || currentPeriod;
+
   try {
     const { dbPush } = await import('../db.js');
-    await dbPush(`periods/${currentPeriod}/variableCharges`, chargeData);
+    await dbPush(`periods/${periodeCible}/variableCharges`, chargeData);
 
     // Les trois modes, pas deux : le ternaire annonçait « 50-50 » pour une
     // dépense perso. L'application aurait dit avoir partagé ce qu'elle venait
     // de sortir du solde — le même défaut que le `splitMode` qui n'était lu
     // par personne, et que ce toast affichait pourtant.
     const modeLabel = { prorata: 'Prorata', '50-50': '50-50', perso: 'Perso' }[splitMode] || 'Prorata';
-    toast.success(`${category.icon} ${description} — ${formatCurrency(amount)} (${modeLabel})`);
+
+    // Nommer le mois d'arrivée quand ce n'est pas celui qu'on regarde : sans
+    // cela la dépense semblerait ne s'être enregistrée nulle part — la liste
+    // à l'écran est celle d'un autre mois, et elle n'y paraîtra pas.
+    if (periodeCible !== currentPeriod) {
+      toast.success(
+        `${category.icon} ${description} — ${formatCurrency(amount)} (${modeLabel}) `
+        + `→ rangée en ${formatPeriod(periodeCible)}, sa date`
+      );
+    } else {
+      toast.success(`${category.icon} ${description} — ${formatCurrency(amount)} (${modeLabel})`);
+    }
 
     // Refresh données
     await loadVariableCharges();
@@ -1501,14 +1519,22 @@ export async function addQuickCharge(chargeData) {
     throw new Error('Données invalides');
   }
 
+  // Même règle que la saisie rapide : la date décide du mois. Cf.
+  // `periodeDeLaDate`.
+  const periodeCible = periodeDeLaDate(charge.date) || currentPeriod;
+
   try {
     const { dbPush } = await import('../db.js');
-    await dbPush(`periods/${currentPeriod}/variableCharges`, charge);
+    await dbPush(`periods/${periodeCible}/variableCharges`, charge);
 
     await loadVariableCharges();
     calculateSummary();
 
-    toast.success('Charge ajoutée');
+    toast.success(
+      periodeCible === currentPeriod
+        ? 'Charge ajoutée'
+        : `Charge ajoutée en ${formatPeriod(periodeCible)}, sa date`
+    );
     return charge;
   } catch (error) {
     logError('❌ Erreur addQuickCharge :', error);
