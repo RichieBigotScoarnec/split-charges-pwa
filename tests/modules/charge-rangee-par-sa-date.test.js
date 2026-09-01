@@ -204,8 +204,9 @@ describe('Le mois d\'arrivée suit la date, pas l\'écran', () => {
 
   it('l\'édition ne déplace pas la charge — limite assumée', async () => {
     document.body.innerHTML = formulaire;
-    // Deux écritures non atomiques la dupliqueraient ou la perdraient. La
-    // charge reste où elle est ; c'est écrit dans le module.
+    // Un choix, pas une contrainte : le déplacement serait faisable en une
+    // écriture atomique. Une date corrigée par mégarde ferait disparaître la
+    // charge de l'écran, et cela doit se demander plutôt que se subir.
     setState('currentPeriod', '2026-07');
     document.getElementById('variableChargeId').value = 'cle-existante';
     document.getElementById('variableChargeDate').value = '2026-09-01';

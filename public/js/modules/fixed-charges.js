@@ -499,8 +499,8 @@ async function enregistrerFixedCharge() {
 
     let key;
     if (chargeId) {
-      // Édition : la charge reste dans son mois. Deux écritures non atomiques
-      // la dupliqueraient ou la perdraient. Cf. `variable-charges.js`.
+      // Édition : la charge reste dans son mois, même si sa date change.
+      // C'est un choix, pas une contrainte technique. Cf. `variable-charges.js`.
       key = chargeId;
       await dbUpdate(`periods/${currentPeriod}/fixedCharges/${key}`, chargeData);
       toast.success('Charge modifiée');

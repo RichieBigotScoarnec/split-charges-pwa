@@ -502,13 +502,14 @@ async function enregistrerVariableCharge() {
 
     let key;
     if (chargeId) {
-      // Édition : la charge reste dans le mois où elle est rangée.
+      // Édition : la charge reste dans son mois, même si sa date change.
       //
-      // La déplacer demanderait de l'écrire ailleurs PUIS de la supprimer ici,
-      // deux écritures que rien ne rend atomiques — une coupure entre les deux
-      // la duplique ou la perd. Le formulaire ne permet donc pas de changer de
-      // mois par la date : c'est une limite assumée, pas un oubli. Corriger un
-      // rangement se fait en supprimant puis ressaisissant.
+      // Techniquement, la déplacer serait possible : `reconduction.js` écrit
+      // déjà plusieurs chemins en une seule mise à jour atomique. C'est donc un
+      // CHOIX, pas une contrainte — une date corrigée par mégarde ferait
+      // disparaître la charge de l'écran, et un déplacement doit se demander,
+      // pas se subir. Pour ranger une charge ailleurs : la supprimer et la
+      // ressaisir à sa date.
       key = chargeId;
       await dbUpdate(`periods/${currentPeriod}/variableCharges/${key}`, chargeData);
       toast.success('Charge modifiée');

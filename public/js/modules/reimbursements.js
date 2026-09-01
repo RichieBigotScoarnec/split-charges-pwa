@@ -224,8 +224,8 @@ async function enregistrerReimbursement() {
 
     if (reimbursementId) {
       // L'édition ne déplace pas le versement, pour la même raison que les
-      // charges : deux écritures non atomiques le dupliqueraient ou le
-      // perdraient. Cf. `variable-charges.js`.
+      // charges : c'est un choix, pas une contrainte technique.
+      // Cf. `variable-charges.js`.
       await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, reimbursementData);
       toast.success('Remboursement modifié');
     } else {
