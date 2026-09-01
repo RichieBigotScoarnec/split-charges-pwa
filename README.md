@@ -131,7 +131,7 @@ database.rules.json     Règles de sécurité — source de vérité unique
 
 Le déploiement publie `public/` et rien d'autre. Auparavant la racine entière
 était publiée, filtrée par une liste d'exclusion à maintenir à la main — qui a
-laissé fuiter `package.json`, `vitest.config.js`, `tools/` et
+laissé fuiter `package.json`, `vitest.config.mjs`, `tools/` et
 `eslint.config.mjs`. Publier est désormais un acte délibéré.
 
 **Une seule branche** : `main`, déployée automatiquement sur GitHub Pages après

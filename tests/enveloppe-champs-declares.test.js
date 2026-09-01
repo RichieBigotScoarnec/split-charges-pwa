@@ -25,9 +25,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { normaliserEnveloppe, NATURES, RANGS } from '../public/js/utils/enveloppes.js';
 
-const RACINE = new URL('..', import.meta.url).pathname;
+// `fileURLToPath` et non `.pathname` : sous Windows ce dernier rend
+// `/C:/Users/...`, que `join` préfixe en `C:\C:\Users\...`. Les contrôles
+// tombaient donc chez le développeur et passaient en CI, où personne ne les
+// voyait échouer.
+const RACINE = fileURLToPath(new URL('..', import.meta.url));
 const REGLES = JSON.parse(readFileSync(join(RACINE, 'database.rules.json'), 'utf-8')).rules;
 
 /** Le module qui écrit les enveloppes */

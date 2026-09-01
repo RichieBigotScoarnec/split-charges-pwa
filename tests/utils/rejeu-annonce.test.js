@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { annoncesDuRejeu } from '../../public/js/utils/rejeu-annonce.js';
 
 /**
@@ -19,7 +20,11 @@ import { annoncesDuRejeu } from '../../public/js/utils/rejeu-annonce.js';
  * chargement des données, quand `app.js` rejoue à chaque reconnexion.
  */
 
-const RACINE = new URL('../..', import.meta.url).pathname;
+// `fileURLToPath` et non `.pathname` : sous Windows ce dernier rend
+// `/C:/Users/...`, que `join` préfixe en `C:\C:\Users\...`. Les contrôles
+// tombaient donc chez le développeur et passaient en CI, où personne ne les
+// voyait échouer.
+const RACINE = fileURLToPath(new URL('../..', import.meta.url));
 const source = (chemin) => readFileSync(join(RACINE, chemin), 'utf-8');
 
 /** Tous les fichiers JS livrés */
