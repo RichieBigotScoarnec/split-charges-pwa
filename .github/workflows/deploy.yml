@@ -88,8 +88,17 @@ jobs:
       # rendu par `memberLabel` et le nom de la catégorie qui a le plus bougé.
       # Les deux passent par `escapeHtml`, et le reste de la modale est soit un
       # montant formaté, soit un nombre, soit un libellé écrit dans le module.
+      #
+      # 26 → 24 le 2026-09-01, et le compte change de nature : `--max-warnings`
+      # donnait un budget COMMUN à `no-unsanitized/*` (24 sites) et `no-console`
+      # (2, dans `utils/debug.js`), tous `warn` dans le même bloc de
+      # `eslint.config.mjs` et donc indiscernables. Retirer les deux
+      # `console.log` aurait libéré en silence deux places pour un `innerHTML`
+      # non relu. Ce n'est pas un abaissement du seuil : les 24 sites sont les
+      # mêmes qu'avant, seul le bruit d'une autre règle a cessé d'être compté.
+      # Le raisonnement est celui qui a déjà restreint le plafond à `public/js`.
       - name: Aucun nouvel innerHTML dynamique
-        run: npx eslint public/js --max-warnings 26
+        run: npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 
       - name: Run unit tests
         run: npx vitest run
