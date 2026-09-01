@@ -714,6 +714,34 @@ Onze autres mutants posés sur les trois tranches, onze chutes.
 **2 611 unitaires**, 510 de bout en bout verts, 23 rouges qui sont les 23
 exigeant les émulateurs — et qui en compteront 27 en CI.
 
+### Les deux manques du thème, et ce qu'ils ont révélé — 2026-09-01
+
+Le lot du thème laissait deux trous signalés : aucun contrôle de bout en bout
+sur l'écran qui choisit un thème, aucun sur la carte de cycle. Les refermer a
+fait tomber huit contrôles qui n'avaient rien à voir — et qui étaient rouges
+sur `main` depuis minuit.
+
+| **`themeChoisi` et `brancherLeTheme` n'avaient aucun témoin.** La fonction pure `themesConnus` est éprouvée sous tous ses angles, et `enveloppeNeuve` verrouille la forme écrite — mais entre les deux il y a un `<select>` dont les options sont des RANGS, une sentinelle `'+'`, un champ révélé par un écouteur, et deux appelants qui doivent relire la liste au moment du geste. C'est le motif que ce dépôt paie le plus cher : les fonctions pures blindées, le CÂBLAGE nu. `themes` hors portée dans `ajouter` — création morte à chaque clic — avait été trouvé par un sceptique qui exécutait la conception, jamais par les 2 611 contrôles | `tests/e2e/theme-enveloppe.spec.js` | ✅ RÉSOLU 2026-09-01 — 7 contrôles : révélation du champ, écriture, reproposition au suivant, canonicalisation annoncée, édition qui ne perd rien, « aucun » qui n'écrit rien, et la géométrie du formulaire à 390 px | Cinq mutants, cinq chutes — dont un de disposition, que seule la propriété géométrique voit |
+| Deux champs sont venus s'ajouter à un formulaire qui en comptait huit, dans une modale que `coherence-visuelle.spec.js` ne visite pas : il ne connaît que les trois panneaux | `tests/e2e/theme-enveloppe.spec.js` | ✅ RÉSOLU 2026-09-01 — chevauchement et débordement mesurés dans la modale, barre d'action collante exclue comme ailleurs | Le mutant qui pose le champ neuf par-dessus son sélecteur fait tomber ce seul contrôle |
+| La carte de cycle n'avait jamais été vue sur une page. Elle est la DERNIÈRE du tableau — triée par urgence puis par clé — donc reléguée sous « N autres » dès que trois cartes paraissent : un contrôle qui l'ignorerait mesurerait le classement plutôt que la carte | `tests/e2e/theme-cycle.spec.js` | ✅ RÉSOLU 2026-09-01 — 6 contrôles, dont la propriété centrale : la part mensuelle du thème est la SOMME de celles que les cartes individuelles affichent au-dessus, les deux chiffres lus sur la même page | Quatre mutants, quatre chutes. `total ÷ 6` en fait tomber 4 |
+| Et surtout : la carte NE porte aucun bouton — une garde, pas un oubli. `anticiper` additionne les montants de toutes les cartes qui portent une proposition, et une proposition ici ferait compter deux fois le même argent | `tests/e2e/theme-cycle.spec.js` | ✅ RÉSOLU 2026-09-01 — le contrôle exige l'absence, avec le témoin positif que les cartes individuelles gardent le leur | Sans le témoin, une page sans aucun bouton passerait |
+
+#### Huit contrôles tombés au changement de mois, sans qu'une ligne change
+
+| **Trois suites étaient ancrées à août 2026, le mois où elles ont été écrites.** Le 1er septembre, l'application a ouvert sur `2026-09` — un mois qui existe, vide — et il est entré dans tout ce qui calcule sur une FENÊTRE. Mesuré : la médiane des tendances passe de 1 014,00 € sur quatre mois à 973,00 € sur cinq, « Un seul mois » n'est plus vrai puisqu'il y en a deux, et les deux contrôles qui exigent que l'écran porte les charges du mois affiché trouvent zéro ligne. Le job de bout en bout conditionne la publication : le site était figé jusqu'à ce que quelqu'un s'en aperçoive | `tendances-metriques.spec.js`, `tendances.spec.js`, `lecture-unique.spec.js` | ✅ RÉSOLU 2026-09-01 — horloge figée au 15 août 2026 par `page.clock.setFixedTime`, le remède que `projection-du-mois.spec.js` employait déjà | **Quatrième occurrence** : après l'heure qu'il était, le mois de décembre, puis le dernier jour du mois |
+| Le relevé qui devait trouver les autres n'en voyait que la moitié : il cherchait des clés de mois LITTÉRALES, et `lecture-unique.spec.js` calcule les siennes — `Date.UTC(2026, 7 - m, 1)`. Il a fallu la suite complète pour le sortir, deux contrôles après coup | — | ⚠️ CONSIGNÉ — un relevé de sources mesure la FORME, jamais l'effet ; c'est la leçon du 30 août, refaite ici dans l'outil écrit pour la refermer | Les six specs qui datent en 2026 sans figer l'horloge passent aujourd'hui, la bascule ayant déjà eu lieu : elles ne partagent pas le déclencheur, mesuré plutôt que supposé |
+
+> **Et la leçon de méthode, encore la même.** Ces huit contrôles n'ont rien à
+> voir avec le thème : ils sont tombés parce que j'ai rejoué la suite ENTIÈRE.
+> Un sous-ensemble choisi par le correcteur mesure ce qu'il a prévu de casser —
+> c'est écrit trois fois plus haut, à propos des suites, puis des commandes de
+> la CI. Ici cela valait pour le calendrier.
+
+**523 contrôles de bout en bout verts** (contre 510 avant ce lot),
+**2 611 unitaires**, 28 rouges qui sont les 28 exigeant les émulateurs Firebase
+— un dans `auth-ui.spec.js`, vingt-sept dans `regles-donnees.spec.js`. Eslint :
+0 erreur, 26 avertissements, le plafond exact de la CI.
+
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
 ## Prompts disponibles
