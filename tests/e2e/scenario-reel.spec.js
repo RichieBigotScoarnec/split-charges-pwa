@@ -64,6 +64,26 @@ async function soldeAffiche(page) {
   return parseFloat(m[1].replace(/\s/g, '').replace(',', '.'));
 }
 
+/**
+ * Date la saisie du mois affiché
+ *
+ * Depuis que la date décide du mois d'arrivée, une charge saisie en
+ * consultant un mois passé part dans le mois d'AUJOURD'HUI si on laisse le
+ * champ à son défaut. C'est le comportement voulu : la date fait foi.
+ *
+ * Ces scénarios écrivent DANS le mois qu'ils consultent — c'est tout leur
+ * objet, puisqu'ils rejouent plusieurs mois d'usage. Ils doivent donc dater
+ * la saisie de ce mois, comme le ferait quelqu'un qui régularise une dépense
+ * oubliée. Le 15 : un quantième qui existe dans tous les mois.
+ *
+ * @param {import('@playwright/test').Page} page - Page de test
+ * @param {string} champ - Sélecteur du champ date du formulaire ouvert
+ */
+async function daterDuMoisAffiche(page, champ) {
+  const periode = await page.locator('#periodSelect').inputValue();
+  await page.locator(champ).fill(`${periode}-15`);
+}
+
 test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
   test.skip(!MOT_DE_PASSE, 'FAIRSPLIT_TEST_PASSWORD absent — voir docs/compte-de-test.md');
 
@@ -109,6 +129,7 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
   /** Ajoute une charge variable */
   async function chargeVariable(page, description, montant, payeur) {
     await page.locator('#addVariableChargeBtn').click();
+    await daterDuMoisAffiche(page, '#variableChargeDate');
     await page.locator('#variableChargeDescription').fill(description);
     await page.locator('#variableChargeAmount').fill(String(montant));
     await page.locator('#variableChargeCategory').selectOption({ index: 1 });
@@ -121,6 +142,7 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
   /** Ajoute une charge fixe, récurrente par défaut */
   async function chargeFixe(page, description, montant, payeur) {
     await page.locator('#addFixedChargeBtn').click();
+    await daterDuMoisAffiche(page, '#fixedChargeDate');
     await page.locator('#fixedChargeDescription').fill(description);
     await page.locator('#fixedChargeAmount').fill(String(montant));
     await page.locator('#fixedChargeCategory').selectOption({ index: 1 });
@@ -485,8 +507,14 @@ test.describe('Six mois avec augmentation', () => {
             category: 'Courses', deleted: false, timestamp: Date.now()
           });
         }
-        // Empreinte posée : la reconduction ne doit pas garnir un mois déjà écrit
-        await db.ref(`sandbox/periods/${cle}/reconductedFrom`).set('historique');
+        // Empreinte posée : la reconduction ne doit pas garnir un mois déjà
+        // écrit. La valeur doit être un MOIS — les règles l'exigent depuis le
+        // durcissement du 2026-08-27 (`matches(/^[0-9]{4}-[0-9]{2}$/)`), et
+        // l'étiquette « historique » écrite ici était refusée. Le mois qui
+        // précède est la valeur juste : c'est de lui qu'un vrai report vient.
+        const precedent = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+        const clePrecedente = `${precedent.getFullYear()}-${String(precedent.getMonth() + 1).padStart(2, '0')}`;
+        await db.ref(`sandbox/periods/${cle}/reconductedFrom`).set(clePrecedente);
       }
     }, HISTORIQUE);
 
@@ -573,7 +601,12 @@ test.describe('Contre le vrai Firebase', () => {
     await seConnecter(page);
 
     // Le sélecteur de mois est le premier signe que l'initialisation a abouti.
-    await expect(page.locator('#periodSelect option')).toHaveCount(12);
+    //
+    // Le compte n'est plus fixe : la liste ne se limite plus aux douze mois
+    // glissants, elle « réunit ce que la base contient, quel que soit son âge »
+    // (`period.js`). Un mois hors fenêtre en donne treize. Exiger exactement
+    // douze mesurait donc l'état du bac à sable, pas l'initialisation.
+    expect(await page.locator('#periodSelect option').count()).toBeGreaterThanOrEqual(12);
     expect(erreurs).toEqual([]);
   });
 
@@ -615,6 +648,7 @@ test.describe('Contre le vrai Firebase', () => {
     const repere = `essai-${await page.evaluate(() => performance.now().toFixed(0))}`;
 
     await page.locator('#addVariableChargeBtn').click();
+    await daterDuMoisAffiche(page, '#variableChargeDate');
     await page.locator('#variableChargeDescription').fill(repere);
     await page.locator('#variableChargeAmount').fill('12.34');
     await page.locator('#variableChargeCategory').selectOption({ index: 1 });
@@ -674,6 +708,7 @@ test.describe('Sauvegarde et restauration, aller-retour réel', () => {
       await page.waitForTimeout(1500);
 
       await page.locator('#addVariableChargeBtn').click();
+    await daterDuMoisAffiche(page, '#variableChargeDate');
       await page.locator('#variableChargeDescription').fill('Depense a retrouver');
       await page.locator('#variableChargeAmount').fill('137.50');
       await page.locator('#variableChargeCategory').selectOption({ index: 1 });
