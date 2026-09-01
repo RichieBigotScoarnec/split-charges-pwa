@@ -12,7 +12,10 @@ import { validateChargeAmount, validateChargeName } from '../utils/validation.js
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
-import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
+import {
+  formatDate, dateDuJour, dateDeLaCharge, dateSaisissable,
+  periodeDeLaDate, formatPeriod
+} from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
 import { afficherTotalDeListe } from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
@@ -496,14 +499,30 @@ async function enregistrerFixedCharge() {
 
     let key;
     if (chargeId) {
-      // Édition
+      // Édition : la charge reste dans son mois, même si sa date change.
+      // C'est un choix, pas une contrainte technique. Cf. `variable-charges.js`.
       key = chargeId;
       await dbUpdate(`periods/${currentPeriod}/fixedCharges/${key}`, chargeData);
       toast.success('Charge modifiée');
     } else {
-      // Ajout
-      key = await dbPush(`periods/${currentPeriod}/fixedCharges`, chargeData);
-      toast.success('Charge ajoutée');
+      // La date décide du mois, ici aussi.
+      //
+      // `reconduction.js` tient déjà cet invariant à chaque report : il redate
+      // la charge dans le mois d'arrivée pour éviter « une charge qui dit
+      // appartenir à un mois où elle ne figure pas ». La création ne le tenait
+      // pas, et c'est par elle que l'écart entrait.
+      //
+      // Le report REDATE parce qu'il recopie une charge qui revient vraiment
+      // chaque mois. La création, elle, ne redate pas : la date saisie est ce
+      // que la personne a déclaré, et la réécrire en silence pour la faire
+      // entrer dans le mois affiché serait inventer à sa place.
+      const periodeCible = periodeDeLaDate(chargeData.date) || currentPeriod;
+      key = await dbPush(`periods/${periodeCible}/fixedCharges`, chargeData);
+      toast.success(
+        periodeCible === currentPeriod
+          ? 'Charge ajoutée'
+          : `Charge ajoutée en ${formatPeriod(periodeCible)}, sa date`
+      );
     }
 
     // Mettre à jour le state local

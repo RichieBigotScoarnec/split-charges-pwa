@@ -298,6 +298,32 @@ export function reporterDansLaPeriode(date, periode) {
 }
 
 /**
+ * Le mois auquel une date appartient
+ *
+ * L'inverse de `reporterDansLaPeriode` : celle-ci amène une date dans un mois
+ * choisi, celle-là lit le mois que la date désigne déjà.
+ *
+ * Elle existe parce que les deux valeurs vivaient séparément sans que rien ne
+ * les réconcilie. Le formulaire de saisie rapide pré-remplit la date du JOUR,
+ * et l'enregistrement écrivait dans le mois AFFICHÉ. Consulter juillet le
+ * 1er septembre et saisir une dépense la rangeait donc sous `periods/2026-07`
+ * en la datant du 1er septembre — un total de juillet gonflé d'une dépense de
+ * septembre, et un solde faux d'autant entre les deux personnes du foyer.
+ * Constaté en usage le 2026-09-01, le jour même d'un changement de mois.
+ *
+ * La date fait foi : elle est ce que la personne a déclaré, quand le mois
+ * affiché n'est que l'endroit d'où elle regardait.
+ *
+ * @param {string} date - Date au format AAAA-MM-JJ
+ * @returns {string|null} Période AAAA-MM, ou null si la date est illisible
+ */
+export function periodeDeLaDate(date) {
+  if (typeof date !== 'string') return null;
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)) return null;
+  return date.slice(0, 7);
+}
+
+/**
  * La date d'une charge au format qu'attend `<input type="date">`
  *
  * Le champ n'accepte que AAAA-MM-JJ : lui donner un horodatage le laisse vide,
