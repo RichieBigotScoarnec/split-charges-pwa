@@ -148,6 +148,36 @@ describe('Seules les dépenses réellement localisées sont retenues', () => {
     expect(chargesLocalisees()).toHaveLength(0);
   });
 
+  it('retient une dépense au méridien de Greenwich', () => {
+    // `location.lat && location.lng` écartait le zéro avec le reste. Le
+    // méridien traverse la France, du Havre à Bordeaux : une dépense pile
+    // dessus disparaissait de la carte, et un marqueur absent se lit comme une
+    // dépense sans lieu. La coïncidence exacte est improbable au millionième
+    // de degré ; la comparaison n'en était pas moins fausse.
+    setState('variableCharges', [{
+      id: 'greenwich', description: 'Café', category: 'Restaurant', amount: 3,
+      deleted: false, location: { lat: 44.8378, lng: 0 }
+    }]);
+    setState('fixedCharges', []);
+
+    expect(chargesLocalisees(), 'une longitude nulle a été prise pour une absence')
+      .toHaveLength(1);
+  });
+
+  it('écarte des coordonnées inexploitables', () => {
+    // `null`, une chaîne vide ou `NaN` ne sont pas des positions : les passer
+    // à Leaflet produit un marqueur au large, ou une exception.
+    setState('variableCharges', [
+      { id: 'a', deleted: false, location: { lat: null, lng: 2.3 } },
+      { id: 'b', deleted: false, location: { lat: 48.8, lng: '' } },
+      { id: 'c', deleted: false, location: { lat: NaN, lng: NaN } },
+      { id: 'd', deleted: false, location: {} }
+    ]);
+    setState('fixedCharges', []);
+
+    expect(chargesLocalisees()).toHaveLength(0);
+  });
+
   it('une dépense avec de vraies coordonnées est retenue', () => {
     setState('variableCharges', [localisee('Burger King', 'Restaurant')]);
     setState('fixedCharges', []);

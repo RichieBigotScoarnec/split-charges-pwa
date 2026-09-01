@@ -150,6 +150,32 @@ async function saveShareMode() {
 }
 
 /**
+ * Applique un mode sans le réécrire en base
+ *
+ * `_isLoading` était relevé puis rabaissé à la main, aux trois endroits où
+ * `loadShareMode` applique un mode. `selectShareMode` appelle `calculateSummary`
+ * — et, en mode `custom`, `validateCustomPercents` : si l'un des deux lève, la
+ * ligne qui rabaisse le drapeau n'est jamais atteinte. Il reste alors levé pour
+ * toute la session, et `saveShareMode` devient un non-événement : le foyer peut
+ * changer de mode autant qu'il veut, plus rien n'est enregistré, et rien ne le
+ * dit. Le prochain chargement rétablit l'ancien mode, donc l'ancien bilan.
+ *
+ * `finally` le rabaisse quoi qu'il arrive, et l'erreur continue son chemin
+ * jusqu'à `runStep`.
+ *
+ * @param {string} mode - 'prorata' | '50-50' | 'custom'
+ * @returns {void}
+ */
+function appliquerSansReecrire(mode) {
+  _isLoading = true;
+  try {
+    selectShareMode(mode);
+  } finally {
+    _isLoading = false;
+  }
+}
+
+/**
  * Load share mode from Firebase
  */
 export async function loadShareMode() {
@@ -173,16 +199,12 @@ export async function loadShareMode() {
       }
 
       // Update UI (this will also save and recalc summary)
-      _isLoading = true;
-      selectShareMode(mode);
-      _isLoading = false;
+      appliquerSansReecrire(mode);
 
       log(`📥 Mode de partage chargé : ${mode}`);
     } else {
       // No saved mode, use default 'prorata'
-      _isLoading = true;
-      selectShareMode('prorata');
-      _isLoading = false;
+      appliquerSansReecrire('prorata');
     }
   } catch (error) {
     logError('❌ Erreur chargement mode partage:', error);
@@ -190,9 +212,7 @@ export async function loadShareMode() {
     // Le repli au prorata reste appliqué : sans mode, aucun bilan ne se
     // calcule, et une application qui n'affiche rien est pire qu'une qui
     // affiche un chiffre daté.
-    _isLoading = true;
-    selectShareMode('prorata');
-    _isLoading = false;
+    appliquerSansReecrire('prorata');
 
     // Mais l'erreur remonte.
     //

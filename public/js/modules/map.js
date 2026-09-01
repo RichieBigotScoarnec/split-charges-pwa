@@ -46,7 +46,7 @@ export function refreshMapButton() {
   if (!bouton) return;
 
   const localisees = [...(getState('variableCharges') || []), ...(getState('fixedCharges') || [])]
-    .filter(c => c && !c.deleted && c.location && c.location.lat && c.location.lng);
+    .filter(c => c && !c.deleted && estLocalisee(c));
 
   bouton.hidden = localisees.length === 0;
 
@@ -293,6 +293,24 @@ function initializeLeafletMap() {
 }
 
 /**
+ * Une charge porte-t-elle de vraies coordonnées ?
+ *
+ * `charge.location.lat && charge.location.lng` écartait le zéro avec le reste :
+ * une dépense au méridien de Greenwich — qui traverse la France, du Havre à
+ * Bordeaux — n'aurait pas été portée sur la carte, et l'absence de marqueur se
+ * lit comme une dépense sans lieu. La coïncidence exacte est improbable au
+ * millionième de degré près ; la comparer à zéro n'en reste pas moins faux, et
+ * ne rien tester du tout serait pire.
+ *
+ * @param {Object} charge
+ * @returns {boolean}
+ */
+function estLocalisee(charge) {
+  const lieu = charge && charge.location;
+  return Boolean(lieu) && Number.isFinite(lieu.lat) && Number.isFinite(lieu.lng);
+}
+
+/**
  * Dépenses du mois portant de vraies coordonnées
  *
  * Une simulation se glissait ici : à défaut de coordonnées, elle en inventait
@@ -308,7 +326,7 @@ function initializeLeafletMap() {
 export function chargesLocalisees() {
   return [...(getState('variableCharges') || []), ...(getState('fixedCharges') || [])]
     .filter(charge => charge && !charge.deleted)
-    .filter(charge => charge.location && charge.location.lat && charge.location.lng);
+    .filter(estLocalisee);
 }
 
 /**
