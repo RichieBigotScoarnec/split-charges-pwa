@@ -5,6 +5,29 @@ import { test, expect } from './_couverture.js';
 // dans chaque suite ferait diverger leur fidélité au fil des corrections.
 import { setupFirebaseMock, waitForApp } from './_harness.js';
 
+/**
+ * Date la saisie du mois affiché
+ *
+ * Depuis que la date décide du mois d'arrivée, une charge saisie en consultant
+ * un mois passé part dans le mois d'AUJOURD'HUI si on laisse le champ à son
+ * défaut. C'est le comportement voulu : la date fait foi, et l'écran nomme le
+ * mois où la charge est partie.
+ *
+ * Ces contrôles veulent une charge DANS le mois affiché. Ils doivent donc la
+ * dater de ce mois — exactement le geste de quelqu'un qui régularise une
+ * dépense oubliée du mois dernier. Le laisser implicite, c'était s'appuyer sur
+ * le défaut du champ, et c'est par là que le défaut corrigé entrait.
+ *
+ * Le 15 : un quantième qui existe dans tous les mois, février compris.
+ *
+ * @param {import('@playwright/test').Page} page - Page de test
+ * @param {string} champ - Sélecteur du champ date du formulaire ouvert
+ */
+async function daterDuMoisAffiche(page, champ) {
+  const periode = await page.locator('#periodSelect').inputValue();
+  await page.locator(champ).fill(`${periode}-15`);
+}
+
 // ============================================================
 // Ajout de charges variables
 // ============================================================
@@ -556,6 +579,7 @@ test.describe('Report du solde', () => {
   /** Ajoute une charge avancée par une seule personne dans le mois affiché */
   async function ajouterCharge(page, description, montant, payeur) {
     await page.locator('#addVariableChargeBtn').click();
+    await daterDuMoisAffiche(page, '#variableChargeDate');
     await page.locator('#variableChargeDescription').fill(description);
     await page.locator('#variableChargeAmount').fill(String(montant));
     await page.locator('#variableChargeCategory').selectOption('Courses');
@@ -1046,6 +1070,7 @@ test.describe('Budgets par catégorie', () => {
   /** Ajoute une charge variable dans une catégorie donnée */
   async function depense(page, description, montant, categorie) {
     await page.locator('#addVariableChargeBtn').click();
+    await daterDuMoisAffiche(page, '#variableChargeDate');
     await page.locator('#variableChargeDescription').fill(description);
     await page.locator('#variableChargeAmount').fill(String(montant));
     await page.locator('#variableChargeCategory').selectOption(categorie);
@@ -1145,6 +1170,7 @@ test.describe('Charges récurrentes', () => {
   /** Ajoute une charge fixe dans le mois affiché */
   async function chargeFixe(page, description, montant, { recurrente = true } = {}) {
     await page.locator('#addFixedChargeBtn').click();
+    await daterDuMoisAffiche(page, '#fixedChargeDate');
     await page.locator('#fixedChargeDescription').fill(description);
     await page.locator('#fixedChargeAmount').fill(String(montant));
     await page.locator('#fixedChargeCategory').selectOption({ index: 1 });
@@ -1264,6 +1290,7 @@ test.describe('Corbeille sur tous les mois', () => {
   /** Ajoute puis supprime une charge dans le mois affiché */
   async function ajouterPuisSupprimer(page, description) {
     await page.locator('#addVariableChargeBtn').click();
+    await daterDuMoisAffiche(page, '#variableChargeDate');
     await page.locator('#variableChargeDescription').fill(description);
     await page.locator('#variableChargeAmount').fill('60');
     await page.locator('#variableChargeCategory').selectOption('Courses');
