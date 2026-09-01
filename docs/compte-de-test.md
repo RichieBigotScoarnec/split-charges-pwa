@@ -169,6 +169,24 @@ La position retenue : ne rien rétrograder, et réexaminer quand `firebase-tools
 publiera une version corrigeant ses dépendances transitives. Le point mérite
 d'être revu à chaque montée de version, pas ignoré.
 
+### Réexamens
+
+**2026-09-01, `firebase-tools` 15.28.2** — toujours vulnérable. La dernière
+version publiée tire encore `@opentelemetry/core@1.30.1` (corrigé en 2.8.0) et
+`uuid@9.0.1` (corrigé en 11.1.1). Rien à faire côté amont.
+
+La voie restante serait des `overrides` npm. Elle a été écartée : elle
+forcerait deux montées de version **majeures** à l'intérieur de
+`@google-cloud/pubsub` et `gaxios`, donc de l'outil qui lance les émulateurs et
+détient le compte de service dans `deploy-rules`. Le seul test réel serait une
+exécution complète des émulateurs, et le casser en silence coûterait plus que
+les deux failles.
+
+Ni l'une ni l'autre n'est d'ailleurs atteignable par l'usage qu'on en fait : la
+première exige de traiter des en-têtes `baggage` non fiables, la seconde un
+appel à `uuid` avec un argument `buf`. La CLI n'emprunte aucun des deux
+chemins.
+
 ## Pourquoi `@playwright/test` est épinglé sans `^`
 
 Toutes les autres dépendances de développement acceptent une plage. Playwright
