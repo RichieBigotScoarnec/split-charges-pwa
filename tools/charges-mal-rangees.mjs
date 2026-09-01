@@ -21,6 +21,11 @@
  *
  * Usage : node tools/charges-mal-rangees.mjs <sauvegarde.json>
  *
+ * Une sauvegarde porte les données du foyer EN CLAIR. `backup/` et
+ * `fairsplit-sauvegarde-*.json` sont ignorés par git pour qu'un fichier posé
+ * dans l'arborescence le temps d'un relevé ne finisse pas dans l'historique,
+ * d'où rien ne le retire.
+ *
  * Hors de `public/`, donc jamais publié.
  */
 

@@ -64,6 +64,18 @@ tmp/
 *.bak
 *.old
 
+# Sauvegardes exportées depuis l'application
+#
+# Elles portent les données du foyer EN CLAIR : montants, salaires, prénoms,
+# lieux. `*.backup` ne les couvrait pas — le format est `.json`.
+#
+# Un fichier commité reste dans l'historique même supprimé ensuite, et le dépôt
+# a déjà été public : c'est ce constat qui a fait chiffrer les archives de
+# `.github/workflows/sauvegarde.yml`. Une sauvegarde manuelle ne doit pas
+# rouvrir par la porte de derrière ce que ce chiffrement ferme.
+backup/
+fairsplit-sauvegarde-*.json
+
 # Old versions (cleanup)
 Split-ChargeProrata*.html
 Split-Charge*.html
