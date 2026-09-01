@@ -132,6 +132,24 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # L'émulateur Database est un jar téléchargé par la CLI au premier
+      # démarrage, hors de `node_modules` — le cache npm de `setup-node` ne le
+      # voit donc pas, et il repartait du réseau à chaque exécution.
+      # firebase-tools le signalait lui-même dans les journaux du job.
+      #
+      # La clé suit `package-lock.json` : la version des émulateurs est celle
+      # que réclame la CLI, donc monter firebase-tools doit invalider le cache
+      # plutôt que rejouer un jar périmé. Le repli `restore-keys` sert ce
+      # jour-là — la CLI complète ce qui manque, et l'entrée suivante est
+      # enregistrée sous la nouvelle clé.
+      - name: Cache des émulateurs Firebase
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/firebase/emulators
+          key: emulateurs-firebase-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            emulateurs-firebase-${{ runner.os }}-
+
       # emulators:exec démarre auth + database, exécute la suite, puis arrête
       # tout. Les émulateurs chargent database.rules.json : firebase-integration
       # valide donc les règles de sécurité réelles, et non un mock.
