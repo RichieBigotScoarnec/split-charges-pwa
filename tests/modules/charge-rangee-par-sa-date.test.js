@@ -54,6 +54,8 @@ vi.mock('../../public/js/modules/envelopes.js', () => ({
 }));
 
 const { saveVariableCharge } = await import('../../public/js/modules/variable-charges.js');
+const { saveFixedCharge } = await import('../../public/js/modules/fixed-charges.js');
+const { saveReimbursement } = await import('../../public/js/modules/reimbursements.js');
 const { setState, resetState } = await import('../../public/js/state.js');
 
 /** Le formulaire de charge variable, tel que le livre FairSplit.html */
@@ -69,6 +71,34 @@ const formulaire = `
   <input type="checkbox" id="variableChargeSplitToggle" />
   <div id="variableChargeSplitOptions"></div>
   <div id="variableChargesList"></div><span id="variableChargesTotal"></span>
+`;
+
+/** Le formulaire de charge fixe */
+const formulaireFixe = `
+  <input type="hidden" id="fixedChargeId" value="" />
+  <input id="fixedChargeDescription" value="Loyer" />
+  <input id="fixedChargeAmount" value="900" />
+  <input type="date" id="fixedChargeDate" value="" />
+  <select id="fixedChargeCategory"><option value="Maison" selected>Maison</option></select>
+  <select id="fixedChargePaidBy"><option value="vous" selected>Vous</option></select>
+  <select id="fixedChargeDestination"><option value="" selected></option></select>
+  <select id="fixedChargeEnvelope"><option value="" selected></option></select>
+  <input type="checkbox" id="fixedChargeRecurring" checked />
+  <input type="checkbox" id="fixedChargeSplitToggle" />
+  <div id="fixedChargeSplitOptions"></div>
+  <div id="fixedChargesList"></div><span id="fixedChargesTotal"></span>
+`;
+
+/** Le formulaire de remboursement */
+const formulaireRemboursement = `
+  <form id="reimbursementForm">
+    <input type="hidden" id="reimbursementId" value="" />
+    <select id="reimbursementDirection"><option value="conjointe-vers-vous" selected>Elle → vous</option></select>
+    <input type="text" id="reimbursementAmount" value="50" />
+    <input type="date" id="reimbursementDate" value="" />
+    <input type="text" id="reimbursementNote" value="Courses" />
+  </form>
+  <div id="reimbursementsList"></div><span id="reimbursementsTotal"></span>
 `;
 
 beforeEach(() => {
@@ -135,7 +165,45 @@ describe('Le mois d\'arrivée suit la date, pas l\'écran', () => {
     expect(dernierChemin()).toMatch(/^periods\/\d{4}-\d{2}\/variableCharges$/);
   });
 
+  it('LA MÊME RÈGLE POUR UN REMBOURSEMENT — il pèse sur le solde', async () => {
+    // Un versement rangé dans le mauvais mois fausse DEUX soldes : celui qu'il
+    // quitte et celui qu'il n'a pas rejoint.
+    document.body.innerHTML = formulaireRemboursement;
+    setState('currentPeriod', '2026-07');
+    document.getElementById('reimbursementDate').value = '2026-09-01';
+
+    await saveReimbursement();
+
+    expect(dernierChemin()).toBe('periods/2026-09/reimbursements');
+  });
+
+  it('LA MÊME RÈGLE POUR UNE CHARGE FIXE', async () => {
+    // `reconduction.js` tient déjà cet invariant à chaque report — il redate la
+    // charge « pour éviter une charge qui dit appartenir à un mois où elle ne
+    // figure pas ». La création ne le tenait pas.
+    document.body.innerHTML = formulaireFixe;
+    setState('currentPeriod', '2026-07');
+    document.getElementById('fixedChargeDate').value = '2026-09-05';
+
+    await saveFixedCharge();
+
+    expect(dernierChemin()).toBe('periods/2026-09/fixedCharges');
+  });
+
+  it('et la date saisie n\'est jamais réécrite pour entrer dans le mois', async () => {
+    // Le report REDATE, parce qu'il recopie une charge qui revient vraiment.
+    // La création, non : la date est ce que la personne a déclaré.
+    document.body.innerHTML = formulaireFixe;
+    setState('currentPeriod', '2026-07');
+    document.getElementById('fixedChargeDate').value = '2026-09-05';
+
+    await saveFixedCharge();
+
+    expect(dbPush.mock.calls.at(-1)[1].date).toBe('2026-09-05');
+  });
+
   it('l\'édition ne déplace pas la charge — limite assumée', async () => {
+    document.body.innerHTML = formulaire;
     // Deux écritures non atomiques la dupliqueraient ou la perdraient. La
     // charge reste où elle est ; c'est écrit dans le module.
     setState('currentPeriod', '2026-07');
