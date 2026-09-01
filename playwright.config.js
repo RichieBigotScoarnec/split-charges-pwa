@@ -37,6 +37,31 @@ export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30000,
   retries: 0,
+
+  // Mesuré sur la suite entière : 8,7 min à 4 workers contre 19,2 min en CI,
+  // où le défaut — la moitié des cœurs, soit 2 sur un runner GitHub — laissait
+  // le parallélisme à peine entamé. Le téléchargement des émulateurs, lui, ne
+  // coûtait que 0,6 s : le temps est dans les tests, pas dans leur mise en
+  // place.
+  //
+  // La mesure vient d'une machine à 14 cœurs. Sur 4, le gain sera plus faible :
+  // on passe de 2 à 4 workers, pas de 2 à 14. Attendre une amélioration, pas
+  // une division par deux.
+  workers: process.env.CI ? 4 : undefined,
+
+  // `fullyParallel` reste ABSENT, et c'est délibéré.
+  //
+  // Il ne changerait rien entre fichiers — ceux-ci se répartissent déjà entre
+  // workers — mais il ferait tourner en parallèle les tests D'UN MÊME fichier.
+  // Or `scenario-reel.spec.js` ne s'adresse pas à un émulateur isolé : il écrit
+  // dans le vrai Firebase, sur un compte de test unique, et deux de ses cas
+  // s'appellent « deux ouvertures simultanées ». Ils orchestrent eux-mêmes la
+  // concurrence qu'ils mesurent.
+  //
+  // Leur sérialisation à l'intérieur du fichier est ce qui les tient. Elle
+  // tient aujourd'hui par le défaut de Playwright ; l'écrire ici la rend
+  // intentionnelle plutôt qu'accidentelle.
+
   use: {
     baseURL: 'http://localhost:3333',
     headless: true,
