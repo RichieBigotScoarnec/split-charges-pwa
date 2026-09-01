@@ -14,6 +14,30 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
  * jetés : ces mesures ne coûtent aucune lecture supplémentaire.
  */
 
+/**
+ * L'HORLOGE EST FIGÉE, et ce n'est pas une commodité
+ *
+ * Les mois ci-dessous sont des clés ABSOLUES, et la dernière est le mois où ce
+ * fichier a été écrit. Tant que l'horloge y était, le mois affiché par
+ * l'application était `2026-08` et la fenêtre des tendances comptait quatre
+ * mois. Le 1er septembre 2026, l'application a ouvert sur `2026-09` — un mois
+ * qui existe, vide — et la médiane s'est calculée sur CINQ mois dont un à zéro :
+ * 1 014,00 € annoncés, 973,00 € mesurés, « médiane sur 5 mois ».
+ *
+ * Six contrôles sont tombés d'un jour à l'autre sans qu'une ligne de code
+ * change, et le job de bout en bout conditionne la publication : le site était
+ * figé jusqu'à ce que quelqu'un s'en aperçoive.
+ *
+ * C'est la QUATRIÈME fois que ce dépôt paie cette leçon — un contrôle qui
+ * dépendait de l'heure qu'il était, puis du mois de décembre, puis du dernier
+ * jour du mois. Les trois précédentes ont été refermées en figeant l'horloge
+ * ou en effaçant la date ; celle-ci l'est de la même façon.
+ *
+ * `setFixedTime` plutôt que `install` : elle fige ce que `Date` répond sans
+ * arrêter les minuteurs, dont l'application dépend pour s'initialiser.
+ */
+const LE_15_AOUT = new Date('2026-08-15T10:00:00');
+
 /** Quatre mois, dont un marqué par une dépense de santé */
 const MOIS = {
   '2026-05': { fixe: 620, Courses: 210, Essence: 70, Restaurant: 45 },
@@ -49,6 +73,7 @@ async function poser(page, mois) {
 
 test.describe('Les quatre mesures', () => {
   test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(LE_15_AOUT);
     await setupFirebaseMock(page);
     await waitForApp(page);
     await page.locator('#salaireVous').fill('2500');
@@ -119,6 +144,8 @@ test.describe('Les quatre mesures', () => {
 
 test.describe('Quand les salaires manquent', () => {
   test('les deux cartes qui en dépendent le disent', async ({ page }) => {
+    // Même horloge : ce contrôle sème lui aussi des mois absolus.
+    await page.clock.setFixedTime(LE_15_AOUT);
     await setupFirebaseMock(page);
     await waitForApp(page);
     // Aucun salaire renseigné : les charges seules ne permettent ni taux

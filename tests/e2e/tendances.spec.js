@@ -17,7 +17,21 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 const PIXEL = { width: 412, height: 915 };
 
+/**
+ * L'HORLOGE EST FIGÉE — les mois semés ici sont des clés ABSOLUES
+ *
+ * « Avec un seul mois » sème `2026-08` et exige que le panneau refuse de tracer
+ * une analyse. Le 1er septembre 2026, l'application a ouvert sur `2026-09` — un
+ * mois qui existe, vide — et l'historique en a compté DEUX : le graphe s'est
+ * tracé, et le contrôle est tombé sans qu'une ligne de code change.
+ *
+ * Même cause et même remède que `tendances-metriques.spec.js`, dont l'en-tête
+ * détaille la mesure.
+ */
+const LE_15_AOUT = new Date('2026-08-15T10:00:00');
+
 async function ouvrirAvecSalaires({ page }) {
+  await page.clock.setFixedTime(LE_15_AOUT);
   await page.setViewportSize(PIXEL);
   await setupFirebaseMock(page);
   await waitForApp(page);
