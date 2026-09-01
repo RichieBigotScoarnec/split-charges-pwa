@@ -106,6 +106,25 @@ async function ecrire(request, chemin, valeur, jeton) {
   return reponse.status();
 }
 
+/**
+ * Efface un nœud entier et renvoie le code HTTP
+ *
+ * `DELETE` et non `PUT null` : c'est ce que produit `ref(...).remove()`, donc
+ * ce que le moteur voit quand l'application efface. Le distinguer importe —
+ * la garde qui s'y applique se lit sur `newData`, absent dans les deux cas,
+ * mais l'écrire comme l'application l'écrit évite de prouver autre chose que
+ * ce qu'on croit prouver.
+ *
+ * @returns {Promise<number>} 200 si accepté, 401 si refusé par les règles
+ */
+async function supprimer(request, chemin, jeton) {
+  const reponse = await request.delete(
+    `${EMULATOR_DB_URL}/${chemin}.json?${NS}&auth=${jeton}`,
+    { failOnStatusCode: false }
+  );
+  return reponse.status();
+}
+
 test.beforeEach(async ({ request }) => {
   const auth = await request.delete(
     `${EMULATOR_AUTH_URL}/emulator/v1/projects/fairsplit-foyer/accounts`,
@@ -409,5 +428,46 @@ test.describe('La liste blanche fait toujours autorité', () => {
     const code = await ecrire(request, 'sandbox/periods/2026-08/variableCharges/c1',
       { ...CHARGE_VALIDE, description: 'x'.repeat(50000) }, jeton);
     expect(code).not.toBe(200);
+  });
+});
+
+/**
+ * L'effacement : ce qui doit rester possible, ce qui doit rester interdit
+ *
+ * La garde `newData.exists()` du 2026-08-27 ferme l'effacement d'un nœud
+ * entier en une requête. Elle protège `household`, où il y a des données à
+ * perdre. Posée aussi sur `sandbox` — par symétrie, non par besoin — elle y
+ * refusait l'unique opération dont ce nœud a la charge : être vidé entre deux
+ * scénarios. Sept contrôles de `scenario-reel.spec.js` s'arrêtaient dessus,
+ * et personne ne le voyait, faute de les exécuter en CI.
+ *
+ * Les deux sens sont éprouvés ici. Une règle trop stricte casse l'application
+ * aussi sûrement qu'une règle absente la laisse ouverte — et c'est très
+ * exactement ce qui est arrivé.
+ */
+test.describe('L\'effacement d\'un nœud entier', () => {
+  test('le bac à sable peut être vidé — c\'est sa fonction', async ({ request }) => {
+    const jeton = await jetonPour(request, EMAIL_TEST);
+    expect(await ecrire(request, 'sandbox/periods/2026-08/variableCharges/c1', CHARGE_VALIDE, jeton))
+      .toBe(200);
+
+    expect(await supprimer(request, 'sandbox', jeton)).toBe(200);
+  });
+
+  test('le foyer, lui, ne peut pas être effacé en une requête', async ({ request }) => {
+    // Le témoin négatif de la ligne précédente : la garde du 2026-08-27 tient
+    // toujours là où elle a une raison d'être.
+    const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
+    expect(await ecrire(request, 'household/periods/2026-08/variableCharges/c1', CHARGE_VALIDE, jeton))
+      .toBe(200);
+
+    expect(await supprimer(request, 'household', jeton)).not.toBe(200);
+  });
+
+  test('le bac à sable reste fermé à qui n\'y a pas droit', async ({ request }) => {
+    // Ouvrir l'effacement n'ouvre pas le nœud : les trois adresses admises
+    // sont les mêmes qu'avant.
+    const jeton = await jetonPour(request, EMAIL_INCONNU);
+    expect(await supprimer(request, 'sandbox', jeton)).not.toBe(200);
   });
 });
