@@ -55,6 +55,25 @@ export async function initCustomLists() {
 }
 
 /**
+ * Les listes en mémoire viennent-elles d'un repli, faute de lecture ?
+ *
+ * À distinguer du premier usage, où la lecture réussit et ne rend rien : là,
+ * les défauts sont bien la liste du foyer, et les enregistrer est le
+ * comportement voulu. Ici la base a quelque chose à dire et on ne l'a pas
+ * entendue — écrire reviendrait à décider à sa place.
+ */
+let _listesIncertaines = false;
+
+/**
+ * Les listes affichées sont-elles celles du foyer ?
+ *
+ * @returns {boolean}
+ */
+export function listesIncertaines() {
+  return _listesIncertaines;
+}
+
+/**
  * Charge les listes personnalisées depuis Firebase
  * Fallback sur les defaults de config.js si aucune donnée
  */
@@ -79,12 +98,41 @@ async function loadCustomLists() {
       setState('destinations', [...DESTINATIONS]);
     }
 
+    // La base a répondu : ce qui est en mémoire est bien ce qu'elle contient.
+    _listesIncertaines = false;
+
     log(`📊 ${getCategories().length} catégories, ${getDestinations().length} destinations chargées`);
   } catch (error) {
     logError('❌ Erreur chargement listes custom :', error);
-    // Fallback sur defaults
+
+    // Le repli reste appliqué : sans catégories, aucun formulaire de charge
+    // n'est utilisable, et les <select> se peupleraient de rien.
     setState('categories', [...CATEGORIES]);
     setState('destinations', [...DESTINATIONS]);
+
+    // Mais ce repli-là ment, et il faut le retenir.
+    //
+    // Il affirme « le foyer a ces dix-neuf catégories, celles d'origine ».
+    // C'est ce que `fusionnerListe` prend pour argent comptant : `base` est
+    // « la liste que la session avait sous les yeux », donc ce qui n'y figure
+    // pas et se trouve en base passe pour un ajout de l'autre téléphone — et
+    // survit —, tandis que ce qui y figure passe pour connu et se laisse
+    // écraser.
+    //
+    // Conséquence mesurée sur le raisonnement : les identifiants des
+    // catégories d'origine sont stables (`courses`, `maison`…). Une catégorie
+    // renommée garde le sien. Après une lecture ratée, ajouter une seule
+    // catégorie réécrivait donc « Courses » par-dessus « Supermarché » —
+    // renommage perdu, et les charges qui portaient l'ancien libellé
+    // détachées de la liste. Une catégorie supprimée, elle, réapparaissait.
+    //
+    // Les enveloppes ne courent pas ce risque : leur repli est la liste vide,
+    // qui ne prétend rien connaître, donc `fusionnerListe` conserve tout.
+    // C'est le repli sur les défauts, et lui seul, qui est dangereux.
+    _listesIncertaines = true;
+
+    // Et l'erreur remonte, pour que « Chargement partiel » nomme l'étape.
+    throw error;
   }
 }
 
@@ -152,6 +200,17 @@ function identite(entree) {
  * Sauvegarde les catégories dans Firebase
  */
 async function saveCategories(categories, base) {
+  // Ne jamais écrire une liste qu'on n'a pas pu lire.
+  //
+  // `fusionnerListe` traiterait le repli comme la liste connue du foyer, et
+  // effacerait renommages et suppressions. Refuser est le seul choix honnête :
+  // la modification est perdue, mais elle l'était de toute façon, et ce qui est
+  // en base, lui, est intact.
+  if (_listesIncertaines) {
+    toast.error('Listes non chargées — rouvrez l\'application avant de les modifier');
+    return;
+  }
+
   try {
     const fusionnees = await fusionnerListe('customCategories', categories, base);
     setState('categories', fusionnees);
@@ -170,6 +229,17 @@ async function saveCategories(categories, base) {
  * Sauvegarde les destinations dans Firebase
  */
 async function saveDestinations(destinations, base) {
+  // Ne jamais écrire une liste qu'on n'a pas pu lire.
+  //
+  // `fusionnerListe` traiterait le repli comme la liste connue du foyer, et
+  // effacerait renommages et suppressions. Refuser est le seul choix honnête :
+  // la modification est perdue, mais elle l'était de toute façon, et ce qui est
+  // en base, lui, est intact.
+  if (_listesIncertaines) {
+    toast.error('Listes non chargées — rouvrez l\'application avant de les modifier');
+    return;
+  }
+
   try {
     const fusionnees = await fusionnerListe('customDestinations', destinations, base);
     setState('destinations', fusionnees);
