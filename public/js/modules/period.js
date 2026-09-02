@@ -21,6 +21,7 @@ import { ecouterUneFois } from '../utils/ecouteur.js';
 import { activerOnglet } from '../utils/onglets.js';
 import { apprendre } from '../utils/memoire-libelle.js';
 import { haussesDepuisLAnDernier } from '../utils/cout-annuel.js';
+import { ecartLaisseParLaCorrection } from '../utils/correction-retroactive.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -435,6 +436,11 @@ export async function saveSalaries(cleModifiee = null) {
 
     const { dbUpdate } = await import('../db.js');
 
+    // Le solde du mois AVANT l'écriture : c'est son déplacement qui décide s'il
+    // y a quelque chose à dire. Relevé ici, tant que le bilan à l'écran est
+    // encore celui d'avant la correction.
+    const soldeAvant = getState('dernierSolde');
+
     // L'instantané de la période consultée fait toujours foi pour son calcul.
     await dbUpdate(`periods/${currentPeriod}/salaries`, aEcrire);
 
@@ -455,6 +461,18 @@ export async function saveSalaries(cleModifiee = null) {
     }
 
     calculateSummary();
+
+    // Corriger un mois passé est un geste sûr — l'instantané du mois le rend
+    // tel — sauf dans un cas : report désactivé, le solde déplacé reste sur ce
+    // mois-là et ne rejoindra rien. Le dire, sans rien corriger ni empêcher.
+    const ecart = ecartLaisseParLaCorrection({
+      periode: currentPeriod,
+      moisCourant: getCurrentPeriod(),
+      reportActif: Boolean(getState('carryOverEnabled')),
+      soldeAvant,
+      soldeApres: getState('dernierSolde')
+    });
+    if (ecart) toast.info(ecart);
 
   } catch (error) {
     logError('❌ Erreur sauvegarde salaires:', error);
