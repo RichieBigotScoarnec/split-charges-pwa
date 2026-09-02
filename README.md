@@ -27,6 +27,7 @@ changer le mode des autres.
 | --- | --- |
 | **Répartition** | Prorata des salaires, 50/50, ou pourcentages libres — globalement ou charge par charge |
 | **Charges** | Fixes (récurrentes ou ponctuelles) et variables, avec catégorie, payeur et destination de virement |
+| **Sélection multiple** | Cocher plusieurs charges d'un mois pour les supprimer, les ranger dans une catégorie ou les rattacher à une enveloppe en un geste. Le lot n'échoue jamais en bloc : ce qui passe passe, et le compte rendu dit ce qui a été refusé |
 | **Prénoms** | Les deux emplacements du foyer portent un prénom, repris partout à l'écran. Sans prénom saisi, les libellés d'origine sont conservés |
 | **Revenus** | Salaires et revenus complémentaires (allocations, loyers perçus, activité annexe), pris ensemble dans l'assiette du prorata |
 | **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés |
