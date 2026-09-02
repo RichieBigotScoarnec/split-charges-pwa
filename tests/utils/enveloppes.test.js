@@ -70,7 +70,12 @@ describe('Lecture d\'une enveloppe venue de la base', () => {
       // Et pas de thème : le regroupement est arrivé après, et une enveloppe
       // qui n'en porte pas reste parfaitement valide — c'est ce qui préserve
       // tout l'existant sans une ligne de migration.
-      theme: null
+      theme: null,
+      // Ni versement mensuel : une enveloppe qu'on alimente à la main est le
+      // cas de départ, et le rester est un état parfaitement valide. `null` est
+      // aussi ce qui ARRÊTE un versement automatique — le champ est le seul
+      // réglage de ce fichier dont l'absence est une commande.
+      versementMensuel: null
     });
   });
 

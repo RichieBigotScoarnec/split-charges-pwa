@@ -1,4 +1,5 @@
 import { parseMontant } from './montant.js';
+import { versementMensuelLisible } from './versement-mensuel.js';
 import { joursRestantsDansLeMois } from './date.js';
 import { plier } from './recherche-texte.js';
 
@@ -153,7 +154,17 @@ export function normaliserEnveloppe(brut) {
     // Absent sur tout l'existant, et c'est normal : `null` se lit « on ne sait
     // pas », jamais « personne ». Une valeur inventée serait pire que le vide.
     creePar: PERSONNES.includes(brut.creePar) ? brut.creePar : null,
-    creeLe: Number.isFinite(brut.creeLe) && brut.creeLe > 0 ? brut.creeLe : null
+    creeLe: Number.isFinite(brut.creeLe) && brut.creeLe > 0 ? brut.creeLe : null,
+    // CE QU'ON Y MET CHAQUE MOIS, sans avoir à y penser.
+    //
+    // `null` quand il est absent, comme `theme` et `creePar` : Firebase
+    // supprime une clé écrite à `null`, `.validate` n'est alors pas évaluée, et
+    // tout l'existant reste valide sans une ligne de migration.
+    //
+    // Un réglage à moitié lisible — un montant sans destinataire, ou l'inverse —
+    // vaut absence : `versementMensuelLisible` refuse de trancher à la place du
+    // foyer, et le mois ne sera simplement pas alimenté.
+    versementMensuel: versementMensuelLisible(brut.versementMensuel)
   };
 }
 

@@ -37,7 +37,7 @@ changer le mode des autres.
 | **Reconduction** | Les charges fixes marquées récurrentes sont reprises d'elles-mêmes à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé |
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
 | **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
-| **Cagnottes** | Une enveloppe à échéance se remplit par des versements nominatifs, hors solde du couple. « À deux » partage le versement selon le mode du foyer — au prorata des revenus du mois de la date — et écrit une ligne par personne |
+| **Cagnottes** | Une enveloppe à échéance se remplit par des versements nominatifs, hors solde du couple. « À deux » partage le versement selon le mode du foyer — au prorata des revenus du mois de la date — et écrit une ligne par personne. Un montant mensuel peut y être réglé une fois pour toutes : il est repris de lui-même à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé |
 | **Tendances** | Graphique de l'évolution des charges sur six mois, avec moyenne, extrêmes et variation — replié par défaut, calculé au premier dépliage |
 | **Saisie rapide** | Ajout en un geste avec géolocalisation et pré-cache GPS |
 | **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap), accessible dès qu'une dépense porte des coordonnées ; la bibliothèque n'est chargée qu'à l'ouverture de la carte |

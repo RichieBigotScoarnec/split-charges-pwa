@@ -291,6 +291,15 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     const { applyRecurringCharges } = await import('./reconduction.js');
     const reconduites = await applyRecurringCharges({ historique: instantane });
 
+    // Les cagnottes qui portent un versement mensuel, dans la foulée : c'est le
+    // même moment — l'ouverture d'un mois neuf — et les mêmes garanties, une
+    // fois par mois et jamais vers le passé. Son échec n'empêche pas le mois de
+    // s'ouvrir : `appliquerLesVersementsMensuels` rattrape tout et rend 0.
+    const { appliquerLesVersementsMensuels } = await import('./versement-mensuel.js');
+    await appliquerLesVersementsMensuels({
+      historique: instantane, salairesGlobaux: globalSalaries
+    });
+
     // La comparaison à l'an dernier a été calculée AVANT la reconduction, sur
     // un mois qui ne portait encore aucune charge fixe : elle rendait donc
     // `null`, et « 2 ont augmenté depuis l'an dernier » ne paraissait jamais à
