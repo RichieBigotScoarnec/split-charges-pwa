@@ -16,7 +16,7 @@ import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { identifiantEnveloppe } from '../utils/identifiant.js';
 import { emojisProposes, fusionnerListe } from './custom-lists.js';
-import { formatDate, dateDuJour } from '../utils/date.js';
+import { formatDate, dateDuJour, periodeDeLaDate, formatPeriod, getCurrentPeriod } from '../utils/date.js';
 import { normaliserEmplacement, memberLabel } from '../utils/members.js';
 import {
   normaliserVersements,
@@ -27,6 +27,12 @@ import {
   versementEcrivable
 } from '../utils/versements.js';
 import { etatProvision } from '../utils/provisions.js';
+import {
+  AUTEUR_A_DEUX, partagerLeVersement, versementsAEcrire, phraseDuPartage
+} from '../utils/versement-partage.js';
+import { resolveSalaries } from '../utils/salaries.js';
+import { resolveShareMode, resolvePercents } from '../utils/calculations.js';
+import { parseMontant } from '../utils/montant.js';
 import {
   normaliserEnveloppe,
   normaliserEnveloppes,
@@ -1343,6 +1349,11 @@ function blocVersements(versements, enveloppe) {
         <select id="versementAuteur">
           <option value="vous"${auteur === 'vous' ? ' selected' : ''}>Moi</option>
           <option value="conjointe"${auteur === 'conjointe' ? ' selected' : ''}>Ma conjointe</option>
+          <!-- Mettre de côté chaque mois est la décision d'un foyer, pas d'une
+               personne. Sans ce choix, il fallait diviser de tête puis saisir
+               deux versements — alors que l'application connaît les revenus du
+               mois et sait déjà diviser une dépense. -->
+          <option value="${AUTEUR_A_DEUX}">À deux</option>
         </select>
 
         <label class="sr-only" for="versementDate">Date du versement</label>
@@ -1350,6 +1361,11 @@ function blocVersements(versements, enveloppe) {
 
         <button type="button" class="btn btn-primary btn-sm" id="versementAjouter">Verser</button>
       </div>
+
+      <!-- Ce que « à deux » va écrire, dit avant de l'écrire. Deux versements
+           qui partent d'un seul geste doivent être lisibles avant d'être faits,
+           sinon le pot se remplit de lignes que personne n'a vues passer. -->
+      <p class="form-aide versement-partage" id="versementPartage" aria-live="polite" hidden></p>
 
       <p class="form-aide">Un versement ne touche pas le solde du couple : c'est de l'argent mis de côté, pas une dépense partagée.</p>
 
@@ -1401,6 +1417,10 @@ function ligneVersement(versement) {
 async function ouvrirLaVueEnveloppe(id) {
   const enveloppe = enveloppeParId(getEnveloppes(), id);
   if (!enveloppe) return;
+
+  // Les revenus retenus pour l'aperçu du partage datent de la consultation
+  // précédente : entre les deux, l'autre téléphone a pu corriger un salaire.
+  _revenusDuMois = new Map();
 
   let charges;
   let versements;
@@ -1498,6 +1518,182 @@ async function ouvrirLaVueEnveloppe(id) {
 }
 
 /**
+ * Les revenus lus pour un mois, retenus le temps de la vue
+ *
+ * L'aperçu se recalcule à chaque frappe dans le montant. Sans mémoire, taper
+ * « 150 » enverrait trois lectures de `periods/{mois}/salaries` pour un chiffre
+ * qui ne change pas.
+ *
+ * Vidée à chaque ouverture de la vue : entre deux consultations, l'autre
+ * téléphone a pu corriger un salaire.
+ */
+let _revenusDuMois = new Map();
+
+/**
+ * Comment le foyer partage, pour le mois d'un versement donné
+ *
+ * L'instantané du mois fait foi, comme partout ailleurs ; à défaut, les revenus
+ * globaux. Le mois retenu est celui de la DATE du versement et non celui que
+ * l'écran affiche : la vue d'une enveloppe est transversale, et l'argent est
+ * mis de côté le mois où on le met.
+ *
+ * @param {string} date - AAAA-MM-JJ, ou vide
+ * @returns {Promise<{salaries: Object, shareMode: string, customPercents: Object, periode: string}>}
+ */
+async function partageDuMois(date) {
+  const periode = periodeDeLaDate(date) || getState('currentPeriod') || getCurrentPeriod();
+
+  if (!_revenusDuMois.has(periode)) {
+    let instantane = null;
+    // Le repli est la valeur de départ, et non une réaffectation dans le
+    // `catch` : ainsi le chemin nominal l'écrase, et le chemin d'erreur n'a
+    // rien à faire qu'à la laisser en place.
+    let globaux = getState('salaries');
+    try {
+      const { dbGet } = await import('../db.js');
+      [instantane, globaux] = await Promise.all([
+        dbGet(`periods/${periode}/salaries`),
+        dbGet('salaries')
+      ]);
+    } catch (erreur) {
+      // Un partage indisponible ne doit pas empêcher de verser : on retombe sur
+      // ce que l'état porte, c'est-à-dire le mois affiché. L'aperçu dira
+      // toujours ce qu'il s'apprête à écrire, et c'est ce qui compte.
+      logError('❌ Revenus du mois illisibles, repli sur l\'état :', erreur);
+    }
+
+    _revenusDuMois.set(periode, resolveSalaries(instantane, globaux).salaries);
+  }
+
+  return {
+    periode,
+    salaries: _revenusDuMois.get(periode),
+    // Le mois a pu figer son propre mode ; même fabrique que le bilan, sans
+    // quoi le versement partagerait autrement que les charges du même mois.
+    shareMode: resolveShareMode(getState('shareModeDuMois'), getState('shareMode') || 'prorata'),
+    customPercents: resolvePercents(
+      getState('customPercentsDuMois'),
+      getState('customPercents') || { vous: 50, conjointe: 50 }
+    )
+  };
+}
+
+/**
+ * Écrit sous l'aperçu ce que « à deux » va faire, ou le replie
+ *
+ * @param {HTMLElement} modal
+ * @returns {Promise<void>}
+ */
+async function annoncerLePartage(modal) {
+  const zone = modal.querySelector('#versementPartage');
+  if (!zone) return;
+
+  const auteur = modal.querySelector('#versementAuteur')?.value;
+  const montant = parseMontant(modal.querySelector('#versementMontant')?.value);
+
+  if (auteur !== AUTEUR_A_DEUX || !Number.isFinite(montant) || montant <= 0) {
+    zone.hidden = true;
+    zone.textContent = '';
+    return;
+  }
+
+  const date = dateLisible(modal.querySelector('#versementDate')?.value) || dateDuJour();
+  const { salaries, shareMode, customPercents, periode } = await partageDuMois(date);
+
+  const parts = partagerLeVersement({ montant, shareMode, salaries, customPercents });
+  if (!parts) {
+    zone.hidden = true;
+    zone.textContent = '';
+    return;
+  }
+
+  const membres = getState('members');
+  zone.textContent = phraseDuPartage({
+    applique: parts.applique,
+    montantVous: formatCurrency(parts.vous),
+    montantConjointe: formatCurrency(parts.conjointe),
+    nomVous: memberLabel('vous', membres),
+    nomConjointe: memberLabel('conjointe', membres),
+    mois: formatPeriod(periode)
+  });
+  zone.hidden = false;
+}
+
+/**
+ * Verse à deux : une saisie, deux versements
+ *
+ * Deux écritures et non une : un versement porte un auteur, et c'est cette
+ * propriété qui permet de dire plus tard « vous avez mis 400, elle 300 ». Une
+ * ligne « à deux » de 150 € ne saurait plus répondre à cette question, et
+ * l'écart entre les deux — celui qui se règle par un virement — deviendrait
+ * incalculable.
+ *
+ * Une part refusée n'annule pas l'autre : la première est déjà en base, et
+ * l'effacer pour « revenir en arrière » ferait deux écritures de plus sur un
+ * chemin qui vient précisément d'en refuser une. La vue est rouverte, elle
+ * montre ce qui est réellement dans le pot, et le message dit le reste.
+ *
+ * @param {HTMLElement} modal
+ * @param {string} id - Identifiant de l'enveloppe
+ * @returns {Promise<void>}
+ */
+async function verserADeux(modal, id) {
+  const champMontant = modal.querySelector('#versementMontant');
+  const montant = parseMontant(champMontant.value);
+
+  if (!Number.isFinite(montant) || montant <= 0) {
+    toast.error('Montant du versement requis');
+    champMontant.focus();
+    return;
+  }
+
+  const date = dateLisible(modal.querySelector('#versementDate').value) || '';
+  const { salaries, shareMode, customPercents } = await partageDuMois(date || dateDuJour());
+
+  const parts = partagerLeVersement({ montant, shareMode, salaries, customPercents });
+  const aEcrire = versementsAEcrire(parts);
+  if (aEcrire.length === 0) {
+    toast.error('Ce montant ne se partage pas');
+    return;
+  }
+
+  // Le contrôle client des règles, part par part : c'est chaque ligne qui part
+  // en base, pas leur somme.
+  for (const part of aEcrire) {
+    const verdict = versementEcrivable(part.montant, part.auteur);
+    if (!verdict.valide) {
+      toast.error(verdict.erreur);
+      return;
+    }
+  }
+
+  let faites = 0;
+  try {
+    const { dbPush } = await import('../db.js');
+    for (const part of aEcrire) {
+      await dbPush(`${CHEMIN_VERSEMENTS}/${id}`, {
+        montant: part.montant,
+        auteur: part.auteur,
+        date,
+        timestamp: Date.now(),
+        deleted: false
+      });
+      faites += 1;
+    }
+  } catch (erreur) {
+    logError('❌ Versement à deux impossible :', erreur);
+    toast.error(faites === 0
+      ? 'Versement non enregistré'
+      : 'Une seule des deux parts a été enregistrée — le pot dit ce qu\'il contient');
+    await ouvrirLaVueEnveloppe(id);
+    return;
+  }
+
+  toast.success(`${formatCurrency(montant)} versés à deux`);
+  await ouvrirLaVueEnveloppe(id);
+}
+
+/**
  * Branche « Verser » et le retrait d'un versement
  *
  * Le balisage du détail est reconstruit à chaque ouverture : les écouteurs
@@ -1514,9 +1710,16 @@ function brancherLesVersements(modal, id) {
   if (!bouton) return;
 
   const champMontant = modal.querySelector('#versementMontant');
+  const champAuteur = modal.querySelector('#versementAuteur');
+  const champDate = modal.querySelector('#versementDate');
 
   const verser = async () => {
-    const auteur = modal.querySelector('#versementAuteur').value;
+    const auteur = champAuteur.value;
+
+    if (auteur === AUTEUR_A_DEUX) {
+      await verserADeux(modal, id);
+      return;
+    }
 
     // Le même contrôle que les règles Firebase appliquent côté serveur. Les
     // deux existent à dessein : le serveur pour que ce soit vrai, le client
@@ -1534,7 +1737,7 @@ function brancherLesVersements(modal, id) {
       await dbPush(`${CHEMIN_VERSEMENTS}/${id}`, {
         montant: verdict.montant,
         auteur,
-        date: dateLisible(modal.querySelector('#versementDate').value) || '',
+        date: dateLisible(champDate.value) || '',
         timestamp: Date.now(),
         deleted: false
       });
@@ -1549,6 +1752,14 @@ function brancherLesVersements(modal, id) {
   };
 
   bouton.addEventListener('click', verser);
+
+  // L'aperçu suit les trois champs qui le décident : le montant qu'on partage,
+  // le choix « à deux », et la date — c'est elle qui désigne le mois dont les
+  // revenus tranchent.
+  const redireLePartage = () => annoncerLePartage(modal);
+  champMontant.addEventListener('input', redireLePartage);
+  champAuteur.addEventListener('change', redireLePartage);
+  champDate.addEventListener('change', redireLePartage);
 
   // Entrée depuis le montant vaut « c'est fini » : il ne reste que deux champs
   // préremplis derrière.
