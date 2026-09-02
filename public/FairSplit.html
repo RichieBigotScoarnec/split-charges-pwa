@@ -382,8 +382,38 @@
     <div class="card">
       <div class="card-header">
         <h2 class="card-title" id="sectionChargesVariables"><span aria-hidden="true">⚡</span> Charges Variables</h2>
-        <button type="button" class="btn btn-primary" id="addVariableChargeBtn">+ Ajouter</button>
+        <div class="card-header-actions">
+          <!-- Ranger six courses dans la bonne catégorie demandait six
+               ouvertures de formulaire. `aria-pressed` porte l'état : le
+               libellé bascule aussi, mais un lecteur d'écran ne doit pas avoir
+               à déduire le mode du texte du bouton. -->
+          <button type="button" class="btn btn-secondary" id="selectionBasculer"
+                  data-action="basculerModeSelection" aria-pressed="false">Sélectionner</button>
+          <button type="button" class="btn btn-primary" id="addVariableChargeBtn">+ Ajouter</button>
+        </div>
       </div>
+
+      <!-- La barre du lot.
+           `hidden` DANS le balisage servi, contrairement aux panneaux de la
+           saisie rapide : ceux-là existaient avant leur script et devaient
+           rester utilisables sans lui. Celle-ci est neuve — un script encore en
+           cache ne la connaît pas et ne la révélerait jamais. Livrée visible,
+           elle serait une barre morte au milieu de la liste. -->
+      <div class="selection-barre" id="selectionBarre" hidden
+           role="group" aria-label="Actions sur les charges sélectionnées">
+        <div class="selection-compte" id="selectionCompte" aria-live="polite"></div>
+        <div class="selection-gestes">
+          <button type="button" class="btn btn-secondary" id="selectionTout"
+                  data-action="toutSelectionner">Tout</button>
+          <label class="sr-only" for="selectionCategorie">Ranger la sélection dans une catégorie</label>
+          <select id="selectionCategorie" data-on-change="appliquerCategorieAuLot"></select>
+          <label class="sr-only" for="selectionEnveloppe">Rattacher la sélection à une enveloppe</label>
+          <select id="selectionEnveloppe" data-on-change="appliquerEnveloppeAuLot"></select>
+          <button type="button" class="btn btn-danger" id="selectionSupprimer"
+                  data-action="supprimerLaSelection">Supprimer</button>
+        </div>
+      </div>
+
       <div id="variableChargesList">
         <!-- Populated dynamically -->
       </div>
