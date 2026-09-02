@@ -8,6 +8,15 @@ export default [
       'node_modules/**',
       'test-results/**',
       'package-lock.json',
+      // Les copies de travail de Claude Code. Un worktree git est le dépôt
+      // ENTIER, avec ses propres `node_modules` — et il est gitignoré, donc
+      // invisible dans `git status`.
+      //
+      // Mesuré : `npx eslint .` y trouvait 1929 erreurs, et zéro dans le dépôt.
+      // Même piège que celui corrigé côté vitest, dans un second outil : la CI
+      // n'en voit rien puisqu'elle part d'un checkout neuf, mais en local le
+      // lint devient illisible sans que la cause apparaisse nulle part.
+      '.claude/**',
       // Pages autonomes héritées : script inline, hors architecture modulaire
       'configure-partner.html',
       'migrate-to-multiuser.html'
