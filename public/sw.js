@@ -75,6 +75,7 @@ const STATIC_ASSETS = [
   './js/utils/ecouteur.js',
   './js/utils/entete.js',
   './js/utils/enveloppes.js',
+  './js/utils/explication-solde.js',
   './js/utils/format.js',
   './js/utils/identifiant.js',
   './js/utils/import-csv.js',

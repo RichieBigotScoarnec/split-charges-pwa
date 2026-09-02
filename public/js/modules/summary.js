@@ -17,6 +17,7 @@ import {
 } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
 import { blocPriveDuResume, initResumePrive } from './resume-prive.js';
+import { expliquerLeReport } from '../utils/explication-solde.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
 
@@ -246,6 +247,7 @@ export function calculateSummary({ historique } = {}) {
     balanceBeforeReimbs: summary.balanceBeforeReimbs,
     reimbursementAdjustment: summary.reimbursementAdjustment,
     carryOver: summary.carryOver,
+    ownBalance: summary.ownBalance,
     finalBalance: summary.balance,
     virementsByDestination
   });
@@ -731,6 +733,7 @@ function renderSummary(summary) {
     partnerActualPayments,
     reimbursementAdjustment,
     carryOver,
+    ownBalance,
     finalBalance,
     virementsByDestination
   } = summary;
@@ -797,13 +800,18 @@ function renderSummary(summary) {
         — ${escapeHtml(soldeDit.sens)}</p>`;
 
   // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
+  // Avec un report, « a payé plus que sa part » serait faux : le solde affiché
+  // mêle le mois courant et l'ardoise des mois précédents.
+  //
+  // La phrase disait « dont X que la conjointe devait déjà », sur la seule
+  // existence d'un report — sans regarder son sens, ni ce qu'il restait à
+  // devoir. Trois de ses quatre cas étaient faux, dont un qui contredisait
+  // « Comptes équilibrés » affiché deux lignes plus haut. L'énumération vit
+  // maintenant dans `expliquerLeReport`, avec ses contrôles.
   let balanceExplanation = '';
-  if (carryOver !== 0) {
-    // Avec un report, « a payé plus que sa part » serait faux : le solde
-    // affiché mêle le mois courant et l'ardoise des mois précédents. On dit
-    // donc explicitement quelle part vient du passé.
-    const debiteur = carryOver > 0 ? 'la conjointe devait' : 'vous deviez';
-    balanceExplanation = `<small>dont ${formatCurrency(Math.abs(carryOver))} que ${debiteur} déjà au titre des mois précédents</small>`;
+  const duReport = expliquerLeReport({ carryOver, ownBalance, finalBalance });
+  if (duReport) {
+    balanceExplanation = `<small>${escapeHtml(duReport)}</small>`;
   } else if (finalBalance !== 0) {
     const overpayer = soldeDit.crediteur;
     balanceExplanation = `<small>${escapeHtml(overpayer)} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
