@@ -52,8 +52,13 @@ describe('normaliserAval — l\'absence vaut refus', () => {
   );
 
   it('un aval accordé se lit avec sa date et son auteur', () => {
+    // `publieLeTotal` complète la forme depuis l'échelle de partage à trois
+    // crans, et vaut vrai en l'absence du champ : les nœuds écrits avant lui
+    // publiaient bien leur total. Cf. `tests/utils/posture-partage.test.js`.
     expect(normaliserAval({ actif: true, accordeLe: 1756300000000, accordePar: 'conjointe' }))
-      .toEqual({ actif: true, accordeLe: 1756300000000, accordePar: 'conjointe' });
+      .toEqual({
+        actif: true, accordeLe: 1756300000000, accordePar: 'conjointe', publieLeTotal: true
+      });
   });
 
   it('un auteur illisible n\'en désigne aucun', () => {

@@ -137,6 +137,19 @@ describe('L\'accord : personne ne peut se l\'accorder', () => {
     expect(regles.aval[emplacement]['.validate']).toContain("hasChildren(['actif'])");
     expect(regles.aval[emplacement].actif['.validate']).toBe('newData.isBoolean()');
   });
+
+  it.each(FOYER)('`aval/$emplacement` accepte `publieLeTotal`', ({ emplacement }) => {
+    // Le second drapeau du partage. Sans lui, « je ne publie rien » ne tiendrait
+    // pas une seule saisie : le total serait déduit de sa propre absence, et la
+    // dépense suivante le republierait toute seule.
+    //
+    // Le champ DOIT être déclaré : `$autre/.validate` vaut `false`, donc tout
+    // nom non prévu est refusé par le serveur — l'écriture échouerait en
+    // silence côté écran.
+    expect(regles.aval[emplacement].publieLeTotal['.validate']).toBe('newData.isBoolean()');
+    expect(regles.aval[emplacement].$autre['.validate'], 'les champs inconnus restent refusés')
+      .toBe(false);
+  });
 });
 
 describe('Le total publié : le seul chiffre qui franchit le mur', () => {
