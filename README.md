@@ -38,7 +38,7 @@ changer le mode des autres.
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
 | **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
 | **Tendances** | Graphique de l'évolution des charges sur six mois, avec moyenne, extrêmes et variation — replié par défaut, calculé au premier dépliage |
-| **Saisie rapide** | Ajout en un geste avec géolocalisation et pré-cache GPS |
+| **Saisie rapide** | Ajout en un geste. Le lieu est géocodé et la catégorie s'en déduit — « Courses » au supermarché, « Boulangerie » à la boulangerie — dès que la permission de géolocalisation est accordée ; sinon la recherche part à la première frappe dans le montant |
 | **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap), accessible dès qu'une dépense porte des coordonnées ; la bibliothèque n'est chargée qu'à l'ouverture de la carte |
 | **Personnalisation** | Catégories et destinations de virement définies par l'utilisateur |
 | **Recherche** | Filtrage des charges de la période |
