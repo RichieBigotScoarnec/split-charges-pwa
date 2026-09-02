@@ -16,9 +16,24 @@ export default defineConfig({
     // s'applique réellement, sans quoi sa disparition serait, elle aussi,
     // silencieuse.
     env: { TZ: 'Europe/Paris' },
+    // Les motifs sont prefixes de `**/`, et ce n'est pas cosmetique.
+    //
+    // Une liste `exclude` REMPLACE celle de vitest ; celle-ci etait ancree a la
+    // racine, et ne couvrait donc qu'une seule profondeur. Le jour ou une copie
+    // imbriquee du depot apparait — un worktree git sous `.claude/worktrees/`,
+    // gitignore donc invisible dans `git status` — vitest y decouvrait 57
+    // fichiers de plus : des specs e2e lancees sans serveur, et des `.spec.ts`
+    // de dependances tierces vendues dans leur propre `node_modules`.
+    //
+    // Mesure : 300 fichiers attendus, 357 collectes, et 55 echecs qui n'avaient
+    // aucun rapport avec le changement en cours. Un banc d'essai qui devient
+    // rouge selon ce qui traine a cote ne prouve plus rien.
     exclude: [
-      'node_modules/**',
-      'tests/e2e/**'
+      '**/node_modules/**',
+      '**/tests/e2e/**',
+      // Les copies de travail de Claude Code : un worktree est le depot entier,
+      // ses tests appartiennent a la session qui l'a cree, pas a celle-ci.
+      '.claude/**'
     ]
   }
 });

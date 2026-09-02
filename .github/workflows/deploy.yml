@@ -126,6 +126,34 @@ jobs:
 
           node tools/regles-restrictives.mjs "$RUNNER_TEMP/regles-base.json" database.rules.json
 
+      # Le seuil bloque sur `high` et `critical`, et laisse passer le reste.
+      #
+      # Un controle qui echoue sur des avis qu'on ne peut PAS corriger serait
+      # rouge en permanence, donc plus lu du tout — c'est le meme raisonnement
+      # que le plafond innerHTML, qui fige un nombre relu plutot que d'exiger
+      # zero. Les moderes restent affiches : ils informent sans bloquer.
+      #
+      # NE PAS lancer `npm audit fix --force`. Il propose de redescendre
+      # firebase-tools de 15.28.x a 14.23.0 : un an de correctifs perdus sur
+      # l'outil qui deploie les regles avec un compte de service admin, pour
+      # faire taire des avis moderes dans de l'outillage.
+      #
+      # Etat au 2026-09-02 : 5 avis moderes, tous une seule chaine —
+      # firebase-tools -> @google-cloud/pubsub -> @opentelemetry/core, et
+      # firebase-tools -> gaxios -> uuid. Aucun n'atteint le navigateur : seul
+      # `public/` est publie, et firebase-tools est une devDependency.
+      #
+      # GHSA-w5hq-g745-h8pq (uuid) ne s'applique meme pas ici. Il vise les API
+      # v3/v5/v6, qui ecrivent dans un tampon fourni sans verifier ses bornes ;
+      # `v4` leve un RangeError et n'est pas concernee. Verifie dans l'arbre
+      # installe : gaxios n'appelle que `uuid_1.v4()`. Le chemin signale n'est
+      # pas execute.
+      #
+      # Reste @opentelemetry/core, corrige en amont a partir de 2.8.0 : c'est a
+      # firebase-tools de monter sa dependance.
+      - name: Aucune vulnerabilite haute ou critique
+        run: npm audit --audit-level=high
+
       - name: Run unit tests
         run: npx vitest run
 
