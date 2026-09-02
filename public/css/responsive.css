@@ -276,6 +276,29 @@
   .col-reglages { grid-column: 3; }
 }
 
+/* ===== LE PLAFOND CÈDE AU-DELÀ DE 2000 PX ===== */
+/*
+   Le palier précédent a été calé sur le seuil qui le déclenche, pas sur les
+   écrans qui le franchissent : il porte le contenu de 1120 à 1560 px, et s'y
+   arrête. Mesuré à nouveau, cette fois dans la fenêtre plutôt que sur la dalle
+   — 2491 px de large à zoom 100 % —, il restait 931 px inutilisés, 465 de
+   chaque côté. Le vide avait rétréci ; il n'avait pas disparu.
+
+   D'où un plafond fluide plutôt qu'un nouveau nombre fixe : la fenêtre garde
+   10 % d'elle-même, qui deviennent les marges, jusqu'à 2240 px où la largeur se
+   fige. S'étirer au-delà allongerait les rangées de charges sans rien rendre
+   plus lisible — le regard ferait le trajet, pas l'information.
+
+   Les seuils restent croissants : 1800 px à 2000, puis 2240 px à partir de
+   2489. Appliquer ce `min()` au palier précédent l'aurait au contraire fait
+   reculer, 90 % de 1700 px valant moins que les 1560 px déjà acquis.
+*/
+@media (min-width: 2000px) {
+  .container {
+    max-width: min(2240px, 90vw);
+  }
+}
+
 /* ===== BARRE DE SOLDE ===== */
 /*
    L'application répond à une question : qui doit combien à qui. Elle exigeait

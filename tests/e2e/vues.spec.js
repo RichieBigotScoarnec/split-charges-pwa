@@ -460,6 +460,48 @@ test.describe('Mise en page sur grand écran', () => {
     });
   });
 
+  /**
+   * Le palier précédent avait été calé sur le seuil qui le déclenche, pas sur
+   * les écrans qui le franchissent : il portait le contenu à 1560 px et s'y
+   * arrêtait. Sur une fenêtre de 2491 px, il restait 931 px inutilisés.
+   *
+   * Le contrôle voisin — « la largeur utile augmente avec l'écran », qui exige
+   * plus de 1120 px — passait aussi bien avec 1560 qu'avec 2240 : il ne pouvait
+   * pas voir ce vide. Ces deux-ci fixent les deux régimes du plafond fluide.
+   */
+  test.describe('au-delà de 2000 px', () => {
+    test.describe('juste au seuil', () => {
+      test.use({ viewport: { width: 2000, height: 1200 } });
+
+      test('la largeur suit la fenêtre — 90 % d\'elle-même', async ({ page }) => {
+        const largeur = await page.evaluate(
+          () => Math.round(document.querySelector('.container').getBoundingClientRect().width)
+        );
+
+        // `min(2240px, 90vw)` : à 2000 px, 90vw vaut 1800 et c'est lui qui
+        // s'applique. Le palier d'avant s'arrêtait à 1560 — les seuils restent
+        // donc croissants, ce qu'un `min()` posé sur le palier précédent aurait
+        // au contraire fait reculer.
+        expect(largeur).toBe(1800);
+      });
+    });
+
+    test.describe('bien au-delà', () => {
+      test.use({ viewport: { width: 2560, height: 1440 } });
+
+      test('la largeur se fige au plafond plutôt que de s\'étirer sans fin', async ({ page }) => {
+        const largeur = await page.evaluate(
+          () => Math.round(document.querySelector('.container').getBoundingClientRect().width)
+        );
+
+        // 90vw vaudrait 2304 : c'est le plafond fixe qui prend la main.
+        // S'étirer au-delà allongerait les rangées de charges sans rien rendre
+        // plus lisible — le regard ferait le trajet, pas l'information.
+        expect(largeur).toBe(2240);
+      });
+    });
+  });
+
   test.describe('entre 900 et 1600 px', () => {
     test.use({ viewport: { width: 1280, height: 1440 } });
 
