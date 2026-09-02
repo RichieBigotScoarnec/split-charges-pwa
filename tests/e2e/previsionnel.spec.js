@@ -135,10 +135,19 @@ test.describe('Le prévisionnel du mois', () => {
   test('se place sous le solde, avant le détail', async ({ page }) => {
     await chargeDatee(page, { description: 'Internet', amount: 40, joursDEcart: 3 });
 
+    // Les blocs vivent desormais dans le panneau « A deux » et non plus a la
+    // racine de la carte : celle-ci porte d'abord la bascule entre les deux
+    // questions du resume. L'ordre garanti est le meme, sa profondeur a change.
     const ordre = await page.evaluate(() => {
-      const carte = document.querySelector('.summary-card');
-      return [...carte.children].map(enfant => enfant.className.split(' ')[0]);
+      const panneau = document.querySelector('#resumePanneauDuo');
+      return [...panneau.children].map(enfant => enfant.className.split(' ')[0]);
     });
+
+    // Sans cette garde, un bloc absent vaudrait -1 et deux comparaisons sur
+    // trois passeraient quand meme : le controle dirait vert sur un ecran vide.
+    for (const bloc of ['summary-balance', 'summary-previsionnel', 'summary-details']) {
+      expect(ordre, `${bloc} manque du panneau`).toContain(bloc);
+    }
 
     expect(ordre.indexOf('summary-previsionnel')).toBeGreaterThan(ordre.indexOf('summary-balance'));
     expect(ordre.indexOf('summary-previsionnel')).toBeLessThan(ordre.indexOf('summary-details'));

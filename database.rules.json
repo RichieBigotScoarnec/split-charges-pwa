@@ -999,6 +999,9 @@
         "actif": {
           ".validate": "newData.isBoolean()"
         },
+        "publieLeTotal": {
+          ".validate": "newData.isBoolean()"
+        },
         "accordeLe": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
         },
@@ -1014,6 +1017,9 @@
         ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'",
         "actif": {
+          ".validate": "newData.isBoolean()"
+        },
+        "publieLeTotal": {
           ".validate": "newData.isBoolean()"
         },
         "accordeLe": {

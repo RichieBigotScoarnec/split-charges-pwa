@@ -1414,6 +1414,58 @@
 
 .prive-aval-detail { font-size: 14px; }
 
+/*
+   L'échelle de partage : trois crans, du plus fermé au plus ouvert.
+
+   Une bascule à deux états ne pouvait pas dire la différence entre « je ne
+   publie rien » et « je publie mon total » — elle confondait le silence et le
+   chiffre. Trois boutons plutôt qu'un menu : les trois crans se lisent ensemble,
+   et c'est leur ordre qui enseigne ce qu'ils font.
+
+   L'état actif se stylise sur `aria-pressed`, pas sur la classe seule : peindre
+   un cran choisi devient impossible sans l'annoncer. Le fond plein double la
+   couleur — WCAG 1.4.1 interdit d'en faire le seul véhicule de l'information.
+*/
+.prive-posture {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-top: var(--space-xs);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.prive-posture-cran {
+  flex: 1;
+  /* 44 px : c'est une commande de confidentialité, elle mérite sa cible. */
+  min-height: 44px;
+  padding: 0 var(--space-xs);
+  border: none;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.prive-posture-cran:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.prive-posture-cran[aria-pressed="true"] {
+  background: var(--primary-color);
+  color: #FFFFFF;
+}
+
+.prive-posture-cran:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
 .prive-aval-ligne {
   display: flex;
   align-items: center;

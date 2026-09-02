@@ -256,6 +256,212 @@
   margin-top: 4px;
 }
 
+/* ===== BASCULE DU RÉSUMÉ =====
+   ---------------------------------------------------------------------------
+   Deux questions, deux panneaux : « qui doit combien à qui » et « qu'est-ce que
+   ce mois me coûte ». Empilées, elles mettent deux montants dominants en
+   concurrence et poussent la seconde sous la ligne de flottaison sur mobile.
+
+   À ne pas confondre avec `.onglets` : celle-là est la navigation de
+   l'application, posée en bas de l'écran. Celle-ci vit DANS la carte du bilan
+   et ne choisit pas une destination, mais un point de vue sur le même mois.
+   --------------------------------------------------------------------------- */
+.resume-onglets {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.resume-onglet {
+  flex: 1;
+  /* 44 px : le minimum des WCAG 2.5.5, comme toute commande de cette carte. */
+  min-height: 44px;
+  padding: 0 var(--space-sm);
+  border: none;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.resume-onglet:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/* On stylise `aria-selected`, jamais une classe seule : peindre un onglet actif
+   devient alors impossible sans l'annoncer aux lecteurs d'écran. C'est la règle
+   déjà tenue par `.onglet[aria-current]`, et elle vaut ici pour la même raison.
+   Le fond plein double la couleur — WCAG 1.4.1 interdit d'en faire le seul
+   véhicule de l'information. */
+.resume-onglet[aria-selected="true"] {
+  background: var(--primary-color);
+  color: #FFFFFF;
+}
+
+.resume-onglet:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* Le repère qui rend la mémoire de l'onglet acceptable : tant qu'un solde reste
+   dû, l'onglet du foyer le dit, même quand on l'a quitté. Sans lui, passer au
+   suivi personnel ferait disparaître une dette de tout l'écran. */
+.resume-onglet-repere {
+  margin-left: 4px;
+  color: var(--danger-color);
+  font-size: 18px;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.resume-onglet[aria-selected="true"] .resume-onglet-repere {
+  color: #FFFFFF;
+}
+
+/* --- Panneau personnel --- */
+
+/* Volontairement PAS `.summary-balance` : cette classe est le témoin que
+   `barre-solde.js` observe pour décider de se taire. Le reste à vivre n'est pas
+   le solde, et le confondre ferait taire la barre sur un écran qui ne porte
+   aucune dette. */
+.resume-solo-tete {
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+
+.resume-solo-tete strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: var(--space-xs) 0;
+}
+
+.resume-solo-sous {
+  margin: var(--space-sm) 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.resume-solo-taux {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* La mention du privé n'est pas une petite ligne d'excuse : elle explique
+   pourquoi ce montant est optimiste de la valeur exacte qu'il protège. */
+.resume-solo-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --- Le bloc privé --- */
+.resume-prive {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.resume-prive-titre {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.resume-prive-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  /* 44 px : la ligne porte une commande, elle en respecte la cible. */
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.resume-prive-nom {
+  color: var(--text-secondary);
+}
+
+.resume-prive-valeur {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  white-space: nowrap;
+  /* Ni rétréci ni étiré : le caviardage garde exactement sa largeur, quelle que
+     soit la place restante. */
+  flex: 0 0 auto;
+}
+
+/*
+   Le caviardage : un bloc plein, PAS un flou.
+
+   Un `filter: blur()` laisse le texte dans le document — sélectionnable,
+   copiable, lisible par un lecteur d'écran, et récupérable dans une capture par
+   qui sait défaire un flou gaussien. Ici il n'y a pas de texte à masquer : la
+   valeur n'a pas été lue.
+
+   La largeur est FIXE. Proportionnelle, elle aurait dit l'ordre de grandeur —
+   « 3 € » et « 3 000 € » ne feraient pas le même bloc, et c'est déjà la moitié
+   de l'information.
+*/
+.resume-prive-valeur--masque {
+  display: inline-block;
+  width: 148px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--hover-bg);
+}
+
+.resume-prive-bouton {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resume-prive-bouton:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.resume-prive-bouton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.resume-prive-aide {
+  margin: var(--space-sm) 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 /* --- Détail pliable --- */
 .summary-details {
   margin-top: var(--space-sm);

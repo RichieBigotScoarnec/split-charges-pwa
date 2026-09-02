@@ -1,5 +1,5 @@
 import { resolveIncomeBase, resolveSalaries } from './salaries.js';
-import { chargesCommunes } from './perimetre.js';
+import { chargesCommunes, chargesSolo, totalDesCharges } from './perimetre.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 
 // ===== FONCTIONS DE CALCUL PURES (testables) =====
@@ -194,13 +194,21 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   // Une dépense solo n'entre pas ici, et la garde est posée dans l'entonnoir
   // plutôt qu'à l'appel.
   //
-  // Le filtre existe déjà en amont : les chargeurs rangent les solo dans un
-  // état séparé, si bien qu'en usage normal `chargesCommunes` ne retire rien.
-  // Il est répété ici parce que `computeSummary` est aussi appelée par
+  // CE FILTRE EST PORTEUR, il n'est pas une ceinture de sécurité. Une version
+  // antérieure de ce commentaire annonçait que « les chargeurs rangent les solo
+  // dans un état séparé, si bien qu'en usage normal `chargesCommunes` ne retire
+  // rien » — c'est faux, et la croire invite à retirer la ligne.
+  //
+  // `fixed-charges.js` et `variable-charges.js` ne filtrent que les entrées
+  // supprimées et les montants illisibles : les dépenses solo partent dans le
+  // MÊME état que les communes. Elles arrivent donc ici, et c'est cette ligne,
+  // seule, qui les sort du solde.
+  //
+  // Elle vaut d'autant plus que `computeSummary` est aussi appelée par
   // `computeBalanceChain`, qui lit `periods` **directement en base** et ne
-  // passe par aucun chargeur : sans cette ligne, la chaîne de report compterait
-  // les solo que l'écran ignore, et les deux lectures divergeraient d'un mois
-  // sur l'autre en s'accumulant. C'est exactement l'écart qu'avait produit
+  // passe par aucun chargeur : sans elle, la chaîne de report compterait les
+  // solo que l'écran ignore, et les deux lectures divergeraient d'un mois sur
+  // l'autre en s'accumulant. C'est exactement l'écart qu'avait produit
   // `normalizePair` sur les revenus complémentaires — 100 € nés de rien, et
   // cumulés, parce qu'aucun écran ne montrait les deux chiffres côte à côte.
   const activeFixed = chargesCommunes(fixedCharges).filter(c => !c.deleted);
@@ -303,6 +311,102 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
     carryOver,
     ownBalance,
     balance: finalBalance
+  };
+}
+
+/**
+ * Ce que le mois coûte à UNE personne, et ce qui lui reste
+ *
+ * L'application répond depuis toujours à la question du couple — qui doit
+ * combien à qui. Elle sert aussi à un suivi personnel, et cette question-là
+ * n'avait aucun chiffre : « ma part » et « mes charges solo » existaient
+ * séparément, leur somme nulle part.
+ *
+ * ## Deux vues d'une même soustraction
+ *
+ * `resteAVivre` et `tauxEffort` sont le même calcul lu dans les deux sens :
+ *
+ *   engagé       = ma part du commun + mes charges solo
+ *   reste à vivre = mes revenus − engagé
+ *   taux d'effort = engagé / mes revenus
+ *
+ * d'où `resteAVivre / revenus + tauxEffort === 1`, au centime près de
+ * l'arrondi. C'est une propriété, pas une coïncidence : les deux chiffres
+ * s'affichent côte à côte, et un lecteur qui les additionne doit tomber sur
+ * 100 %. Toute autre définition du taux d'effort — la part seule, ou les
+ * charges du foyer sur les revenus du foyer — laisse un trou qu'aucune ligne
+ * de l'écran n'explique.
+ *
+ * ## Le privé n'entre dans aucun des deux
+ *
+ * Ni au numérateur, ni au dénominateur. L'inclure rendrait le montant privé
+ * déductible par soustraction : la conjointe connaît la part due, les charges
+ * solo, et — le prorata en découle — les revenus. Elle est la seule personne
+ * contre laquelle ce montant est masqué, et la seule à disposer des trois
+ * termes. Cf. `confidentialite.js`, et l'invariant vaut pour tout l'écran :
+ * jamais un total incluant le privé à côté de totaux qui ne l'incluent pas.
+ *
+ * ## Sans revenus, pas d'indicateur
+ *
+ * `50-50` et `custom` ne demandent aucun salaire — c'est souvent la raison
+ * même de leur choix. Un foyer entier peut donc vivre sans qu'aucun revenu
+ * soit renseigné, et il n'y a alors rien à diviser. `disponible: false` le dit
+ * plutôt que d'annoncer un reste à vivre égal aux charges changées de signe.
+ *
+ * Un engagement supérieur aux revenus n'est pas une erreur : `resteAVivre`
+ * devient négatif et `tauxEffort` dépasse 1. C'est le mois tel qu'il est.
+ *
+ * @param {Object} params
+ * @param {Object} params.salaries - Instantané des revenus du foyer
+ * @param {Array<Object>} params.fixedCharges - Charges fixes du mois, brutes
+ * @param {Array<Object>} params.variableCharges - Charges variables du mois, brutes
+ * @param {number} params.partDue - Part théorique du commun (`summary.yourShare`)
+ * @param {'vous'|'conjointe'} [params.personne] - Défaut : 'vous'
+ * @returns {{disponible: boolean, revenus: number, partDue: number, solo: number,
+ *   engage: number, resteAVivre: number|null, tauxEffort: number|null}}
+ */
+export function computeMoisPersonnel({ salaries, fixedCharges, variableCharges, partDue, personne = 'vous' }) {
+  const base = resolveIncomeBase(salaries);
+  const revenus = personne === 'conjointe' ? base.conjointe : base.vous;
+
+  // La corbeille d'abord, le périmètre ensuite : deux critères distincts, et
+  // `chargesSolo` ne filtre pas les supprimées — elle le dit.
+  const actives = [
+    ...(Array.isArray(fixedCharges) ? fixedCharges : []),
+    ...(Array.isArray(variableCharges) ? variableCharges : [])
+  ].filter(charge => charge && !charge.deleted);
+
+  const solo = totalDesCharges(chargesSolo(actives, personne));
+
+  // Même garde que partout ailleurs dans ce fichier : un montant abîmé vaut
+  // zéro, jamais NaN. `partDue` vient d'un calcul, mais il traverse un appelant.
+  const part = Number.isFinite(partDue) ? partDue : 0;
+  const engage = part + solo;
+
+  if (!(revenus > 0)) {
+    return {
+      disponible: false,
+      revenus: 0,
+      partDue: part,
+      solo,
+      engage,
+      resteAVivre: null,
+      tauxEffort: null
+    };
+  }
+
+  return {
+    disponible: true,
+    revenus,
+    partDue: part,
+    solo,
+    engage,
+    // Arrondi au centime, comme le solde et pour la même raison : l'argent n'a
+    // pas de sens en deçà, et le résidu de virgule flottante en avait.
+    resteAVivre: Math.round((revenus - engage) * 100) / 100,
+    // Le taux reste brut : c'est un rapport, pas de l'argent. L'écran l'arrondit
+    // au point de pourcentage, une seule fois, au moment de l'écrire.
+    tauxEffort: engage / revenus
   };
 }
 

@@ -23,9 +23,16 @@ async function ouvrirPrive(page) {
   await expect(page.locator('#modalPrive')).toBeVisible();
 }
 
-/** Ouvre — ou referme — le détail de ses propres dépenses à l'autre */
-async function basculerLePartage(page) {
-  await page.locator('#privePartage + .toggle-slider').click();
+/**
+ * Choisit ce qu'on partage : « rien », « total » ou « detail »
+ *
+ * L'écran portait une bascule à deux états, qui ne pouvait pas distinguer
+ * « je ne publie rien » de « je publie mon total ». Les deux crans du bas
+ * valent tous deux `actif: false` — refermer le détail, c'est donc revenir à
+ * « total », et non à « rien ».
+ */
+async function choisirLePartage(page, posture) {
+  await page.locator(`.prive-posture-cran[data-posture="${posture}"]`).click();
   await page.waitForTimeout(600);
 }
 
@@ -82,7 +89,7 @@ test.describe('Les dépenses privées', () => {
     // celui de l'autre reviendrait à s'accorder l'accès à ses données, et la
     // production le rejetterait après un écran qui paraît marcher.
     await ouvrirPrive(page);
-    await basculerLePartage(page);
+    await choisirLePartage(page, 'detail');
 
     const cles = await clesEcrites(page);
     // Le compte d'essai est « vous » : c'est donc son propre espace qu'il ouvre.
@@ -92,7 +99,7 @@ test.describe('Les dépenses privées', () => {
 
   test('l\'accord porte son état, sa date et son auteur', async ({ page }) => {
     await ouvrirPrive(page);
-    await basculerLePartage(page);
+    await choisirLePartage(page, 'detail');
 
     const aval = await page.evaluate(() => window.__db['aval/vous']);
     expect(aval.actif).toBe(true);
@@ -104,8 +111,8 @@ test.describe('Les dépenses privées', () => {
 
   test('refermer l\'accord l\'écrit à faux plutôt que d\'effacer la trace', async ({ page }) => {
     await ouvrirPrive(page);
-    await basculerLePartage(page);
-    await basculerLePartage(page);
+    await choisirLePartage(page, 'detail');
+    await choisirLePartage(page, 'total');
 
     const aval = await page.evaluate(() => window.__db['aval/vous']);
     expect(aval.actif).toBe(false);
@@ -120,8 +127,8 @@ test.describe('Les dépenses privées', () => {
     await page.locator('#priveAjouter').click();
     await page.waitForTimeout(700);
 
-    await basculerLePartage(page);
-    await basculerLePartage(page);
+    await choisirLePartage(page, 'detail');
+    await choisirLePartage(page, 'total');
 
     await expect(page.locator('#modalPrive')).toContainText('45,00');
   });
@@ -135,7 +142,11 @@ test.describe('Les dépenses privées', () => {
     // les titres en capitales : comparer en minuscules porte sur le contenu
     // plutôt que sur sa présentation.
     const texte = (await page.locator('#modalPrive').innerText()).toLowerCase();
-    expect(texte).toContain('ce que vous ouvrez');
+    // « Ce que vous ouvrez » est devenu « ce que vous partagez » : le bloc ne
+    // gouverne plus une ouverture mais une échelle a trois crans, dont le plus
+    // bas ne publie rien du tout. Ce que ce contrôle garantit n'a pas bougé —
+    // les DEUX sens sont nommés, et aucun n'oblige l'autre.
+    expect(texte).toContain('ce que vous partagez');
     expect(texte).toContain('vous ouvre');
   });
 
@@ -237,7 +248,7 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
       };
     });
     await ouvrirPrive(page);
-    await basculerLePartage(page);
+    await choisirLePartage(page, 'detail');
 
     await expect(page.locator('#modalPrive')).not.toContainText('Manucure');
   });
