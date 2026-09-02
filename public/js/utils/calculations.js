@@ -194,13 +194,21 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
   // Une dépense solo n'entre pas ici, et la garde est posée dans l'entonnoir
   // plutôt qu'à l'appel.
   //
-  // Le filtre existe déjà en amont : les chargeurs rangent les solo dans un
-  // état séparé, si bien qu'en usage normal `chargesCommunes` ne retire rien.
-  // Il est répété ici parce que `computeSummary` est aussi appelée par
+  // CE FILTRE EST PORTEUR, il n'est pas une ceinture de sécurité. Une version
+  // antérieure de ce commentaire annonçait que « les chargeurs rangent les solo
+  // dans un état séparé, si bien qu'en usage normal `chargesCommunes` ne retire
+  // rien » — c'est faux, et la croire invite à retirer la ligne.
+  //
+  // `fixed-charges.js` et `variable-charges.js` ne filtrent que les entrées
+  // supprimées et les montants illisibles : les dépenses solo partent dans le
+  // MÊME état que les communes. Elles arrivent donc ici, et c'est cette ligne,
+  // seule, qui les sort du solde.
+  //
+  // Elle vaut d'autant plus que `computeSummary` est aussi appelée par
   // `computeBalanceChain`, qui lit `periods` **directement en base** et ne
-  // passe par aucun chargeur : sans cette ligne, la chaîne de report compterait
-  // les solo que l'écran ignore, et les deux lectures divergeraient d'un mois
-  // sur l'autre en s'accumulant. C'est exactement l'écart qu'avait produit
+  // passe par aucun chargeur : sans elle, la chaîne de report compterait les
+  // solo que l'écran ignore, et les deux lectures divergeraient d'un mois sur
+  // l'autre en s'accumulant. C'est exactement l'écart qu'avait produit
   // `normalizePair` sur les revenus complémentaires — 100 € nés de rien, et
   // cumulés, parce qu'aucun écran ne montrait les deux chiffres côte à côte.
   const activeFixed = chargesCommunes(fixedCharges).filter(c => !c.deleted);
