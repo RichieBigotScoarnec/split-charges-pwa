@@ -300,8 +300,34 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  # `deploy-rules` figure dans les dépendances, et ce n'est pas décoratif.
+  #
+  # Les deux publications ne portaient que sur `[test, e2e]` : elles partaient
+  # donc EN PARALLÈLE, sans qu'aucun ordre ne soit garanti entre le moment où le
+  # site change et celui où les règles changent. En pratique la publication des
+  # pages est la plus lente, ce qui masquait le problème — mais « en pratique »
+  # n'est pas une garantie, et c'est précisément le genre de dérive silencieuse
+  # que le job `deploy-rules` avait été créé pour supprimer.
+  #
+  # L'ordre correct est RÈGLES D'ABORD, pour la même raison qu'une migration de
+  # schéma précède le code qui s'en sert : une règle qui ÉLARGIT — un champ
+  # accepté en plus, une permission ajoutée — ne gêne aucun client déjà en
+  # ligne, alors qu'un client publié avant sa règle voit ses écritures refusées.
+  #
+  # Constaté sur `aval/{qui}/publieLeTotal` : `$autre/.validate` valant `false`,
+  # le champ est rejeté tant que les règles sont anciennes, et c'est l'écriture
+  # ENTIÈRE du partage qui échoue — l'écran annonce « Partage non enregistré »
+  # sans que rien n'indique pourquoi.
+  #
+  # Le cas inverse — une règle qui RESTREINT — demanderait l'ordre opposé. Il ne
+  # se présente pas ici, et le jour où il se présentera il devra être traité
+  # comme ce qu'il est : une rupture, à publier en deux temps délibérés.
+  #
+  # Sans le secret Firebase, `deploy-rules` sort en succès avec un
+  # avertissement : cette dépendance ne peut donc pas bloquer la publication du
+  # site sur un dépôt qui n'a pas le secret.
   deploy:
-    needs: [test, e2e]
+    needs: [test, e2e, deploy-rules]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
