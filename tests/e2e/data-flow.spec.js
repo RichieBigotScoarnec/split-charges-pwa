@@ -613,7 +613,13 @@ test.describe('Report du solde', () => {
 
     // 100 € avancés, salaires égaux : 50 € restent dus et traversent le mois
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
-    await expect(page.locator('#summarySection')).toContainText('au titre des mois précédents', { timeout: 5000 });
+    // Le mois courant est vide : le solde vient ENTIÈREMENT du passé. La phrase
+    // le dit désormais, au lieu d'annoncer une part d'un total — « dont 50 € »
+    // sur un solde de 50 € était juste ici, et faux dès que le mois pousse
+    // contre l'ardoise.
+    const bilan = page.locator('#summarySection');
+    await expect(bilan).toContainText('des mois précédents', { timeout: 5000 });
+    await expect(bilan).toContainText('n\'y a rien changé', { timeout: 5000 });
   });
 
   test('désactiver le report ramène le mois à son solde propre', async ({ page }) => {
