@@ -16,7 +16,10 @@ import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
-import { formatDate, dateDuJour, dateDeLaCharge, dateSaisissable } from '../utils/date.js';
+import {
+  formatDate, dateDuJour, dateDeLaCharge, dateSaisissable,
+  periodeDeLaDate, formatPeriod
+} from '../utils/date.js';
 import { trierParDate } from '../utils/tri.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
@@ -220,11 +223,23 @@ async function enregistrerReimbursement() {
     const { dbPush, dbUpdate } = await import('../db.js');
 
     if (reimbursementId) {
+      // L'édition ne déplace pas le versement, pour la même raison que les
+      // charges : c'est un choix, pas une contrainte technique.
+      // Cf. `variable-charges.js`.
       await dbUpdate(`periods/${currentPeriod}/reimbursements/${reimbursementId}`, reimbursementData);
       toast.success('Remboursement modifié');
     } else {
-      await dbPush(`periods/${currentPeriod}/reimbursements`, reimbursementData);
-      toast.success('Remboursement ajouté');
+      // La date décide du mois, comme pour une charge variable. Un versement
+      // pèse directement sur le solde : rangé dans le mauvais mois, il fausse
+      // deux soldes à la fois — celui qu'il quitte et celui qu'il n'a pas
+      // rejoint. Cf. `periodeDeLaDate`.
+      const periodeCible = periodeDeLaDate(reimbursementData.date) || currentPeriod;
+      await dbPush(`periods/${periodeCible}/reimbursements`, reimbursementData);
+      toast.success(
+        periodeCible === currentPeriod
+          ? 'Remboursement ajouté'
+          : `Remboursement ajouté en ${formatPeriod(periodeCible)}, sa date`
+      );
     }
 
     // Mettre à jour le state local

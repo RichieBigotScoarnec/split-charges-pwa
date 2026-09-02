@@ -5,7 +5,7 @@ import { getState, setState } from '../state.js';
 import { refreshSearchVisibility } from './search.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
-import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolveShareMode, resolvePercents } from '../utils/calculations.js';
+import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolveShareMode, resolvePercents, computeMoisPersonnel } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
 import { describeBalance, memberLabel } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
@@ -16,14 +16,68 @@ import {
   jourEtMois, dateDuJour, joursDeLaPeriode, etatDuMois, formatPeriod
 } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
+import { blocPriveDuResume, initResumePrive } from './resume-prive.js';
+import { expliquerLeReport } from '../utils/explication-solde.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
+
+/**
+ * L'onglet du résumé affiché, pour cette session seulement
+ *
+ * ## Pourquoi deux onglets
+ *
+ * L'application répond à DEUX questions, et une seule avait un chiffre :
+ * « qui doit combien à qui » (le foyer) et « qu'est-ce que ce mois me coûte »
+ * (moi). Les empiler dans une seule carte met deux montants dominants en
+ * concurrence et pousse le second sous la ligne de flottaison sur mobile.
+ *
+ * ## Pourquoi une variable de module, et non l'état persistant
+ *
+ * Mémoriser l'onglet à travers les rechargements ferait ouvrir l'application
+ * sur « Moi ce mois-ci » — donc sur un écran où un solde impayé n'apparaît
+ * nulle part. La portée est donc la session : on garde le choix tant qu'on
+ * navigue, et chaque ouverture repart du foyer.
+ *
+ * Le repli ne suffirait pas seul : c'est pourquoi l'onglet « À deux » porte un
+ * repère tant qu'un solde reste dû, y compris quand on l'a quitté.
+ */
+let ongletDuResume = 'duo';
+
+/**
+ * Bascule le résumé d'un onglet à l'autre
+ *
+ * Passe par la liste blanche de `init.js` : un `data-action` est un
+ * gestionnaire inline que la CSP ne voit pas, et seul un nom déclaré est
+ * joignable.
+ *
+ * @param {'duo'|'solo'} onglet
+ * @returns {void}
+ */
+export function basculerResume(onglet) {
+  const voulu = onglet === 'solo' ? 'solo' : 'duo';
+  if (voulu === ongletDuResume) return;
+
+  ongletDuResume = voulu;
+  // Un rendu complet plutôt qu'un basculement de classes : le panneau inactif
+  // n'est pas dans le document, ce qui garantit qu'aucun chiffre du foyer ne
+  // reste lisible sous l'onglet personnel — et que `.summary-balance` est
+  // absent quand le solde n'est pas à l'écran, ce dont la barre collante se
+  // sert pour reprendre le relais.
+  //
+  // C'est aussi ce qui referme le bloc privé : les lignes dévoilées sont
+  // détruites avec le panneau, et `blocPriveDuResume` n'écrit jamais qu'un état
+  // masqué. Aucune bascule ne peut donc laisser un montant privé derrière elle,
+  // et il n'y a pas de second chemin à tenir à jour.
+  calculateSummary();
+}
 
 /**
  * Initialise le module summary
  */
 export function initSummary() {
   log('📦 Initialisation module summary/bilan');
+  window.basculerResume = basculerResume;
+  initResumePrive();
   log('✅ Module summary/bilan initialisé');
 }
 
@@ -165,8 +219,22 @@ export function calculateSummary({ historique } = {}) {
   // que `calculateSummary` ne dépose que plus bas).
   const periods = historiqueUtilisable(historique);
 
+  // Ce que le mois coûte à la personne connectée, et ce qui lui reste.
+  //
+  // `summary.yourShare` et non un second calcul : la part du commun est déjà
+  // établie, et la recalculer ici ouvrirait la porte à deux formules pour un
+  // même chiffre — le défaut que ce fichier a déjà payé deux fois (report de
+  // solde, mode du mois).
+  const moisPersonnel = computeMoisPersonnel({
+    salaries,
+    fixedCharges,
+    variableCharges,
+    partDue: summary.yourShare
+  });
+
   // Afficher le résumé
   renderSummary({
+    moisPersonnel,
     previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
     projection: projectionAffichee(periods),
     observations: observationsDuMois(historique),
@@ -179,6 +247,7 @@ export function calculateSummary({ historique } = {}) {
     balanceBeforeReimbs: summary.balanceBeforeReimbs,
     reimbursementAdjustment: summary.reimbursementAdjustment,
     carryOver: summary.carryOver,
+    ownBalance: summary.ownBalance,
     finalBalance: summary.balance,
     virementsByDestination
   });
@@ -551,6 +620,99 @@ function phraseSolde(solde, montant) {
  * Affiche le bilan dans le DOM
  * @param {Object} summary - Résumé calculé
  */
+/**
+ * La bascule entre les deux questions du résumé
+ *
+ * Le repère sur « À deux » n'est pas décoratif : il est ce qui rend la mémoire
+ * de l'onglet acceptable. Sans lui, quitter le foyer pour le suivi personnel
+ * ferait disparaître un solde impayé de tout l'écran.
+ *
+ * @param {boolean} enDuo - L'onglet foyer est-il actif ?
+ * @param {number} solde - Solde net du mois, pour le repère
+ * @returns {string}
+ */
+function renderOnglets(enDuo, solde) {
+  const repere = solde !== 0
+    ? '<span class="resume-onglet-repere" aria-label="solde à régler">•</span>'
+    : '';
+
+  return `
+    <div class="resume-onglets" role="tablist" aria-label="Résumé du mois">
+      <button type="button" id="resumeOngletDuo" class="resume-onglet${enDuo ? ' resume-onglet--actif' : ''}"
+              role="tab" aria-selected="${enDuo}" aria-controls="resumePanneauDuo"
+              data-action="basculerResume" data-arg="duo">À deux${repere}</button>
+      <button type="button" id="resumeOngletSolo" class="resume-onglet${enDuo ? '' : ' resume-onglet--actif'}"
+              role="tab" aria-selected="${!enDuo}" aria-controls="resumePanneauSolo"
+              data-action="basculerResume" data-arg="solo">Moi ce mois-ci</button>
+    </div>`;
+}
+
+/**
+ * Le panneau personnel : ce que le mois me coûte, ce qu'il me reste
+ *
+ * ## Ce qu'il ne contient pas, et pourquoi
+ *
+ * Ni prévisionnel, ni projection, ni budgets par catégorie. Ces trois panneaux
+ * sont calculés sur les charges du FOYER — `previsionnelDuMois` écarte même
+ * explicitement les dépenses solo, et documente l'incident qui l'a exigé. Les
+ * placer ici ferait redire à cet onglet ce que l'autre dit déjà, et un onglet
+ * qui redit l'autre n'a plus de raison d'être. Ils restent donc sous « À deux »,
+ * là où le code les calcule.
+ *
+ * Ce panneau est court, et c'est le prix de sa justesse : chaque ligne y est un
+ * chiffre qui m'appartient.
+ *
+ * ## Le reste à vivre est « hors privé », et le dit
+ *
+ * Les dépenses privées ne sont pas déduites. Les y inclure rendrait leur total
+ * déductible par soustraction — la conjointe connaît la part due, les charges
+ * solo, et les revenus dont le prorata découle. Elle est la seule personne
+ * contre laquelle ce montant est masqué, et la seule à disposer des trois
+ * termes. Cf. `computeMoisPersonnel` et `confidentialite.js`.
+ *
+ * @param {Object} moisPersonnel - Sortie de `computeMoisPersonnel`
+ * @param {string} nomConjointe - Pour nommer qui voit quoi
+ * @returns {string}
+ */
+function renderPanneauSolo(moisPersonnel, nomConjointe) {
+  const { disponible, resteAVivre, tauxEffort, solo } = moisPersonnel;
+
+  // Sans revenus, il n'y a rien à diviser. Le 50-50 et le mode personnalisé
+  // n'en demandent aucun : ce panneau est le premier écran qui en ait besoin,
+  // et il le demande pour lui seul, sans bloquer le reste de l'application.
+  if (!disponible) {
+    return `
+      <div class="empty-state">
+        <p>Renseignez vos revenus pour connaître votre reste à vivre.</p>
+        <button type="button" class="btn btn-primary" data-action="focusSalaries">
+          Renseigner les revenus
+        </button>
+      </div>`;
+  }
+
+  const pourcent = Math.round(tauxEffort * 100);
+
+  return `
+    <div class="resume-solo-tete">
+      <span class="bilan-tete">Reste à vivre hors privé</span>
+      <strong>${formatCurrency(resteAVivre)}</strong>
+      <p class="resume-solo-sous">
+        Revenus moins ma part du commun et mes charges solo.
+        Taux d'effort <span class="resume-solo-taux">${pourcent}&nbsp;%</span>.
+      </p>
+      <p class="resume-solo-note">
+        Mes dépenses privées n'en sont pas déduites : leur suivi se fait dans mon espace privé.
+      </p>
+    </div>
+
+    <div class="summary-row">
+      <span>Mes charges solo <small>— visible de ${escapeHtml(nomConjointe)}</small></span>
+      <strong>${formatCurrency(solo)}</strong>
+    </div>
+
+    ${blocPriveDuResume()}`;
+}
+
 function renderSummary(summary) {
   const summaryElement = document.getElementById('summarySection');
   if (!summaryElement) {
@@ -559,6 +721,7 @@ function renderSummary(summary) {
   }
 
   const {
+    moisPersonnel,
     previsionnel,
     projection,
     observations,
@@ -570,6 +733,7 @@ function renderSummary(summary) {
     partnerActualPayments,
     reimbursementAdjustment,
     carryOver,
+    ownBalance,
     finalBalance,
     virementsByDestination
   } = summary;
@@ -636,13 +800,18 @@ function renderSummary(summary) {
         — ${escapeHtml(soldeDit.sens)}</p>`;
 
   // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
+  // Avec un report, « a payé plus que sa part » serait faux : le solde affiché
+  // mêle le mois courant et l'ardoise des mois précédents.
+  //
+  // La phrase disait « dont X que la conjointe devait déjà », sur la seule
+  // existence d'un report — sans regarder son sens, ni ce qu'il restait à
+  // devoir. Trois de ses quatre cas étaient faux, dont un qui contredisait
+  // « Comptes équilibrés » affiché deux lignes plus haut. L'énumération vit
+  // maintenant dans `expliquerLeReport`, avec ses contrôles.
   let balanceExplanation = '';
-  if (carryOver !== 0) {
-    // Avec un report, « a payé plus que sa part » serait faux : le solde
-    // affiché mêle le mois courant et l'ardoise des mois précédents. On dit
-    // donc explicitement quelle part vient du passé.
-    const debiteur = carryOver > 0 ? 'la conjointe devait' : 'vous deviez';
-    balanceExplanation = `<small>dont ${formatCurrency(Math.abs(carryOver))} que ${debiteur} déjà au titre des mois précédents</small>`;
+  const duReport = expliquerLeReport({ carryOver, ownBalance, finalBalance });
+  if (duReport) {
+    balanceExplanation = `<small>${escapeHtml(duReport)}</small>`;
   } else if (finalBalance !== 0) {
     const overpayer = soldeDit.crediteur;
     balanceExplanation = `<small>${escapeHtml(overpayer)} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
@@ -676,8 +845,18 @@ function renderSummary(summary) {
   // chargeur.
   renderCategoryBudgets();
 
+  // Seul le panneau actif est écrit dans le document. C'est ce qui garantit
+  // qu'aucun chiffre du foyer ne reste lisible sous l'onglet personnel — et que
+  // `.summary-balance` est absent quand le solde n'est pas à l'écran, ce dont
+  // `barre-solde.js` se sert pour reprendre le relais : sans témoin, la barre
+  // s'affiche, ce qui est exactement le comportement voulu là.
+  const enDuo = ongletDuResume === 'duo';
+
   summaryElement.innerHTML = `
     <div class="summary-card">
+      ${renderOnglets(enDuo, finalBalance)}
+      ${enDuo ? `
+      <div class="resume-panneau" id="resumePanneauDuo" role="tabpanel" aria-labelledby="resumeOngletDuo">
       <div class="summary-balance ${balanceClass}">
         <span class="bilan-tete">${escapeHtml(teteDuBilan)}</span>
         <strong>${formatCurrency(totalCharges)}</strong>
@@ -738,11 +917,15 @@ function renderSummary(summary) {
              📄 Le mois en un coup d'œil
            </button>`
         : ''}
+      </div>` : `
+      <div class="resume-panneau" id="resumePanneauSolo" role="tabpanel" aria-labelledby="resumeOngletSolo">
+        ${renderPanneauSolo(moisPersonnel, nomConjointe)}
+      </div>`}
     </div>
 
-    ${renderBudgetGauge(totalCharges)}
+    ${enDuo ? renderBudgetGauge(totalCharges) : ''}
 
-    ${virementsByDestination && virementsByDestination.length > 0 ? `
+    ${enDuo && virementsByDestination && virementsByDestination.length > 0 ? `
     <div class="summary-card virements-recap">
       <h3>🏦 Récap virements — ${escapeHtml(nomConjointe)}</h3>
       <p class="virements-subtitle">Montants à virer par destination</p>

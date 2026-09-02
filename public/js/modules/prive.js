@@ -36,7 +36,9 @@ import {
   depensesActives,
   resumePublie,
   resumeLu,
-  depensePriveeEcrivable
+  depensePriveeEcrivable,
+  posturePartage,
+  ecrituresDeLaPosture
 } from '../utils/confidentialite.js';
 
 /**
@@ -141,8 +143,18 @@ async function lireLEtat() {
  */
 async function publierLeTotal(emplacement, periode, depenses) {
   try {
-    const { dbSetAbsolu } = await import('../db.js');
-    await dbSetAbsolu(`${RACINE_TOTAUX}/${emplacement}/${periode}`, resumePublie(depenses));
+    const { dbSetAbsolu, dbGetAbsolu } = await import('../db.js');
+
+    // La posture est RELUE en base, jamais reprise de l'écran : l'autre
+    // appareil a pu la refermer entre-temps, et republier alors rouvrirait un
+    // partage que son propriétaire croit clos.
+    const posture = posturePartage(await dbGetAbsolu(`${RACINE_AVAL}/${emplacement}`));
+
+    // « Rien » retire le total au lieu d'en écrire un. Sans cela, le réglage ne
+    // tiendrait pas une seule saisie : la dépense suivante républierait, et
+    // l'écran annoncerait une fermeture démentie par la base.
+    await dbSetAbsolu(`${RACINE_TOTAUX}/${emplacement}/${periode}`,
+      posture === 'rien' ? null : resumePublie(depenses));
   } catch (erreur) {
     // L'échec ne doit pas faire croire que la dépense n'est pas enregistrée :
     // elle l'est. Seul le chiffre annoncé à l'autre est en retard.
@@ -213,18 +225,34 @@ function blocPartage(etat) {
     ? `<span class="prive-aval-etat prive-aval-etat--actif">ouvert</span> — vous voyez le détail de ${escapeHtml(prenom)}`
     : `<span class="prive-aval-etat">fermé</span> — vous ne voyez que son total`;
 
+  // Deux drapeaux en base, une seule échelle à l'écran : ouvrir le détail sans
+  // publier le total n'aurait pas de sens, puisque le détail contient le total.
+  const posture = posturePartage(etat.monPartage);
+
+  const cran = (valeur, libelle) => `
+    <button type="button" class="prive-posture-cran${posture === valeur ? ' prive-posture-cran--actif' : ''}"
+            data-posture="${valeur}" aria-pressed="${posture === valeur}">${escapeHtml(libelle)}</button>`;
+
+  // La portée diffère d'un cran à l'autre, et le taire tromperait : le total se
+  // publie mois par mois, l'aval est une permission de lecture GLOBALE. Ouvrir
+  // le détail n'ouvre pas « ce mois-ci », mais tout l'espace.
+  const aide = {
+    rien: `${escapeHtml(prenom)} ne voit rien de ce mois — et son écran ne dit pas qu'il est vide, seulement qu'il n'en sait rien. Les mois déjà publiés gardent leur total : elle les a vus, les réécrire après coup serait réécrire ce qu'elle a lu.`,
+    total: `${escapeHtml(prenom)} voit un montant et un nombre de dépenses, mois par mois. Jamais un libellé.`,
+    detail: `${escapeHtml(prenom)} peut lire les libellés, et de TOUS les mois — l'accord est une permission de lecture sur l'espace entier, pas sur celui-ci. Révocable à tout moment.`
+  }[posture];
+
   return `
     <div class="prive-avals">
       <div class="prive-aval">
-        <div class="prive-aval-titre">Ce que vous ouvrez à ${escapeHtml(prenom)}</div>
-        <div class="prive-aval-ligne">
-          <span class="prive-aval-detail">${etat.monPartage.actif ? 'le détail de vos dépenses privées' : 'votre total seulement'}</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="privePartage"${etat.monPartage.actif ? ' checked' : ''}
-                   aria-label="Ouvrir le détail de mes dépenses privées à ${escapeHtml(prenom)}">
-            <span class="toggle-slider"></span>
-          </label>
+        <div class="prive-aval-titre">Ce que vous partagez avec ${escapeHtml(prenom)}</div>
+        <div class="prive-posture" role="group"
+             aria-label="Ce que vous partagez avec ${escapeHtml(prenom)}">
+          ${cran('rien', 'Rien')}
+          ${cran('total', 'Total seul')}
+          ${cran('detail', 'Total + détail')}
         </div>
+        <p class="form-aide">${aide}</p>
       </div>
 
       <div class="prive-aval">
@@ -397,27 +425,43 @@ function brancherLEcran(modal, etat) {
   // emplacement : c'est notre espace qu'on ouvre, et la règle serveur exige
   // que ce soit nous qui l'écrivions. Écrire sous celui de l'autre reviendrait
   // à s'accorder l'accès à ses données — et la base le refuse.
-  const bascule = modal.querySelector('#privePartage');
-  bascule?.addEventListener('change', async () => {
-    const actif = bascule.checked;
-    try {
-      const { dbSetAbsolu } = await import('../db.js');
-      await dbSetAbsolu(`${RACINE_AVAL}/${etat.emplacement}`, {
-        actif,
-        accordeLe: Date.now(),
-        accordePar: etat.emplacement
-      });
-    } catch (erreur) {
-      logError('❌ Écriture de l\'accord impossible :', erreur);
-      toast.error('Accord non enregistré');
-      bascule.checked = !actif;
-      return;
-    }
+  const annonces = {
+    rien: prenom => `Partage fermé — ${prenom} ne voit plus rien de ce mois`,
+    total: prenom => `${prenom} voit désormais votre total, jamais les libellés`,
+    detail: prenom => `${prenom} voit désormais le détail de vos dépenses privées`
+  };
 
-    toast.success(actif
-      ? `${prenomDeLAutre()} voit désormais le détail de vos dépenses privées`
-      : `Détail refermé — ${prenomDeLAutre()} ne voit plus que votre total`);
-    await showPrivateExpensesModal();
+  modal.querySelectorAll('.prive-posture-cran').forEach(cran => {
+    cran.addEventListener('click', async () => {
+      const voulue = cran.dataset.posture;
+      const ecritures = ecrituresDeLaPosture(voulue, etat.emplacement);
+      // Une valeur que le modèle ne connaît pas n'écrit rien : mieux vaut un
+      // bouton inerte qu'un partage choisi au hasard.
+      if (!ecritures) return;
+
+      try {
+        const { dbSetAbsolu, dbGetAbsolu } = await import('../db.js');
+
+        // Les deux drapeaux partent ensemble, en une écriture : séparés, un
+        // échec entre les deux laisserait une base dans un état que l'échelle
+        // ne sait pas afficher.
+        await dbSetAbsolu(`${RACINE_AVAL}/${etat.emplacement}`, ecritures.aval);
+
+        // Le mois affiché est aligné aussitôt. `publierLeTotal` relit la posture
+        // qu'on vient d'écrire : elle publie ou retire, sans qu'on ait à le lui
+        // redire ici.
+        const chemin = `${RACINE_PRIVE}/${etat.emplacement}/periods/${etat.periode}/depenses`;
+        await publierLeTotal(etat.emplacement, etat.periode,
+          normaliserDepensesPrivees(await dbGetAbsolu(chemin)));
+      } catch (erreur) {
+        logError('❌ Écriture du partage impossible :', erreur);
+        toast.error('Partage non enregistré');
+        return;
+      }
+
+      toast.success(annonces[voulue](prenomDeLAutre()));
+      await showPrivateExpensesModal();
+    });
   });
 
   const bouton = modal.querySelector('#priveAjouter');

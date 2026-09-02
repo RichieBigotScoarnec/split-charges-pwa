@@ -90,13 +90,97 @@ export function emplacementOppose(emplacement) {
  */
 export function normaliserAval(brut) {
   if (!brut || typeof brut !== 'object') {
-    return { actif: false, accordeLe: null, accordePar: null };
+    // `publieLeTotal` vaut vrai ICI AUSSI, et c'est le cas le plus fréquent :
+    // un foyer qui n'a jamais touché au partage n'a pas de nœud `/aval` du
+    // tout. L'omettre sur ce chemin ferait basculer tout le monde en « rien »
+    // à la première lecture, et l'application cesserait de publier les totaux
+    // qu'elle publie depuis toujours — sans que personne ne l'ait demandé.
+    return { actif: false, accordeLe: null, accordePar: null, publieLeTotal: true };
   }
 
   return {
     actif: brut.actif === true,
     accordeLe: Number.isFinite(brut.accordeLe) ? brut.accordeLe : null,
-    accordePar: EMPLACEMENTS.includes(brut.accordePar) ? brut.accordePar : null
+    accordePar: EMPLACEMENTS.includes(brut.accordePar) ? brut.accordePar : null,
+    // L'ABSENCE VAUT « JE PUBLIE », à l'inverse de `actif`.
+    //
+    // Les deux défauts vont dans des directions opposées, et c'est délibéré :
+    // chacun préserve ce qui existait avant lui. Aucun aval n'a jamais été
+    // accordé par défaut, donc l'absence vaut refus. Le total, lui, a toujours
+    // été publié — c'est le contrat « détail privé, total public ». Un nœud
+    // écrit avant ce champ n'en porte pas : le lire comme « ne publie pas »
+    // effacerait en silence le seul repère dont l'autre dispose.
+    publieLeTotal: brut.publieLeTotal !== false
+  };
+}
+
+/** Les trois postures de partage, du plus fermé au plus ouvert */
+export const POSTURES = Object.freeze(['rien', 'total', 'detail']);
+
+/**
+ * Ce que je partage, en un mot
+ *
+ * Deux drapeaux indépendants en base — `actif` ouvre le détail, `publieLeTotal`
+ * ouvre le chiffre — mais une seule échelle à l'écran, parce qu'ouvrir le
+ * détail sans publier le total n'a aucun sens : le détail contient le total.
+ *
+ * ## Une base incohérente se lit vers le HAUT
+ *
+ * `actif` vrai et `publieLeTotal` faux est atteignable : deux appareils, deux
+ * écritures. La posture rendue est alors **`detail`**, la plus ouverte des deux.
+ *
+ * C'est l'inverse de ce qu'on ferait pour un solde, et c'est l'inverse de ce que
+ * j'avais d'abord écrit. Pour un réglage de confidentialité, le défaut sûr n'est
+ * pas le plus rassurant : il est le plus fidèle à ce que l'autre peut REELLEMENT
+ * lire. Tant que `aval/{qui}/actif` vaut vrai, la règle serveur laisse passer la
+ * lecture du détail — afficher « Rien » annoncerait une fermeture qui n'existe
+ * pas, ce qui est exactement le mensonge le plus coûteux ici.
+ *
+ * ## Elle ne dépend pas des totaux déjà publiés
+ *
+ * La posture est un RÉGLAGE, pas un état des lieux. La déduire de la présence
+ * d'un total en base la rendrait instable : « rien publié » se confondrait avec
+ * « rien à publier », et la première dépense privée du mois ferait basculer le
+ * réglage toute seule.
+ *
+ * @param {*} aval - Nœud `/aval/{emplacement}` tel que lu
+ * @returns {'rien'|'total'|'detail'}
+ */
+export function posturePartage(aval) {
+  const normalise = normaliserAval(aval);
+  if (normalise.actif) return 'detail';
+  return normalise.publieLeTotal ? 'total' : 'rien';
+}
+
+/**
+ * Ce qu'une posture écrit
+ *
+ * Les deux drapeaux sont posés ENSEMBLE, jamais l'un sans l'autre : c'est ce
+ * qui empêche l'échelle de produire les combinaisons qu'elle ne sait pas
+ * afficher.
+ *
+ * `accordePar` vaut toujours l'emplacement propriétaire — la règle serveur
+ * l'exige, et c'est ce qui interdit de s'accorder l'accès aux données d'autrui.
+ *
+ * @param {string} posture
+ * @param {string} emplacement - Le propriétaire, seul auteur possible
+ * @param {number} [maintenant] - Injectable pour les bancs d'essai
+ * @returns {{aval: Object, publieLeTotal: boolean}|null} Null si l'un des deux est inconnu
+ */
+export function ecrituresDeLaPosture(posture, emplacement, maintenant = Date.now()) {
+  if (!POSTURES.includes(posture)) return null;
+  if (!EMPLACEMENTS.includes(emplacement)) return null;
+
+  const publieLeTotal = posture !== 'rien';
+
+  return {
+    aval: {
+      actif: posture === 'detail',
+      publieLeTotal,
+      accordeLe: maintenant,
+      accordePar: emplacement
+    },
+    publieLeTotal
   };
 }
 

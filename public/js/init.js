@@ -41,10 +41,11 @@
 // `tests/actions-declarees.test.js` la compare au balisage réel et tombe dès
 // qu'un `data-action` la déborde — ou qu'elle garde un nom devenu inutile.
 const ACTIONS_AUTORISEES = new Set([
+  'basculerResume',
   'changePeriod', 'clearSearch', 'closeModal', 'closeQuickAddModal',
   'createAccount', 'creerEnveloppeProposee', 'declarerAbonnementsProposes',
   'deleteFixedCharge', 'deleteReimbursement',
-  'deleteVariableCharge', 'downloadBackup', 'editFixedCharge',
+  'deleteVariableCharge', 'devoilerPrive', 'downloadBackup', 'editFixedCharge',
   'editReimbursement', 'editVariableCharge', 'exportToCSV',
   'exportToPDF', 'focusSalaries', 'handleQuickAddSubmit',
   'navigatePeriod', 'ouvrirDetailCategorie', 'ouvrirDetailPayeur',
