@@ -100,6 +100,32 @@ jobs:
       - name: Aucun nouvel innerHTML dynamique
         run: npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 
+      # Le pipeline publie les regles AVANT le site : bon ordre pour une regle
+      # qui elargit, exactement l'inverse de celui qu'il faut pour une regle qui
+      # restreint. Ce cas ne se detectait par rien — il vivait dans un
+      # commentaire, c'est-a-dire nulle part le jour ou quelqu'un retire un
+      # champ sans l'avoir lu. Le controle le rend visible en revue, pas en
+      # production.
+      - name: Une regle qui restreint ne se publie pas comme les autres
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            reference="FETCH_HEAD"
+          else
+            git fetch --no-tags --deepen=1 origin "${{ github.ref_name }}"
+            reference="HEAD~1"
+          fi
+
+          # Le fichier peut manquer sur la reference : premiere introduction des
+          # regles, ou historique tronque. Rien n'est alors retire, et le
+          # controle doit se taire plutot que d'inventer une restriction.
+          git show "$reference:database.rules.json" > "$RUNNER_TEMP/regles-base.json" 2>/dev/null \
+            || cp database.rules.json "$RUNNER_TEMP/regles-base.json"
+
+          node tools/regles-restrictives.mjs "$RUNNER_TEMP/regles-base.json" database.rules.json
+
       - name: Run unit tests
         run: npx vitest run
 
@@ -319,9 +345,16 @@ jobs:
   # ENTIÈRE du partage qui échoue — l'écran annonce « Partage non enregistré »
   # sans que rien n'indique pourquoi.
   #
-  # Le cas inverse — une règle qui RESTREINT — demanderait l'ordre opposé. Il ne
-  # se présente pas ici, et le jour où il se présentera il devra être traité
-  # comme ce qu'il est : une rupture, à publier en deux temps délibérés.
+  # Le cas inverse — une règle qui RESTREINT — demande l'ordre opposé, et il ne
+  # se détecte plus à l'œil : `tools/regles-restrictives.mjs` arrête la revue et
+  # exige de publier en deux temps, ou d'acquitter le retrait en disant pourquoi.
+  #
+  # CONSÉQUENCE À CONNAÎTRE : depuis que cette dépendance existe, un échec du
+  # déploiement des règles GÈLE aussi la mise en ligne du site. C'est délibéré —
+  # mieux vaut ne pas publier un client que publier un client dont les règles ne
+  # sont pas là — mais une panne côté Firebase suffit alors à bloquer une
+  # livraison qui n'y touchait pas. Le filet est `alerte-publication` : il ouvre
+  # un ticket, qui ne disparaît pas d'un rafraîchissement de page.
   #
   # Sans le secret Firebase, `deploy-rules` sort en succès avec un
   # avertissement : cette dépendance ne peut donc pas bloquer la publication du
