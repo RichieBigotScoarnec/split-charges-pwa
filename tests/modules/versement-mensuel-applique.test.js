@@ -287,6 +287,16 @@ describe('Quand il n\'y a rien à faire', () => {
     expect(aTenteDEcrire()).toBe(false);
   });
 
+  it('AUDIT-003 — un mois À VENIR non plus', async () => {
+    // Le sélecteur propose un mois d'avance. L'ouvrir écrivait un versement
+    // daté du 1er du mois suivant : consulter déplaçait de l'argent, et le pot
+    // affichait un contenu qu'aucun compte ne portait.
+    setState('currentPeriod', '2026-10');
+
+    expect(await appliquerLesVersementsMensuels()).toBe(0);
+    expect(aTenteDEcrire()).toBe(false);
+  });
+
   it('rien à faire ne dit rien', async () => {
     setState('envelopes', [{ ...VACANCES, versementMensuel: null }]);
 

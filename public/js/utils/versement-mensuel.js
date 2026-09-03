@@ -10,7 +10,7 @@
  * Une enveloppe peut donc porter un versement mensuel, repris de lui-même à
  * l'ouverture d'un mois neuf. C'est le même mécanisme que la reconduction des
  * charges fixes, et les mêmes garanties : **une seule fois par mois**, et
- * **jamais vers le passé**.
+ * **jamais un autre mois que le mois courant** — ni en arrière, ni en avant.
  *
  * ## La clé EST l'empreinte
  *
@@ -103,9 +103,16 @@ export function versementMensuelLisible(brut) {
  * fausse plutôt que seulement inutile :
  *
  *   1. les mois ne sont pas lisibles — on ne sait pas de quoi on parle ;
- *   2. **le mois visé est passé.** Ouvrir un mois ancien est une consultation,
- *      pas une reprise d'activité. Y déverser un versement réécrirait
- *      l'histoire d'un pot dont le contenu a déjà servi à juger une échéance ;
+ *   2. **le mois visé n'est pas le mois courant.** Ouvrir un autre mois est une
+ *      consultation, pas une reprise d'activité. Vers le passé, y déverser un
+ *      versement réécrirait l'histoire d'un pot dont le contenu a déjà servi à
+ *      juger une échéance. Vers l'avenir — le sélecteur propose un mois
+ *      d'avance — cela remplissait le pot d'un mois qui n'a pas commencé, et
+ *      `acquisSurObjectif` comme `etatProvision` présentent ce contenu comme de
+ *      l'argent qui existe : CONSULTER déplaçait de l'argent. La reconduction
+ *      des charges fixes fait de même vers l'avenir et l'assume, mais une
+ *      charge reconduite est une dépense PRÉVUE, affichée comme prévue, là où
+ *      un versement est un mouvement CONSTATÉ ;
  *   3. l'enveloppe ne porte pas de versement mensuel exploitable ;
  *   4. elle est close — on n'alimente pas un pot qu'on a fermé ;
  *   5. le mois est hors de sa fenêtre : avant son début, ou après son échéance.
@@ -127,7 +134,7 @@ export function versementMensuelLisible(brut) {
  */
 export function planVersementMensuel({ enveloppe, cible, moisCourant, clesExistantes } = {}) {
   if (!CLE_MOIS.test(cible || '') || !CLE_MOIS.test(moisCourant || '')) return null;
-  if (cible < moisCourant) return null;
+  if (cible !== moisCourant) return null;
 
   if (!enveloppe || typeof enveloppe !== 'object') return null;
   if (enveloppe.cloturee === true) return null;

@@ -8,8 +8,11 @@
 //
 // Ce module reprend les enveloppes qui portent un versement mensuel, à
 // l'ouverture d'un mois neuf. Mêmes garanties que la reconduction des charges
-// fixes : une seule fois par mois, jamais vers le passé. La décision, elle, est
-// une affaire de données pures et vit dans `utils/versement-mensuel.js`.
+// fixes, à une près : une seule fois par mois, et jamais un autre mois que le
+// mois courant — la reconduction, elle, prépare un mois d'avance, ce qu'un
+// versement ne peut pas faire sans remplir un pot qui n'existe pas encore.
+// La décision, elle, est une affaire de données pures et vit dans
+// `utils/versement-mensuel.js`.
 //
 // ## Ce qui est écrit, et sous quelle forme
 //
