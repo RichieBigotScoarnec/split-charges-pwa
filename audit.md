@@ -274,7 +274,19 @@ code d'origine.
 | `node scratchpad/rejeu-sandbox.mjs` — après | **8/8 conformes** | 0 |
 | `node scratchpad/maj-versements.mjs` | **3/3** — le lot multi-chemins est accepté, un lot dont un enfant est invalide est rejeté ENTIER et ne laisse rien | 0 |
 | `npx playwright test regles-donnees` (émulateurs) | **31/31 passés** (27 avant, +4 du lot) | 0 |
-| `npx playwright test` (suite complète, émulateurs) | voir « Ce qui n'a pas pu être vérifié » | — |
+| `npx playwright test` (suite complète, émulateurs) | **555 passés, 9 échecs** sur 564 — tous attribués ci-dessous | 1 |
+
+### Les 9 échecs de bout en bout, attribués
+
+Aucun n'est une régression. L'attribution a été faite **par mesure**, en
+rejouant chaque spec contre l'arbre de départ dans un worktree séparé, servi
+par son propre serveur (port 3334) : une vérification doit être figée sur le
+commit qu'elle relit, et ce dépôt a déjà payé pour l'apprendre.
+
+| Échecs | Attribution |
+|---|---|
+| 6 dans `firebase-integration.spec.js`, 1 dans `auth-ui.spec.js` | **Préexistants** : les 7 mêmes tombent à l'identique sur l'arbre de départ. Ils demandent que l'application elle-même parle à l'émulateur Auth, ce que le proxy sortant de ce conteneur empêche (773 connexions `www.google.com:443` rejetées). Cohérent avec le socle que le `CLAUDE.md` consigne : « un dans `auth-ui.spec.js` ». |
+| 2 dans `detail-depenses.spec.js` | **Instabilité de parallélisme, pas une régression.** Rejoués seuls : **8/8 sur les deux arbres**. L'échec est un délai de garde de 5 s sur l'apparition d'une modale, à 4 workers sur un conteneur chargé. Et le fichier monte `setupFirebaseMock` : il ne touche ni les règles, ni `db.js`, ni les versements — aucun des trois correctifs ne peut l'atteindre. |
 
 ### Témoins négatifs joués
 
@@ -290,8 +302,9 @@ Pour chacune des trois corrections, rétablir le défaut fait tomber un contrôl
 
 ### Régressions rencontrées
 
-Aucune : la suite unitaire est passée de 2 915 à 2 927 tests, tous verts, sans
-qu'aucun contrôle préexistant ne tombe à une étape quelconque.
+Aucune. La suite unitaire est passée de 2 915 à 2 927 tests, tous verts, sans
+qu'aucun contrôle préexistant ne tombe à une étape quelconque ; et les 9
+échecs de bout en bout sont attribués ci-dessus, mesure à l'appui.
 
 Une **adaptation** — et non une régression — a été nécessaire :
 `tests/modules/versement-mensuel-applique.test.js` mesurait ses garanties en
@@ -302,13 +315,31 @@ d'entre elles (`une enveloppe refusée n'emporte pas les autres`) sont
 désormais plus fortes qu'avant — elles vérifient le contenu des deux pots, là
 où elles comptaient des appels.
 
+### Espace de vérification
+
+`scratchpad/` — hors de l'arborescence du dépôt, jamais un sous-répertoire de
+celui-ci. Il portait le JAR de l'émulateur, les deux scripts de rejeu, les
+deux configurations Playwright jetables, le worktree de l'arbre de départ et
+les journaux.
+
+**Sort** : supprimé et vérifié en fin de session — le répertoire est vide, le
+worktree est retiré (`git worktree list` ne rend que le dépôt), et les quatre
+ports des émulateurs sont fermés (9010, 9099, 4000, 4400 → code `000`). Le
+dépôt lui-même n'a jamais reçu de fichier de vérification.
+
+**Ce qui est à ne pas refaire de mémoire** à la prochaine session, les moyens
+de preuve n'ayant pas vocation à survivre : le protocole du harnais
+d'émulateur et le contournement Chromium sont décrits ci-dessus, sous
+« Moyens de preuve reconstruits ».
+
 ### Ce qui n'a pas pu être vérifié
 
-- **La suite Playwright complète n'a pas de verdict utilisable dans ce
-  conteneur.** Le proxy sortant refuse `www.google.com:443` (773 connexions
-  rejetées sur un passage partiel), et une part des contrôles charge des
-  ressources Google. Ce qui a été rejoué et fait autorité pour ce lot, c'est
-  `regles-donnees.spec.js` en entier — 31/31 contre le moteur réel, la suite
+- **Sept contrôles de bout en bout restent rouges dans ce conteneur, et le
+  resteront** : ils demandent que l'application parle elle-même à l'émulateur
+  Auth, ce que le proxy sortant empêche. Ils sont rouges à l'identique sur
+  l'arbre de départ — ce lot ne les rend ni meilleurs ni pires, et **leur
+  verdict en CI n'est pas connu d'ici**. Ce qui fait autorité pour ce lot, ce
+  sont les 31/31 de `regles-donnees.spec.js` contre le moteur réel, la suite
   qui éprouve précisément ce que la correction touche.
 - **L'exploitabilité d'AUDIT-010 reste `[À tester]`** : elle dépend de l'état
   des comptes dans la console Firebase Auth du projet réel, hors de portée
