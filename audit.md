@@ -156,6 +156,12 @@ refaire de mémoire est le harnais d'émulateur : voir « Vérifications exécut
 ci-dessus — jeton d'émulateur Auth obligatoire, `Authorization: Bearer` interdit
 comme identité, et témoin positif en tête de chaque script.
 
+### Second périmètre validé — 2026-09-03
+
+Après la livraison des lots 1 et 2, l'utilisateur a ouvert **AUDIT-011 puis
+AUDIT-004**, et tranché **Q-1**, ce qui a rendu **AUDIT-003** exécutable. Les
+trois sont corrigés ; leur journal est en fin de document, sous « Second lot ».
+
 ### Périmètre de remédiation validé — 2026-09-03
 
 L'utilisateur a validé les **lots 1 et 2** du plan, soit **trois constats** :
@@ -196,6 +202,10 @@ charge fixe reconduite est une *dette prévue*, alors qu'un versement est un
 `etatProvision` et l'écran des enveloppes présentent comme de l'argent qui
 existe. Je ne tranche pas : selon la réponse, AUDIT-003 est un défaut à corriger
 ou un comportement à documenter.
+
+> **TRANCHÉE le 2026-09-03 : borner au mois courant.** Le foyer a retenu que
+> consulter ne doit pas déplacer d'argent. AUDIT-003 est donc corrigé
+> (`774c3ee`), et la garde est symétrique.
 
 **Q-2 — Faut-il faire vérifier l'adresse du compte de test ?** *(ouverte par la
 remédiation d'AUDIT-010.)* La correction laisse `testfairsplit@gmail.com`
@@ -355,15 +365,15 @@ d'émulateur et le contournement Chromium sont décrits ci-dessus, sous
 
 - [x] **AUDIT-001** 🟠 Versement mensuel : la part refusée n'est jamais rattrapée — **CORRIGÉ** (`7a42ac0`)
 - [x] **AUDIT-002** 🟡 Versement mensuel : le message annonce le total demandé, pas le total écrit — **CORRIGÉ** (`a84e101`)
-- [ ] **AUDIT-003** 🟡 Versement mensuel : consulter un mois à venir l'alimente d'avance *(dépend de Q-1)*
-- [ ] **AUDIT-004** 🟡 Sélection multiple : « Tout » relâche au lieu de tout cocher
+- [x] **AUDIT-003** 🟡 Versement mensuel : consulter un mois à venir l'alimente d'avance — **CORRIGÉ** (`774c3ee`)
+- [x] **AUDIT-004** 🟡 Sélection multiple : « Tout » relâche au lieu de tout cocher — **CORRIGÉ** (`7afeb58`)
 - [ ] **AUDIT-005** 🔵 Versement partagé : le mode annoncé peut différer du mode appliqué
 - [ ] **AUDIT-006** ⚪ 8 vulnérabilités « moderate » en dépendances de développement
 - [ ] **AUDIT-007** 🔵 12 modules absents du référentiel `CLAUDE.md`
 - [ ] **AUDIT-008** 🔵 `restoreFromTrash` ne valide ni la période ni l'identifiant
 - [ ] **AUDIT-009** ⚪ Plafond d'injection à marge nulle (24/24)
 - [x] **AUDIT-010** 🟠 L'espace `sandbox` n'exige pas `email_verified` — **CORRIGÉ** (`312efdd`)
-- [ ] **AUDIT-011** 🟡 La file hors ligne ne ferme que l'effacement, pas l'écriture arbitraire
+- [x] **AUDIT-011** 🟡 La file hors ligne ne ferme que l'effacement, pas l'écriture arbitraire — **CORRIGÉ** (`a61c617`)
 - [ ] **AUDIT-012** 🔵 La CSP publiée autorise `http://localhost:*` et `ws://localhost:*`
 - [ ] **AUDIT-013** 🟡 Rien ne relève les mois à moitié alimentés déjà en base *(découvert en remédiation)*
 
@@ -624,8 +634,31 @@ son unique appelant lui passe déjà les deux mois.
 **Vérification à effectuer** — Le cas « CONSTAT C », plus le témoin positif que
 le mois courant continue d'être alimenté.
 
-**Statut** : OUVERT *(dépend de Q-1)*
-**Protégé par** : —
+---
+
+**Correction appliquée — conforme à la correction proposée, branche « non ».**
+Q-1 a été tranchée par le foyer le 2026-09-03 : borner au mois courant. La
+garde devient `cible !== moisCourant`, symétrique en une ligne.
+
+Un test verrouillait le comportement d'avant — « un mois À VENIR est alimenté,
+lui aussi », justifié par « consulter octobre en septembre et le préparer est
+un geste légitime ». Il a été **retourné plutôt que supprimé**, et c'est la
+fiche qui autorisait ce geste : elle avait établi que l'absence de borne n'était
+pas une décision mais une omission, le commentaire du module n'annonçant qu'une
+garantie vers le passé. Les deux commentaires qui promettaient cette garantie
+unilatérale sont mis en accord avec le code.
+
+*(À rapprocher d'AUDIT-010, où un test apparemment jumeau a mené à la
+conclusion INVERSE : là-bas il consignait une contrainte de conception réelle,
+ici il rationalisait une omission. La différence ne se lit pas dans le test,
+elle se lit dans ce que le code promettait par ailleurs.)*
+
+**Statut** : CORRIGÉ (`774c3ee`)
+**Protégé par** : `tests/utils/versement-mensuel.test.js` — la décision, plus
+le témoin positif que le mois courant continue de l'être (sans lui, une garde
+refusant tout passerait) ; et `tests/modules/versement-mensuel-applique.test.js`
+pour le câblage, à l'ouverture réelle d'un mois. Le mutant qui rétablit la
+garde unilatérale fait tomber les deux.
 
 ---
 
@@ -685,8 +718,24 @@ nominal : quand tout est réellement coché, « Tout » doit continuer de relâc
 **Vérification à effectuer** — Le cas « CONSTAT D », plus les deux témoins
 positifs (rien coché → tout se coche ; tout coché → tout se relâche).
 
-**Statut** : OUVERT
-**Protégé par** : —
+---
+
+**Correction appliquée — conforme à la correction proposée.** `selectionPurgee`
+dans `toutSelectionner` ; la fonction était déjà importée (l. 38).
+
+**Une leçon sur le jeu d'essai.** Le premier scénario écrit cochait les trois
+charges affichées puis en périmait trois autres — et il PASSAIT sur le code
+fautif, parce que relâcher y était le geste juste : après purge, les trois
+affichées étaient bien toutes cochées. Le défaut ne se manifeste que si la
+sélection purgée est PLUS PETITE que ce qui est affiché, tout en restant plus
+grande en compte brut : une charge réellement cochée, trois identifiants morts,
+trois charges affichées. Un jeu d'essai qui ne peut pas manifester le défaut ne
+mesure rien — constat déjà consigné quatre fois dans le `CLAUDE.md`, refait ici.
+
+**Statut** : CORRIGÉ (`7afeb58`)
+**Protégé par** : `tests/modules/selection-charges.test.js` — le cas réel, plus
+le témoin qui interdit la sur-correction (tout RÉELLEMENT coché doit continuer
+de relâcher). Le mutant qui rétablit le comptage brut fait tomber le premier.
 
 ---
 
@@ -881,6 +930,50 @@ Pages du compte (limite déjà consignée comme ⚠️ INHÉRENT dans le référ
 (`periods/`, `versements/`, `envelopes`…) plutôt que de n'exclure que la racine —
 une liste blanche de destinations, pas une liste noire de formes.
 
+**Correction appliquée — écart avec la correction proposée.** La liste porte sur
+les FORMES de chemin, et non sur des préfixes : mesuré, une liste de préfixes ne
+ferme pas l'exemple que cette fiche donne elle-même. `period.js:460` écrit
+`dbUpdate('salaries', …)` quand on corrige un salaire — l'entrée forgée décrite
+ici est cette écriture, au caractère près. Aucun contrôle posé dans le client ne
+peut les distinguer, et un préfixe `salaries` l'aurait laissée passer tout en
+donnant le sentiment d'avoir refermé le point.
+
+Ce que la correction ferme, mesuré avant/après : `set('periods', …)` remplaçait
+TOUT l'historique, `set('periods/2026-08', …)` un mois entier,
+`set('envelopes', [])` vidait la liste du foyer — les trois acceptés, les trois
+refusés désormais. C'est la classe que le `CLAUDE.md` annonçait close en disant
+que la file « écrivait n'importe quoi, effacement compris » : seul le second
+terme l'était.
+
+Les trois listes du foyer sont exclues à dessein — `fusionnerListe` les écrit
+par une `transaction` posée directement sur la référence Firebase, qui ne
+traverse pas `db.js`. Vérifié en relevant les 14 sites d'appel de
+`dbSet`/`dbUpdate`/`dbPush` : aucun ne les vise.
+
+**Ce qui reste ouvert, et pourquoi c'est écrit dans le code** — la surface est
+ramenée à ce que l'application écrit elle-même, pas à rien. Le remède au reste
+n'est pas client : c'est un nom de domaine propre, qui rendrait l'origine à
+cette application seule (déjà consigné ⚠️ INHÉRENT au `CLAUDE.md`). Un test
+tient cette limite pour qu'elle ne se perde pas.
+
+**Deux régressions de test, tenues pour des conséquences légitimes** :
+`file-non-forgeable.test.js` affirmait qu'un lot multi-chemins sur
+`periods/{mois}` passe — forme qu'aucun appel ne produit, et par laquelle on
+pouvait marquer `deleted` sur toutes les charges d'un mois ; et
+`hors-ligne.test.js` utilisait `customCategories` comme troisième écriture de
+file, choix arbitraire remplacé par `categoryBudgets`, qui, lui, y passe.
+
+**Statut** : CORRIGÉ (`a61c617`)
+**Protégé par** : `tests/utils/file-non-forgeable.test.js` — les refus, la
+limite assumée, et surtout la comparaison de la liste au CODE **dans les deux
+sens** : le relevé des 17 chemins réellement écrits doit rester différable (une
+forme oubliée ferait perdre une saisie hors ligne), et chaque forme déclarée
+doit correspondre à un appel réel. Une constante irrésolue fait échouer le
+relevé. Plus `tests/modules/hors-ligne.test.js` pour le CÂBLAGE — la garde doit
+être consultée dans la boucle de rejeu, mesuré sur ce qui atteint la base.
+Trois mutants, trois chutes : liste trop étroite (2 contrôles), trop large (5),
+garde retirée de la boucle (3).
+
 **AUDIT-012** · 🔵 FAIBLE · `[Lu]` · Sécurité · `public/FairSplit.html:70`, `firebase.json:20`
 La politique **publiée** autorise `http://localhost:* http://127.0.0.1:*
 ws://localhost:* ws://127.0.0.1:*` dans `connect-src`. Ces origines ont été
@@ -1034,3 +1127,73 @@ il est à 24/24, marge nulle. Toute correction d'affichage qui ajoute un
 Les lots C et D (~29 900 lignes) n'ont pas été audités. Le cœur monétaire
 (lot C) est celui où ce dépôt a historiquement trouvé ses défauts les plus
 coûteux — un chiffre faux en silence — et il reste entier.
+
+
+---
+
+## Journal de remédiation — second lot, 2026-09-03
+
+**Périmètre** : AUDIT-011 (sécurité), AUDIT-004, puis AUDIT-003 une fois Q-1
+tranchée. Ordre suivi : sécurité d'abord, puis fonctionnel.
+
+| Constat | Commit | Mesure avant correction |
+|---|---|---|
+| **AUDIT-011** | `a61c617` | `set('periods')`, `set('periods/2026-08')`, `set('envelopes')` : **acceptés** |
+| **AUDIT-004** | `7afeb58` | 1 charge cochée sur 3 affichées, 3 ids morts → « Tout » **vidait** |
+| **AUDIT-003** | `774c3ee` | ouvrir 2026-10 en 2026-09 écrivait un versement daté du 1er octobre |
+
+### Vérifications exécutées
+
+| Commande | Résultat | Code |
+|---|---|---|
+| `npx vitest run` (départ de ce lot) | 158 fichiers, **2 927** tests | 0 |
+| `npx vitest run` (final) | 158 fichiers, **2 942** tests, 0 échec | 0 |
+| `npx eslint . --quiet` (CI) | aucune sortie | 0 |
+| `npx eslint .` | 0 erreur, **32** avertissements | 0 |
+| plafond innerHTML (CI) | **24/24**, inchangé | 0 |
+
+**Non exécuté** : la suite Playwright. Aucun des trois correctifs ne touche les
+règles ni le balisage, et les trois classes concernées — file hors ligne,
+sélection multiple, versement mensuel — sont couvertes en unitaire, y compris
+leur câblage. Le lot précédent a par ailleurs établi que 7 contrôles de bout en
+bout sont durablement rouges dans ce conteneur, ce qui rend son verdict peu
+informatif ici.
+
+### Sept mutants posés, sept chutes
+
+| Mutant | Effet |
+|---|---|
+| Liste blanche trop étroite (`versements` retiré) | 2 contrôles |
+| Liste blanche trop large (`return true`) | 5 contrôles |
+| Garde retirée de la boucle de REJEU | 3 contrôles |
+| Comptage brut rétabli dans `toutSelectionner` | 1 contrôle |
+| Garde de mois unilatérale rétablie | 2 contrôles |
+
+### Régressions rencontrées
+
+Aucune régression de production. **Deux tests ont dû changer de camp**, et
+c'est le fond du lot plutôt qu'un dégât collatéral :
+
+- `file-non-forgeable.test.js` affirmait qu'un lot multi-chemins sur
+  `periods/{mois}` passe. Aucun appel ne produit cette forme — vérifié sur les
+  14 sites d'écriture — et elle permettait de marquer `deleted` sur toutes les
+  charges d'un mois en une entrée forgée. Le contrôle affirme désormais
+  l'inverse, avec sa raison.
+- `versement-mensuel.test.js` affirmait qu'un mois à venir est alimenté, au nom
+  d'un « geste légitime ». Q-1 a tranché l'inverse. Retourné, pas supprimé.
+
+**Ce qui distingue ces deux cas d'AUDIT-010**, où un test apparemment jumeau a
+mené à la conclusion opposée : là-bas le test consignait une contrainte de
+conception réelle (le compte de test n'a pas d'adresse à prouver), ici il
+rationalisait une omission. La différence ne se lit pas dans le test lui-même,
+elle se lit dans ce que le code promet par ailleurs — et dans ce qui casse si
+on le suit.
+
+### Ce qui n'a pas été vérifié
+
+- **La limite d'AUDIT-011 est structurelle et reste ouverte** : une entrée
+  forgée visant `salaries` est indiscernable de l'écriture légitime de
+  `period.js:460`. Écrit dans le code et tenu par un test, plutôt que laissé
+  croire fermé.
+- Les mois éventuellement **déjà** alimentés d'avance par le défaut d'AUDIT-003
+  ne sont pas relevés — même nature qu'AUDIT-013, et même remède possible.
