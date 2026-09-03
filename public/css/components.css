@@ -1354,3 +1354,85 @@
   line-height: 1.5;
   color: var(--text-secondary);
 }
+
+/* ===== SÉLECTION MULTIPLE DE CHARGES ===== */
+
+/* Deux boutons dans l'en-tête là où il n'y en avait qu'un. `flex-wrap` plutôt
+   qu'une largeur figée : « Sélectionner » et « + Ajouter » côte à côte tiennent
+   sur un téléphone, « Terminer » et « + Ajouter » aussi, mais un prénom long
+   dans le titre pousse le tout — mieux vaut passer à la ligne que déborder. */
+.card-header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.selection-barre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-edge);
+}
+
+.selection-compte {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.selection-gestes {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Les deux listes prennent la place qui reste, à parts égales, et les deux
+   boutons gardent la leur. `min-width: 0` sans quoi un libellé d'enveloppe long
+   impose sa largeur au flex et pousse « Supprimer » hors de l'écran. */
+.selection-gestes select {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* Un geste sans lot n'a rien à faire : le dire d'avance vaut mieux qu'un refus
+   après coup. */
+.selection-gestes select:disabled,
+.selection-gestes .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* La case prend la première colonne ; l'info et le montant gardent les leurs.
+   Sans cette règle, la case entrerait dans la grille à trois colonnes de
+   `.charge-item` et le montant en sortirait. */
+.charge-item--choisissable {
+  grid-template-columns: auto 1fr auto;
+  cursor: pointer;
+}
+
+.charge-item--choisie {
+  border-color: var(--primary-color);
+  background: var(--primary-soft);
+}
+
+/* 20 px, et non la taille native : la cible tactile de 44 px est portée par la
+   ligne entière, qui fait plus que cela en hauteur — mais la case doit rester
+   visible sans devenir le sujet de la ligne. */
+.charge-choix {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}

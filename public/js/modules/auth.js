@@ -11,6 +11,7 @@ import { emplacementDuCompte } from '../utils/members.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries, chargerLesPeriodesConnues } from './period.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
+import { initSelectionCharges } from './selection-charges.js';
 import { initFixedCharges, loadFixedCharges } from './fixed-charges.js';
 import { initReimbursements, loadReimbursements } from './reimbursements.js';
 import { initSummary, calculateSummary } from './summary.js';
@@ -493,6 +494,12 @@ async function initializeAppData() {
     // fonction lit alors d'elle-même, et le sélecteur est peuplé quand même.
     await chargerLesPeriodesConnues(instantanePeriods);
   }, failures);
+
+  // AVANT les charges variables : leur rendu lit le mode sélection, et
+  // `initSelectionCharges` est ce qui le remet à « éteint ». Après, la première
+  // liste de la session se dessinerait sur l'état laissé par la précédente —
+  // avec ses cases à cocher, et une sélection qui ne désigne plus rien.
+  await runStep('sélection multiple', () => initSelectionCharges(), failures);
 
   await runStep('charges variables', async () => {
     initVariableCharges();
