@@ -61,6 +61,25 @@ export default defineConfig({
   // Leur sérialisation à l'intérieur du fichier est ce qui les tient. Elle
   // tient aujourd'hui par le défaut de Playwright ; l'écrire ici la rend
   // intentionnelle plutôt qu'accidentelle.
+  //
+  // CE RAISONNEMENT ÉTAIT INCOMPLET, et il a coûté trois jours de CI rouge.
+  //
+  // Il traite la concurrence AU SEIN d'un fichier et conclut que celle ENTRE
+  // fichiers est sans danger, « ceux-ci se répartissent déjà entre workers ».
+  // C'est vrai partout sauf ici : le projet `reel` porte DEUX fichiers, et
+  // tous deux pilotent le même compte sur le vrai Firebase. Les répartir entre
+  // workers, c'est précisément les faire écrire ensemble.
+  //
+  // `scenario-reel` efface `sandbox/` puis y écrit six mois d'historique,
+  // pendant que `bouclier-navigateur` ouvre l'application sur le même compte —
+  // laquelle reconduit les charges et complète les instantanés de salaires,
+  // sous les mêmes chemins. Le solde relu mêle alors deux jeux de données.
+  //
+  // La sérialisation du projet `reel` ne peut pas s'écrire ici : `workers` est
+  // global, il n'existe pas par projet. Elle est donc portée par la commande du
+  // job « Tests contre le vrai Firebase » dans `.github/workflows/deploy.yml`,
+  // qui passe `--workers=1`. Toute reprise de ce parallélisme doit se lire aux
+  // deux endroits.
 
   use: {
     baseURL: 'http://localhost:3333',

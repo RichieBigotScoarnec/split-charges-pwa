@@ -341,10 +341,30 @@ jobs:
       # Pas d'émulateur ici : ces contrôles parlent au vrai service, c'est leur
       # raison d'être. Le serveur statique est démarré par `webServer` dans
       # `playwright.config.js`.
+      # `--workers=1`, et c'est le coeur du sujet.
+      #
+      # Le projet `reel` porte DEUX fichiers, et tous deux pilotent le meme
+      # compte de test sur le vrai Firebase. `playwright.config.js` ecarte
+      # deja `fullyParallel` pour eviter la concurrence AU SEIN de
+      # `scenario-reel.spec.js` -- mais les quatre workers de la CI font
+      # tourner les deux FICHIERS en parallele, ce que ce raisonnement ne
+      # couvrait pas.
+      #
+      # Consequence mesuree : `scenario-reel` efface `sandbox/` puis y ecrit
+      # six mois d'historique, pendant que `bouclier-navigateur` ouvre
+      # l'application sur le meme compte -- laquelle reconduit et complete les
+      # instantanes de salaires en ecrivant sous les memes chemins. Le solde
+      # relu est alors celui de deux jeux de donnees melanges. Echecs observes
+      # les 01, 02 et 03 septembre, toujours dans ce projet, avec des symptomes
+      # differents mais une seule cause : PERMISSION_DENIED, charge introuvable,
+      # et « mois -2 : attendu 184.31, lu 422.22 ».
+      #
+      # Les autres projets gardent les quatre workers : ils parlent a
+      # l'emulateur, ou a rien du tout.
       - name: Run E2E tests against real Firebase
         env:
           FAIRSPLIT_TEST_PASSWORD: ${{ secrets.FAIRSPLIT_TEST_PASSWORD }}
-        run: npx playwright test --project=reel --reporter=line
+        run: npx playwright test --project=reel --workers=1 --reporter=line
 
       - name: Upload traces on failure
         if: failure()
