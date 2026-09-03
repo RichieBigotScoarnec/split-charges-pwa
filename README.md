@@ -29,7 +29,7 @@ changer le mode des autres.
 | **Charges** | Fixes (récurrentes ou ponctuelles) et variables, avec catégorie, payeur et destination de virement |
 | **Prénoms** | Les deux emplacements du foyer portent un prénom, repris partout à l'écran. Sans prénom saisi, les libellés d'origine sont conservés |
 | **Revenus** | Salaires et revenus complémentaires (allocations, loyers perçus, activité annexe), pris ensemble dans l'assiette du prorata |
-| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés |
+| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés. Corriger un mois déjà soldé alors que le report est désactivé le dit : l'écart resterait sur ce mois-là sans rejoindre aucun autre |
 | **Remboursements** | Suivi des transferts entre les deux personnes, intégrés au solde |
 | **Règlement** | Solder le mois en une action : le montant exact, dans le bon sens, depuis la barre de solde |
 | **Report** | Option : un mois non réglé reste dû le mois suivant au lieu de repartir de zéro |
