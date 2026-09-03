@@ -28,6 +28,11 @@ const initialState = {
 
   // UI State
   editingCharge: null,
+
+  // Le lot en cours de constitution dans la liste des charges variables.
+  // `ids` peut désigner des charges d'un autre mois après une navigation : les
+  // gestes purgent la liste avant d'agir, jamais l'inverse.
+  selectionCharges: { actif: false, ids: [] },
   quickAddState: {
     selectedCategory: null,
     splitMode: 'prorata',

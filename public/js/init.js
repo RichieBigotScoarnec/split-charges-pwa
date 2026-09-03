@@ -41,7 +41,8 @@
 // `tests/actions-declarees.test.js` la compare au balisage réel et tombe dès
 // qu'un `data-action` la déborde — ou qu'elle garde un nom devenu inutile.
 const ACTIONS_AUTORISEES = new Set([
-  'basculerResume',
+  'appliquerCategorieAuLot', 'appliquerEnveloppeAuLot',
+  'basculerChargeChoisie', 'basculerModeSelection', 'basculerResume',
   'changePeriod', 'clearSearch', 'closeModal', 'closeQuickAddModal',
   'createAccount', 'creerEnveloppeProposee', 'declarerAbonnementsProposes',
   'deleteFixedCharge', 'deleteReimbursement',
@@ -56,7 +57,8 @@ const ACTIONS_AUTORISEES = new Set([
   'showBackup', 'showBudgetEditor', 'showManageCategoriesModal',
   'showImportModal', 'showManageDestinationsModal', 'showManageEnvelopesModal', 'showPrivateExpensesModal',
   'showMapModal', 'showQuickAddModal', 'showTrash', 'signInWithEmail',
-  'signInWithGoogle', 'signOut', 'toggleBudgetInput', 'toggleCarryOver',
+  'signInWithGoogle', 'signOut', 'supprimerLaSelection',
+  'toutSelectionner', 'toggleBudgetInput', 'toggleCarryOver',
   'toggleFixedChargeSplit', 'toggleFixedChargePerso', 'toggleFixedChargeSplitMode', 'toggleRemindersPanel', 'toggleTrends',
   'toggleVariableChargePerso', 'toggleVariableChargeSplit', 'toggleVariableChargeSplitMode'
 ]);
