@@ -227,12 +227,43 @@ dans le cloud.
 Les suppressions sont des `deleted: true`, jamais des effacements. Une donnée
 supprimée dans l'interface reste présente en base.
 
-### Vulnérabilités npm résiduelles
+### Vulnérabilités npm, et pourquoi elles se corrigent par surcharge
 
-`npm audit` signale 5 vulnérabilités modérées, toutes dans la chaîne de
-dépendances de `firebase-tools`, qui est une dépendance de développement et
-n'est jamais livrée au navigateur. `npm audit fix --force` n'est pas appliqué :
-il rétrograderait `firebase-tools` d'une version majeure.
+`npm audit` est à zéro. Il ne l'a pas toujours été, et la façon d'y arriver
+mérite d'être écrite, parce que le remède évident était le mauvais.
+
+Les alertes signalées — `qs`, `uuid`, `@opentelemetry/core` — ne venaient
+d'aucune dépendance déclarée ici. Elles arrivaient toutes par la chaîne de
+`firebase-tools`, à trois ou quatre niveaux de profondeur. Le correctif que
+proposait `npm audit fix --force` était de **rétrograder `firebase-tools` d'une
+version majeure**, de 15 à 14 : troquer trois failles de développement contre
+une régression de l'outillage de déploiement, ce qui n'est pas un échange.
+
+Les versions corrigées existaient pourtant en amont. Ce que `firebase-tools`
+n'avait pas encore repris, un bloc `overrides` dans `package.json` le force :
+
+```json
+"overrides": {
+  "qs": "^6.16.0",
+  "uuid": ">=11.1.1",
+  "@opentelemetry/core": "^2.8.0"
+}
+```
+
+`uuid` porte un `>=` et non un `^`, et ce n'est pas un détail de style : une
+autre branche de l'arbre tenait déjà `uuid@14`, qu'un `^11.1.1` aurait déclaré
+invalide — on aurait ainsi rétrogradé une dépendance déjà saine pour en corriger
+une autre.
+
+**La portée réelle de ces alertes était de toute façon faible**, et le dire fait
+partie de l'évaluation : l'artefact publié ne contient aucune dépendance npm.
+`public/` est livré tel quel, et les paquets de `node_modules` ne servent qu'aux
+tests, à l'émulateur et au serveur local. Aucun de ces codes n'atteint le
+navigateur d'un utilisateur ni un serveur exposé.
+
+Ces surcharges sont **temporaires par nature**. Elles se retirent dès que
+`firebase-tools` reprend les versions corrigées en amont ; les garder au-delà
+figerait des versions que plus personne ne suit.
 
 ---
 
