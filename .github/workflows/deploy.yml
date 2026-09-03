@@ -134,23 +134,40 @@ jobs:
       # zero. Les moderes restent affiches : ils informent sans bloquer.
       #
       # NE PAS lancer `npm audit fix --force`. Il propose de redescendre
-      # firebase-tools de 15.28.x a 14.23.0 : un an de correctifs perdus sur
-      # l'outil qui deploie les regles avec un compte de service admin, pour
-      # faire taire des avis moderes dans de l'outillage.
+      # firebase-tools de plusieurs versions majeures : des annees de
+      # correctifs perdues sur l'outil qui deploie les regles avec un compte de
+      # service admin, pour faire taire des avis moderes dans de l'outillage.
+      # `npm audit fix` sans `--force` ne corrige rien du tout (mesure :
+      # `npm audit fix --dry-run` ne propose aucun changement).
       #
-      # Etat au 2026-09-02 : 5 avis moderes, tous une seule chaine —
-      # firebase-tools -> @google-cloud/pubsub -> @opentelemetry/core, et
-      # firebase-tools -> gaxios -> uuid. Aucun n'atteint le navigateur : seul
-      # `public/` est publie, et firebase-tools est une devDependency.
+      # AUCUN N'ATTEINT LE NAVIGATEUR : seul `public/` est publie, et
+      # firebase-tools est une devDependency. C'est la seule affirmation
+      # durable, et c'est elle qui justifie le seuil.
       #
-      # GHSA-w5hq-g745-h8pq (uuid) ne s'applique meme pas ici. Il vise les API
-      # v3/v5/v6, qui ecrivent dans un tampon fourni sans verifier ses bornes ;
-      # `v4` leve un RangeError et n'est pas concernee. Verifie dans l'arbre
-      # installe : gaxios n'appelle que `uuid_1.v4()`. Le chemin signale n'est
-      # pas execute.
+      # Ne PAS inscrire ici l'inventaire du jour. Il a ete tenu, et il a menti
+      # trois fois en trois jours — 8 avis, puis 5, puis 2, sur des paquets
+      # differents — parce que la base d'avis bouge sans que le verrou change.
+      # Un commentaire faux coute plus cher qu'un commentaire absent : c'est ce
+      # qui a fait vivre huit occurrences du defaut `normalizePair`.
       #
-      # Reste @opentelemetry/core, corrige en amont a partir de 2.8.0 : c'est a
-      # firebase-tools de monter sa dependance.
+      # La METHODE, elle, ne se perime pas. Pour juger un avis modere :
+      #   1. `npm ls <paquet>` donne la chaine, et `npm view <paquet> versions`
+      #      dit si une version corrigee existe ;
+      #   2. si firebase-tools epingle une majeure anterieure a celle qui
+      #      corrige, il n'y a pas de correctif non cassant : c'est a
+      #      firebase-tools de monter sa dependance ;
+      #   3. verifier l'ATTEIGNABILITE dans l'arbre installe, et non sur le
+      #      titre de l'avis. Relever les commandes `firebase` que les
+      #      workflows lancent reellement, puis chercher le paquet dans les
+      #      fichiers de ces commandes seules.
+      #
+      # Exemple mesure le 2026-09-03, garde comme modele de la demarche :
+      # les 2 avis portaient sur stream-json (1.9.1 installe, corrige en
+      # 3.5.0, firebase-tools 15.29.0 epingle ^1.7.3 — deux majeures d'ecart).
+      # `stream-json` n'est charge que par `database:import` et `auth:import` ;
+      # les workflows n'appellent que `database:get`, `database:update`,
+      # `deploy --only database` et `emulators:exec`. Le code signale n'est
+      # jamais charge.
       - name: Aucune vulnerabilite haute ou critique
         run: npm audit --audit-level=high
 
