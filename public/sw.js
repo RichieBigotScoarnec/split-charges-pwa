@@ -65,6 +65,7 @@ const STATIC_ASSETS = [
   './js/utils/categories-frequentes.js',
   './js/utils/confidentialite.js',
   './js/utils/connection-banner.js',
+  './js/utils/correction-retroactive.js',
   './js/utils/cout-annuel.js',
   './js/utils/date.js',
   './js/utils/echelle.js',
@@ -101,6 +102,7 @@ const STATIC_ASSETS = [
   './js/utils/reprise.js',
   './js/utils/renommage.js',
   './js/utils/salaries.js',
+  './js/utils/selection-lot.js',
   './js/utils/sonde-liaison.js',
   './js/utils/sandbox-banner.js',
   './js/utils/soft-delete.js',
@@ -112,6 +114,8 @@ const STATIC_ASSETS = [
   './js/utils/abonnements.js',
   './js/utils/anticipation.js',
   './js/utils/veille.js',
+  './js/utils/versement-mensuel.js',
+  './js/utils/versement-partage.js',
   './js/utils/versements.js',
   // Composants
   './js/components/modal.js',
@@ -140,11 +144,13 @@ const STATIC_ASSETS = [
   './js/modules/resume-prive.js',
   './js/modules/reimbursements.js',
   './js/modules/search.js',
+  './js/modules/selection-charges.js',
   './js/modules/share-mode.js',
   './js/modules/summary.js',
   './js/modules/trash.js',
   './js/modules/trends.js',
-  './js/modules/variable-charges.js'
+  './js/modules/variable-charges.js',
+  './js/modules/versement-mensuel.js'
 ];
 
 // Le socle sans lequel l'application ne démarre pas hors ligne.

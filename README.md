@@ -27,9 +27,10 @@ changer le mode des autres.
 | --- | --- |
 | **Répartition** | Prorata des salaires, 50/50, ou pourcentages libres — globalement ou charge par charge |
 | **Charges** | Fixes (récurrentes ou ponctuelles) et variables, avec catégorie, payeur et destination de virement |
+| **Sélection multiple** | Cocher plusieurs charges d'un mois pour les supprimer, les ranger dans une catégorie ou les rattacher à une enveloppe en un geste. Le lot n'échoue jamais en bloc : ce qui passe passe, et le compte rendu dit ce qui a été refusé |
 | **Prénoms** | Les deux emplacements du foyer portent un prénom, repris partout à l'écran. Sans prénom saisi, les libellés d'origine sont conservés |
 | **Revenus** | Salaires et revenus complémentaires (allocations, loyers perçus, activité annexe), pris ensemble dans l'assiette du prorata |
-| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés |
+| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés. Corriger un mois déjà soldé alors que le report est désactivé le dit : l'écart resterait sur ce mois-là sans rejoindre aucun autre |
 | **Remboursements** | Suivi des transferts entre les deux personnes, intégrés au solde |
 | **Règlement** | Solder le mois en une action : le montant exact, dans le bon sens, depuis la barre de solde |
 | **Report** | Option : un mois non réglé reste dû le mois suivant au lieu de repartir de zéro |
@@ -37,6 +38,7 @@ changer le mode des autres.
 | **Reconduction** | Les charges fixes marquées récurrentes sont reprises d'elles-mêmes à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé |
 | **Bilan** | Solde net, détail des parts théoriques et des paiements réels, récap des virements par destination, jauge de budget |
 | **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
+| **Cagnottes** | Une enveloppe à échéance se remplit par des versements nominatifs, hors solde du couple. « À deux » partage le versement selon le mode du foyer — au prorata des revenus du mois de la date — et écrit une ligne par personne. Un montant mensuel peut y être réglé une fois pour toutes : il est repris de lui-même à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé |
 | **Tendances** | Graphique de l'évolution des charges sur six mois, avec moyenne, extrêmes et variation — replié par défaut, calculé au premier dépliage |
 | **Saisie rapide** | Ajout en un geste. Le lieu est géocodé et la catégorie s'en déduit — « Courses » au supermarché, « Boulangerie » à la boulangerie — dès que la permission de géolocalisation est accordée ; sinon la recherche part à la première frappe dans le montant |
 | **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap), accessible dès qu'une dépense porte des coordonnées ; la bibliothèque n'est chargée qu'à l'ouverture de la carte |
