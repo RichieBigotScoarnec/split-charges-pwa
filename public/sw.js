@@ -114,6 +114,7 @@ const STATIC_ASSETS = [
   './js/utils/abonnements.js',
   './js/utils/anticipation.js',
   './js/utils/veille.js',
+  './js/utils/versement-partage.js',
   './js/utils/versements.js',
   // Composants
   './js/components/modal.js',
