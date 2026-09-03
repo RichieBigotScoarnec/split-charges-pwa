@@ -102,15 +102,79 @@ describe('Les règles déployées couvrent le compte de test', () => {
     expect(regles['.write']).toBe(false);
   });
 
-  it('le foyer exige une adresse vérifiée, le bac à sable non', () => {
+  /**
+   * Ce que la règle FAIT, et non ce qu'elle CONTIENT
+   *
+   * Les clauses d'accès sont des expressions JavaScript pures : le moteur les
+   * évalue contre `auth`. Les évaluer ici avec un jeton fabriqué mesure donc
+   * l'EFFET, là où un `toContain('email_verified')` ne mesure que la forme —
+   * et la forme survit à tout déplacement de la garde dans l'expression.
+   *
+   * Le témoin qui fait autorité reste `tests/e2e/regles-donnees.spec.js`,
+   * rejoué contre le moteur réel. Celui-ci le double sans émulateur.
+   *
+   * @param {string} expression - Clause `.read` ou `.write`
+   * @param {{email: string, email_verified: boolean}} token
+   * @returns {boolean}
+   */
+  const accorde = (expression, token) =>
+    // eslint-disable-next-line no-new-func -- l'expression EST du JavaScript ;
+    // la réécrire en JS l'aurait fait diverger de ce qui est déployé.
+    new Function('auth', 'newData', `return (${expression});`)(
+      { uid: 'u1', token }, { exists: () => true }
+    ) === true;
+
+  const VERIFIE = (email) => ({ email, email_verified: true });
+  const NON_VERIFIE = (email) => ({ email, email_verified: false });
+
+  it('le foyer exige une adresse vérifiée', () => {
     // L'adresse seule décidait de l'accès, alors que `accounts:signUp` reste
     // joignable avec la clé publique du projet : un compte créé par cette API
     // et revendiquant une adresse de la liste blanche entrait dans le foyer.
-    // Le bac à sable, lui, accueille le compte de test, qui s'authentifie par
-    // mot de passe sans adresse à prouver — l'y exiger le fermerait.
     for (const droit of ['.read', '.write']) {
-      expect(regles.household[droit]).toContain('auth.token.email_verified === true');
-      expect(regles.sandbox[droit]).not.toContain('email_verified');
+      expect(accorde(regles.household[droit], VERIFIE(ALLOWED_EMAILS[0]))).toBe(true);
+      expect(accorde(regles.household[droit], NON_VERIFIE(ALLOWED_EMAILS[0]))).toBe(false);
+    }
+  });
+
+  it('le bac à sable l\'exige AUSSI des comptes du foyer', () => {
+    // AUDIT-010. Le bac à sable avait été écrit comme une copie assouplie du
+    // foyer : les deux adresses du foyer y entraient sans avoir prouvé la
+    // boîte aux lettres. Ce n'est pas l'espace des finances réelles, mais
+    // c'est une écriture arbitraire dans la base du projet de production,
+    // sous une identité que les règles tiennent pour légitime.
+    for (const droit of ['.read', '.write']) {
+      for (const email of ALLOWED_EMAILS.filter(e => !SANDBOX_ONLY_EMAILS.includes(e))) {
+        expect(accorde(regles.sandbox[droit], VERIFIE(email)), `${email} vérifié`).toBe(true);
+        expect(accorde(regles.sandbox[droit], NON_VERIFIE(email)), `${email} non vérifié`).toBe(false);
+      }
+    }
+  });
+
+  it('le compte de test, lui, entre au bac à sable sans adresse vérifiée', () => {
+    // Le témoin qui interdit la sur-correction. Le compte de test
+    // s'authentifie par mot de passe et n'a pas d'adresse à prouver : lui
+    // imposer la même condition qu'au foyer fermerait le bac à sable, dont
+    // c'est le seul usage — et avec lui les 17 contrôles de bout en bout qui
+    // s'y déroulent. Aligner les deux espaces sans distinguer les comptes
+    // aurait donc échangé une exposition contre une panne.
+    for (const droit of ['.read', '.write']) {
+      for (const email of SANDBOX_ONLY_EMAILS) {
+        expect(accorde(regles.sandbox[droit], NON_VERIFIE(email)), `${email} au bac à sable`).toBe(true);
+        expect(accorde(regles.household[droit], NON_VERIFIE(email)), `${email} au foyer`).toBe(false);
+      }
+    }
+  });
+
+  it('la liste blanche décide toujours, dans les deux espaces', () => {
+    // Le témoin négatif des trois précédents : ce n'est pas la vérification
+    // qui ouvre, c'est l'adresse. Une adresse inconnue reste dehors, vérifiée
+    // ou non.
+    for (const espace of ['household', 'sandbox']) {
+      for (const droit of ['.read', '.write']) {
+        expect(accorde(regles[espace][droit], VERIFIE('inconnu@example.com'))).toBe(false);
+        expect(accorde(regles[espace][droit], NON_VERIFIE('inconnu@example.com'))).toBe(false);
+      }
     }
   });
 
