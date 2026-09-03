@@ -777,36 +777,44 @@ export function renderVariableCharges() {
         ? `<span class="charge-location">📍 ${escapeHtml(locationName)}</span>`
         : '';
 
-      // En mode sélection, la ligne porte une case et perd ses deux boutons.
+      // En mode sélection, la ligne gagne une case et perd ses deux boutons.
       //
-      // Les perdre n'est pas un oubli : le crayon ouvre une modale par-dessus
+      // Les perdre n'est pas un oubli : le crayon ouvrirait une modale par-dessus
       // une sélection en cours, et la corbeille ferait deux suppressions
       // concurrentes — l'unitaire et celle du lot — sur la même ligne. Le
       // montant, lui, reste : c'est sur lui qu'on juge ce qu'on coche.
+      //
+      // Les deux états composent le MÊME gabarit, plutôt que d'en écrire un
+      // second. Une ligne de charge n'a qu'une seule façon de se dessiner, et
+      // deux gabarits pour un même objet finissent toujours par diverger — le
+      // jour où l'on ajoute une étiquette, elle ne paraît que dans l'un des
+      // deux. `tools/plafond-innerhtml.mjs` compte d'ailleurs les sites
+      // d'injection et refuse d'en voir apparaître un de plus sans raison :
+      // il avait raison de le refuser ici.
+      const choisie = enSelection && estChoisie(charge.id);
       if (enSelection) {
-        const choisie = estChoisie(charge.id);
         chargeDiv.classList.add('charge-item--choisissable');
         if (choisie) chargeDiv.classList.add('charge-item--choisie');
-        chargeDiv.innerHTML = `
-          <input type="checkbox" class="charge-choix"
-                 data-action="basculerChargeChoisie" data-arg="${escapeHtml(charge.id)}"
-                 ${choisie ? 'checked' : ''}
-                 aria-label="Sélectionner ${escapeHtml(charge.description || 'Sans description')}, ${escapeHtml(formatCurrency(charge.amount || 0))}" />
-          <div class="charge-info">
-            <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}${perimetreTag}${aCompleterTag}</span>
-            <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
-            ${etiquetteEnveloppe(charge)}
-            ${locationTag}
-          </div>
-          <div class="charge-actions">
-            <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
-          </div>
-        `;
-        chargesList.appendChild(chargeDiv);
-        return;
       }
 
+      const caseAChocher = enSelection
+        ? `<input type="checkbox" class="charge-choix"
+                  data-action="basculerChargeChoisie" data-arg="${escapeHtml(charge.id)}"
+                  ${choisie ? 'checked' : ''}
+                  aria-label="Sélectionner ${escapeHtml(charge.description || 'Sans description')}, ${escapeHtml(formatCurrency(charge.amount || 0))}" />`
+        : '';
+
+      const boutonsDeLigne = enSelection
+        ? ''
+        : `<button class="btn-icon" data-action="editVariableCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Modifier ${escapeHtml(charge.description || '')}">
+            ✏️
+          </button>
+          <button class="btn-icon btn-delete" data-action="deleteVariableCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Supprimer ${escapeHtml(charge.description || '')}">
+            🗑️
+          </button>`;
+
       chargeDiv.innerHTML = `
+        ${caseAChocher}
         <div class="charge-info">
           <span class="charge-description">${escapeHtml(charge.description || 'Sans description')} ${splitTag}${perimetreTag}${aCompleterTag}</span>
           <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))}</span>
@@ -815,12 +823,7 @@ export function renderVariableCharges() {
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount || 0)}</span>
-          <button class="btn-icon" data-action="editVariableCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Modifier ${escapeHtml(charge.description || '')}">
-            ✏️
-          </button>
-          <button class="btn-icon btn-delete" data-action="deleteVariableCharge" data-arg="${escapeHtml(charge.id)}" aria-label="Supprimer ${escapeHtml(charge.description || '')}">
-            🗑️
-          </button>
+          ${boutonsDeLigne}
         </div>
       `;
       chargesList.appendChild(chargeDiv);
