@@ -95,6 +95,8 @@ const quickAddState = {
  * chiffre. Il part désormais à la première frappe dans le montant — le seul
  * signal fiable qu'une saisie réelle commence — ce qui laisse au géocodage le
  * temps de la description, et ne coûte rien à qui ouvre pour regarder.
+ *
+ * **Sauf quand la permission est déjà accordée** : voir `laPositionEstAcquise`.
  */
 let _lieuDemande = false;
 
@@ -244,6 +246,9 @@ function surFondDeModale(e) {
  * @returns {void}
  */
 function surMontantSaisi() {
+  // L'ouverture a pu prendre l'avance quand la permission était déjà accordée :
+  // le témoin est alors posé et il n'y a rien à relancer. Cf.
+  // `laPositionEstAcquise`.
   if (_lieuDemande) return;
   _lieuDemande = true;
   startGPSDetection();
@@ -290,6 +295,12 @@ export function cleanupQuickAdd() {
     _keydownHandler = null;
   }
   stopBackgroundGPS();
+
+  // Le watch est arrêté : la permission n'est plus une certitude acquise mais
+  // une réponse à redemander. `initBackgroundGPS` la réinterroge à la connexion
+  // suivante, et `laPositionEstAcquise` doit d'ici là répondre non — sans quoi
+  // l'ouverture prendrait une avance fondée sur un watch qui ne tourne plus.
+  _gpsPermissionGranted = false;
 
   // Une saisie ouverte d'avance devant un écran de connexion n'a plus lieu
   // d'être : Firebase a répondu, et il n'y a personne. La laisser ouverte
@@ -443,9 +454,53 @@ function showQuickAddModal({ anticipee = false } = {}) {
     chargerHistoriqueFrequentes();
   }
 
-  // Le GPS ne part plus d'ici : voir `surMontantSaisi`. Une modale s'ouvre
-  // aussi pour consulter, corriger ou annuler, et chaque ouverture demandait
-  // alors la position.
+  // Le géocodage prend l'avance quand il peut le faire sans rien demander.
+  // Sinon il attend la première frappe : voir `laPositionEstAcquise`.
+  if (laPositionEstAcquise()) {
+    _lieuDemande = true;
+    startGPSDetection();
+  }
+}
+
+/**
+ * La position est-elle déjà à nous, sans rien demander à personne ?
+ *
+ * Reporter le départ du GPS sur la première frappe a corrigé un vrai défaut —
+ * une modale ouverte pour consulter ne doit demander ni permission ni position.
+ * Mais le report a coûté au géocodage l'avance qu'il avait, et c'est cette
+ * avance qui faisait tout : Nominatim répond en une seconde ou deux, et la
+ * catégorie du lieu arrivait donc APRÈS qu'on l'ait choisie à la main. Elle se
+ * tait alors — `processGPSPosition` ne propose que si rien n'est retenu — et
+ * l'automatisme, intact dans le code, ne se voyait plus jamais.
+ *
+ * Signalé à l'usage : « au Leclerc, la catégorie Courses se mettait toute
+ * seule ; elle ne se met plus ».
+ *
+ * La condition retenue est celle qui rend l'avance SANS rien réintroduire de ce
+ * qui avait été corrigé : la permission est déjà accordée. Alors, et alors
+ * seulement,
+ *
+ *   - aucune invite de permission ne peut paraître, elle est déjà répondue ;
+ *   - aucune acquisition GPS n'est demandée en propre : `startBackgroundGPS`
+ *     tient déjà un `watchPosition`, et `getCachedPosition` sert la position
+ *     qu'il a déposée ;
+ *   - le témoin reste dans le panneau des catégories, replié — l'ouverture
+ *     n'affiche donc toujours rien qui parle du GPS.
+ *
+ * Il ne reste qu'une requête Nominatim pour une modale ouverte puis refermée
+ * sans rien saisir. C'est le prix, et il est assumé : le service est plafonné à
+ * une requête par seconde, ce que l'ouverture d'une modale n'atteint pas.
+ *
+ * Le repli sur la frappe reste donc en place, et il sert deux cas réels : la
+ * toute première saisie, avant que la permission soit accordée, et iOS Safari,
+ * qui n'expose pas `navigator.permissions` — là, le drapeau ne devient vrai
+ * qu'après un premier `getCurrentPosition` réussi, c'est-à-dire à la deuxième
+ * saisie de la session.
+ *
+ * @returns {boolean}
+ */
+function laPositionEstAcquise() {
+  return _gpsPermissionGranted === true;
 }
 
 /**

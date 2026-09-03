@@ -29,7 +29,7 @@ changer le mode des autres.
 | **Charges** | Fixes (récurrentes ou ponctuelles) et variables, avec catégorie, payeur et destination de virement |
 | **Prénoms** | Les deux emplacements du foyer portent un prénom, repris partout à l'écran. Sans prénom saisi, les libellés d'origine sont conservés |
 | **Revenus** | Salaires et revenus complémentaires (allocations, loyers perçus, activité annexe), pris ensemble dans l'assiette du prorata |
-| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés |
+| **Instantanés** | Un instantané de revenus par période : modifier son salaire ne réécrit pas l'historique des mois passés. Corriger un mois déjà soldé alors que le report est désactivé le dit : l'écart resterait sur ce mois-là sans rejoindre aucun autre |
 | **Remboursements** | Suivi des transferts entre les deux personnes, intégrés au solde |
 | **Règlement** | Solder le mois en une action : le montant exact, dans le bon sens, depuis la barre de solde |
 | **Report** | Option : un mois non réglé reste dû le mois suivant au lieu de repartir de zéro |
@@ -39,7 +39,7 @@ changer le mode des autres.
 | **Budgets** | Budget mensuel global, et budget par catégorie avec alerte à 80 % et dépassement chiffré |
 | **Cagnottes** | Une enveloppe à échéance se remplit par des versements nominatifs, hors solde du couple. « À deux » partage le versement selon le mode du foyer — au prorata des revenus du mois de la date — et écrit une ligne par personne |
 | **Tendances** | Graphique de l'évolution des charges sur six mois, avec moyenne, extrêmes et variation — replié par défaut, calculé au premier dépliage |
-| **Saisie rapide** | Ajout en un geste avec géolocalisation et pré-cache GPS |
+| **Saisie rapide** | Ajout en un geste. Le lieu est géocodé et la catégorie s'en déduit — « Courses » au supermarché, « Boulangerie » à la boulangerie — dès que la permission de géolocalisation est accordée ; sinon la recherche part à la première frappe dans le montant |
 | **Carte** | Localisation des dépenses (Leaflet + OpenStreetMap), accessible dès qu'une dépense porte des coordonnées ; la bibliothèque n'est chargée qu'à l'ouverture de la carte |
 | **Personnalisation** | Catégories et destinations de virement définies par l'utilisateur |
 | **Recherche** | Filtrage des charges de la période |
