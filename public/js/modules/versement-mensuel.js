@@ -134,6 +134,7 @@ export async function appliquerLesVersementsMensuels({ historique, salairesGloba
     // le mois reste donc intact, et l'ouverture suivante le reprend entier.
     // La clé étant déterministe, cette reprise réécrit la même chose au même
     // endroit — il n'y a rien à défaire.
+    //
     // `nourries` et non `lots` : l'annonce porte sur ce que la base a accepté,
     // jamais sur ce qui était prévu. Dire « 550,00 € mis de côté » quand
     // 150,00 € seulement sont passés fait croire à un pot qui n'existe pas —

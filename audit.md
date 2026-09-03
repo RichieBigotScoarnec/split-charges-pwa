@@ -197,6 +197,16 @@ charge fixe reconduite est une *dette prévue*, alors qu'un versement est un
 existe. Je ne tranche pas : selon la réponse, AUDIT-003 est un défaut à corriger
 ou un comportement à documenter.
 
+**Q-2 — Faut-il faire vérifier l'adresse du compte de test ?** *(ouverte par la
+remédiation d'AUDIT-010.)* La correction laisse `testfairsplit@gmail.com`
+entrer au bac à sable sans adresse vérifiée, parce qu'il s'authentifie par mot
+de passe. Cette porte ne tient que par l'existence du compte côté Firebase
+Auth. La refermer demande deux gestes dans cet ordre — vérifier l'adresse dans
+la console (Authentication → Users), puis retirer l'exemption de la règle — et
+l'ordre compte : inversé, il casse la CI. Cela ne se fait pas depuis une
+session de code. Tant que ce n'est pas tranché, l'exemption reste, et elle est
+désormais explicite plutôt que subie.
+
 ### Risques résiduels
 
 - Les 2 915 tests unitaires passent, mais les quatre défauts vérifiés de cette
@@ -210,10 +220,110 @@ ou un comportement à documenter.
 
 ---
 
+## Journal de remédiation — 2026-09-03
+
+**Branche** : `claude/remediation-audit-d1p730`, partant de `6fbbff1`.
+**Périmètre exécuté** : les lots 1 et 2 validés — AUDIT-010, AUDIT-001,
+AUDIT-002, dans cet ordre. Les neuf autres constats restent OUVERTS, aucun
+n'a été touché.
+
+### État de départ consigné
+
+Arbre propre (`git status --porcelain` vide), `node_modules` absent du
+conteneur puis installé.
+
+| Commande | Résultat | Code |
+|---|---|---|
+| `npm ci --ignore-scripts` | 974 paquets | 0 |
+| `npx vitest run` | 158 fichiers, **2 915** tests passés | 0 |
+| `npx eslint .` | 0 erreur, 32 avertissements | 0 |
+| `npx eslint . --quiet` (CI) | aucune sortie | 0 |
+| `npx eslint public/js --format json \| node tools/plafond-innerhtml.mjs` (CI) | **24 sites, plafond 24** | 0 |
+
+### Moyens de preuve reconstruits
+
+L'audit avait détruit les siens avec son espace de vérification ; ils ont été
+réécrits avant toute correction, et les trois défauts **reproduits** sur le
+code d'origine.
+
+- **Harnais d'émulateur** (`scratchpad/rejeu-sandbox.mjs`) : émulateur Auth par
+  `npx firebase emulators:start --only auth` (port 9099), moteur de règles par
+  le JAR piloté directement — `java -jar firebase-database-emulator-v4.11.2.jar
+  --port 9010 --host 127.0.0.1` — les règles postées en `PUT
+  .settings/rules.json` avec `Authorization: Bearer owner`. L'identité passe
+  par un **idToken** de l'émulateur Auth, jamais par `Authorization: Bearer`
+  (traité comme compte de service, il accorde la propriété et fait passer tous
+  les contrôles). Chaque exécution s'ouvre sur un **témoin positif**.
+- **Suite Playwright** : le conteneur porte Chromium 1194 sous une autre
+  arborescence que celle qu'attend `@playwright/test` 1.62.1. Contourné par une
+  configuration jetable, hors du dépôt, qui ne change que `executablePath`
+  (`/opt/pw-browsers/chromium`). `npx playwright install` est inutile ici.
+- **Reproduction d'AUDIT-001/002** : versée directement dans le fichier de test
+  permanent, sur une **base simulée** dont les contrôles lisent l'état plutôt
+  que de compter les appels — un test qui compterait les `dbSet` aurait interdit
+  le correctif retenu.
+
+### Vérifications exécutées
+
+| Commande | Résultat | Code |
+|---|---|---|
+| `npx vitest run` (final) | 158 fichiers, **2 927** tests passés | 0 |
+| `npx eslint . --quiet` (final) | aucune sortie | 0 |
+| plafond innerHTML (final) | **24 sites, plafond 24** — inchangé | 0 |
+| `node scratchpad/rejeu-sandbox.mjs` — avant | **2 écarts** sur 8 | 1 |
+| `node scratchpad/rejeu-sandbox.mjs` — après | **8/8 conformes** | 0 |
+| `node scratchpad/maj-versements.mjs` | **3/3** — le lot multi-chemins est accepté, un lot dont un enfant est invalide est rejeté ENTIER et ne laisse rien | 0 |
+| `npx playwright test regles-donnees` (émulateurs) | **31/31 passés** (27 avant, +4 du lot) | 0 |
+| `npx playwright test` (suite complète, émulateurs) | voir « Ce qui n'a pas pu être vérifié » | — |
+
+### Témoins négatifs joués
+
+Pour chacune des trois corrections, rétablir le défaut fait tomber un contrôle
+— mesuré, non supposé.
+
+| Mutant | Effet |
+|---|---|
+| Règles d'avant, contrôle unitaire | 1 échec (`le bac à sable l'exige AUSSI des comptes du foyer`) |
+| Règles d'avant, contrôle de bout en bout contre le moteur réel | 1 échec (`une adresse du FOYER non vérifiée n'ouvre pas non plus le bac à sable`) |
+| Écriture ligne par ligne (code d'avant, AUDIT-001) | 2 échecs : 1 clé restée en base au lieu de 0, 0 ligne rattrapée au lieu de 2 |
+| Annonce sur les lignes planifiées (code d'avant, AUDIT-002) | 2 échecs : « 550,00 € » annoncés pour 150,00 € en base |
+
+### Régressions rencontrées
+
+Aucune : la suite unitaire est passée de 2 915 à 2 927 tests, tous verts, sans
+qu'aucun contrôle préexistant ne tombe à une étape quelconque.
+
+Une **adaptation** — et non une régression — a été nécessaire :
+`tests/modules/versement-mensuel-applique.test.js` mesurait ses garanties en
+comptant les appels à `dbSet`. Ce couplage au mécanisme d'écriture interdisait
+le correctif d'AUDIT-001. Les contrôles ont été rebranchés sur l'état d'une
+base simulée ; aucune de leurs assertions de fond n'a été affaiblie, et deux
+d'entre elles (`une enveloppe refusée n'emporte pas les autres`) sont
+désormais plus fortes qu'avant — elles vérifient le contenu des deux pots, là
+où elles comptaient des appels.
+
+### Ce qui n'a pas pu être vérifié
+
+- **La suite Playwright complète n'a pas de verdict utilisable dans ce
+  conteneur.** Le proxy sortant refuse `www.google.com:443` (773 connexions
+  rejetées sur un passage partiel), et une part des contrôles charge des
+  ressources Google. Ce qui a été rejoué et fait autorité pour ce lot, c'est
+  `regles-donnees.spec.js` en entier — 31/31 contre le moteur réel, la suite
+  qui éprouve précisément ce que la correction touche.
+- **L'exploitabilité d'AUDIT-010 reste `[À tester]`** : elle dépend de l'état
+  des comptes dans la console Firebase Auth du projet réel, hors de portée
+  d'ici. Le protocole est dans la fiche. La correction ne dépend pas de cette
+  réponse, seul son degré d'urgence en dépendait.
+- **Les mois éventuellement déjà à moitié alimentés en production** ne sont pas
+  détectés : la correction d'AUDIT-001 rend l'état partiel inatteignable, elle
+  ne relève pas ceux qui existeraient déjà. Voir AUDIT-013.
+
+---
+
 ## Checklist
 
-- [ ] **AUDIT-001** 🟠 Versement mensuel : la part refusée n'est jamais rattrapée
-- [ ] **AUDIT-002** 🟡 Versement mensuel : le message annonce le total demandé, pas le total écrit
+- [x] **AUDIT-001** 🟠 Versement mensuel : la part refusée n'est jamais rattrapée — **CORRIGÉ** (`7a42ac0`)
+- [x] **AUDIT-002** 🟡 Versement mensuel : le message annonce le total demandé, pas le total écrit — **CORRIGÉ** (`a84e101`)
 - [ ] **AUDIT-003** 🟡 Versement mensuel : consulter un mois à venir l'alimente d'avance *(dépend de Q-1)*
 - [ ] **AUDIT-004** 🟡 Sélection multiple : « Tout » relâche au lieu de tout cocher
 - [ ] **AUDIT-005** 🔵 Versement partagé : le mode annoncé peut différer du mode appliqué
@@ -221,9 +331,10 @@ ou un comportement à documenter.
 - [ ] **AUDIT-007** 🔵 12 modules absents du référentiel `CLAUDE.md`
 - [ ] **AUDIT-008** 🔵 `restoreFromTrash` ne valide ni la période ni l'identifiant
 - [ ] **AUDIT-009** ⚪ Plafond d'injection à marge nulle (24/24)
-- [ ] **AUDIT-010** 🟠 L'espace `sandbox` n'exige pas `email_verified`
+- [x] **AUDIT-010** 🟠 L'espace `sandbox` n'exige pas `email_verified` — **CORRIGÉ** (`312efdd`)
 - [ ] **AUDIT-011** 🟡 La file hors ligne ne ferme que l'effacement, pas l'écriture arbitraire
 - [ ] **AUDIT-012** 🔵 La CSP publiée autorise `http://localhost:*` et `ws://localhost:*`
+- [ ] **AUDIT-013** 🟡 Rien ne relève les mois à moitié alimentés déjà en base *(découvert en remédiation)*
 
 ---
 
@@ -310,8 +421,43 @@ garde ne doit pas réclamer indéfiniment une part qui ne doit pas exister.
 **Vérification à effectuer** — Reprendre les deux cas du fichier d'audit ; y
 ajouter le cas de la part nulle et le cas concurrent.
 
-**Statut** : OUVERT
-**Protégé par** : —
+---
+
+**Correction appliquée — écart avec la correction proposée.** Les deux formes
+proposées par la fiche resserraient la garde pour *rattraper* la part
+manquante. Les deux ont été écartées après relecture du code, pour une raison
+que la fiche ne pouvait pas voir : **une moitié en base est indiscernable d'un
+versement complet écrit sous l'autre réglage.** Le commentaire de `clesDuMois`
+énonce la contrainte — « les deux, quel que soit le réglage : un foyer qui
+passe de "à deux" à "moi seul" ne doit pas se voir réalimenter un mois déjà
+alimenté sous l'autre forme ». Un foyer réglé sur `vous` en septembre (une
+ligne, 150 €) qui passe ensuite à `deux` et rouvre septembre aurait, sous une
+garde par clé, reçu la part de la conjointe **en plus** : le mois passait de
+150 € à 211,36 €. Le rattrapage échangeait un pot sous-alimenté contre un pot
+sur-alimenté, sans moyen de distinguer les deux cas.
+
+La correction retenue rend l'état partiel **inatteignable** plutôt que
+rattrapable, ce qui traite la même cause sans l'ambiguïté : les deux parts
+d'une même enveloppe partent dans un lot multi-chemins unique, que le moteur
+rejette entier dès qu'un enfant est invalide. La granularité entre enveloppes
+est conservée telle quelle — « un pot refusé ne doit pas emporter les autres »
+reste vrai, et un contrôle le tient.
+
+L'hypothèse d'atomicité n'a pas été supposée : elle a été **mesurée** contre le
+moteur réel (`scratchpad/maj-versements.mjs`, 3/3) — un lot dont une part porte
+un montant négatif est refusé en 401 et ne laisse aucune de ses deux clés.
+
+Le commentaire d'en-tête du module — « un pot non alimenté se rattrape au geste
+suivant », que la fiche relevait comme faux d'un échec partiel — redevient vrai
+sans avoir à être réécrit : un échec est désormais toujours total pour
+l'enveloppe concernée.
+
+**Statut** : CORRIGÉ (`7a42ac0`)
+**Protégé par** : `tests/modules/versement-mensuel-applique.test.js`, section
+« AUDIT-001 · Un versement "à deux" ne s'écrit jamais à moitié » — 6 contrôles,
+dont les 3 témoins que cette fiche réclamait (mois complet intouché, deux
+ouvertures simultanées, part nulle légitime). Mutant joué : l'écriture ligne
+par ligne fait tomber 2 contrôles.
 
 ---
 
@@ -376,8 +522,24 @@ dits.
 **Vérification à effectuer** — Le cas « CONSTAT A » ; plus un témoin positif
 qu'un succès complet annonce toujours le total entier.
 
-**Statut** : OUVERT
-**Protégé par** : —
+---
+
+**Correction appliquée — conforme à la correction proposée.** `annoncer` reçoit
+les seuls lots que la base a acceptés, au lieu de tous les lots planifiés. Le
+diff du correctif tient en un mot (`lots` → `nourries`), la restructuration
+ayant été faite par AUDIT-001 — d'où deux commits distincts sur le même site :
+le premier change le mécanisme d'écriture en préservant ce défaut, le second
+le referme seul.
+
+Le contrôle central ne compare à aucun nombre écrit à la main : il exige que
+le montant annoncé soit **celui que la base porte**, quel que soit le jeu
+d'essai.
+
+**Statut** : CORRIGÉ (`a84e101`)
+**Protégé par** : `tests/modules/versement-mensuel-applique.test.js`, section
+« AUDIT-002 · Le message annonce ce qui est en base » — 3 contrôles, dont le
+témoin positif qu'un succès complet annonce toujours le total entier. Mutant
+joué : l'annonce sur les lignes planifiées fait tomber 2 contrôles.
 
 ---
 
@@ -579,6 +741,90 @@ ce serait alors le test qu'il faut corriger, pas la règle.
 **Vérification à effectuer** — Rejouer les quatre cas ci-dessus après
 correction : les deux ❌ doivent passer au ✅ sans que les deux ✅ ne bougent.
 Puis la suite `regles-donnees.spec.js` complète (27 cas) contre l'émulateur.
+
+---
+
+**Correction appliquée — écart avec la correction proposée.** La fiche
+prescrivait d'ajouter `email_verified` aux deux clauses de `sandbox` « ce qui
+aligne les deux racines, deux lignes ». **Cette correction aurait fermé le bac
+à sable.** Ce que la fiche pressentait sans le trancher — son champ « risque de
+régression » — est explicite dans le dépôt et tenu par deux contrôles :
+`tests/e2e/regles-donnees.spec.js`, « le bac à sable reste ouvert à une adresse
+non vérifiée », et `tests/compte-bac-a-sable.test.js` l. 112-113, avec leur
+justification : le compte cantonné au bac à sable **s'authentifie par mot de
+passe et n'a pas d'adresse à prouver**. C'est le seul usage de cet espace, et
+17 contrôles de bout en bout s'y déroulent.
+
+La fiche concluait « ce serait alors le test qu'il faut corriger, pas la
+règle ». C'est l'inverse : le test consigne une contrainte de conception, et la
+lever demanderait de faire vérifier l'adresse du compte de test dans la console
+Firebase — une action d'exploitation hors de portée d'une session de code, qui
+casserait la CI entre-temps.
+
+La correction retenue porte donc la garde sur les **seules adresses du foyer**,
+et l'exemption sur le **seul compte cantonné** (`SANDBOX_ONLY_EMAILS`). Elle
+ferme l'exposition que la fiche a mesurée — un jeton non vérifié portant une
+adresse du foyer n'entre plus nulle part — sans échanger cette exposition
+contre une panne.
+
+**Ce qui reste ouvert** — le compte de test conserve un accès au bac à sable
+sans adresse vérifiée. C'est assumé et documenté, mais la porte ne tient que
+par l'existence du compte côté Firebase Auth : `accounts:signUp` sur une
+adresse déjà rattachée rend `EMAIL_EXISTS`. Le refermer demande de vérifier
+l'adresse `testfairsplit@gmail.com` dans la console, puis d'aligner la règle —
+voir Q-2.
+
+**Statut** : CORRIGÉ (`312efdd`)
+**Protégé par** :
+- `tests/e2e/regles-donnees.spec.js` — « une adresse du FOYER non vérifiée
+  n'ouvre pas non plus le bac à sable » (lecture **et** écriture), plus le
+  témoin renommé qui interdit la sur-correction. 31/31 contre le moteur réel ;
+  le mutant (règles d'avant chargées dans l'émulateur) le fait tomber.
+- `tests/compte-bac-a-sable.test.js` — les clauses d'accès sont désormais
+  **évaluées** contre un jeton fabriqué, et non lues comme du texte : un
+  `toContain('email_verified')` survit à tout déplacement de la garde dans
+  l'expression. 4 contrôles, dont le témoin négatif que c'est bien l'adresse
+  qui ouvre et non la vérification. Le mutant fait tomber 1 contrôle.
+
+---
+
+### AUDIT-013 · 🟡 MOYEN · [Déduit] · Intégrité des données · `public/js/utils/versement-mensuel.js:139`
+
+*Constat découvert pendant la remédiation d'AUDIT-001, non corrigé dans cette
+session — il ne bloquait aucune correction en cours.*
+
+**Problème** — La correction d'AUDIT-001 rend l'état « un mois à moitié
+alimenté » **inatteignable pour l'avenir**. Elle ne relève pas ceux qui
+existeraient **déjà en base**, écrits par le code d'avant. Un tel mois porte
+une seule des deux clés `auto-{mois}-*`, la garde d'idempotence le tient pour
+complet, et la cagnotte reste sous-alimentée du montant d'une part —
+exactement le défaut d'AUDIT-001, figé.
+
+**Pourquoi c'est un constat distinct** — Il ne se corrige pas dans le code de
+décision : `planVersementMensuel` ne peut pas distinguer une moitié d'un
+versement complet écrit sous l'autre réglage (c'est le raisonnement qui a fait
+écarter la correction proposée par la fiche AUDIT-001). Le relevé demande de
+comparer, mois par mois, la somme des clés `auto-` au réglage
+`versementMensuel` de l'enveloppe à cette date — une lecture d'inventaire, pas
+une garde.
+
+**Portée [Déduit] — à mesurer avant tout geste.** Le nombre de mois concernés
+est **inconnu** : il dépend du nombre d'échecs partiels réellement survenus en
+production depuis la mise en service du versement mensuel, ce qu'aucune trace
+conservée ne dit. Il peut être nul. Le mesurer ne demande aucune écriture :
+`tools/` porte déjà un précédent exact avec `charges-mal-rangees.mjs`, qui
+relève l'existant sur une **sauvegarde**, sans rien modifier.
+
+**Impact** — De l'argent qui manque dans une cagnotte, en silence, sur des mois
+passés. `etatProvision` recalcule une part mensuelle plus élevée pour
+rattraper, ce qui masque la cause au lieu de la signaler.
+
+**Correction proposée** — Un outil de relevé sur le modèle de
+`charges-mal-rangees.mjs` : lire une sauvegarde, lister les couples
+(enveloppe, mois) portant une seule clé automatique, et rendre le montant
+manquant. Décider ensuite, au vu du relevé, s'il y a lieu d'écrire — un
+rattrapage rétroactif est une écriture d'argent et relève du foyer, pas de
+l'outil.
 
 **Statut** : OUVERT
 **Protégé par** : —
