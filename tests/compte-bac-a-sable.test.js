@@ -118,8 +118,11 @@ describe('Les règles déployées couvrent le compte de test', () => {
    * @returns {boolean}
    */
   const accorde = (expression, token) =>
-    // eslint-disable-next-line no-new-func -- l'expression EST du JavaScript ;
-    // la réécrire en JS l'aurait fait diverger de ce qui est déployé.
+    // `new Function` : l'expression EST du JavaScript, et la réécrire à la
+    // main l'aurait fait diverger de ce qui est déployé — c'est-à-dire mesurer
+    // autre chose que la règle. Même raisonnement que
+    // `tests/utils/service-worker-*.test.js`, qui exécutent le source du
+    // service worker plutôt que d'en décrire le comportement.
     new Function('auth', 'newData', `return (${expression});`)(
       { uid: 'u1', token }, { exists: () => true }
     ) === true;
