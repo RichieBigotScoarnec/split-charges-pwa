@@ -144,6 +144,47 @@ describe('Le mode sélection', () => {
     toutSelectionner();
     expect(['a', 'b', 'c'].some(estChoisie)).toBe(false);
   });
+
+  /**
+   * AUDIT-004 — « Tout » comptait des identifiants qui ne désignaient plus rien
+   *
+   * `utils/selection-lot.js` fournit `selectionPurgee` pour exactement ce cas,
+   * et son en-tête en explique la nécessité : « un identifiant retenu peut ne
+   * plus désigner personne au moment où le geste part ». Elle était appelée
+   * par les deux autres lectures de la sélection, pas par celle-ci — une garde
+   * présente et non appliquée sur un des trois chemins.
+   *
+   * Le scénario n'a rien de tordu : on coche, l'autre téléphone supprime, la
+   * liste se recharge. « Tout » devenait alors inerte du point de vue de
+   * l'utilisateur — il vidait au lieu de remplir — et rien ne le disait.
+   */
+  it('« Tout » retient tout, même quand la sélection porte des ids périmés', () => {
+    setState('variableCharges', [
+      ...CHARGES,
+      { id: 'x', amount: 5, description: 'Bus', category: 'Autre' },
+      { id: 'y', amount: 9, description: 'Café', category: 'Autre' },
+      { id: 'z', amount: 4, description: 'Journal', category: 'Autre' }
+    ]);
+    choisir('a', 'x', 'y', 'z');
+
+    // L'autre téléphone supprime x, y et z ; la liste se recharge sans elles.
+    // Restent 4 identifiants retenus pour 3 charges affichées — dont UNE SEULE
+    // est réellement cochée. `4 >= 3` faisait conclure « tout est déjà là ».
+    setState('variableCharges', CHARGES);
+
+    toutSelectionner();
+
+    expect(['a', 'b', 'c'].every(estChoisie), 'tout devrait être coché').toBe(true);
+  });
+
+  it('et il relâche toujours quand tout est RÉELLEMENT coché', () => {
+    // Le témoin qui interdit la sur-correction : purger ne doit pas empêcher
+    // le second geste du bouton.
+    choisir('a', 'b', 'c');
+    toutSelectionner();
+
+    expect(['a', 'b', 'c'].some(estChoisie)).toBe(false);
+  });
 });
 
 describe('Supprimer un lot', () => {

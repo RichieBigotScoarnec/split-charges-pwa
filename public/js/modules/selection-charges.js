@@ -160,8 +160,15 @@ export function toutSelectionner() {
   const { actif, ids } = etat();
   if (!actif) return;
 
-  const toutes = chargesAffichees().map(charge => charge.id);
-  const dejaTout = toutes.length > 0 && ids.length >= toutes.length;
+  const affichees = chargesAffichees();
+  const toutes = affichees.map(charge => charge.id);
+
+  // Sur la sélection PURGÉE, et non sur `ids` brut : un identifiant retenu
+  // peut ne plus désigner personne — l'autre téléphone a supprimé, la liste
+  // s'est rechargée. Six identifiants comptés contre trois charges affichées
+  // donnaient « tout est déjà coché », et le bouton vidait au lieu de remplir.
+  const retenues = selectionPurgee(ids, affichees);
+  const dejaTout = toutes.length > 0 && retenues.length >= toutes.length;
 
   poser({ actif, ids: dejaTout ? [] : toutes });
   rafraichirLEcran();
