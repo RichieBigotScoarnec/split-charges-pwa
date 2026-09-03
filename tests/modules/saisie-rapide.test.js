@@ -1439,3 +1439,124 @@ describe('L\'heure part avec la dépense', () => {
     expect(panneau.contains(document.getElementById('quickAddHeure'))).toBe(true);
   });
 });
+
+/**
+ * L'avance rendue au géocodage quand elle ne coûte rien
+ *
+ * Reporter le départ du GPS sur la première frappe corrigeait un vrai défaut :
+ * une modale ouverte pour consulter demandait la position. Mais le report a
+ * coûté au géocodage son avance, et c'est l'avance qui faisait l'automatisme —
+ * Nominatim répond en une seconde ou deux, la catégorie du lieu arrivait donc
+ * après qu'on l'ait choisie à la main, et `processGPSPosition` se tait alors.
+ * Signalé à l'usage : « au Leclerc, la catégorie Courses ne se met plus ».
+ *
+ * Ces contrôles fixent LES DEUX régimes, parce que c'est leur écart qui porte
+ * la correction. Un seul des deux laisserait revenir soit le défaut, soit sa
+ * correction de trop.
+ */
+describe('Le lieu prend l\'avance quand la permission est déjà accordée', () => {
+  /** Une permission de géolocalisation dans l'état demandé */
+  function permission(etat) {
+    return {
+      query: vi.fn(() => Promise.resolve({ state: etat, addEventListener: vi.fn() }))
+    };
+  }
+
+  /**
+   * Monte la modale avec un géocodage simulé, SANS taper quoi que ce soit.
+   *
+   * `initQuickAdd` interroge la permission de façon asynchrone : il faut lui
+   * laisser résoudre sa promesse avant d'ouvrir, sinon on mesurerait l'ordre
+   * des microtâches et non la règle.
+   */
+  async function monterPuisOuvrir({ etatPermission }) {
+    navigator.geolocation = {
+      getCurrentPosition: vi.fn(), watchPosition: vi.fn(() => 1), clearWatch: vi.fn()
+    };
+    navigator.permissions = permission(etatPermission);
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'Leclerc',
+        type: 'supermarket',
+        display_name: 'Leclerc, Rue de Nantes, 35000 Rennes',
+        address: { shop: 'Leclerc', road: 'Rue de Nantes', postcode: '35000', city: 'Rennes' }
+      })
+    }));
+
+    setState('cachedGpsPosition', { lat: 48.11, lng: -1.68, accuracy: 10, timestamp: Date.now() });
+    document.body.innerHTML = BALISAGE;
+    document.body.dataset.appReady = 'true';
+    setState('currentPeriod', '2026-08');
+
+    initQuickAdd();
+    await vi.waitFor(() => expect(navigator.permissions.query).toHaveBeenCalled());
+    await Promise.resolve();
+
+    window.showQuickAddModal();
+  }
+
+  afterEach(() => {
+    // `cleanupQuickAdd` remet la permission à « inconnue » : sans cette remise à
+    // zéro, la certitude acquise ici fuirait dans les suites suivantes, où elle
+    // ferait partir un géocodage que personne n'a demandé.
+    cleanupQuickAdd();
+    delete navigator.permissions;
+  });
+
+  it('permission accordée : la catégorie du lieu se pose sans qu\'on ait rien tapé', async () => {
+    // L'automatisme signalé disparu. Aucune frappe ici : c'est tout le sujet.
+    await monterPuisOuvrir({ etatPermission: 'granted' });
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.category-btn.selected')).not.toBeNull();
+    });
+
+    expect(document.querySelector('.category-btn.selected').dataset.categoryId).toBe('courses');
+    expect(document.getElementById('quickAddLocation').textContent)
+      .toContain('proposée d\'après le lieu');
+  });
+
+  it('permission non accordée : l\'ouverture ne demande toujours RIEN', async () => {
+    // La correction du 31/08 tient. Le mutant qui rend l'avance inconditionnelle
+    // fait tomber ce contrôle — et c'est bien lui qu'on veut voir tomber, parce
+    // qu'il ferait reparaître l'invite de permission sur une modale ouverte pour
+    // consulter.
+    await monterPuisOuvrir({ etatPermission: 'prompt' });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(document.getElementById('quickAddLocation').hidden).toBe(true);
+  });
+
+  it('permission non accordée : la frappe reste le déclencheur', async () => {
+    // Le repli n'est pas décoratif : il sert la toute première saisie, et iOS
+    // Safari, qui n'expose pas `navigator.permissions`.
+    await monterPuisOuvrir({ etatPermission: 'prompt' });
+
+    const champ = document.getElementById('quickAddAmount');
+    champ.value = '9';
+    champ.dispatchEvent(new Event('input', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.category-btn.selected')).not.toBeNull();
+    });
+  });
+
+  it('l\'avance prise ne redemande rien à la première frappe', async () => {
+    // Un second géocodage écraserait le témoin et referait la requête pour rien.
+    await monterPuisOuvrir({ etatPermission: 'granted' });
+    await vi.waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+    const apresLOuverture = global.fetch.mock.calls.length;
+    const champ = document.getElementById('quickAddAmount');
+    champ.value = '9';
+    champ.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(global.fetch.mock.calls.length).toBe(apresLOuverture);
+  });
+});
