@@ -156,6 +156,35 @@ refaire de mémoire est le harnais d'émulateur : voir « Vérifications exécut
 ci-dessus — jeton d'émulateur Auth obligatoire, `Authorization: Bearer` interdit
 comme identité, et témoin positif en tête de chaque script.
 
+### Périmètre de remédiation validé — 2026-09-03
+
+L'utilisateur a validé les **lots 1 et 2** du plan, soit **trois constats** :
+**AUDIT-010** (sécurité), puis **AUDIT-001** et **AUDIT-002** dans cet ordre.
+Les trois portent déjà une fiche au format long ; leurs champs de portée ont été
+durcis avant la clôture, tant que le code était encore lu :
+
+- AUDIT-001 — portée close sur le lot A, `[Vérifié]` (3 sites de la chaîne du
+  versement mensuel, `reconduction.js` écarté car sa reprise est transactionnelle).
+- AUDIT-002 — portée passée de `[Déduit]` à **`[Vérifié]`** : une seule
+  occurrence dans tout `public/js`, méthode et écartés détaillés dans la fiche.
+- AUDIT-010 — portée `[Vérifié]` sur les cinq racines des règles ;
+  l'**exploitabilité** reste `[À tester]`, protocole dans la fiche, et c'est ce
+  qui décide de l'urgence.
+
+**La remédiation n'a pas été exécutée dans cette session** : le cadrage d'audit
+est en lecture seule sur le code. Elle demande une session au mandat distinct.
+Deux choses à savoir en l'ouvrant :
+
+1. **Les moyens de preuve ont été détruits avec l'espace de vérification.** Les
+   deux fichiers de test et les deux scripts de rejeu sont à réécrire. Le point
+   à ne pas refaire de mémoire est le harnais d'émulateur : identité par idToken
+   de l'émulateur Auth, `Authorization: Bearer` interdit comme identité (il
+   accorde la propriété et fait passer tous les contrôles), témoin positif en
+   tête de chaque script. Ma première version l'ignorait et ne mesurait rien.
+2. **Le plafond d'injection est à 24/24, marge nulle** (AUDIT-009). Aucun des
+   trois correctifs de ce périmètre n'ajoute d'`innerHTML`, mais toute retouche
+   d'affichage qui en ajouterait ferait échouer la CI, et donc la publication.
+
 ### Questions ouvertes
 
 **Q-1 — Un versement mensuel doit-il partir quand on consulte un mois à venir ?**
@@ -314,10 +343,25 @@ qu'un lot partiel est complet. Ce raisonnement n'a pas traversé jusqu'ici.
 AUDIT-001, l'écart n'est jamais rattrapé *et* jamais signalé : deux garanties
 manquantes qui se recouvrent.
 
-**Occurrences similaires [Déduit]** — Le motif « annoncer un total planifié
-plutôt qu'un total écrit » n'a été cherché que dans le lot A, où les autres
-boucles d'écriture partielle (`selection-charges.js`) comptent correctement. Non
-mesuré sur les lots C et D.
+**Occurrences similaires [Vérifié]** — **Une seule, dans tout `public/js`.**
+Passe outillée en deux temps : relevé des 15 fichiers combinant une écriture
+`await dbSet|dbUpdate|dbPush`, un `catch` et un compteur de succès, puis lecture
+de chacun pour ne garder que ceux dont l'annonce **peut** porter sur autre chose
+que ce qui est passé. Résultat :
+
+- `modules/import.js:248-255` — écrit par **lot atomique**
+  (`dbUpdate(undefined, ecritures)`) : soit tout passe, soit le `catch` rend 0
+  avec « Import non enregistré ». `lignes.length` est donc toujours exact.
+- `modules/prive.js`, `envelopes.js`, `members.js`, `category-budgets.js` —
+  une seule écriture par `try`, le message venant après un `catch` qui sort.
+  L'écriture partielle n'y est pas représentable.
+- `modules/selection-charges.js` — écrit une par une comme
+  `versement-mensuel.js`, mais compte correctement via `compteRenduDuLot`.
+
+Le contraste est le constat lui-même : `import.js` a choisi l'atomicité et n'a
+donc rien à compter ; `selection-charges.js` a choisi le partiel **et** compte
+ses succès ; `versement-mensuel.js` a choisi le partiel **sans** compter.
+La correction n'a donc qu'un site, et le modèle à suivre est dans le dépôt.
 
 **Consommateurs affectés [Vérifié]** — `annoncer` est privée au module, un seul
 site d'appel (l. 132).
