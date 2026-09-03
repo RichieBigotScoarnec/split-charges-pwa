@@ -707,6 +707,20 @@ function formulaireEdition(enveloppe, index) {
           }</label>
           <input type="text" id="envelopeEditBudget" value="${enveloppe.budget ?? ''}" inputmode="decimal" maxlength="10" />
         </div>
+        <!-- Ce qu'on y met chaque mois, sans avoir à y penser. Sur une
+             cagnotte seulement : une mensuelle est une allocation, pas un pot —
+             on ne l'alimente pas, on la fixe. -->
+        <div class="envelope-field envelope-field--mensuel" id="envelopeEditMensuelChamp"${enveloppe.nature === 'mensuelle' ? ' hidden' : ''}>
+          <label for="envelopeEditMensuelMontant">Mettre de côté chaque mois (€, facultatif)</label>
+          <input type="text" id="envelopeEditMensuelMontant" inputmode="decimal" maxlength="10"
+                 value="${enveloppe.versementMensuel ? escapeHtml(String(enveloppe.versementMensuel.montant)) : ''}" />
+          <label for="envelopeEditMensuelAuteur" class="sr-only">Qui verse chaque mois</label>
+          <select id="envelopeEditMensuelAuteur">
+            ${[['deux', 'À deux'], ['vous', 'Moi'], ['conjointe', 'Ma conjointe']].map(([valeur, texte]) => `
+              <option value="${valeur}"${(enveloppe.versementMensuel?.auteur || 'deux') === valeur ? ' selected' : ''}>${texte}</option>`).join('')}
+          </select>
+          <p class="form-aide">Repris de lui-même à l'ouverture d'un mois neuf, une seule fois et jamais vers le passé.</p>
+        </div>
         <div class="envelope-field envelope-field--report" id="envelopeEditReportChamp"${enveloppe.nature === 'mensuelle' ? '' : ' hidden'}>
           <label for="envelopeEditReport">Reporter le non-dépensé</label>
           <select id="envelopeEditReport">
@@ -730,6 +744,28 @@ function formulaireEdition(enveloppe, index) {
       </div>
     </div>
   `;
+}
+
+/**
+ * Ce que le formulaire dit du versement mensuel
+ *
+ * Un montant vide vaut `null`, c'est-à-dire « plus de versement mensuel » :
+ * c'est le seul moyen d'ARRÊTER un versement qu'on avait mis en place, et il
+ * doit donc être aussi simple qu'effacer un chiffre.
+ *
+ * La normalisation reste à `versementMensuelLisible`, appelée par
+ * `normaliserEnveloppe` : un montant illisible n'est pas rattrapé ici, il
+ * ressortira `null` plus bas. Deux endroits pour décider de la même chose
+ * finiraient par ne plus décider pareil.
+ *
+ * @param {HTMLElement} modal
+ * @returns {{montant: string, auteur: string}|null}
+ */
+function lireLeVersementMensuel(modal) {
+  const montant = modal.querySelector('#envelopeEditMensuelMontant')?.value.trim();
+  if (!montant) return null;
+
+  return { montant, auteur: modal.querySelector('#envelopeEditMensuelAuteur')?.value };
 }
 
 /**
@@ -1132,6 +1168,12 @@ function brancherEcran(modal) {
     }
     const champReport = modal.querySelector('#envelopeEditReportChamp');
     if (champReport) champReport.hidden = !mensuelle;
+
+    // L'inverse du report : on n'alimente pas une allocation mensuelle, on la
+    // fixe. Laisser le champ visible ferait saisir un réglage que
+    // l'enregistrement mettrait ensuite à `null` sans un mot.
+    const champMensuel = modal.querySelector('#envelopeEditMensuelChamp');
+    if (champMensuel) champMensuel.hidden = mensuelle;
   });
 
   modal.querySelector('#envelopeEditValider')?.addEventListener('click', async () => {
@@ -1189,7 +1231,13 @@ function brancherEcran(modal) {
       report: natureChoisie === NATURES.MENSUELLE
         && modal.querySelector('#envelopeEditReport').value === 'oui',
       rang: modal.querySelector('#envelopeEditRang').value || null,
-      theme: themeChoisi(modal, 'envelopeEdit', themesConnus(avant)).label
+      theme: themeChoisi(modal, 'envelopeEdit', themesConnus(avant)).label,
+      // Un montant vide vaut « plus de versement mensuel », et `null` supprime
+      // la clé : c'est ainsi qu'on ARRÊTE un versement qu'on avait mis en
+      // place. Une mensuelle n'en porte jamais — on ne l'alimente pas.
+      versementMensuel: natureChoisie === NATURES.MENSUELLE
+        ? null
+        : lireLeVersementMensuel(modal)
     }) : enveloppe));
 
     if (apres.some(entree => !entree)) {

@@ -158,6 +158,16 @@
           "theme": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
           },
+      "versementMensuel": {
+        "montant": {
+          ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000000"
+        },
+        "auteur": {
+          ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'deux')"
+        },
+        "$autre": { ".validate": false },
+        ".validate": "newData.hasChildren(['montant', 'auteur'])"
+      },
           "$autre": {
             ".validate": false
           }
@@ -612,6 +622,16 @@
           "theme": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
           },
+      "versementMensuel": {
+        "montant": {
+          ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000000"
+        },
+        "auteur": {
+          ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'deux')"
+        },
+        "$autre": { ".validate": false },
+        ".validate": "newData.hasChildren(['montant', 'auteur'])"
+      },
           "$autre": {
             ".validate": false
           }

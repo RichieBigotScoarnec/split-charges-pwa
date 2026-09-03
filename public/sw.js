@@ -114,6 +114,7 @@ const STATIC_ASSETS = [
   './js/utils/abonnements.js',
   './js/utils/anticipation.js',
   './js/utils/veille.js',
+  './js/utils/versement-mensuel.js',
   './js/utils/versement-partage.js',
   './js/utils/versements.js',
   // Composants
@@ -148,7 +149,8 @@ const STATIC_ASSETS = [
   './js/modules/summary.js',
   './js/modules/trash.js',
   './js/modules/trends.js',
-  './js/modules/variable-charges.js'
+  './js/modules/variable-charges.js',
+  './js/modules/versement-mensuel.js'
 ];
 
 // Le socle sans lequel l'application ne démarre pas hors ligne.
