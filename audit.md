@@ -368,13 +368,13 @@ d'émulateur et le contournement Chromium sont décrits ci-dessus, sous
 - [x] **AUDIT-003** 🟡 Versement mensuel : consulter un mois à venir l'alimente d'avance — **CORRIGÉ** (`774c3ee`)
 - [x] **AUDIT-004** 🟡 Sélection multiple : « Tout » relâche au lieu de tout cocher — **CORRIGÉ** (`7afeb58`)
 - [ ] **AUDIT-005** 🔵 Versement partagé : le mode annoncé peut différer du mode appliqué
-- [ ] **AUDIT-006** ⚪ 8 vulnérabilités « moderate » en dépendances de développement
-- [ ] **AUDIT-007** 🔵 12 modules absents du référentiel `CLAUDE.md`
-- [ ] **AUDIT-008** 🔵 `restoreFromTrash` ne valide ni la période ni l'identifiant
-- [ ] **AUDIT-009** ⚪ Plafond d'injection à marge nulle (24/24)
+- [x] **AUDIT-006** ⚪ 8 vulnérabilités « moderate » en dépendances de développement — **CLOS** (`251ce72`)
+- [x] **AUDIT-007** 🔵 12 modules absents du référentiel `CLAUDE.md` — **CORRIGÉ** (`72a6d39`)
+- [x] **AUDIT-008** 🔵 `restoreFromTrash` ne valide ni la période ni l'identifiant — **CORRIGÉ** (`440d1ac`)
+- [x] **AUDIT-009** ⚪ Plafond d'injection à marge nulle (24/24) — **CLOS** (`72a6d39`)
 - [x] **AUDIT-010** 🟠 L'espace `sandbox` n'exige pas `email_verified` — **CORRIGÉ** (`312efdd`)
 - [x] **AUDIT-011** 🟡 La file hors ligne ne ferme que l'effacement, pas l'écriture arbitraire — **CORRIGÉ** (`a61c617`)
-- [ ] **AUDIT-012** 🔵 La CSP publiée autorise `http://localhost:*` et `ws://localhost:*`
+- [x] **AUDIT-012** 🔵 La CSP publiée autorise `http://localhost:*` et `ws://localhost:*` — **CLOS** (`f06d6bc`)
 - [ ] **AUDIT-013** 🟡 Rien ne relève les mois à moitié alimentés déjà en base *(découvert en remédiation)*
 
 ---
@@ -1197,3 +1197,99 @@ on le suit.
   croire fermé.
 - Les mois éventuellement **déjà** alimentés d'avance par le défaut d'AUDIT-003
   ne sont pas relevés — même nature qu'AUDIT-013, et même remède possible.
+
+
+---
+
+## Journal de remédiation — troisième lot, 2026-09-03
+
+**Périmètre** : le reste du lot 4 (AUDIT-008, AUDIT-012, AUDIT-006) puis le
+lot 5 (AUDIT-007, AUDIT-009). Ordre suivi : défense en profondeur, puis
+dépendances, puis référentiel — ce dernier en fin de chantier, comme le plan
+le prévoyait, pour que ses entrées consignent aussi les correctifs livrés.
+
+| Constat | Commit | Mesure avant correction |
+|---|---|---|
+| **AUDIT-008** | `440d1ac` | 6 périodes malformées et 6 identifiants interdits composaient un chemin ; un mois nul affichait « Historique illisible » |
+| **AUDIT-012** | `f06d6bc` | `https://localhost:*` ajouté aux DEUX politiques ne faisait tomber aucun des 33 contrôles |
+| **AUDIT-006** | `251ce72` | `npm audit fix --dry-run` : aucun changement proposé |
+| **AUDIT-007** | `72a6d39` | 12 modules absents, mesurés par comparaison du disque au fichier |
+| **AUDIT-009** | `72a6d39` | `npx eslint .` rend 32, le référentiel annonce 26 |
+
+### Écarts avec les corrections proposées
+
+- **AUDIT-006 — la correction proposée est inapplicable.** La fiche proposait
+  `npm audit fix`. Mesuré : il ne corrige rien, et `--force` redescend
+  `firebase-tools` de plusieurs majeures — ce que la CI interdisait déjà
+  nommément. `stream-json` 1.9.1 est installé, le correctif est en 3.5.0, et
+  `firebase-tools` 15.29.0 (la dernière) épingle `^1.7.3` : deux majeures
+  d'écart, donc aucun correctif non cassant.
+
+  Ce qui a été corrigé à la place : le **commentaire** de la CI, qui inscrivait
+  l'inventaire du jour. Il a menti trois fois en trois jours — la fiche relevait
+  8 avis, le commentaire 5, la mesure d'aujourd'hui 2, sur des paquets
+  différents à chaque fois. Remplacé par la méthode, qui ne se périme pas.
+
+  *Atteignabilité mesurée sur l'arbre installé* : `stream-json` n'est chargé que
+  par `database:import` et `auth:import`. Les workflows n'appellent que
+  `database:get`, `database:update`, `deploy --only database` et
+  `emulators:exec`. Le code signalé n'est jamais chargé.
+
+- **AUDIT-012 — la décision était déjà prise, sa RAISON n'était pas gardée.**
+  La fiche laissait deux issues, dont « accepter et documenter ». C'est déjà
+  fait, et déjà attaché à la garde d'hôte de `USE_EMULATOR`. Mais tout
+  l'argument « impact nul » repose sur le contenu mixte, qui ne vaut que pour
+  `http://` et `ws://` — et rien n'empêchait `https://localhost:*`, qui n'est
+  pas du contenu mixte. C'est cette hypothèse qui est devenue mesurée.
+
+- **AUDIT-009 — traité avec AUDIT-007, même cause racine** : le référentiel qui
+  affirme un chiffre au lieu d'une règle. Les deux entrées datées ne sont pas
+  réécrites — elles étaient vraies à leur date ; c'est la phrase « le plafond
+  exact de la CI » qui a cessé de l'être, et elle est consignée comme telle.
+  Le plafond reste à 24/24 : aucun des huit correctifs de la session n'a ajouté
+  d'`innerHTML`.
+
+### Vérifications exécutées
+
+| Commande | Résultat | Code |
+|---|---|---|
+| `npx vitest run` (départ de ce lot) | 159 fichiers, **2 942** tests | 0 |
+| `npx vitest run` (final) | 159 fichiers, **2 953** tests, 0 échec | 0 |
+| `npx eslint . --quiet` (CI) | aucune sortie | 0 |
+| plafond innerHTML (CI) | **24/24**, inchangé | 0 |
+| `npm audit --audit-level=high` (CI) | 2 avis modérés, aucun haut | 0 |
+| `npm audit fix --dry-run` | aucun changement proposé | 1 |
+| YAML de `deploy.yml` après édition | 7 jobs analysés | 0 |
+
+### Cinq mutants posés, cinq chutes
+
+| Mutant | Effet |
+|---|---|
+| Gardes d'avant dans `restoreFromTrash` | 3 contrôles |
+| Garde du mois nul retirée de `collectAll` | 1 contrôle |
+| `https://localhost:*` ajouté aux deux politiques | 1 contrôle |
+| Origines locales retirées de `firebase.json` seul | 1 contrôle |
+
+### Revue des frontières
+
+Les quatre autres actions qui composent un chemin depuis `data-arg` —
+`editFixedCharge`, `deleteFixedCharge`, `editReimbursement`,
+`deleteReimbursement` — ont été relues : **elles sont saines par
+construction**. Chacune cherche l'identifiant dans la collection déjà chargée
+(`charges.find(c => c.id === chargeId)`) et abandonne s'il est introuvable ;
+l'identifiant qui atteint le chemin est donc toujours un identifiant que
+l'application a elle-même lu en base. C'est une garde plus forte que celle qui
+manquait à la corbeille. Aucun nouveau constat.
+
+Le motif `CLE_FIREBASE` a été éprouvé sur dix entrées : il accepte les clés
+poussées par Firebase, les deux-points, les accents, les emoji et les espaces ;
+il refuse `/`, `.`, la chaîne vide et les caractères de contrôle.
+
+### Ce qui n'a pas été vérifié
+
+- **La suite Playwright**, pour la même raison qu'au lot précédent : aucun de
+  ces correctifs ne touche les règles, et les 7 contrôles durablement rouges
+  dans ce conteneur rendent son verdict peu informatif. `trash.js` n'a pas de
+  contrôle de bout en bout ; son nouveau test unitaire monte le module réel.
+- **L'effet du commentaire de `deploy.yml` en CI** : le YAML est valide et le
+  seuil inchangé, mais aucun workflow n'a été déclenché depuis cette session.
