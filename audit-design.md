@@ -141,11 +141,33 @@ C'est ce qui autorise à lui faire confiance sur le reste.
   3,90:1 avec `--primary-light` […] La teinte pleine passe à 5,49:1 ». 5,49 est
   exactement ma mesure **en thème clair**. La correction du 31 août a été
   vérifiée dans un thème sur deux.
-- **Correctif** : dans le bloc `prefers-color-scheme: dark`, éclaircir
-  `--primary-color` jusqu'à franchir 4,5:1 contre blanc *et* contre les surfaces
-  sombres — ou, à l'image des jetons d'encre, introduire un `--primary-ink`
-  distinct pour les usages textuels. La seconde voie est cohérente avec ce que
-  le dépôt a déjà décidé pour les trois couleurs sémantiques.
+- **Il n'y avait pas deux voies : la première est impossible.** Posées comme
+  inégalités sur la luminance de la primaire en thème sombre, les deux
+  contraintes s'excluent :
+
+  ```
+  PEINTURE  blanc dessus ≥ 4,5              →  L(primaire) ≤ 0,1833
+  ENCRE     sur --elevated-bg ≥ 4,5         →  L(primaire) ≥ 0,2413
+
+                    0,2413  >  0,1833   →   FENÊTRE VIDE
+  ```
+
+  Aucune valeur ne satisfait les deux : porter du blanc exige une couleur
+  foncée, servir d'encre sur un fond sombre exige une couleur claire. Corriger
+  `--primary-color` seule n'était pas coûteux en identité visuelle, c'était
+  **arithmétiquement impossible**. Séparer les rôles était la seule issue —
+  exactement ce que le dépôt avait déjà décidé pour pastille et encre.
+- **Correctif appliqué** : `--primary-ink` pour les 18 sites d'encre, et
+  `--primary-color` sombre assombrie de 1 % pour la peinture.
+
+  | | Valeur | Mesure |
+  | --- | --- | ---: |
+  | `--primary-ink` clair | `#4F46E5` | 4,71 au pire |
+  | `--primary-ink` sombre | `#818CF8` | 4,69 au pire |
+  | `--primary-color` sombre | `#6366F1` → `#6264ED` | blanc dessus 4,47 → **4,60** |
+
+  **Aucune teinte n'a été inventée** : les deux valeurs de `--primary-ink`
+  existaient déjà dans le nuancier, attribuées au mauvais rôle en thème sombre.
 - **Nuance à ne pas gommer** : l'onglet actif porte **aussi** un liseré de 3 px,
   et le mode retenu une bordure et un lavis. L'information n'est jamais portée
   par la seule couleur : le manquement est de lisibilité, pas de sémantique.
@@ -249,6 +271,47 @@ regardée. Une règle uniforme n'a aucune liste à tenir.
 > lui donne la même surface est son second point d'étalonnage, après les 3,77:1
 > de `#059669` que `variables.css` documente.
 
+### Les trois angles morts, et le second contrôle
+
+Le contrôle statique lit des fichiers. Trois choses lui échappent par
+construction, et il a fallu un second contrôle pour les couvrir.
+
+| Angle mort | Ce qu'il cachait |
+| --- | --- |
+| **Encre littérale** | 14 sites écrivent `#fff` / `white` au lieu d'un jeton. Trois sont fautifs, dont `#fff` sur `--success-color` : **1,92:1** en thème sombre, le pire rapport du dépôt |
+| **Opacité héritée** | `.envelope-close { opacity: 0.6 }` atténue tout son sous-arbre sans déclarer une seule couleur : **9 textes entre 2,32 et 4,26** |
+| **Surface héritée** | `color: #FFFFFF` sans `background` dans la même règle — le fond vient d'un ancêtre, et le statique doit s'abstenir sous peine de rendre 1,05:1 sur un site parfaitement lisible |
+
+Le premier se ferme en statique : le contrôle relève désormais les encres
+littérales, et ne les mesure **que** si leur règle déclare un fond.
+
+Les deux autres ne se ferment pas en lisant un fichier. `encre-rendue.spec.js`
+balaie le texte **réellement peint** — deux thèmes, trois panneaux, plus la
+modale des enveloppes — en remontant la chaîne des ancêtres et en appliquant le
+modèle exact de l'opacité : un élément à `opacity: α` compose tout son
+sous-arbre, fond comme texte.
+
+**Les deux contrôles sont complémentaires, pas redondants.** Le statique nomme
+le `fichier:ligne` et couvre les états qu'aucun jeu d'essai ne rend — c'est lui
+seul qui voit `.current-period-badge`, jamais rendu par le foyer d'essai. Le
+rendu couvre l'héritage et la cascade. Supprimer l'un rouvre ce que l'autre ne
+voit pas.
+
+> **Ce qui a failli rendre le second contrôle inutile.** Sa première version
+> ouvrait la modale sur une liste **vide** : les enveloppes sont lues une fois,
+> à l'initialisation, et un `dbSet` après coup ne change pas l'état. Les 9 sites
+> de l'enveloppe close n'étaient donc pas mesurés, et le fichier paraissait
+> complet. C'est le cas « l'enveloppe close est bien rendue » qui l'a dit — il
+> reste, pour que l'angle mort ne se rouvre pas en silence.
+
+**Deux règles, et non deux listes d'exceptions.** Le balayage écarte les
+commandes inactives — les WCAG les dispensent explicitement — et le contenu
+portant `aria-hidden="true"` : déclaré décoratif, jamais deviné. Il écarte
+aussi les emoji **couleur**, peints par la police et non par `color` ; le
+critère est la présentation (`\p{Emoji_Presentation}`), si bien que « ◀ », « ✕ »
+et « • », qui se peignent avec `color`, restent mesurés au seuil de 3:1 des
+objets graphiques.
+
 ---
 
 ## 4. Constats écartés par la mesure
@@ -285,12 +348,14 @@ Consignés pour qu'ils ne reviennent pas — c'est la convention du dépôt.
 
 | Étape | Action | Fichier(s) | État |
 | ---: | --- | --- | --- |
-| 1 | **Le contrôle, écrit et commité ROUGE** — 9 cas rouges nommant 56 sites | `tests/encre-sur-surface.test.js` | ✅ fait |
-| 2 bis | **Rendre la cible sûre** : les jetons `*-ink` ne tiennent pas sur les lavis | `variables.css` | arbitrage rendu, non appliqué |
-| 2 | **D-1 + D-2** — substituer les 33 sites, guidé par le contrôle jusqu'au vert | 5 feuilles | à faire |
-| 3 | **D-3** — les 18 sites de marque, thème sombre | `variables.css` | à faire |
+| 1 | **Le contrôle statique, commité ROUGE** — 9 cas nommant 56 sites | `tests/encre-sur-surface.test.js` | ✅ fait |
+| 2 bis | **Rendre la cible sûre** : les `*-ink` ne tenaient pas sur les lavis | `variables.css` | ✅ fait |
+| 2 | **D-1 + D-2** — 39 substitutions, jusqu'au vert des 4 familles | 5 feuilles | ✅ fait |
+| 3 a | **Les deux contrôles, commités ROUGES** — littéraux, opacité et surface héritées | les 2 contrôles | ✅ fait |
+| 3 b | **D-3 + périmètre élargi** — 18 sites de marque, 3 encres littérales, 2 opacités, l'enveloppe close | `variables.css` + 6 feuilles | ✅ fait |
 | 4 | **D-4** — contrôle qui **énumère** les commandes et vérifie la cible, pas trois sélecteurs de plus | `responsive.css` + test | à faire |
 | — | **D-5** — hauteur du champ de recherche | `responsive.css` | reporté |
+| — | `.search-bar-icon` et `.manage-item-icon` sans `aria-hidden` | balisage | identifié, non fait |
 
 **D-1 n'est pas une étape.** Le premier plan en faisait un correctif à part ;
 c'est faux. La barre de solde est **un des 33 sites** de D-2 — celui qui compte
@@ -334,6 +399,54 @@ leur propre lavis composé sur la pire surface — et non en créant une variant
 
 Assombrissements de 2 à 8 %, teinte préservée, **aucun nouveau site à décider**.
 Sans effet en thème sombre, où les encres valent déjà les pastilles.
+
+### Étape 3 b — l'effacement des enveloppes closes
+
+Le seul point de tout ce travail qui touchait une **intention** et non un
+défaut. `.envelope-close { opacity: 0.6 }` porte une intention écrite dans le
+dépôt : « reste lisible, mais s'efface derrière les enveloppes en cours ».
+
+Trois voies, deux écartées par la mesure :
+
+- **Réduire l'opacité** — impossible. L'étiquette de thème que porte une
+  enveloppe est calibrée à 4,60 sur son lavis : *toute* atténuation la fait
+  tomber. L'alpha maximal tenable est **1,00**, c'est-à-dire aucun.
+- **Atténuer les couleurs sur les descendants** — écarté sur principe : il faut
+  énumérer chaque descendant porteur de couleur, et y ajouter le suivant le
+  jour où quelqu'un ajoute un champ. Une liste d'exceptions.
+- **Reculer la surface** — retenu. Une enveloppe close cesse d'être une puce en
+  relief et repose à plat sur la modale. Deux déclarations, aucun descendant
+  énuméré.
+
+L'effacement porte donc sur l'**élévation**, jamais sur l'encre — et le
+contraste s'améliore partout, `--card-bg` étant la plus contrastée des trois
+surfaces (libellé 14,38 → 16,47 ; détail 5,54 → 6,35 ; étiquette 4,63 → 5,27).
+
+Ce qui a permis de trancher n'était pas dans le CSS : `envelopes.js:863` rend
+`<span class="envelope-etat">close</span>` à côté du libellé. **L'état est déjà
+dit en toutes lettres** — l'atténuation n'a jamais porté l'information, elle ne
+faisait que la redoubler. Arbitrer sur le seul CSS aurait laissé croire le
+contraire.
+
+### Étape 3 b — la famille `--on-*`, complétée
+
+Trois règles posaient du **blanc** sur une couleur pleine. `--on-warning`
+existait depuis longtemps, ses deux sœurs non — et les trois sites sont donc
+restés au blanc faute de cible :
+
+| Site | Avant | Après |
+| --- | ---: | --- |
+| `.current-period-badge` | 3,77 clair · **1,92 sombre** | `--on-success` — 4,63 · 7,61 |
+| `.btn-danger` | 4,83 clair · **2,77 sombre** | `--on-danger` — 4,83 · 5,29 |
+| `.manage-item-delete:hover` | 4,83 clair · **2,77 sombre** | idem |
+
+Le blanc est **conservé** là où il gagne — sur le rouge du thème clair, à
+4,83:1. Ces jetons ne prescrivent pas une teinte, ils prescrivent la lisibilité
+sur leur fond.
+
+C'est le même motif qu'une famille d'encres à trois membres sur quatre : une
+famille incomplète est le trou par lequel la dérive rentre, parce que le site
+sans cible force l'exception.
 
 ---
 

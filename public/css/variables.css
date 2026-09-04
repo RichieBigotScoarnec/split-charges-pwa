@@ -77,6 +77,25 @@
   --primary-dark: #3730A3;
   --primary-light: #6366F1;
   --primary-glow: rgba(79, 70, 229, 0.12);
+  /* La marque en ENCRE — et la démonstration qu'elle ne pouvait pas être
+     économisée.
+     ---------------------------------------------------------------
+     `--primary-color` peint les boutons d'action, le bouton flottant et le
+     lien d'évitement, qui portent du blanc ; elle servait AUSSI d'encre sur
+     dix-huit sites. En thème sombre les deux usages posent des contraintes
+     opposées sur la même valeur :
+
+       PEINTURE  blanc dessus ≥ 4,5        →  L(primaire) ≤ 0,1833
+       ENCRE     sur --elevated-bg ≥ 4,5   →  L(primaire) ≥ 0,2413
+
+     0,2413 > 0,1833 : la fenêtre commune est VIDE. Aucune valeur ne satisfait
+     les deux — ce n'était donc pas un arbitrage entre deux voies coûteuses,
+     mais une impossibilité arithmétique. Séparer les rôles était la seule
+     issue, exactement comme pastille et encre pour les couleurs sémantiques.
+
+     Aucune teinte n'a été inventée : les deux valeurs existaient déjà dans le
+     nuancier, attribuées au mauvais rôle en thème sombre. */
+  --primary-ink: #4F46E5;
   /* Une seule couleur de marque, et c'est délibéré.
      `--secondary-color` valait #7C3AED : trente degrés de teinte et la même
      clarté que la primaire, autrement dit la même couleur à l'œil. Une
@@ -94,6 +113,24 @@
   /* Encre sur fond d'avertissement — volontairement fixe : --text-primary
      s'inverse en thème sombre et tomberait à 1,5:1 sur l'ambre clair. */
   --on-warning: #1E293B;
+  /* Les deux sœurs de --on-warning, et pourquoi elles ont tardé.
+     ---------------------------------------------------------------
+     Trois règles posaient du BLANC sur une couleur pleine, écrit en toutes
+     lettres — donc invisible à un contrôle qui ne lisait que `color: var(…)`.
+     Mesuré : blanc sur --success-color rend 3,77:1 en clair et **1,92:1** en
+     sombre, le pire rapport du dépôt ; blanc sur --danger-color rend 2,77:1
+     en sombre.
+
+     Une famille à un seul membre était le trou : `--on-warning` existait,
+     personne n'avait écrit ses sœurs, et les trois sites sont donc restés au
+     blanc faute de cible. C'est le même motif que la famille d'encres à trois
+     membres sur quatre.
+
+     Le blanc reste retenu là où il gagne — sur le rouge du thème clair, à
+     4,83:1. Ces jetons ne prescrivent pas une teinte, ils prescrivent la
+     LISIBILITÉ sur leur fond. */
+  --on-success: #131A26;
+  --on-danger: #FFFFFF;
   --info-color: #2563EB;
 
   /* Les mêmes couleurs, en ENCRE
@@ -261,9 +298,18 @@
 /* Dark mode (optionnel — suit la préférence système) */
 @media (prefers-color-scheme: dark) {
   :root {
-    --primary-color: #6366F1;
+    /* Assombrie de 1 % : le blanc qu'elle porte rendait 4,467:1, sous le
+       seuil. À 4,600 l'identité visuelle ne bouge pas de façon perceptible,
+       et les neuf sites qui posent du blanc dessus passent d'un seul geste. */
+    --primary-color: #6264ED;
     --primary-dark: #4F46E5;
     --primary-light: #818CF8;
+    /* L'encre de la marque en thème sombre : claire, là où la peinture est
+       foncée. C'est la valeur de `--primary-light`, qui remplissait déjà ce
+       rôle sans le nom. */
+    --primary-ink: #818CF8;
+    --on-success: #1E293B;
+    --on-danger: #1E293B;
     --primary-glow: rgba(99, 102, 241, 0.15);
     --success-color: #34D399;
     --danger-color: #F87171;

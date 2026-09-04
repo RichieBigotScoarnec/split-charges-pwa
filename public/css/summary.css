@@ -82,14 +82,14 @@
      pire, pour une différence de nuance imperceptible sur du texte de cette
      taille. `--primary-light` reste juste pour ce dont elle a la charge : les
      bordures, les lavis, les états de survol. */
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 .summary-percent {
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   background: var(--primary-soft);
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -447,7 +447,7 @@
 
 .resume-prive-bouton:hover {
   border-color: var(--primary-color);
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 .resume-prive-bouton:focus-visible {

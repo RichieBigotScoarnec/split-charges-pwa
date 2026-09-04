@@ -228,6 +228,23 @@ export function blocsDeRegles(css) {
   return blocs;
 }
 
+/**
+ * L'opacité déclarée par un bloc, 1 s'il n'en déclare aucune.
+ *
+ * Extraite pour être éprouvée sur une entrée SYNTHÉTIQUE. La garde qui la
+ * couvrait exigeait qu'un site à `opacity: 0.8` existe dans les feuilles — elle
+ * est tombée le jour où ce site a été corrigé, en signalant un défaut du
+ * dépôt là où il n'y avait qu'une prémisse périmée. Une garde doit mesurer la
+ * CAPACITÉ du contrôle, jamais l'état du code qu'il inspecte.
+ *
+ * @param {string} contenu - Corps d'un bloc de règles
+ * @returns {number}
+ */
+export function opaciteDuBloc(contenu) {
+  const trouve = contenu.match(/(^|[;\s])opacity:\s*([\d.]+)/);
+  return trouve ? parseFloat(trouve[2]) : 1;
+}
+
 /** Numéro de ligne d'un décalage dans un texte. */
 function ligneDe(texte, decalage) {
   let n = 1;
@@ -263,7 +280,7 @@ export function relever() {
         ? valeurFond
         : null;
 
-      const opacite = bloc.contenu.match(/(^|[;\s])opacity:\s*([\d.]+)/);
+      const opacite = opaciteDuBloc(bloc.contenu);
 
       // `color:` et non `border-color:`, `background-color:`, `accent-color:`…
       // Le caractère qui précède doit être un début, un point-virgule ou un
@@ -283,7 +300,7 @@ export function relever() {
           litteral,
           fondJeton: jetonFond,
           fondLitteral,
-          opacite: opacite ? parseFloat(opacite[2]) : 1
+          opacite
         });
       }
     }
@@ -423,10 +440,27 @@ describe('Le relevé', () => {
     expect(banniere.fondJeton).toBe('warning-color');
   });
 
-  it('relève l\'opacité du bloc', () => {
-    // `.charge-location` : `--primary-light` à 11 px avec `opacity: 0.8`.
-    const lieu = SITES.find((s) => s.fichier === 'components.css' && s.opacite === 0.8);
-    expect(lieu, 'un site à opacité 0,8 doit être relevé').toBeDefined();
+  it('lit l\'opacité d\'un bloc, sur une entrée synthétique', () => {
+    // La version précédente de cette garde exigeait qu'un site à
+    // `opacity: 0.8` existe dans les feuilles — c'était `.charge-location`.
+    // Elle est tombée le jour où ce site a été corrigé, en signalant un défaut
+    // là où il n'y avait qu'une prémisse périmée. Une garde doit mesurer la
+    // CAPACITÉ du contrôle, jamais l'état du code qu'il inspecte.
+    expect(opaciteDuBloc('color: red; opacity: 0.75;')).toBe(0.75);
+    expect(opaciteDuBloc('color: red;')).toBe(1);
+    // Et ne confond pas une opacité avec la fin d'un autre nom.
+    expect(opaciteDuBloc('--mon-opacity: 0.3;')).toBe(1);
+  });
+
+  it('APPLIQUE l\'opacité à l\'encre, et ne fait pas que la relever', () => {
+    // Sans ce cas, `opaciteDuBloc` pourrait être juste et son résultat jeté :
+    // le relevé serait exact et la mesure fausse.
+    const nu = {
+      jeton: 'text-secondary', litteral: null,
+      fondJeton: null, fondLitteral: null, opacite: 1
+    };
+    expect(pireContraste({ ...nu, opacite: 0.5 }).ratio)
+      .toBeLessThan(pireContraste(nu).ratio);
   });
 
   it('relève les encres LITTÉRALES, et les mesure sur le fond déclaré', () => {

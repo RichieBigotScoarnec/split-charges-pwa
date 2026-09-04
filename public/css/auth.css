@@ -109,7 +109,7 @@
 .auth-card .btn-link.auth-attente-longue {
   background: none;
   border: none;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: underline;
   font-family: var(--font);
   cursor: pointer;

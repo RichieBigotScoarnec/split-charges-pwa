@@ -175,11 +175,22 @@ const BALAYAGE = `
       // Et le contenu déclaré décoratif — déclaré, pas deviné.
       if (estDecoratif(el)) continue;
 
+      // Un emoji COULEUR est peint par la police, pas par \`color\` : lui
+      // appliquer un rapport de contraste ne mesure rien. Cette application
+      // s'en sert comme système d'icônes entier, il fallait donc trancher.
+      //
+      // Le critère est la PRÉSENTATION, pas la catégorie : \`\\p{Emoji_Presentation}\`
+      // et les pictogrammes suivis de U+FE0F rendent en couleur ; « ◀ », « ▶ »,
+      // « ✕ », « • » et « ✓ » rendent en texte et restent mesurés.
+      if (/^(?:\\p{Emoji_Presentation}|\\p{Extended_Pictographic}\\uFE0F|[\\u200D\\s])+$/u.test(txt)) continue;
+
       const s = getComputedStyle(el);
       const taille = parseFloat(s.fontSize);
       const gras = parseInt(s.fontWeight, 10) >= 700;
-      // 1.4.3 : 3:1 suffit au « grand texte ».
-      const seuil = (taille >= 24 || (gras && taille >= 18.66)) ? 3 : 4.5;
+      // 1.4.3 pour du texte ; 1.4.11 — 3:1 — pour un glyphe sans lettre ni
+      // chiffre, qui est un objet graphique et non du texte.
+      const glyphe = !/[\\p{L}\\p{N}]/u.test(txt);
+      const seuil = glyphe || taille >= 24 || (gras && taille >= 18.66) ? 3 : 4.5;
 
       const m = mesurer(el);
       if (!m) continue;
@@ -211,7 +222,10 @@ async function releverTout(page) {
   for (const panneau of PANNEAUX) {
     await allerAuPanneau(page, panneau);
     trouves.push(...await page.evaluate(
-      ({ code, nom }) => { eval(code); return balayer(nom); },
+      // La valeur de complétion de l'`eval` REND la fonction, plutôt que de la
+      // laisser comme identifiant libre : eslint ne peut pas voir ce qui naît
+      // d'une chaîne, et `no-undef` est une erreur — que la CI refuse.
+      ({ code, nom }) => eval(`${code}; balayer`)(nom),
       { code: BALAYAGE, nom: panneau }
     ));
   }
@@ -222,7 +236,7 @@ async function releverTout(page) {
   await page.locator('[data-action="showManageEnvelopesModal"]').first().click();
   await page.waitForTimeout(900);
   trouves.push(...await page.evaluate(
-    ({ code, nom }) => { eval(code); return balayer(nom); },
+    ({ code, nom }) => eval(`${code}; balayer`)(nom),
     { code: BALAYAGE, nom: 'modaleEnveloppes' }
   ));
 
