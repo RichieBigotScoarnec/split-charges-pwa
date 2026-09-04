@@ -193,10 +193,20 @@ describe('La politique de securite', () => {
     const page = politique(html);
     const hebergement = politique(entete.value);
 
-    // Les origines localhost n'appartiennent qu'à la page : `?emulator=1` ne
-    // s'utilise pas depuis l'hébergement, et n'a donc pas à figurer là-bas.
-    const propre = (origines) => (origines || [])
-      .filter((origine) => !origine.includes('localhost') && !origine.includes('127.0.0.1'));
+    // AUDIT-012. Ce filtre écartait les origines locales des DEUX côtés, au
+    // motif qu'elles « n'appartiennent qu'à la page ». Elles figurent en fait
+    // dans les deux fichiers, et pour une raison : `npm run emulators` lance
+    // aussi l'émulateur d'hébergement (port 5000), qui applique les en-têtes
+    // de `firebase.json` — les en retirer casserait ce chemin de
+    // développement. Le filtre créait donc un angle mort exactement là où ce
+    // contrôle existe pour ne pas en avoir.
+    //
+    // Elles sont désormais comparées comme le reste. Ce qui les rend
+    // acceptables en production est tenu ailleurs, et mesuré :
+    // `balisage-sain.test.js` exige qu'elles soient en `http`/`ws` — donc
+    // bloquées comme contenu mixte — et qu'elles ne sortent pas de
+    // `connect-src`.
+    const propre = (origines) => origines || [];
 
     // Toutes les directives des deux côtés, et non quatre choisies à la main.
     //

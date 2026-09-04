@@ -413,14 +413,36 @@ test.describe('La liste blanche fait toujours autorité', () => {
       .toBe(200);
   });
 
-  test('le bac à sable reste ouvert à une adresse non vérifiée', async ({ request }) => {
+  test('le bac à sable reste ouvert au COMPTE DE TEST non vérifié', async ({ request }) => {
     // Le compte de test s'authentifie par mot de passe et son adresse n'est
     // pas vérifiée. Lui imposer la même condition qu'au foyer fermerait le bac
-    // à sable, dont c'est le seul usage.
+    // à sable, dont c'est le seul usage. C'est le témoin qui interdit de
+    // « corriger » AUDIT-010 en alignant les deux espaces sans distinguer les
+    // comptes : ce serait échanger une exposition contre une panne.
     const jeton = await jetonPour(request, EMAIL_TEST);
 
     expect(await ecrire(request, 'sandbox/periods/2026-08/variableCharges/c1', CHARGE_VALIDE, jeton))
       .toBe(200);
+  });
+
+  test('une adresse du FOYER non vérifiée n\'ouvre pas non plus le bac à sable', async ({ request }) => {
+    // AUDIT-010. Le bac à sable avait été écrit comme une copie assouplie du
+    // foyer, et la garde `email_verified` n'avait pas suivi : les deux
+    // adresses du foyer y entraient sans avoir prouvé la boîte aux lettres.
+    // Ce n'est pas l'espace des finances réelles — elles vivent sous
+    // `household` — mais c'est une écriture arbitraire dans la base du projet
+    // de production, sous une identité que les règles tiennent pour légitime.
+    //
+    // L'exemption vaut pour le seul compte cantonné au bac à sable (contrôle
+    // précédent), jamais pour un compte du foyer.
+    const jeton = await jetonPour(request, EMAIL_FOYER);
+
+    expect(await ecrire(request, 'sandbox/periods/2026-08/variableCharges/c1', CHARGE_VALIDE, jeton))
+      .not.toBe(200);
+
+    const lecture = await request.get(`${EMULATOR_DB_URL}/sandbox.json?${NS}&auth=${jeton}`,
+      { failOnStatusCode: false });
+    expect(lecture.status()).not.toBe(200);
   });
 
   test('le bac à sable applique le même schéma que le foyer', async ({ request }) => {

@@ -151,6 +151,42 @@ describe('FairSplit.html — le balisage dit ce qu\'il a l\'air de dire', () => 
     }
   });
 
+  it('AUDIT-012 — les origines locales sont en http et ws, jamais en https ni wss', () => {
+    // **La raison pour laquelle ces origines sont inoffensives en production,
+    // rendue mesurable.** Le raisonnement tenu jusqu'ici — « une page servie
+    // en HTTPS ne peut pas ouvrir de connexion `http://` ni `ws://` : contenu
+    // mixte, bloqué par le navigateur avant même la CSP » — ne vaut que pour
+    // ces deux schémas.
+    //
+    // `https://localhost:*` et `wss://localhost:*` ne sont PAS du contenu
+    // mixte. Une page servie depuis github.io pourrait donc les joindre, et
+    // il ne resterait alors que `USE_EMULATOR` entre un lien piégé et un
+    // service en écoute chez la victime — une garde applicative, là où la
+    // politique est censée être la dernière ligne.
+    //
+    // Mesuré : ajouter `https://localhost:*` aux DEUX politiques ne faisait
+    // tomber aucun des 33 contrôles de ces deux fichiers.
+    const politiques = {
+      'la page': readFileSync(join(process.cwd(), 'public', 'FairSplit.html'), 'utf-8'),
+      'firebase.json': readFileSync(join(process.cwd(), 'firebase.json'), 'utf-8')
+    };
+
+    let vues = 0;
+    for (const [ou, source] of Object.entries(politiques)) {
+      for (const [, origine] of source.matchAll(
+        /([a-z]+:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::[\d*]+)?)/g
+      )) {
+        vues += 1;
+        expect(origine, `${ou} : ${origine} n'est pas bloqué par le contenu mixte`)
+          .toMatch(/^(?:http|ws):\/\//);
+      }
+    }
+
+    // Sans ce compte, un relevé cassé passerait sans rien mesurer.
+    expect(vues, 'aucune origine locale relevée : le motif ne trouve plus rien')
+      .toBeGreaterThan(4);
+  });
+
   it('aucun commentaire ne cite une balise exécutable', () => {
     // La mine qui a explosé, et qu'on désamorce à la source.
     //

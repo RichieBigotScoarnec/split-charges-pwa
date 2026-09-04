@@ -84,12 +84,6 @@ describe('Le cas où il faut alimenter', () => {
       .toEqual({ montant: 150, auteur: 'deux', date: '2026-09-01' });
   });
 
-  it('un mois À VENIR est alimenté, lui aussi', () => {
-    // Consulter octobre en septembre et le préparer est un geste légitime : ce
-    // qui est interdit, c'est de réécrire le passé.
-    expect(planVersementMensuel({ ...NOMINAL, cible: '2026-10' })).not.toBeNull();
-  });
-
   it('la fenêtre de l\'enveloppe se compare au MOIS, pas au jour', () => {
     // Une échéance au 29 août n'ampute pas août : le versement du mois
     // appartient au mois entier.
@@ -106,6 +100,25 @@ describe('Les six raisons de ne rien faire', () => {
     // Y déverser un versement réécrirait l'histoire d'un pot dont le contenu a
     // déjà servi à juger une échéance.
     expect(planVersementMensuel({ ...NOMINAL, cible: '2026-08' })).toBeNull();
+  });
+
+  it('AUDIT-003 — le mois visé est À VENIR', () => {
+    // Le sélecteur propose un mois d'avance. L'ouvrir écrivait aujourd'hui un
+    // versement daté du 1er du mois suivant : CONSULTER déplaçait de l'argent.
+    // Le pot affichait alors 300 € quand 150 € seulement étaient mis de côté,
+    // et `acquisSurObjectif` comme `etatProvision` présentent ce contenu comme
+    // de l'argent qui existe.
+    //
+    // La reconduction des charges fixes fait de même vers l'avenir, et c'est
+    // assumé — mais une charge fixe reconduite est une dépense PRÉVUE, affichée
+    // comme prévue, là où un versement est un mouvement CONSTATÉ.
+    expect(planVersementMensuel({ ...NOMINAL, cible: '2026-10' })).toBeNull();
+  });
+
+  it('et le mois COURANT continue de l\'être — le témoin positif', () => {
+    // Sans lui, une garde qui refuserait tout passerait les deux contrôles
+    // ci-dessus sans rien mesurer.
+    expect(planVersementMensuel({ ...NOMINAL, cible: '2026-09' })).not.toBeNull();
   });
 
   it('l\'enveloppe est close', () => {
