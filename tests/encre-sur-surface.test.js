@@ -135,10 +135,20 @@ export function valeurDuJeton(nom, theme, profondeur = 0) {
    Couleurs : lecture, compositage, contraste
    ============================================================ */
 
+/**
+ * Les deux mots-clés de couleur employés dans ces feuilles.
+ *
+ * `white` et `black` sont des couleurs comme les autres ; les écrire en toutes
+ * lettres ne les soustrait pas à la mesure. `transparent`, `inherit` et
+ * `currentColor` ne sont pas des couleurs résolubles ici : `lireCouleur` rend
+ * `null` et le site est écarté du relevé.
+ */
+const MOTS = { white: '#FFFFFF', black: '#000000' };
+
 /** @returns {{rgb: number[], alpha: number}|null} */
 export function lireCouleur(valeur) {
   if (!valeur) return null;
-  const v = valeur.trim();
+  const v = MOTS[valeur.trim().toLowerCase()] ?? valeur.trim();
 
   const court = v.match(/^#([0-9A-Fa-f]{3})$/);
   if (court) {
@@ -228,8 +238,14 @@ function ligneDe(texte, decalage) {
 /**
  * Tous les sites où une encre est posée, avec la surface déclarée par sa règle.
  *
- * @returns {Array<{fichier: string, ligne: number, jeton: string,
- *                  fondJeton: string|null, opacite: number}>}
+ * Une encre peut être un JETON (`color: var(--success-ink)`) ou un LITTÉRAL
+ * (`color: #fff`, `color: white`). Ne relever que les jetons laissait 14 sites
+ * hors de portée, dont trois fautifs — et le pire du dépôt : du blanc sur
+ * `--success-color`, qui rend 1,92:1 en thème sombre.
+ *
+ * @returns {Array<{fichier: string, ligne: number, jeton: string|null,
+ *                  litteral: string|null, fondJeton: string|null,
+ *                  fondLitteral: string|null, opacite: number}>}
  */
 export function relever() {
   const sites = [];
@@ -238,23 +254,35 @@ export function relever() {
     const css = SOURCES[fichier];
 
     for (const bloc of blocsDeRegles(css)) {
+      const fond = bloc.contenu.match(/(^|[;\s])background(?:-color)?:\s*([^;]+)/);
+      const valeurFond = fond ? fond[2].trim() : null;
+      const jetonFond = valeurFond?.match(/^var\(\s*--([\w-]+)\s*\)$/)?.[1] ?? null;
+      // Un fond littéral opaque est une surface aussi mesurable qu'un jeton.
+      // Un dégradé ou `transparent` ne renseigne pas : `lireCouleur` rend null.
+      const fondLitteral = !jetonFond && valeurFond && lireCouleur(valeurFond)
+        ? valeurFond
+        : null;
+
+      const opacite = bloc.contenu.match(/(^|[;\s])opacity:\s*([\d.]+)/);
+
       // `color:` et non `border-color:`, `background-color:`, `accent-color:`…
       // Le caractère qui précède doit être un début, un point-virgule ou un
       // blanc — jamais un tiret.
-      for (const m of bloc.contenu.matchAll(/(^|[;\s])color:\s*var\(\s*--([\w-]+)\s*\)/g)) {
-        const fond = bloc.contenu.match(/(^|[;\s])background(?:-color)?:\s*([^;]+)/);
-        const valeurFond = fond ? fond[2].trim() : null;
-        const jetonFond = valeurFond?.match(/^var\(\s*--([\w-]+)\s*\)$/)?.[1] ?? null;
+      for (const m of bloc.contenu.matchAll(/(^|[;\s])color:\s*([^;}]+)/g)) {
+        const brut = m[2].trim();
+        const jeton = brut.match(/^var\(\s*--([\w-]+)\s*\)$/)?.[1] ?? null;
+        const litteral = !jeton && lireCouleur(brut) ? brut : null;
 
-        const opacite = bloc.contenu.match(/(^|[;\s])opacity:\s*([\d.]+)/);
+        // `inherit`, `currentColor`, `transparent` : rien à mesurer ici.
+        if (!jeton && !litteral) continue;
 
         sites.push({
           fichier,
           ligne: bloc.ligne + ligneDe(bloc.contenu, m.index) - 1,
-          jeton: m[2],
+          jeton,
+          litteral,
           fondJeton: jetonFond,
-          // Un fond littéral non-jeton (dégradé, `transparent`) ne renseigne
-          // pas : on retombe sur les surfaces de base, plus prudentes.
+          fondLitteral,
           opacite: opacite ? parseFloat(opacite[2]) : 1
         });
       }
@@ -262,6 +290,11 @@ export function relever() {
   }
 
   return sites;
+}
+
+/** L'étiquette d'un site dans les rapports — jeton nommé, ou littéral cité. */
+export function cleDuSite(site) {
+  return site.jeton ? `--${site.jeton}` : `littéral « ${site.litteral} »`;
 }
 
 /**
@@ -272,17 +305,31 @@ export function relever() {
 export function pireContraste(site) {
   let pire = null;
 
+  // Une encre LITTÉRALE sans fond déclaré n'est pas mesurable ici : `#FFFFFF`
+  // rapporté aux surfaces de base rendrait 1,05:1 et signalerait un défaut là
+  // où la règle pose en réalité son texte sur un fond hérité, coloré. C'est la
+  // frontière exacte entre ce contrôle et celui du rendu, qui, lui, voit
+  // l'ancêtre. Un jeton, lui, EST conçu pour les surfaces de base : le repli y
+  // reste légitime.
+  if (site.litteral && !site.fondJeton && !site.fondLitteral) return null;
+
   for (const theme of ['clair', 'sombre']) {
-    const encreBrute = lireCouleur(valeurDuJeton(site.jeton, theme));
+    const encreBrute = site.jeton
+      ? lireCouleur(valeurDuJeton(site.jeton, theme))
+      : lireCouleur(site.litteral);
     if (!encreBrute) continue;
 
     // La surface : celle que la règle déclare, sinon les trois de base.
     const candidates = site.fondJeton
       ? [site.fondJeton]
-      : SURFACES_DE_BASE;
+      : site.fondLitteral
+        ? [site.fondLitteral]
+        : SURFACES_DE_BASE;
 
     for (const nomSurface of candidates) {
-      const fondBrut = lireCouleur(valeurDuJeton(nomSurface, theme));
+      const fondBrut = site.fondLitteral === nomSurface
+        ? lireCouleur(nomSurface)
+        : lireCouleur(valeurDuJeton(nomSurface, theme));
       if (!fondBrut) continue;
 
       // Un fond translucide est une COUCHE : il se compose sur les surfaces
@@ -318,9 +365,9 @@ const DEFAUTS = SITES
   .map((s) => ({ ...s, mesure: pireContraste(s) }))
   .filter((s) => s.mesure && s.mesure.ratio < SEUIL);
 
-/** Les jetons fautifs, chacun avec ses sites — un cas par jeton, pour que la
+/** Les encres fautives, chacune avec ses sites — un cas par encre, pour que la
  *  sortie reste lisible quand il y en a cinquante. */
-const PAR_JETON = [...new Set(DEFAUTS.map((d) => d.jeton))].sort();
+const PAR_ENCRE = [...new Set(DEFAUTS.map(cleDuSite))].sort();
 
 describe('Le mesureur lui-même', () => {
   // Un mesureur faux validerait n'importe quoi en silence.
@@ -381,6 +428,37 @@ describe('Le relevé', () => {
     const lieu = SITES.find((s) => s.fichier === 'components.css' && s.opacite === 0.8);
     expect(lieu, 'un site à opacité 0,8 doit être relevé').toBeDefined();
   });
+
+  it('relève les encres LITTÉRALES, et les mesure sur le fond déclaré', () => {
+    // Le contrôle n'a longtemps lu que `color: var(...)`. Les 14 sites écrits
+    // en clair lui échappaient — dont du blanc sur `--success-color`, qui rend
+    // 1,92:1 en thème sombre, le pire du dépôt.
+    const litteraux = SITES.filter((s) => s.litteral);
+    expect(litteraux.length, 'les encres littérales doivent être relevées')
+      .toBeGreaterThanOrEqual(10);
+
+    const surJeton = litteraux.filter((s) => s.fondJeton);
+    expect(surJeton.length, 'et celles posées sur un fond nommé doivent être mesurables')
+      .toBeGreaterThan(0);
+    expect(pireContraste(surJeton[0])).not.toBeNull();
+  });
+
+  it('ne mesure PAS une encre littérale dont le fond est hérité', () => {
+    // `summary.css:325` pose `color: #FFFFFF` sans déclarer de fond : le fond
+    // vient de l'ancêtre. Rapporter ce site aux surfaces de base rendrait
+    // 1,05:1 et signalerait un défaut qui n'existe pas. C'est la frontière
+    // avec le contrôle de rendu, qui, lui, voit l'ancêtre.
+    const herite = SITES.find((s) => s.litteral && !s.fondJeton && !s.fondLitteral);
+    expect(herite, 'un tel site doit exister dans ces feuilles').toBeDefined();
+    expect(pireContraste(herite), 'et ne doit pas être mesuré ici').toBeNull();
+  });
+
+  it('mesure une encre littérale sur un fond littéral', () => {
+    // `responsive.css` : `background: white; color: black` dans le même bloc.
+    const impression = SITES.find((s) => s.litteral && s.fondLitteral);
+    expect(impression, 'le bloc d\'impression doit être relevé').toBeDefined();
+    expect(pireContraste(impression).ratio).toBeGreaterThan(15);
+  });
 });
 
 describe('Aucune encre posée sous le seuil AA', () => {
@@ -389,26 +467,27 @@ describe('Aucune encre posée sous le seuil AA', () => {
    * la surface, puis TOUS les sites à reprendre : c'est ce qui rend le
    * correctif mécanique plutôt que fouillé à la main.
    */
-  if (PAR_JETON.length === 0) {
-    it('aucun jeton d\'encre ne tombe sous 4,5:1', () => {
+  if (PAR_ENCRE.length === 0) {
+    it('aucune encre ne tombe sous 4,5:1', () => {
       expect(DEFAUTS).toEqual([]);
     });
   }
 
-  for (const jeton of PAR_JETON) {
-    const sites = DEFAUTS.filter((d) => d.jeton === jeton);
+  for (const encre of PAR_ENCRE) {
+    const sites = DEFAUTS.filter((d) => cleDuSite(d) === encre);
     const pire = sites.reduce((a, b) => (a.mesure.ratio <= b.mesure.ratio ? a : b));
 
-    it(`--${jeton} tient le seuil partout où il est posé (${sites.length} site${sites.length > 1 ? 's' : ''})`, () => {
+    it(`${encre} tient le seuil partout où il est posé (${sites.length} site${sites.length > 1 ? 's' : ''})`, () => {
       const detail = sites
         .map((s) => `    ${s.fichier}:${s.ligne}  →  ${s.mesure.ratio.toFixed(2)}:1 `
-          + `(thème ${s.mesure.theme}, sur --${s.mesure.surface}`
+          + `(thème ${s.mesure.theme}, sur ${s.mesure.surface.startsWith('#') || s.mesure.surface.includes('(')
+            ? s.mesure.surface : '--' + s.mesure.surface}`
           + `${s.opacite !== 1 ? `, opacity ${s.opacite}` : ''})`)
         .join('\n');
 
       expect(
         pire.mesure.ratio,
-        `\n\n  --${jeton} : ${pire.mesure.ratio.toFixed(2)}:1 au pire, seuil ${SEUIL}\n`
+        `\n\n  ${encre} : ${pire.mesure.ratio.toFixed(2)}:1 au pire, seuil ${SEUIL}\n`
         + `  ${sites.length} site${sites.length > 1 ? 's' : ''} à reprendre :\n${detail}\n`
       ).toBeGreaterThanOrEqual(SEUIL);
     });
