@@ -256,5 +256,127 @@ for (const { nom, viewport } of LARGEURS) {
 
       expect(restes, restes.join(' | ')).toEqual([]);
     });
+
+    test('le balayage voit vraiment quelque chose, et sur le bon panneau', async ({ page }) => {
+      /**
+       * LE TÉMOIN QUI MANQUAIT AUX SEIZE CAS.
+       *
+       * Les quatre contrôles ci-dessus s'écrivent tous `expect(x).toEqual([])`.
+       * Un relevé VIDE les satisfait donc tous les quatre — et il peut être
+       * vide pour deux raisons qui n'ont rien d'un succès : la navigation qui
+       * n'a pas eu lieu, ou un sélecteur qui a cessé de correspondre.
+       *
+       * `cible-tactile.spec.js` et `encre-rendue.spec.js` ont chacun le leur,
+       * précisément pour ça. Ce fichier, écrit avant eux, n'en avait aucun.
+       *
+       * Deux propriétés, et la première est la plus forte : quand la barre est
+       * rendue, c'est le panneau VISÉ qui doit être actif. Ce n'est pas une
+       * statistique, c'est une classe qu'on lit. La seconde borne le relevé
+       * par le bas, pour le cas où le sélecteur cesserait de ramener quoi que
+       * ce soit alors même que la navigation aboutit.
+       *
+       * Comptes mesurés avant d'écrire les seuils, aux quatre largeurs :
+       *   320   bilan 5/26   charges 4/38   réglages  6/58
+       *   390   bilan 5/26   charges 4/38   réglages 10/58
+       *   768   bilan 5/26   charges 5/38   réglages 12/58
+       *  1280   les trois à 9/84 — la barre n'existe pas, tout est à l'écran
+       *
+       * Le minimum observé est 4 commandes ; le seuil est à 2, pour borner
+       * sans transformer un contenu qui bouge en contrôle instable.
+       */
+      const releves = [];
+
+      for (const id of ONGLETS) {
+        await ouvrir(page, id);
+
+        if (await page.locator('#onglets').isVisible()) {
+          await expect(
+            page.locator(`#${id}`),
+            `la barre est rendue : c'est ${id} qui doit être actif`
+          ).toHaveClass(/panneau--actif/);
+        }
+
+        releves.push(await page.evaluate(() => {
+          const flottant = (el) => {
+            if (el.closest('.onglets, .bandeau-colle, .fab, .modal-overlay')) return true;
+            const s = getComputedStyle(el);
+            return s.position === 'fixed' || s.position === 'sticky';
+          };
+          const replie = (el) => el.closest('details:not([open])') !== null;
+
+          const commandes = [...document.querySelectorAll('button, a[href], select, input:not([type="hidden"])')]
+            .filter((el) => {
+              const r = el.getBoundingClientRect();
+              const s = getComputedStyle(el);
+              return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.opacity !== '0'
+                && r.bottom > 0 && r.top < window.innerHeight && !flottant(el) && !replie(el);
+            }).length;
+
+          let textes = 0;
+          const marche = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n;
+          while ((n = marche.nextNode())) {
+            if (n.textContent.trim() && n.parentElement?.checkVisibility?.()) textes++;
+          }
+          return { commandes, textes };
+        }));
+      }
+
+      releves.forEach((r, i) => {
+        expect(r.commandes, `${ONGLETS[i]} : aucune commande relevée`).toBeGreaterThan(2);
+        expect(r.textes, `${ONGLETS[i]} : aucun texte relevé`).toBeGreaterThan(15);
+      });
+      expect(
+        releves.reduce((s, r) => s + r.commandes, 0),
+        'les trois panneaux réunis portent trop peu de commandes pour que le balayage ait mesuré quoi que ce soit'
+      ).toBeGreaterThan(9);
+    });
   });
 }
+
+test.describe('La navigation de ce fichier, elle-même', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('un panneau devenu inatteignable fait tomber le contrôle, jamais silence', async ({ page }) => {
+    /**
+     * LE CAS DÉCISIF, et le sixième site du motif.
+     *
+     * `ouvrir()` est une copie locale de la garde du banc d'essai, et elle a
+     * gardé le défaut que celle-ci vient de perdre : `if (visible) { click }`,
+     * sans `else`. Un onglet disparu ne produit donc rien — pas d'erreur, pas
+     * de navigation — et les quatre balayages repartent sur le panneau
+     * courant, en croyant visiter celui qu'on leur a nommé.
+     *
+     * Le second angle mort du même fichier, `if (!barre) return null` dans
+     * « la fin de chaque panneau reste atteignable », se referme du même
+     * geste : au-delà de 900 px la barre est légitimement absente et rendre
+     * `null` est juste ; sous 900 px, la navigation aura levé avant d'y
+     * arriver.
+     *
+     * On saborde le DOM, pas le code de l'application : ce cas mesure la
+     * NAVIGATION de ce fichier. La barre d'onglets, elle, est tenue par
+     * `onglets.spec.js`.
+     */
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await page.evaluate(() => {
+      document.querySelector('.onglet[data-panneau="panneauReglages"]')?.remove();
+    });
+
+    await expect(
+      page.locator('.onglet[data-panneau="panneauReglages"]'),
+      'prémisse : l\'onglet a bien disparu'
+    ).toHaveCount(0);
+
+    await expect(
+      page.locator('#panneauReglages'),
+      'prémisse : et le panneau n\'est pas rendu pour autant'
+    ).toBeHidden();
+
+    await expect(
+      ouvrir(page, 'panneauReglages'),
+      'un panneau qu\'aucun chemin n\'atteint doit faire tomber le contrôle'
+    ).rejects.toThrow(/panneauReglages/);
+  });
+});
