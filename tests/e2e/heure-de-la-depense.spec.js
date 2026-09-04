@@ -16,9 +16,28 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
  * Le calcul est éprouvé par `tests/utils/date.test.js` et `tri.test.js` ; ces
  * contrôles portent sur le parcours réel, du champ jusqu'à la ligne.
  */
+/**
+ * Un instant figé, et pourquoi celui-là
+ *
+ * Ces contrôles portent sur l'heure : ils ne peuvent pas dépendre de l'heure
+ * qu'il est. Le champ est prérempli par `heureDuJour()` à l'ouverture de la
+ * modale (instant T1) et relu par le contrôle juste après (instant T2) — une
+ * minute qui bascule entre les deux suffit à faire tomber le contrôle sur un
+ * code parfaitement sain. C'est arrivé en CI le 2026-09-04 : 563 passés,
+ * celui-ci seul en échec, et la publication sautée avec.
+ *
+ * Midi UTC, le 12 : quel que soit le fuseau du runner, l'instant reste le même
+ * JOUR et le même MOIS — ce qui ferme du même geste les trois autres pièges de
+ * cette famille que ce dépôt a déjà payés : minuit, le dernier jour du mois, et
+ * le passage d'une année.
+ */
+const LE_12_AOUT = new Date('2026-08-12T12:00:00.000Z');
+
 test.describe('L\'heure, de la saisie rapide à la liste', () => {
 
   test.beforeEach(async ({ page }) => {
+    // Avant le chargement : l'application lit l'horloge dès son initialisation.
+    await page.clock.setFixedTime(LE_12_AOUT);
     await setupFirebaseMock(page);
     await waitForApp(page);
   });
@@ -51,6 +70,16 @@ test.describe('L\'heure, de la saisie rapide à la liste', () => {
     await page.locator('#btnQuickAdd').click();
     await expect(page.locator('#modalQuickAdd')).toBeHidden();
   }
+
+  test('l\'horloge de la page est bien celle qu\'on a figée', async ({ page }) => {
+    // Le témoin de CÂBLAGE du correctif, sans lequel il pourrait être inerte.
+    //
+    // `setFixedTime` posé trop tard, ou sur une page déjà chargée, ne prend
+    // pas — et le contrôle suivant repasserait alors au vert par chance, en
+    // gardant la course qu'il est censé fermer. Un correctif qu'on ne peut pas
+    // distinguer de son absence n'en est pas un.
+    expect(await page.evaluate(() => Date.now())).toBe(LE_12_AOUT.getTime());
+  });
 
   test('le champ s\'ouvre prérempli à l\'heure de l\'appareil', async ({ page }) => {
     await ouvrirLaDate(page);
