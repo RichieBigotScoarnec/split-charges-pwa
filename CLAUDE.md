@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
-> **Version** : 4.0.0 | **Mise à jour** : 2026-08-24 | **Branche unique** : main
+> **Version** : 4.0.0 | **Mise à jour** : 2026-09-04 | **Branche unique** : main
 
 ## Stack
 
@@ -38,8 +38,15 @@ FairSplit/
 │       ├── db.js               # Abstraction DB (préfixage DATA_ROOT)
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 25 modules fonctionnels
-│       └── utils/              # 59 aides pures — dont onglets (quel panneau
+│       ├── modules/            # 30 modules fonctionnels — dont trash (rétablir
+│       │                       # ce qui a été supprimé en douceur, sur tout
+│       │                       # l'historique), selection-charges (agir sur
+│       │                       # plusieurs charges à la fois),
+│       │                       # versement-mensuel (la cagnotte qu'on alimente
+│       │                       # sans y penser), resume-prive (ce que l'autre
+│       │                       # voit d'un espace privé : un total, jamais le
+│       │                       # détail)
+│       └── utils/              # 64 aides pures — dont onglets (quel panneau
 │                               # l'écran montre, sous 900 px), entete (l'en-tête
 │                               # se compacte une fois sorti de l'écran),
 │                               # provisions (ce qu'il faut mettre de côté chaque
@@ -87,6 +94,18 @@ FairSplit/
 │                               # ordinaire, proposé plutôt que demandé),
 │                               # retour (le geste « retour » referme la
 │                               # dernière couche ouverte, il ne quitte pas),
+│                               # versement-mensuel (une seule fois par mois, et
+│                               # jamais un autre mois que le mois courant),
+│                               # versement-partage (ce que chacun met dans un
+│                               # versement à deux), selection-lot (ce qu'un lot
+│                               # retient encore : un identifiant coché peut ne
+│                               # plus désigner personne), correction-retroactive
+│                               # (ce qu'une correction change aux mois déjà
+│                               # soldés), explication-solde (pourquoi le solde
+│                               # dit ce qu'il dit), phrase-saisie (la phrase que
+│                               # le formulaire rend), sandbox-banner (le repère
+│                               # du bac à sable), debug (journaliser sans
+│                               # jamais rien publier),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
 ├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
@@ -744,6 +763,40 @@ sur `main` depuis minuit.
 **2 611 unitaires**, 28 rouges qui sont les 28 exigeant les émulateurs Firebase
 — un dans `auth-ui.spec.js`, vingt-sept dans `regles-donnees.spec.js`. Eslint :
 0 erreur, 26 avertissements, le plafond exact de la CI.
+
+### Remédiation d'un audit cadré, 2026-09-03
+
+Le premier chantier mené depuis un `audit.md` : constats vérifiés en session
+séparée, périmètre arbitré par le foyer, puis correction. Huit constats clos,
+chacun **reproduit avant d'être corrigé** et tenu par un mutant mesuré.
+
+> **La fiche d'audit se trompe, et il faut le mesurer plutôt que le supposer.**
+> Trois des huit corrections proposées étaient inapplicables telles quelles —
+> une aurait cassé la production, une ne fermait pas son propre exemple, une
+> était impossible. Aucune de ces trois erreurs ne se voyait à la lecture de la
+> fiche : il a fallu, chaque fois, exécuter quelque chose.
+
+| Déclaration CLAUDE.md | Fichier réel | État | Action |
+|---|---|---|---|
+| **L'espace `sandbox` n'exigeait pas `email_verified`**, quand `household` l'exige. Les deux adresses du foyer y lisaient et y écrivaient sans avoir prouvé la boîte aux lettres, alors qu'`accounts:signUp` reste joignable avec la clé publique du projet | `database.rules.json` | ✅ RÉSOLU 2026-09-03 — garde portée sur les seules adresses du foyer ; mesuré contre le moteur réel, 2 écarts avant, 8/8 après | La correction proposée par l'audit — aligner les deux racines — **aurait fermé le bac à sable** : le compte cantonné s'authentifie par mot de passe et n'a pas d'adresse à prouver. Deux contrôles le disaient déjà |
+| **Un versement « à deux » pouvait s'écrire à moitié.** Les deux parts partaient une par une, et la garde d'idempotence tient le mois pour alimenté dès qu'UNE des deux clés est là : la part manquante n'était jamais rattrapée, et l'écart ne se découvrait qu'à l'échéance | `public/js/modules/versement-mensuel.js` | ✅ RÉSOLU 2026-09-03 — un lot multi-chemins par enveloppe, que le moteur rejette entier ; la granularité entre enveloppes est conservée | Le rattrapage proposé était **indécidable** : une moitié en base est indiscernable d'un versement complet écrit sous l'autre réglage, et l'aurait sur-alimenté. Rendre l'état inatteignable traite la même cause sans l'ambiguïté |
+| Le message annonçait le total DEMANDÉ, pas le total ÉCRIT : « 550,00 € mis de côté » quand 150,00 € seulement étaient passés | `public/js/modules/versement-mensuel.js` | ✅ RÉSOLU 2026-09-03 — l'annonce porte sur ce que la base a accepté | `utils/selection-lot.js` tenait déjà cette distinction. Le raisonnement n'avait pas traversé |
+| **Consulter un mois à venir l'alimentait.** Le sélecteur propose un mois d'avance ; l'ouvrir écrivait un versement daté du 1er du mois suivant. Le pot affichait 300 € quand 150 € étaient mis de côté | `public/js/utils/versement-mensuel.js` | ✅ RÉSOLU 2026-09-03 — garde symétrique, tranchée par le foyer | Un test verrouillait le comportement d'avant, au nom d'un « geste légitime ». Retourné, pas supprimé : l'audit avait établi que ce n'était pas une décision mais une omission |
+| **La file hors ligne n'écartait que trois FORMES**, sans jamais regarder OÙ l'écriture va. `set('periods', …)` remplaçait tout l'historique, `set('periods/2026-08', …)` un mois entier — les deux acceptés | `public/js/db.js` | ✅ RÉSOLU 2026-09-03 — liste blanche de formes, comparée au code **dans les deux sens** par un relevé des 17 chemins réellement écrits | La liste de préfixes proposée **ne fermait pas l'exemple de la fiche** : `period.js:460` écrit `salaries`, au caractère près. Cette limite est écrite dans le code et tenue par un test, plutôt que laissée croire fermée |
+| « Tout » relâchait au lieu de tout cocher dès que la sélection portait des identifiants périmés : `ids` brut était compté sans être purgé | `public/js/modules/selection-charges.js` | ✅ RÉSOLU 2026-09-03 — `selectionPurgee`, déjà importée | Le premier jeu d'essai écrit PASSAIT sur le code fautif : cocher les trois charges affichées rend le relâchement juste. Un jeu d'essai qui ne peut pas manifester le défaut ne mesure rien |
+| `restoreFromTrash` validait la collection, ni la période ni l'identifiant — alors que les trois composent le chemin, et que la référence vient du DOM. Et `collectAll` déréférençait un mois nul, ce qui affichait « Historique illisible » pour une seule clé abîmée | `public/js/modules/trash.js` | ✅ RÉSOLU 2026-09-03 — les trois champs contrôlés, et un mois illisible ignoré plutôt que fatal | Le module n'avait **aucun test** : c'est là que les deux défauts vivaient |
+| **`https://localhost:*` pouvait entrer dans la CSP sans que rien ne bronche** — et celui-là n'est pas bloqué par le contenu mixte, contrairement à `http://` et `ws://` sur lesquels repose tout l'argument « impact nul » | `public/FairSplit.html`, `firebase.json` | ✅ RÉSOLU 2026-09-03 — schéma exigé sur les deux fichiers | La comparaison des deux politiques ÉCARTAIT les origines locales des deux côtés : un angle mort exactement là où ce contrôle existe pour ne pas en avoir |
+| L'inventaire des dépendances était inscrit en dur dans la CI. Il a menti trois fois en trois jours — 8 avis, puis 5, puis 2, sur des paquets différents | `.github/workflows/deploy.yml` | ✅ RÉSOLU 2026-09-03 — la méthode remplace l'inventaire, avec l'exemple du jour gardé comme modèle | `npm audit fix` ne corrige rien ici (mesuré), et `--force` redescend firebase-tools de plusieurs majeures. Le seuil `--audit-level=high` était déjà le bon raisonnement |
+| Douze modules ne figuraient nulle part dans ce fichier — et les quatre défauts vérifiés de l'audit vivaient tous dedans | `CLAUDE.md` | ✅ RÉSOLU 2026-09-03 — inventaire complété, comptes remis à jour (25 → 30 modules, 59 → 64 aides) | Deuxième fois que cet inventaire dérive, après « `utils/` listé à cinq fichiers » |
+| **« 26 avertissements, le plafond exact de la CI » est faux deux fois** : `npx eslint .` en rend 32, et la CI ne compte plus les avertissements globaux depuis le passage au plafond `no-unsanitized` seul | ce fichier, entrées des 2026-08-31 et 2026-09-01 | ⚠️ CONSIGNÉ, ENTRÉES NON RÉÉCRITES — elles étaient vraies à leur date ; c'est la phrase « le plafond exact de la CI » qui a cessé de l'être | Le plafond d'injection est à **24/24, marge nulle**, et c'est voulu. Aucun des huit correctifs n'a ajouté d'`innerHTML` |
+| **L'avis `stream-json` n'a aucun correctif atteignable**, et c'est le fait qui décide plutôt que la gravité. `GHSA-528h-pc64-c93x` — filtres `pick`/`ignore`/`filter`/`replace` en O(profondeur²), déni de service — donne pour plage vulnérable `<=3.4.0` : le correctif n'existe qu'à partir de la 3.5.0, et la ligne 1.x s'arrête à la 1.9.1, celle qu'installe `firebase-tools`. Or sa 15.29.0, **dernière version publiée**, exige toujours `^1.7.3` : l'amont n'a pas élargi sa plage, il n'y a donc pas de mise à jour qui règle ça toute seule | `package.json` | ⚠️ MESURÉ, LAISSÉ EN L'ÉTAT — dépendance de développement, seuil CI à `--audit-level=high` donc rien n'est bloqué, et le JSON analysé est la sauvegarde du foyer, pas l'entrée d'un tiers | Un `overrides` vers `^3.5.0` fermerait l'alerte au prix de deux majeures forcées sur l'outil qui déploie ET qui porte la sauvegarde chiffrée. À reprendre quand l'amont élargira sa plage — Dependabot le proposera de lui-même, rien à surveiller à la main |
+
+> **Ce qui reste ouvert et ne se referme pas dans le code.** Le compte cantonné
+> au bac à sable garde un accès sans adresse vérifiée : le refermer demande de
+> vérifier l'adresse en console Firebase AVANT de durcir la règle, sous peine
+> de casser la CI. Et une entrée forgée visant `salaries` reste indiscernable
+> de l'écriture légitime : le remède est un nom de domaine propre, pas un
+> contrôle client.
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

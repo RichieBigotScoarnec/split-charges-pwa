@@ -59,6 +59,15 @@ export function initTrash() {
 const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
+ * Ce qu'une clé Realtime Database peut porter
+ *
+ * `.` `$` `#` `[` `]` `/` y sont interdits, et les caractères de contrôle
+ * aussi. Une clé qui en contient produit une écriture vouée au refus — ou,
+ * pour `/`, un chemin qui ne désigne plus ce qu'on croit.
+ */
+const CLE_FIREBASE = /^[^.$#[\]/\p{Cc}]+$/u;
+
+/**
  * Rassemble les éléments supprimés de tous les mois
  *
  * La corbeille ne montrait que le mois affiché. Supprimer en juillet puis
@@ -80,8 +89,14 @@ async function collectAll() {
   const trouves = [];
 
   for (const periode of mois) {
+    // Un mois de valeur nulle est impossible en base, mais pas dans le miroir
+    // `localStorage` — et le déréférencer faisait afficher « Historique
+    // illisible », c'est-à-dire une panne, pour une seule clé abîmée.
+    const contenu = periods[periode];
+    if (!contenu || typeof contenu !== 'object') continue;
+
     for (const { cle, libelle } of COLLECTIONS) {
-      for (const item of collectDeleted(periods[periode][cle])) {
+      for (const item of collectDeleted(contenu[cle])) {
         trouves.push({ ...item, collection: cle, libelle, periode });
       }
     }
@@ -221,8 +236,14 @@ export async function restoreFromTrash(reference) {
   // sur les deux premiers séparateurs.
   const id = parts.slice(2).join(':');
 
+  // Les TROIS champs sont contrôlés, et non le seul `collection` : ils
+  // composent tous les trois `periods/${periode}/${collection}/${id}`, et la
+  // référence vient de `data-arg`, donc du DOM. Firebase refuse déjà les clés
+  // portant `.` `$` `#` `[` `]` `/`, et les règles refusent une période au
+  // format libre — c'est bien de la défense en profondeur, posée là où la
+  // chaîne se compose plutôt que là où elle est reçue.
   const cible = COLLECTIONS.find(c => c.cle === collection);
-  if (!cible || !id || !periode) {
+  if (!cible || !PERIOD_KEY.test(periode) || !CLE_FIREBASE.test(id)) {
     toast.error('Élément introuvable');
     return;
   }

@@ -513,17 +513,56 @@ function estRefusDefinitif(echec) {
 }
 
 /**
+ * Les formes de chemin qu'une saisie peut viser
+ *
+ * Une liste blanche de DESTINATIONS, et non une liste noire de formes. La
+ * différence n'est pas de style : une liste noire n'arrête que ce à quoi on a
+ * pensé, et il faut y avoir pensé avant. `set('periods', …)` remplace tout
+ * l'historique du foyer, et aucun des refus précédents ne le voyait — le nœud
+ * est nommé, la valeur n'est pas `null`.
+ *
+ * Ce que chaque ligne autorise est exactement ce que le code écrit :
+ *
+ *   1. les réglages du foyer, dont le nœud EST la valeur — ils s'écrivent en
+ *      entier, c'est leur forme normale ;
+ *   2. une PARTIE d'un mois, jamais le mois entier : `periods/{mois}` et
+ *      `periods` sont des conteneurs, et aucun appel ne les vise ;
+ *   3. une cagnotte : le lot d'un versement mensuel, ou un versement isolé.
+ *
+ * Les trois listes du foyer — `customCategories`, `customDestinations`,
+ * `envelopes` — n'y figurent pas, et ce n'est pas un oubli : `fusionnerListe`
+ * les écrit par une `transaction` posée directement sur la référence Firebase,
+ * qui ne passe pas par ce fichier et n'est donc jamais mise en file.
+ *
+ * `tests/modules/hors-ligne.test.js` compare cette liste aux chemins que
+ * `public/js` écrit réellement, dans les deux sens : une forme oubliée ferait
+ * perdre une saisie hors ligne, une forme morte élargirait pour rien.
+ */
+const FORMES_DIFFERABLES = [
+  /^(?:salaries|shareMode|carryOverEnabled|categoryBudgets|members|reminders)$/,
+  /^periods\/\d{4}-(?:0[1-9]|1[0-2])\/[A-Za-z][A-Za-z0-9]*(?:\/[^/]+)?$/,
+  /^versements\/[^/]+(?:\/[^/]+)?$/
+];
+
+/**
  * Une opération de la file est-elle rejouable telle quelle ?
  *
  * Les mêmes contrôles qu'à la mise en file, refaits au rejeu — parce qu'entre
  * les deux, le dossier a passé du temps dans un stockage que l'application ne
- * possède pas seule.
+ * possède pas seule : `localStorage` vit sur une origine que partagent tous les
+ * sites Pages du compte.
  *
- * Deux refus, et ils suffisent : une saisie vise toujours un chemin nommé, et
- * n'efface jamais un nœud entier. Ce que l'application écrit légitimement à la
- * racine — la restauration d'une sauvegarde — n'a rien à faire dans une file :
- * elle est différée, annoncée comme réussie, et rejouée bien plus tard,
- * éventuellement sous la session de l'autre compte.
+ * Ce que l'application écrit légitimement à la racine — la restauration d'une
+ * sauvegarde — n'a rien à faire dans une file : elle serait différée, annoncée
+ * comme réussie, et rejouée bien plus tard, éventuellement sous la session de
+ * l'autre compte.
+ *
+ * **Ce que ce contrôle ne peut pas faire.** Il ramène la surface d'une entrée
+ * forgée à ce que l'application elle-même écrit — il ne la ramène pas à rien.
+ * Un `update` sur `salaries` avec des revenus inventés est, au caractère près,
+ * l'écriture que `period.js` produit quand on corrige un salaire : aucun
+ * contrôle posé ici ne peut les distinguer. Ce qui fermerait ce reste, c'est
+ * un nom de domaine propre, qui rendrait l'origine à cette application seule.
  *
  * @param {*} operation - Enregistrement relu du stockage, donc non fiable
  * @returns {boolean}
@@ -533,14 +572,15 @@ export function operationRejouable(operation) {
   if (operation.type !== 'set' && operation.type !== 'update') return false;
   if (typeof operation.chemin !== 'string') return false;
 
-  // Un chemin vide vise la racine de l'espace de données.
-  const segments = operation.chemin.split('/').filter(Boolean);
-  if (segments.length === 0) return false;
-
   // `set(null)` supprime le nœud visé ; une saisie ne fait jamais cela.
   if (operation.type === 'set' && operation.donnees === null) return false;
 
-  return true;
+  // Un chemin vide vise la racine de l'espace de données. La liste ci-dessous
+  // le refuserait aussi, mais le dire ici nomme le cas fondateur.
+  const chemin = operation.chemin.replace(/^\/+|\/+$/g, '');
+  if (chemin === '') return false;
+
+  return FORMES_DIFFERABLES.some(forme => forme.test(chemin));
 }
 
 /**

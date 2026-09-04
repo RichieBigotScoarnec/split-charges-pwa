@@ -511,7 +511,10 @@ describe('Le retour du réseau', () => {
 
     await dbSet('salaries', { vous: 2600 });
     await dbSet('shareMode', 'prorata');
-    await dbSet('customCategories', { c1: { name: 'Bar' } });
+    // `categoryBudgets` et non `customCategories` : les trois listes du foyer
+    // passent par une `transaction` posée hors de `db.js`, donc jamais par la
+    // file — AUDIT-011 les en a écartées.
+    await dbSet('categoryBudgets', { Courses: 600 });
 
     signalerLiaison(true);
     base.refuser('shareMode');
@@ -927,6 +930,36 @@ describe('UNE ENTRÉE FORGÉE DANS LA FILE NE PART PAS', () => {
 
     // L'entrée forgée est retirée sans être comptée comme envoyée, et la
     // saisie légitime qui la suivait est bien partie.
+    expect(bilan.envoyees).toBe(1);
+    expect(saisiesEnAttente()).toBe(0);
+  });
+
+  it('AUDIT-011 — le remplacement de TOUT l\'historique est écarté au rejeu', async () => {
+    // Le témoin de CÂBLAGE, et non celui de la fonction pure : la liste
+    // blanche de `operationRejouable` doit être consultée DANS la boucle de
+    // rejeu. `tests/utils/file-non-forgeable.test.js` éprouve la décision ;
+    // ici on regarde ce qui atteint la base.
+    //
+    // La charge utile n'efface rien et ne vise pas la racine — les deux seuls
+    // refus d'avant : elle nomme un nœud réel, `periods`, et lui donne une
+    // valeur. Elle remplaçait donc tous les mois du foyer d'un coup.
+    await amorcerLeMiroir();
+    signalerLiaison(false);
+    await dbSet('periods/2026-08/variableCharges/saine', { description: 'Café', amount: 3 });
+
+    forger({ id: 'forgee', type: 'set', chemin: 'periods', donnees: { '2099-01': {} } });
+    expect(saisiesEnAttente()).toBe(2);
+
+    signalerLiaison(true);
+    const avant = base.journal.length;
+    const bilan = await rejouerFileDAttente();
+
+    expect(base.journal.slice(avant).map(e => e.chemin)).not.toContain('household/periods');
+
+    // L'historique du foyer est intact, et la saisie légitime est bien partie.
+    expect(base.contenu.household.periods['2099-01']).toBeUndefined();
+    expect(base.contenu.household.periods['2026-08'].variableCharges.a1)
+      .toEqual({ description: 'Café', amount: 3 });
     expect(bilan.envoyees).toBe(1);
     expect(saisiesEnAttente()).toBe(0);
   });

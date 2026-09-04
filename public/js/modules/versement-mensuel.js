@@ -8,8 +8,11 @@
 //
 // Ce module reprend les enveloppes qui portent un versement mensuel, à
 // l'ouverture d'un mois neuf. Mêmes garanties que la reconduction des charges
-// fixes : une seule fois par mois, jamais vers le passé. La décision, elle, est
-// une affaire de données pures et vit dans `utils/versement-mensuel.js`.
+// fixes, à une près : une seule fois par mois, et jamais un autre mois que le
+// mois courant — la reconduction, elle, prépare un mois d'avance, ce qu'un
+// versement ne peut pas faire sans remplir un pot qui n'existe pas encore.
+// La décision, elle, est une affaire de données pures et vit dans
+// `utils/versement-mensuel.js`.
 //
 // ## Ce qui est écrit, et sous quelle forme
 //
@@ -65,7 +68,7 @@ export async function appliquerLesVersementsMensuels({ historique, salairesGloba
   if (candidates.length === 0) return 0;
 
   try {
-    const { dbGet, dbSet } = await import('../db.js');
+    const { dbGet, dbUpdate } = await import('../db.js');
 
     const [tousLesVersements, periods, globaux] = await Promise.all([
       dbGet(CHEMIN_VERSEMENTS),
@@ -81,7 +84,7 @@ export async function appliquerLesVersementsMensuels({ historique, salairesGloba
       getState('customPercents') || { vous: 50, conjointe: 50 }
     );
 
-    const lignes = [];
+    const lots = [];
 
     for (const enveloppe of candidates) {
       // Les clés BRUTES du nœud, et non des versements normalisés : une entrée
@@ -97,39 +100,62 @@ export async function appliquerLesVersementsMensuels({ historique, salairesGloba
       });
       if (!plan) continue;
 
-      for (const part of partsDuPlan(plan, { shareMode, salaries, customPercents })) {
-        lignes.push({
-          chemin: `${CHEMIN_VERSEMENTS}/${enveloppe.id}/${cleVersementAuto(cible, part.auteur)}`,
-          versement: {
-            montant: part.montant,
-            auteur: part.auteur,
-            date: plan.date,
-            timestamp: Date.now(),
-            deleted: false
-          },
-          enveloppe
-        });
+      const parts = partsDuPlan(plan, { shareMode, salaries, customPercents });
+      if (parts.length === 0) continue;
+
+      const lignes = {};
+      for (const part of parts) {
+        lignes[cleVersementAuto(cible, part.auteur)] = {
+          montant: part.montant,
+          auteur: part.auteur,
+          date: plan.date,
+          timestamp: Date.now(),
+          deleted: false
+        };
       }
+
+      lots.push({ enveloppe, lignes });
     }
 
-    if (lignes.length === 0) return 0;
+    if (lots.length === 0) return 0;
 
-    // Une par une, et non par une écriture atomique : un pot refusé ne doit pas
-    // emporter les autres. La clé étant déterministe, une reprise réécrit la
-    // même chose au même endroit — il n'y a donc rien à défaire.
+    // Une écriture par ENVELOPPE, et deux niveaux de granularité qui ne se
+    // confondent pas :
+    //
+    //   - entre enveloppes, une par une : un pot refusé ne doit pas emporter
+    //     les autres ;
+    //   - à l'intérieur d'une enveloppe, en un seul lot : les deux parts d'un
+    //     versement « à deux » ne sont pas deux décisions, c'est une décision
+    //     écrite en deux lignes parce qu'il faut attribuer chaque part à
+    //     quelqu'un. Les écrire séparément laissait exactement une clé en
+    //     place quand la seconde était refusée — et la garde d'idempotence,
+    //     qui tient le mois pour alimenté dès qu'UNE des deux clés est là,
+    //     tenait alors la moitié manquante pour un mois complet. La cagnotte
+    //     perdait une part, définitivement, en silence.
+    //
+    // Le moteur rejette un lot multi-chemins dès qu'un enfant est invalide :
+    // le mois reste donc intact, et l'ouverture suivante le reprend entier.
+    // La clé étant déterministe, cette reprise réécrit la même chose au même
+    // endroit — il n'y a rien à défaire.
+    //
+    // `nourries` et non `lots` : l'annonce porte sur ce que la base a accepté,
+    // jamais sur ce qui était prévu. Dire « 550,00 € mis de côté » quand
+    // 150,00 € seulement sont passés fait croire à un pot qui n'existe pas —
+    // et l'écart ne se découvre qu'à l'échéance. `utils/selection-lot.js` tient
+    // déjà cette distinction pour les lots de charges.
     let ecrites = 0;
-    const nourries = new Set();
-    for (const ligne of lignes) {
+    const nourries = [];
+    for (const lot of lots) {
       try {
-        await dbSet(ligne.chemin, ligne.versement);
-        ecrites += 1;
-        nourries.add(ligne.enveloppe);
+        await dbUpdate(`${CHEMIN_VERSEMENTS}/${lot.enveloppe.id}`, lot.lignes);
+        ecrites += Object.keys(lot.lignes).length;
+        nourries.push(lot);
       } catch (erreur) {
-        warn(`[Versement mensuel] ${ligne.enveloppe.label} non alimentée :`, erreur?.message || erreur);
+        warn(`[Versement mensuel] ${lot.enveloppe.label} non alimentée :`, erreur?.message || erreur);
       }
     }
 
-    if (ecrites > 0) annoncer(nourries, lignes, cible);
+    if (nourries.length > 0) annoncer(nourries, cible);
     return ecrites;
   } catch (erreur) {
     // Non bloquant, comme la reconduction : le mois s'ouvre, le pot se rattrape.
@@ -165,14 +191,14 @@ function partsDuPlan(plan, { shareMode, salaries, customPercents }) {
  * reconduction des charges annonce de la même façon, et pour la même raison :
  * un mois qui se remplit tout seul, en silence, se lit comme une anomalie.
  *
- * @param {Set<Object>} enveloppes - Celles qui ont reçu quelque chose
- * @param {Array<Object>} lignes - Les versements écrits
+ * @param {Array<{enveloppe: Object, lignes: Object}>} lots - Un par enveloppe
  * @param {string} cible - Le mois alimenté
  * @returns {void}
  */
-function annoncer(enveloppes, lignes, cible) {
-  const total = lignes.reduce((somme, ligne) => somme + ligne.versement.montant, 0);
-  const noms = [...enveloppes].map(enveloppe => `${enveloppe.icon} ${enveloppe.label}`);
+function annoncer(lots, cible) {
+  const lignes = lots.flatMap(lot => Object.values(lot.lignes));
+  const total = lignes.reduce((somme, ligne) => somme + ligne.montant, 0);
+  const noms = lots.map(lot => `${lot.enveloppe.icon} ${lot.enveloppe.label}`);
 
   const quoi = noms.length === 1
     ? noms[0]
