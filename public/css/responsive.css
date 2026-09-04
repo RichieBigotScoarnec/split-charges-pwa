@@ -378,8 +378,8 @@
   color: #FFFFFF;
 }
 
-.balance-bar.balance-positive strong { color: var(--success-color); }
-.balance-bar.balance-negative strong { color: var(--danger-color); }
+.balance-bar.balance-positive strong { color: var(--success-ink); }
+.balance-bar.balance-negative strong { color: var(--danger-ink); }
 .balance-bar.balance-zero { color: var(--text-secondary); }
 
 /* ===== CIBLES TACTILES ===== */

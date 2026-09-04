@@ -378,12 +378,12 @@
 }
 
 .save-indicator .saving {
-  color: var(--warning-color);
+  color: var(--warning-ink);
   display: none;
 }
 
 .save-indicator .saved {
-  color: var(--success-color);
+  color: var(--success-ink);
   display: none;
 }
 
@@ -550,7 +550,7 @@
 .btn-delete:hover {
   background: var(--danger-soft);
   border-color: var(--danger-color);
-  color: var(--danger-color);
+  color: var(--danger-ink);
 }
 
 .btn-danger {
@@ -781,7 +781,7 @@
   font-size: 17px;
   font-weight: 600;
   font-family: var(--font-mono);
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 /* ===== MODES DE PARTAGE ===== */
@@ -886,11 +886,11 @@
 }
 
 .share-mode-validation.valid {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .share-mode-validation.invalid {
-  color: var(--error-color);
+  color: var(--danger-ink);
 }
 
 /* `.export-actions` rangeait les dix boutons d'outils sur une seule ligne.
@@ -1224,11 +1224,11 @@
 }
 
 .reimbursements-total.you-owe strong {
-  color: var(--warning-color);
+  color: var(--warning-ink);
 }
 
 .reimbursements-total.partner-owes strong {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .reimbursements-total.balanced {

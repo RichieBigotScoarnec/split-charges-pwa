@@ -232,7 +232,7 @@
 
 .quick-add-location-detach:hover {
   border-color: var(--danger-color);
-  color: var(--danger-color);
+  color: var(--danger-ink);
 }
 
 /* Description : facultative, donc plus sobre que le champ du montant */
@@ -1300,7 +1300,7 @@
    elle doit avoir la même couleur des deux côtés. */
 .envelope-perso {
   background: var(--info-soft);
-  color: var(--info-color);
+  color: var(--info-ink);
 }
 
 /*
@@ -1381,7 +1381,7 @@
    montant s'ajoute au lieu de se retrancher. */
 .enveloppe-versement-montant {
   font-weight: 600;
-  color: var(--success-color);
+  color: var(--success-ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1479,7 +1479,7 @@
   font-weight: 600;
   color: var(--text-secondary);
 }
-.prive-aval-etat--actif { color: var(--success-color); }
+.prive-aval-etat--actif { color: var(--success-ink); }
 
 .prive-saisie {
   display: flex;
@@ -1804,7 +1804,7 @@
 }
 
 .rapport-solde--regle {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .rapport-grille {
@@ -1861,8 +1861,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.rapport-bouge--hausse { color: var(--danger-color); }
-.rapport-bouge--baisse { color: var(--success-color); }
+.rapport-bouge--hausse { color: var(--danger-ink); }
+.rapport-bouge--baisse { color: var(--success-ink); }
 
 .rapport-bouge strong { color: var(--text-primary); }
 

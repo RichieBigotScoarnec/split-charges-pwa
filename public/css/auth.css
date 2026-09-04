@@ -250,7 +250,7 @@
 }
 
 .auth-error {
-  color: var(--danger-color);
+  color: var(--danger-ink);
   font-size: 13px;
   margin-top: var(--space-sm);
   min-height: 20px;

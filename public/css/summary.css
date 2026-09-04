@@ -44,11 +44,11 @@
 }
 
 .summary-row strong.positive {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .summary-row strong.negative {
-  color: var(--danger-color);
+  color: var(--danger-ink);
 }
 
 .summary-divider {
@@ -316,7 +316,7 @@
    suivi personnel ferait disparaître une dette de tout l'écran. */
 .resume-onglet-repere {
   margin-left: 4px;
-  color: var(--danger-color);
+  color: var(--danger-ink);
   font-size: 18px;
   line-height: 0;
   vertical-align: middle;
@@ -789,11 +789,11 @@
 }
 
 .notifications-status.granted {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .notifications-status.denied {
-  color: var(--danger-color);
+  color: var(--danger-ink);
 }
 
 /* ===== CARTE GPS & STATS LIEUX ===== *
@@ -825,9 +825,9 @@
   letter-spacing: -0.01em;
 }
 
-.budget-gauge.budget-ok h3 { color: var(--success-color); }
-.budget-gauge.budget-warning h3 { color: var(--warning-color); }
-.budget-gauge.budget-over h3 { color: var(--danger-color); }
+.budget-gauge.budget-ok h3 { color: var(--success-ink); }
+.budget-gauge.budget-warning h3 { color: var(--warning-ink); }
+.budget-gauge.budget-over h3 { color: var(--danger-ink); }
 
 .budget-progress-container {
   margin-bottom: var(--space-sm);
@@ -881,9 +881,9 @@
   letter-spacing: -0.02em;
 }
 
-.budget-ok .budget-percentage { color: var(--success-color); }
-.budget-warning .budget-percentage { color: var(--warning-color); }
-.budget-over .budget-percentage { color: var(--danger-color); }
+.budget-ok .budget-percentage { color: var(--success-ink); }
+.budget-warning .budget-percentage { color: var(--warning-ink); }
+.budget-over .budget-percentage { color: var(--danger-ink); }
 
 .budget-remaining {
   font-size: 13px;
@@ -901,7 +901,7 @@
 }
 
 .virements-recap h3 {
-  color: var(--info-color);
+  color: var(--info-ink);
   margin: 0 0 var(--space-xs) 0;
   font-size: 16px;
   letter-spacing: -0.01em;
@@ -937,7 +937,7 @@
   font-size: 15px;
   font-family: var(--font-mono);
   font-weight: 600;
-  color: var(--info-color);
+  color: var(--info-ink);
 }
 
 .virement-details {
@@ -958,7 +958,7 @@
 }
 
 .virement-grand-total strong {
-  color: var(--info-color);
+  color: var(--info-ink);
   font-size: 16px;
   font-family: var(--font-mono);
 }
@@ -967,7 +967,7 @@
 .charge-destination {
   display: inline-block;
   background: var(--info-soft);
-  color: var(--info-color);
+  color: var(--info-ink);
   font-size: 10px;
   padding: 1px 7px;
   border-radius: var(--radius-full);
@@ -1051,7 +1051,7 @@
 .charge-perimetre-tag {
   display: inline-block;
   background: var(--info-soft);
-  color: var(--info-color);
+  color: var(--info-ink);
   font-size: 10px;
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -1069,7 +1069,7 @@
 .charge-a-completer {
   display: inline-block;
   background: var(--warning-soft);
-  color: var(--warning-color);
+  color: var(--warning-ink);
   font-size: 10px;
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -1081,7 +1081,7 @@
 .charge-ponctuel {
   display: inline-block;
   background: var(--warning-soft);
-  color: var(--warning-color);
+  color: var(--warning-ink);
   font-size: 10px;
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -1159,7 +1159,7 @@
 }
 
 .budget-row.budget-over .budget-row-status {
-  color: var(--danger-color);
+  color: var(--danger-ink);
   font-weight: 600;
 }
 
@@ -1290,8 +1290,8 @@
 /* Dépenser plus est signalé en rouge, moins en vert. Une dépense inchangée
    n'est ni l'un ni l'autre : le test était `trend >= 0`, si bien qu'une
    variation exactement nulle s'affichait « ↗ 0,00 € » en rouge. */
-.stat-card.trend-up .stat-value { color: var(--danger-color); }
-.stat-card.trend-down .stat-value { color: var(--success-color); }
+.stat-card.trend-up .stat-value { color: var(--danger-ink); }
+.stat-card.trend-down .stat-value { color: var(--success-ink); }
 .stat-card.trend-flat .stat-value { color: var(--text-secondary); }
 
 /* La piste à suivre, sous les quatre cartes. Sur une ligne plutôt qu'en
