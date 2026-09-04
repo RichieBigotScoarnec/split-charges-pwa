@@ -99,7 +99,7 @@
      actif sans l'annoncer.
   */
   .onglet[aria-current="true"] {
-    color: var(--primary-color);
+    color: var(--primary-ink);
     border-top-color: var(--primary-color);
     background: var(--primary-soft);
   }
