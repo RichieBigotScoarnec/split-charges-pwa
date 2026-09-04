@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('public/fonts/dm-sans-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap; src: url('public/fonts/jetbrains-mono-latin.woff2') format('woff2'); }
+  html, body { margin: 0; padding: 0; background: #12100E; }
+  * { box-sizing: border-box; }
+  a { color: #818CF8; text-decoration: none; }
+  a:hover { color: #A5B4FC; text-decoration: underline; }
+  button { font: inherit; }
+</style>
+</helmet>
+
+<div style="font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#12100E;display:flex;flex-direction:column;gap:8px;-webkit-font-smoothing:antialiased">
+
+<section data-screen-label="Planche 1 — Tableau de bord, thème sombre" style="background:#12100E;color:#F5F2ED;padding:26px 32px 120px;position:relative">
+  <div style="max-width:1400px;margin:0 auto 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Planche 1</span>
+    <span style="font-size:15px;font-weight:600">Tableau de bord — thème sombre</span>
+    <span style="font-size:13px;color:#A0968A">Sélecteur de périmètre cliquable</span>
+  </div>
+<div style="max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+  <header style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:0 4px 4px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true" style="color:#818CF8;display:block"><path d="M26.5 6.174 A 18 18 0 1 0 26.5 41.826 Z" fill="currentColor"></path><path d="M26.5 6.174 A 18 18 0 0 1 26.5 41.826 Z" fill="currentColor" opacity="0.42"></path></svg>
+      <span style="font-size:17px;font-weight:600;letter-spacing:-0.01em">FairSplit</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:9999px;padding:3px">
+      <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;cursor:pointer;font-size:13px" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">◀</button>
+      <div style="min-width:150px;text-align:center;font-size:14px;font-weight:600;padding:0 8px">septembre 2026</div>
+      <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;cursor:pointer;font-size:13px" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">▶</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+      <button type="button" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 18px;border:1px solid rgba(255,255,255,0.10);border-radius:9999px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;border-color:rgba(255,255,255,0.10);background:rgba(255,255,255,0.06)"><span aria-hidden="true">⚙️</span> Réglages</button>
+      <div style="display:flex;align-items:center;gap:9px;height:44px;padding:0 6px 0 14px;border-radius:9999px;background:#1B1815;border:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:13px;color:#A0968A">Richard</span>
+        <div style="width:32px;height:32px;border-radius:9999px;background:#6264ED;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#FFFFFF">RB</div>
+      </div>
+    </div>
+  </header>
+
+  <sc-if value="{{ premierJour }}" hint-placeholder-val="{{ false }}">
+  <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:40px 44px 36px;max-width:900px;margin:20px auto 0">
+    <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Premier mois</div>
+    <h1 style="margin:14px 0 0;font-size:32px;font-weight:600;letter-spacing:-0.02em;line-height:1.2;text-wrap:pretty">FairSplit ne peut encore rien calculer.</h1>
+    <p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:#A0968A;max-width:60ch;text-wrap:pretty">Le solde entre vous deux se déduit de vos revenus et de vos dépenses. Trois choses à renseigner, dans cet ordre.</p>
+    <div style="display:flex;flex-direction:column;gap:2px;margin-top:28px;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:16px;padding:16px 20px;background:#23201C">
+        <div style="width:26px;height:26px;border-radius:9999px;background:#6264ED;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#FFFFFF">1</div>
+        <div>
+          <div style="font-size:14px;font-weight:600">Vos prénoms et vos revenus</div>
+          <div style="font-size:13px;color:#A0968A;margin-top:3px">Sans eux, aucune règle de partage n'est calculable.</div>
+        </div>
+        <button type="button" style="height:44px;padding:0 20px;border:0;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap" style-hover="background:#4F46E5">Commencer</button>
+      </div>
+      <div style="display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:16px;padding:16px 20px">
+        <div style="width:26px;height:26px;border-radius:9999px;border:1px solid rgba(255,255,255,0.10);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#A0968A">2</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#A0968A">Votre règle de partage</div>
+          <div style="font-size:13px;color:#A0968A;margin-top:3px">Au prorata des revenus, moitié-moitié, ou une part que vous fixez.</div>
+        </div>
+        <span style="font-size:13px;color:#A0968A">Après l'étape 1</span>
+      </div>
+      <div style="display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:16px;padding:16px 20px">
+        <div style="width:26px;height:26px;border-radius:9999px;border:1px solid rgba(255,255,255,0.10);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#A0968A">3</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#A0968A">Votre première dépense</div>
+          <div style="font-size:13px;color:#A0968A;margin-top:3px">Le bouton en bas à droite, à tout moment.</div>
+        </div>
+        <span style="font-size:13px;color:#A0968A">Après l'étape 1</span>
+      </div>
+    </div>
+    <div style="margin-top:32px;padding-top:26px;border-top:1px solid rgba(255,255,255,0.06)">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Une chose à savoir dès maintenant</div>
+      <p style="margin:12px 0 18px;font-size:14px;color:#A0968A;line-height:1.6;max-width:70ch;text-wrap:pretty">Toute dépense appartient à l'un de trois périmètres. C'est ce qui décide si elle pèse sur le solde, et qui la voit.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div style="border:1px solid rgba(255,255,255,0.06);border-top:2px solid #6264ED;border-radius:12px;padding:16px 18px">
+          <div style="font-size:14px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+          <div style="font-size:12.5px;color:#A0968A;line-height:1.55;margin-top:6px;text-wrap:pretty">Le loyer, les courses. Compte dans le solde, visible des deux.</div>
+        </div>
+        <div style="border:1px solid rgba(255,255,255,0.06);border-top:2px solid #A0968A;border-radius:12px;padding:16px 18px">
+          <div style="font-size:14px;font-weight:600"><span aria-hidden="true">👤</span> Solo</div>
+          <div style="font-size:12.5px;color:#A0968A;line-height:1.55;margin-top:6px;text-wrap:pretty">Ton abonnement, ton déjeuner. Hors solde, visible des deux.</div>
+        </div>
+        <div style="border:1px solid rgba(255,255,255,0.06);border-top:2px solid #34D399;border-radius:12px;padding:16px 18px">
+          <div style="font-size:14px;font-weight:600"><span aria-hidden="true">🔒</span> Privé</div>
+          <div style="font-size:12.5px;color:#A0968A;line-height:1.55;margin-top:6px;text-wrap:pretty">Un cadeau, une réserve. Hors solde, et l'autre n'en voit rien.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  </sc-if>
+
+  <sc-if value="{{ moisEnCours }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-direction:column;gap:20px">
+
+    <div style="display:flex;align-items:center;gap:4px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:4px;align-self:flex-start">
+      <sc-if value="{{ scopeDeux }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-radius:9px;background:#6264ED;color:#FFFFFF;font-size:14px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+      </sc-if>
+      <sc-if value="{{ pasDeux }}" hint-placeholder-val="{{ false }}">
+      <button type="button" onClick="{{ allerDeux }}" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:14px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;background:rgba(255,255,255,0.06)"><span aria-hidden="true">🤝</span> À deux</button>
+      </sc-if>
+      <sc-if value="{{ scopeSolo }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-radius:9px;background:#23201C;border:1px solid rgba(255,255,255,0.10);color:#F5F2ED;font-size:14px;font-weight:600"><span aria-hidden="true">👤</span> Solo</div>
+      </sc-if>
+      <sc-if value="{{ pasSolo }}" hint-placeholder-val="{{ true }}">
+      <button type="button" onClick="{{ allerSolo }}" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:14px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;background:rgba(255,255,255,0.06)"><span aria-hidden="true">👤</span> Solo</button>
+      </sc-if>
+      <sc-if value="{{ scopePrive }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-radius:9px;background:#23201C;border:1px solid rgba(52,211,153,0.28);color:#F5F2ED;font-size:14px;font-weight:600"><span aria-hidden="true">🔒</span> Privé</div>
+      </sc-if>
+      <sc-if value="{{ pasPrive }}" hint-placeholder-val="{{ true }}">
+      <button type="button" onClick="{{ allerPrive }}" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:14px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;background:rgba(255,255,255,0.06)"><span aria-hidden="true">🔒</span> Privé</button>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ scopeDeux }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+
+    <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:18px;overflow:hidden">
+      <div style="display:flex;flex-wrap:wrap">
+        <div style="flex:1 1 460px;min-width:0;padding:30px 32px 28px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Solde du mois</div>
+          <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;margin-top:14px">
+            <span style="font-size:21px;color:#A0968A">Tu dois</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:54px;font-weight:700;letter-spacing:-0.03em;line-height:1;color:#FBBF24">66,94 €</span>
+            <span style="font-size:21px;color:#A0968A">à Cindy</span>
+          </div>
+          <div style="margin-top:22px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:13px;font-weight:600">Ta part du commun</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">152,45 €</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:8px 14px 8px 26px;background:rgba(255,255,255,0.015)">
+              <span style="font-size:12.5px;color:#A0968A">Courses, au prorata de 71 %</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#A0968A">129,95 €</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:8px 14px 8px 26px;background:rgba(255,255,255,0.015);border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:12.5px;color:#A0968A">Festival, réparti en 50/50</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#A0968A">22,50 €</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:13px;color:#A0968A">Ce que tu as déjà avancé</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#34D399">− 45,00 €</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:13px;color:#A0968A">Report d'août, en ta faveur</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#34D399">− 40,51 €</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:11px 14px;background:#23201C">
+              <span style="font-size:13px;font-weight:600">Reste dû à Cindy</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#FBBF24">66,94 €</span>
+            </div>
+          </div>
+          <button type="button" style="height:44px;padding:0 22px;margin-top:18px;border:0;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#4F46E5">Enregistrer le virement</button>
+        </div>
+
+        <div style="flex:1 1 250px;min-width:0;padding:30px 28px 28px;border-left:1px solid rgba(255,255,255,0.06)">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ton reste à vivre</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:31px;font-weight:600;letter-spacing:-0.02em;margin-top:14px">2 888,43 €</div>
+          <div style="font-size:13px;color:#A0968A;line-height:1.55;margin-top:8px;text-wrap:pretty">Tes revenus, moins ta part du commun et tes dépenses solo.</div>
+          <div style="height:1px;background:rgba(255,255,255,0.06);margin:16px 0 14px"></div>
+          <div style="display:inline-flex;align-items:center;padding:5px 11px;border-radius:9999px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.28);font-size:12px;color:#34D399;font-weight:600">Taux d'effort 5 %</div>
+          <div style="font-size:12px;color:#A0968A;line-height:1.55;margin-top:8px;text-wrap:pretty">Ta part du commun et tes dépenses solo, rapportées à tes revenus. Les deux se complètent : 95 % te reste, 5 % est engagé.</div>
+        </div>
+
+        <div style="flex:1 1 250px;min-width:0;padding:30px 32px 28px;border-left:1px solid rgba(255,255,255,0.06)">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Dépensé à deux</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:31px;font-weight:600;letter-spacing:-0.02em;margin-top:14px">229,04 €</div>
+          <div style="font-size:13px;color:#A0968A;line-height:1.55;margin-top:8px">Sur 3 charges communes.</div>
+          <div style="height:1px;background:rgba(255,255,255,0.06);margin:16px 0 14px"></div>
+          <div style="font-size:13px;color:#A0968A;line-height:1.55;text-wrap:pretty">Tout est passé ce mois-ci : aucune échéance datée ne reste à venir.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:#A0968A">
+          <span style="color:#F5F2ED;font-weight:600"><span aria-hidden="true">⚖️</span> Prorata</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span style="display:inline-block;width:120px;height:6px;border-radius:9999px;background:#23201C;overflow:hidden;position:relative">
+              <span style="position:absolute;inset:0 29% 0 0;background:#6264ED;border-radius:9999px"></span>
+            </span>
+            Richard 71 % · Cindy 29 %
+          </span>
+          <span>d'après 3 050,88 € et 1 270,00 € de revenus mensuels</span>
+        </div>
+        <a href="#reglages" style="font-size:13px;font-weight:600">Modifier les revenus</a>
+      </div>
+    </section>
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+        <div style="display:flex;align-items:center;gap:10px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0 16px;height:48px">
+          <span style="color:#A0968A;font-size:15px" aria-hidden="true">🔍</span>
+          <label for="rechercheSombre" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0">Rechercher une charge</label>
+          <input id="rechercheSombre" type="search" placeholder="Rechercher une charge…" style="flex:1;min-width:0;height:100%;border:0;background:transparent;color:#F5F2ED;font-size:14px;outline:none;font-family:inherit">
+          <label style="display:flex;align-items:center;gap:8px;min-height:44px;font-size:12px;color:#A0968A;white-space:nowrap;cursor:pointer;padding-left:14px;border-left:1px solid rgba(255,255,255,0.06)">
+            <input type="checkbox" style="accent-color:#6264ED;width:18px;height:18px;margin:0">
+            Tous les mois
+          </label>
+        </div>
+
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px">
+            <div style="display:flex;align-items:baseline;gap:12px">
+              <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">⚡</span> Charges variables</h2>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button type="button" style="height:44px;padding:0 15px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;background:rgba(255,255,255,0.06)">Sélectionner</button>
+              <button type="button" style="height:44px;padding:0 17px;border:0;border-radius:8px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#4F46E5">+ Ajouter</button>
+            </div>
+          </div>
+
+          <sc-if value="{{ soloExclu }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#A0968A">184,04 €</div>
+          </div>
+          </sc-if>
+          <sc-if value="{{ soloInclus }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#A0968A">184,04 € <span style="color:#A0968A;font-weight:500">+ 10,00 solo</span></div>
+          </div>
+          </sc-if>
+
+          <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06)" style-hover="background:rgba(255,255,255,0.06)">
+            <div style="min-width:0">
+              <div style="font-size:14px;font-weight:500">Courses Lidl</div>
+              <div style="font-size:12px;color:#A0968A;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">4 sept. · 11:16 · Payé par Cindy · Lidl, Landivisiau</div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">80,18 €</div>
+            <button type="button" aria-label="Actions sur Courses Lidl" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#A0968A;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">⋯</button>
+          </div>
+
+          <sc-if value="{{ soloInclus }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06)" style-hover="background:rgba(255,255,255,0.06)">
+            <div style="min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-size:14px;font-weight:500">Courses Leclerc</span>
+                <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;background:#23201C;border:1px solid rgba(255,255,255,0.10);border-radius:9999px;padding:3px 8px">👤 solo</span>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">3 sept. · 12:36 · Payé par Richard · Hors solde · Leclerc, Le Folgoët</div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#A0968A">10,00 €</div>
+            <button type="button" aria-label="Actions sur Courses Leclerc" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#A0968A;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">⋯</button>
+          </div>
+          </sc-if>
+
+          <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px" style-hover="background:rgba(255,255,255,0.06)">
+            <div style="min-width:0">
+              <div style="font-size:14px;font-weight:500">Courses</div>
+              <div style="font-size:12px;color:#A0968A;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 14:08 · Payé par Cindy · Bd de la République, Landivisiau</div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">103,86 €</div>
+            <button type="button" aria-label="Actions sur Courses" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#A0968A;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">⋯</button>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600"><span aria-hidden="true">🎮</span> Loisirs</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#A0968A">45,00 €</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px" style-hover="background:rgba(255,255,255,0.06)">
+            <div style="min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-size:14px;font-weight:500">Festival « Ils sont fous ces bretons »</span>
+                <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#60A5FA;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.28);border-radius:9999px;padding:3px 8px" title="Cette charge déroge au prorata du foyer">⚖️ 50/50</span>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 22:12 · Payé par Richard · Château de Trévarez, Saint-Goazec</div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">45,00 €</div>
+            <button type="button" aria-label="Actions sur le Festival" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#A0968A;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">⋯</button>
+          </div>
+
+          <sc-if value="{{ soloExclu }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)">
+            <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+              <span style="font-size:13px;font-weight:600">Total commun <span style="font-family:'JetBrains Mono',monospace">229,04 €</span></span>
+              <span style="font-size:12.5px;color:#A0968A">Ta dépense solo de 10,00 € est rangée dans Solo.</span>
+            </div>
+            <button type="button" onClick="{{ allerSolo }}" style="height:44px;padding:0 14px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(255,255,255,0.06)">Voir Solo</button>
+          </div>
+          </sc-if>
+          <sc-if value="{{ soloInclus }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)">
+            <div style="display:flex;align-items:baseline;gap:20px;flex-wrap:wrap">
+              <span style="font-size:13px;font-weight:600">Total commun <span style="font-family:'JetBrains Mono',monospace">229,04 €</span></span>
+              <span style="font-size:13px;color:#A0968A">Solo <span style="font-family:'JetBrains Mono',monospace;font-weight:600">10,00 €</span></span>
+            </div>
+            <span style="font-size:12px;color:#A0968A;text-wrap:pretty">Deux totaux, jamais un seul : le solo ne pèse pas sur le solde.</span>
+          </div>
+          </sc-if>
+        </section>
+
+        <section style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:baseline;gap:12px">
+              <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🏠</span> Charges fixes</h2>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#A0968A">0,00 €</span>
+            </div>
+            <div style="font-size:13px;color:#A0968A;margin-top:4px">Aucune ce mois-ci — loyer, assurance, abonnements se reconduisent tout seuls.</div>
+          </div>
+          <button type="button" style="height:44px;padding:0 16px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(255,255,255,0.06)">+ Ajouter une charge fixe</button>
+        </section>
+
+        <section style="display:flex;flex-direction:column;gap:16px;flex:1;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:baseline;gap:12px">
+              <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">💸</span> Virements entre vous</h2>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#A0968A">0,00 €</span>
+            </div>
+            <div style="font-size:13px;color:#A0968A;margin-top:4px">Aucun ce mois-ci. Les 66,94 € du solde sont encore ouverts.</div>
+          </div>
+          <button type="button" style="height:44px;padding:0 16px;margin-top:auto;align-self:flex-start;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(255,255,255,0.06)">+ Enregistrer un virement</button>
+        </section>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+        <sc-if value="{{ budgetsDefinis }}" hint-placeholder-val="{{ false }}">
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px 18px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🎯</span> Budgets par catégorie</h2>
+            <a href="#budgets" style="font-size:12px;font-weight:600">Modifier</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px">
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-size:13px;font-weight:500"><span aria-hidden="true">🛒</span> Courses</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#A0968A"><span style="color:#F5F2ED;font-weight:600">184,04</span> / 250,00 €</span>
+              </div>
+              <div style="height:7px;border-radius:9999px;background:#23201C;margin-top:8px;overflow:hidden;position:relative">
+                <div style="position:absolute;inset:0 26% 0 0;background:#6264ED;border-radius:9999px"></div>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:6px">Il reste 65,96 € · 74 % consommé</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-size:13px;font-weight:500"><span aria-hidden="true">🎮</span> Loisirs</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#A0968A"><span style="color:#F87171;font-weight:600">45,00</span> / 40,00 €</span>
+              </div>
+              <div style="height:7px;border-radius:9999px;background:#23201C;margin-top:8px;overflow:hidden;position:relative">
+                <div style="position:absolute;inset:0;background:#F87171;border-radius:9999px"></div>
+              </div>
+              <div style="font-size:12px;color:#F87171;margin-top:6px">Dépassé de 5,00 €</div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#A0968A;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);line-height:1.5;text-wrap:pretty">Dépenses communes seules. Le solo et le privé ne comptent pas ici.</div>
+        </section>
+        </sc-if>
+
+        <sc-if value="{{ budgetsAbsents }}" hint-placeholder-val="{{ true }}">
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px 18px">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🎯</span> Où part votre argent</h2>
+          <div style="display:flex;flex-direction:column;gap:15px;margin-top:16px">
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-size:13px;font-weight:500"><span aria-hidden="true">🛒</span> Courses</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">184,04 €</span>
+              </div>
+              <div style="height:7px;border-radius:9999px;background:#23201C;margin-top:8px;overflow:hidden;position:relative">
+                <div style="position:absolute;inset:0 20% 0 0;background:#6264ED;border-radius:9999px"></div>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:6px">80 % du mois</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-size:13px;font-weight:500"><span aria-hidden="true">🎮</span> Loisirs</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">45,00 €</span>
+              </div>
+              <div style="height:7px;border-radius:9999px;background:#23201C;margin-top:8px;overflow:hidden;position:relative">
+                <div style="position:absolute;inset:0 80% 0 0;background:#818CF8;border-radius:9999px"></div>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:6px">20 % du mois</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+            <span style="font-size:12px;color:#A0968A;line-height:1.45;text-wrap:pretty">Aucun budget défini. Avec un plafond, ces barres diraient ce qu'il reste.</span>
+            <button type="button" style="height:44px;padding:0 14px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(255,255,255,0.06)">Définir</button>
+          </div>
+        </section>
+        </sc-if>
+
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px 18px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">📍</span> Où vous dépensez</h2>
+            <a href="#carte" style="font-size:12px;font-weight:600">La carte</a>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-top:16px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;letter-spacing:-0.02em">184,04 €</span>
+            <span style="font-size:13px;color:#A0968A">à Landivisiau</span>
+          </div>
+          <div style="font-size:13px;color:#A0968A;line-height:1.55;margin-top:6px">92,02 € par passage, sur 2 passages.</div>
+          <div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0"></div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+            <span style="font-size:13px;color:#A0968A">Saint-Goazec</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">45,00 €</span>
+          </div>
+          <div style="font-size:12px;color:#A0968A;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);line-height:1.5;text-wrap:pretty">3 dépenses situées sur 3 ce mois-ci. Un lieu sans passage répété ne dit rien d'une habitude.</div>
+        </section>
+
+        <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:0 18px;min-height:56px;color:#F5F2ED;cursor:pointer" style-hover="border-color:rgba(255,255,255,0.10);background:rgba(255,255,255,0.015)">
+          <span style="font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">📈</span> Tendances sur 6 mois</span>
+          <span style="color:#A0968A;font-size:12px" aria-hidden="true">▼</span>
+        </button>
+
+        <section style="display:flex;flex-direction:column;flex:1;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px 18px">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🧳</span> Enveloppes à deux</h2>
+          <p style="margin:14px 0 0;font-size:13px;color:#A0968A;line-height:1.6;text-wrap:pretty">Aucune pour l'instant. Une enveloppe regroupe des dépenses par projet — un séjour, un chantier — par-delà les catégories et les mois, sans jamais toucher au solde.</p>
+          <p style="margin:10px 0 0;font-size:12.5px;color:#A0968A;line-height:1.55;text-wrap:pretty">Deux natures : un budget mensuel, qui se vide, ou une cagnotte, qui se remplit.</p>
+          <div style="margin-top:auto;padding-top:16px"><button type="button" style="height:44px;padding:0 16px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:rgba(255,255,255,0.06)">Créer une enveloppe</button></div>
+        </section>
+      </div>
+    </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ scopeSolo }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:18px;overflow:hidden">
+        <div style="display:flex;flex-wrap:wrap">
+          <div style="flex:1 1 440px;min-width:0;padding:30px 32px 28px">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Mes dépenses solo</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;letter-spacing:-0.03em;line-height:1;margin-top:14px">10,00 €</div>
+            <p style="margin:16px 0 0;font-size:14px;color:#A0968A;line-height:1.6;max-width:52ch;text-wrap:pretty">Ce que tu as payé pour toi seul, ce mois-ci. Rien de tout cela n'entre dans le solde : personne ne doit rien à personne dessus.</p>
+            <div style="margin-top:18px;padding:12px 14px;border-radius:10px;background:#23201C;border:1px solid rgba(255,255,255,0.06);font-size:12.5px;color:#A0968A;line-height:1.5;text-wrap:pretty"><strong style="color:#F5F2ED;font-weight:600">Cindy voit cette liste.</strong> Pour ce qu'elle ne doit pas voir, c'est l'onglet Privé.</div>
+          </div>
+          <div style="flex:1 1 250px;min-width:0;padding:30px 28px 28px;border-left:1px solid rgba(255,255,255,0.06)">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ma part du commun</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:31px;font-weight:600;letter-spacing:-0.02em;margin-top:14px">152,45 €</div>
+            <div style="font-size:13px;color:#A0968A;line-height:1.55;margin-top:8px">129,95 € au prorata de 71 %, plus 22,50 € sur la charge répartie en 50/50.</div>
+          </div>
+          <div style="flex:1 1 250px;min-width:0;padding:30px 32px 28px;border-left:1px solid rgba(255,255,255,0.06)">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ce qu'il me reste</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:31px;font-weight:600;letter-spacing:-0.02em;margin-top:14px">2 888,43 €</div>
+            <div style="font-size:13px;color:#A0968A;line-height:1.55;margin-top:8px">3 050,88 € de revenus, moins 152,45 € de part commune et 10,00 € de solo.</div>
+          </div>
+        </div>
+      </section>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">👤</span> Mes charges solo</h2>
+            <button type="button" style="height:44px;padding:0 17px;border:0;border-radius:8px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#4F46E5">+ Ajouter</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#A0968A">10,00 €</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px" style-hover="background:rgba(255,255,255,0.06)">
+            <div style="min-width:0">
+              <div style="font-size:14px;font-weight:500">Courses Leclerc</div>
+              <div style="font-size:12px;color:#A0968A;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">3 sept. · 12:36 · Repas du midi · Leclerc, Le Folgoët</div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">10,00 €</div>
+            <button type="button" aria-label="Actions sur Courses Leclerc" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#A0968A;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">⋯</button>
+          </div>
+        </section>
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px 18px;min-width:0">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🧳</span> Mes enveloppes solo</h2>
+          <p style="margin:14px 0 0;font-size:13px;color:#A0968A;line-height:1.6;text-wrap:pretty">Aucune pour l'instant. Une enveloppe solo met de l'argent de côté pour toi — un vélo, un stage, une réserve — sans jamais toucher au solde du couple.</p>
+          <button type="button" style="height:44px;padding:0 16px;margin-top:16px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:rgba(255,255,255,0.06)">Créer une enveloppe solo</button>
+        </section>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ scopePrive }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-top:2px solid #34D399;border-radius:18px;padding:32px 34px 30px">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span aria-hidden="true">🔒</span>
+          <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Mon espace privé</span>
+        </div>
+        <h1 style="margin:14px 0 0;font-size:28px;font-weight:600;letter-spacing:-0.02em;line-height:1.25">Cindy voit un total. Jamais ce que tu as acheté.</h1>
+        <p style="margin:12px 0 0;font-size:14.5px;color:#A0968A;line-height:1.65;max-width:66ch;text-wrap:pretty">Le refus vient du serveur, pas de l'écran : cet espace n'est lisible que par ton compte, et toi seul peux ouvrir cet accès — personne ne peut se l'accorder à ta place.</p>
+        <p style="margin:10px 0 0;font-size:13px;color:#A0968A;line-height:1.6;max-width:66ch;text-wrap:pretty">Le privé n'entre ni dans ton reste à vivre, ni dans ton taux d'effort. Sinon Cindy le déduirait par soustraction : elle connaît ta part, ton solo et tes revenus.</p>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:12px;margin-top:26px">
+          <div style="display:flex;flex-direction:column;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 20px">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Total du mois</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600;letter-spacing:0.14em;margin-top:12px;color:#A0968A">••••</div>
+            <button type="button" style="height:44px;padding:0 18px;margin-top:16px;align-self:flex-start;border:0;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#4F46E5">Afficher le détail</button>
+            <div style="font-size:12px;color:#A0968A;line-height:1.5;margin-top:auto;padding-top:12px;text-wrap:pretty">Masqué contre les regards par-dessus l'épaule. Se referme dès que tu quittes l'onglet.</div>
+          </div>
+          <div style="border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 20px">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ce que Cindy voit</div>
+            <div style="display:flex;flex-direction:column;margin-top:14px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;overflow:hidden">
+              <button type="button" style="display:block;width:100%;min-height:56px;text-align:left;border:0;background:transparent;padding:11px 13px;cursor:pointer;color:#A0968A" style-hover="background:rgba(255,255,255,0.06)">
+                <span style="display:block;font-size:13px;font-weight:600">Rien</span>
+                <span style="display:block;font-size:12px;margin-top:2px">Pas même l'existence d'un montant.</span>
+              </button>
+              <div style="padding:11px 13px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                <span style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><span aria-hidden="true">✓</span> Un total, et un nombre</span>
+                <span style="display:block;font-size:12px;color:#A0968A;margin-top:3px;line-height:1.5;text-wrap:pretty">« 340 € en 2 dépenses ». Jamais un libellé. C'est le réglage actuel.</span>
+              </div>
+              <button type="button" style="display:block;width:100%;min-height:56px;text-align:left;border:0;background:transparent;padding:11px 13px;cursor:pointer;color:#A0968A" style-hover="background:rgba(255,255,255,0.06)">
+                <span style="display:block;font-size:13px;font-weight:600">Le détail</span>
+                <span style="display:block;font-size:12px;margin-top:2px">Tout, ligne par ligne. Révocable à tout moment.</span>
+              </button>
+            </div>
+            <div style="font-size:11.5px;color:#A0968A;line-height:1.5;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);text-wrap:pretty">Ce total est publié par ton appareil. Le serveur ne peut pas le vérifier — il n'a pas le droit d'additionner ce qu'il n'a pas le droit de lire.</div>
+          </div>
+        </div>
+      </section>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+        <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em">Mes dépenses privées</h2>
+            <button type="button" style="height:44px;padding:0 17px;border:0;border-radius:8px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#4F46E5">+ Ajouter</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:16px 18px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div style="height:11px;width:38%;border-radius:9999px;background:#23201C"></div>
+            <div style="height:11px;width:58px;border-radius:9999px;background:#2E2A25"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:16px 18px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div style="height:11px;width:52%;border-radius:9999px;background:#23201C"></div>
+            <div style="height:11px;width:66px;border-radius:9999px;background:#2E2A25"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:16px 18px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div style="height:11px;width:29%;border-radius:9999px;background:#23201C"></div>
+            <div style="height:11px;width:50px;border-radius:9999px;background:#2E2A25"></div>
+          </div>
+          <div style="padding:14px 18px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015);font-size:12.5px;color:#A0968A">3 dépenses, masquées. « Afficher le détail » les révèle sur cet appareil seulement.</div>
+        </section>
+        <section style="display:flex;flex-direction:column;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px 18px;min-width:0">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em">Mes cagnottes privées</h2>
+          <div style="margin-top:16px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+              <span style="font-size:13px;font-weight:500">Cadeau d'anniversaire</span>
+              <span style="display:inline-block;height:11px;width:62px;border-radius:9999px;background:#2E2A25"></span>
+            </div>
+            <div style="height:7px;border-radius:9999px;background:#23201C;margin-top:8px"></div>
+            <div style="font-size:12px;color:#A0968A;margin-top:6px">Montant masqué</div>
+          </div>
+          <div style="font-size:12px;color:#A0968A;margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);line-height:1.5;text-wrap:pretty">Une cagnotte privée contient de l'argent réel : ce qui est versé moins ce qui est dépensé.</div>
+        </section>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+</div>
+
+<button type="button" style="position:absolute;right:32px;bottom:32px;display:flex;align-items:center;gap:10px;height:56px;padding:0 26px 0 22px;border:0;border-radius:9999px;background:#6264ED;color:#FFFFFF;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.45);z-index:20" style-hover="background:#4F46E5">
+  <span aria-hidden="true" style="font-size:21px;line-height:1;font-weight:400">＋</span> Noter une dépense
+</button>
+</section>
+
+<section data-screen-label="Planche 2 — Tableau de bord, thème clair" style="background:#FAF8F5;color:#241E19;padding:26px 32px 120px;position:relative">
+  <div style="max-width:1400px;margin:0 auto 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Planche 2</span>
+    <span style="font-size:15px;font-weight:600">Tableau de bord — thème clair</span>
+    <span style="font-size:13px;color:#6B5D50">Vue « À deux », mêmes données</span>
+  </div>
+<div style="max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+  <header style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:0 4px 4px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true" style="color:#4F46E5;display:block"><path d="M26.5 6.174 A 18 18 0 1 0 26.5 41.826 Z" fill="currentColor"></path><path d="M26.5 6.174 A 18 18 0 0 1 26.5 41.826 Z" fill="currentColor" opacity="0.42"></path></svg>
+      <span style="font-size:17px;font-weight:600;letter-spacing:-0.01em">FairSplit</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:9999px;padding:3px;box-shadow:0 1px 3px rgba(60,42,28,0.07)">
+      <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;cursor:pointer;font-size:13px" style-hover="background:rgba(0,0,0,0.04);color:#241E19">◀</button>
+      <div style="min-width:150px;text-align:center;font-size:14px;font-weight:600;padding:0 8px">septembre 2026</div>
+      <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;cursor:pointer;font-size:13px" style-hover="background:rgba(0,0,0,0.04);color:#241E19">▶</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+      <button type="button" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 18px;border:1px solid rgba(0,0,0,0.14);border-radius:9999px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer" style-hover="color:#241E19;background:rgba(0,0,0,0.04)"><span aria-hidden="true">⚙️</span> Réglages</button>
+      <div style="display:flex;align-items:center;gap:9px;height:44px;padding:0 6px 0 14px;border-radius:9999px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08)">
+        <span style="font-size:13px;color:#6B5D50">Richard</span>
+        <div style="width:32px;height:32px;border-radius:9999px;background:#4F46E5;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#FFFFFF">RB</div>
+      </div>
+    </div>
+  </header>
+
+  <div style="display:flex;align-items:center;gap:4px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:4px;align-self:flex-start;box-shadow:0 1px 3px rgba(60,42,28,0.07)">
+    <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-radius:9px;background:#4F46E5;color:#FFFFFF;font-size:14px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+    <button type="button" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:9px;background:transparent;color:#6B5D50;font-size:14px;font-weight:500;cursor:pointer" style-hover="color:#241E19;background:rgba(0,0,0,0.04)"><span aria-hidden="true">👤</span> Solo</button>
+    <button type="button" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:9px;background:transparent;color:#6B5D50;font-size:14px;font-weight:500;cursor:pointer" style-hover="color:#241E19;background:rgba(0,0,0,0.04)"><span aria-hidden="true">🔒</span> Privé</button>
+  </div>
+
+  <section style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:18px;overflow:hidden;box-shadow:0 4px 16px rgba(60,42,28,0.09)">
+    <div style="display:flex;flex-wrap:wrap">
+      <div style="flex:1 1 460px;min-width:0;padding:30px 32px 28px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Solde du mois</div>
+        <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;margin-top:14px">
+          <span style="font-size:21px;color:#6B5D50">Tu dois</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:54px;font-weight:700;letter-spacing:-0.03em;line-height:1;color:#9D510A">66,94 €</span>
+          <span style="font-size:21px;color:#6B5D50">à Cindy</span>
+        </div>
+        <div style="margin-top:22px;border:1px solid rgba(0,0,0,0.08);border-radius:12px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.08)">
+            <span style="font-size:13px;font-weight:600">Ta part du commun</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">152,45 €</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:8px 14px 8px 26px;background:#F3EFE9">
+            <span style="font-size:12.5px;color:#6B5D50">Courses, au prorata de 71 %</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B5D50">129,95 €</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:8px 14px 8px 26px;background:#F3EFE9;border-bottom:1px solid rgba(0,0,0,0.08)">
+            <span style="font-size:12.5px;color:#6B5D50">Festival, réparti en 50/50</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B5D50">22,50 €</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.08)">
+            <span style="font-size:13px;color:#6B5D50">Ce que tu as déjà avancé</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#047253">− 45,00 €</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.08)">
+            <span style="font-size:13px;color:#6B5D50">Report d'août, en ta faveur</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#047253">− 40,51 €</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:11px 14px;background:#F3EFE9">
+            <span style="font-size:13px;font-weight:600">Reste dû à Cindy</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#9D510A">66,94 €</span>
+          </div>
+        </div>
+        <button type="button" style="height:44px;padding:0 22px;margin-top:18px;border:0;border-radius:10px;background:#4F46E5;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#3730A3">Enregistrer le virement</button>
+      </div>
+      <div style="flex:1 1 250px;min-width:0;padding:30px 28px 28px;border-left:1px solid rgba(0,0,0,0.08)">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Ton reste à vivre</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:31px;font-weight:600;letter-spacing:-0.02em;margin-top:14px">2 888,43 €</div>
+        <div style="font-size:13px;color:#6B5D50;line-height:1.55;margin-top:8px;text-wrap:pretty">Tes revenus, moins ta part du commun et tes dépenses solo.</div>
+        <div style="height:1px;background:rgba(0,0,0,0.08);margin:16px 0 14px"></div>
+        <div style="display:inline-flex;align-items:center;padding:5px 11px;border-radius:9999px;background:rgba(5,150,105,0.10);border:1px solid rgba(5,150,105,0.22);font-size:12px;color:#047253;font-weight:600">Taux d'effort 5 %</div>
+        <div style="font-size:12px;color:#6B5D50;line-height:1.55;margin-top:8px;text-wrap:pretty">Ta part du commun et tes dépenses solo, rapportées à tes revenus. Les deux se complètent : 95 % te reste, 5 % est engagé.</div>
+      </div>
+      <div style="flex:1 1 250px;min-width:0;padding:30px 32px 28px;border-left:1px solid rgba(0,0,0,0.08)">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Dépensé à deux</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:31px;font-weight:600;letter-spacing:-0.02em;margin-top:14px">229,04 €</div>
+        <div style="font-size:13px;color:#6B5D50;line-height:1.55;margin-top:8px">Sur 3 charges communes.</div>
+        <div style="height:1px;background:rgba(0,0,0,0.08);margin:16px 0 14px"></div>
+        <div style="font-size:13px;color:#6B5D50;line-height:1.55;text-wrap:pretty">Tout est passé ce mois-ci : aucune échéance datée ne reste à venir.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 32px;border-top:1px solid rgba(0,0,0,0.08);background:#F3EFE9">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:#6B5D50">
+        <span style="color:#241E19;font-weight:600"><span aria-hidden="true">⚖️</span> Prorata</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span style="display:inline-block;width:120px;height:6px;border-radius:9999px;background:rgba(0,0,0,0.08);overflow:hidden;position:relative">
+            <span style="position:absolute;inset:0 29% 0 0;background:#4F46E5;border-radius:9999px"></span>
+          </span>
+          Richard 71 % · Cindy 29 %
+        </span>
+        <span>d'après 3 050,88 € et 1 270,00 € de revenus mensuels</span>
+      </div>
+      <a href="#reglages" style="font-size:13px;font-weight:600;color:#4F46E5">Modifier les revenus</a>
+    </div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div style="display:flex;align-items:center;gap:10px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:0 16px;height:48px">
+        <span style="color:#6B5D50;font-size:15px" aria-hidden="true">🔍</span>
+        <label for="rechercheClair" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0">Rechercher une charge</label>
+        <input id="rechercheClair" type="search" placeholder="Rechercher une charge…" style="flex:1;min-width:0;height:100%;border:0;background:transparent;color:#241E19;font-size:14px;outline:none;font-family:inherit">
+        <label style="display:flex;align-items:center;gap:8px;min-height:44px;font-size:12px;color:#6B5D50;white-space:nowrap;cursor:pointer;padding-left:14px;border-left:1px solid rgba(0,0,0,0.08)">
+          <input type="checkbox" style="accent-color:#4F46E5;width:18px;height:18px;margin:0">
+          Tous les mois
+        </label>
+      </div>
+
+      <section style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">⚡</span> Charges variables</h2>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button type="button" style="height:44px;padding:0 15px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer" style-hover="color:#241E19;background:rgba(0,0,0,0.04)">Sélectionner</button>
+            <button type="button" style="height:44px;padding:0 17px;border:0;border-radius:8px;background:#4F46E5;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#3730A3">+ Ajouter</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#F3EFE9;border-top:1px solid rgba(0,0,0,0.08);border-bottom:1px solid rgba(0,0,0,0.08)">
+          <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#6B5D50">184,04 €</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(0,0,0,0.08)" style-hover="background:rgba(0,0,0,0.04)">
+          <div style="min-width:0">
+            <div style="font-size:14px;font-weight:500">Courses Lidl</div>
+            <div style="font-size:12px;color:#6B5D50;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">4 sept. · 11:16 · Payé par Cindy · Lidl, Landivisiau</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">80,18 €</div>
+          <button type="button" aria-label="Actions sur Courses Lidl" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#6B5D50;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(0,0,0,0.04);color:#241E19">⋯</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px" style-hover="background:rgba(0,0,0,0.04)">
+          <div style="min-width:0">
+            <div style="font-size:14px;font-weight:500">Courses</div>
+            <div style="font-size:12px;color:#6B5D50;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 14:08 · Payé par Cindy · Bd de la République, Landivisiau</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">103,86 €</div>
+          <button type="button" aria-label="Actions sur Courses" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#6B5D50;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(0,0,0,0.04);color:#241E19">⋯</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#F3EFE9;border-top:1px solid rgba(0,0,0,0.08);border-bottom:1px solid rgba(0,0,0,0.08)">
+          <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600"><span aria-hidden="true">🎮</span> Loisirs</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#6B5D50">45,00 €</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:16px;padding:10px 18px" style-hover="background:rgba(0,0,0,0.04)">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:14px;font-weight:500">Festival « Ils sont fous ces bretons »</span>
+              <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#225AD5;background:rgba(37,99,235,0.10);border:1px solid rgba(37,99,235,0.22);border-radius:9999px;padding:3px 8px" title="Cette charge déroge au prorata du foyer">⚖️ 50/50</span>
+            </div>
+            <div style="font-size:12px;color:#6B5D50;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 22:12 · Payé par Richard · Château de Trévarez, Saint-Goazec</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600">45,00 €</div>
+          <button type="button" aria-label="Actions sur le Festival" style="width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#6B5D50;font-size:17px;line-height:1;cursor:pointer" style-hover="background:rgba(0,0,0,0.04);color:#241E19">⋯</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid rgba(0,0,0,0.08);background:#F3EFE9">
+          <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Total commun <span style="font-family:'JetBrains Mono',monospace">229,04 €</span></span>
+            <span style="font-size:12.5px;color:#6B5D50">Ta dépense solo de 10,00 € est rangée dans Solo.</span>
+          </div>
+          <button type="button" style="height:44px;padding:0 14px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;background:transparent;color:#241E19;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(0,0,0,0.04)">Voir Solo</button>
+        </div>
+      </section>
+
+      <section style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:16px 18px">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:baseline;gap:12px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🏠</span> Charges fixes</h2>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#6B5D50">0,00 €</span>
+          </div>
+          <div style="font-size:13px;color:#6B5D50;margin-top:4px">Aucune ce mois-ci — loyer, assurance, abonnements se reconduisent tout seuls.</div>
+        </div>
+        <button type="button" style="height:44px;padding:0 16px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;background:transparent;color:#241E19;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(0,0,0,0.04)">+ Ajouter une charge fixe</button>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:16px;flex:1;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:16px 18px">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:baseline;gap:12px">
+            <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">💸</span> Virements entre vous</h2>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#6B5D50">0,00 €</span>
+          </div>
+          <div style="font-size:13px;color:#6B5D50;margin-top:4px">Aucun ce mois-ci. Les 66,94 € du solde sont encore ouverts.</div>
+        </div>
+        <button type="button" style="height:44px;padding:0 16px;margin-top:auto;align-self:flex-start;border:1px solid rgba(0,0,0,0.14);border-radius:8px;background:transparent;color:#241E19;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(0,0,0,0.04)">+ Enregistrer un virement</button>
+      </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <section style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:16px 18px 18px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🎯</span> Où part votre argent</h2>
+        <div style="display:flex;flex-direction:column;gap:15px;margin-top:16px">
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+              <span style="font-size:13px;font-weight:500"><span aria-hidden="true">🛒</span> Courses</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">184,04 €</span>
+            </div>
+            <div style="height:7px;border-radius:9999px;background:#F3EFE9;margin-top:8px;overflow:hidden;position:relative">
+              <div style="position:absolute;inset:0 20% 0 0;background:#4F46E5;border-radius:9999px"></div>
+            </div>
+            <div style="font-size:12px;color:#7A6A5B;margin-top:6px">80 % du mois</div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+              <span style="font-size:13px;font-weight:500"><span aria-hidden="true">🎮</span> Loisirs</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">45,00 €</span>
+            </div>
+            <div style="height:7px;border-radius:9999px;background:#F3EFE9;margin-top:8px;overflow:hidden;position:relative">
+              <div style="position:absolute;inset:0 80% 0 0;background:#818CF8;border-radius:9999px"></div>
+            </div>
+            <div style="font-size:12px;color:#7A6A5B;margin-top:6px">20 % du mois</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.08)">
+          <span style="font-size:12px;color:#6B5D50;line-height:1.45;text-wrap:pretty">Aucun budget défini. Avec un plafond, ces barres diraient ce qu'il reste.</span>
+          <button type="button" style="height:44px;padding:0 14px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;background:transparent;color:#241E19;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(0,0,0,0.04)">Définir</button>
+        </div>
+      </section>
+
+      <section style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:16px 18px 18px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">📍</span> Où vous dépensez</h2>
+          <a href="#carte" style="font-size:12px;font-weight:600;color:#4F46E5">La carte</a>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin-top:16px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;letter-spacing:-0.02em">184,04 €</span>
+          <span style="font-size:13px;color:#6B5D50">à Landivisiau</span>
+        </div>
+        <div style="font-size:13px;color:#6B5D50;line-height:1.55;margin-top:6px">92,02 € par passage, sur 2 passages.</div>
+        <div style="height:1px;background:rgba(0,0,0,0.08);margin:14px 0"></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+          <span style="font-size:13px;color:#6B5D50">Saint-Goazec</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">45,00 €</span>
+        </div>
+        <div style="font-size:12px;color:#7A6A5B;margin-top:14px;padding-top:12px;border-top:1px solid rgba(0,0,0,0.08);line-height:1.5;text-wrap:pretty">3 dépenses situées sur 3 ce mois-ci. Un lieu sans passage répété ne dit rien d'une habitude.</div>
+      </section>
+
+      <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:0 18px;min-height:56px;color:#241E19;cursor:pointer" style-hover="border-color:rgba(0,0,0,0.14);background:rgba(0,0,0,0.04)">
+        <span style="font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">📈</span> Tendances sur 6 mois</span>
+        <span style="color:#6B5D50;font-size:12px" aria-hidden="true">▼</span>
+      </button>
+
+      <section style="display:flex;flex-direction:column;flex:1;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:16px 18px 18px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🧳</span> Enveloppes à deux</h2>
+        <p style="margin:14px 0 0;font-size:13px;color:#6B5D50;line-height:1.6;text-wrap:pretty">Aucune pour l'instant. Une enveloppe regroupe des dépenses par projet — un séjour, un chantier — par-delà les catégories et les mois, sans jamais toucher au solde.</p>
+        <p style="margin:10px 0 0;font-size:12.5px;color:#7A6A5B;line-height:1.55;text-wrap:pretty">Deux natures : un budget mensuel, qui se vide, ou une cagnotte, qui se remplit.</p>
+        <div style="margin-top:auto;padding-top:16px"><button type="button" style="height:44px;padding:0 16px;border:1px solid rgba(0,0,0,0.14);border-radius:8px;background:transparent;color:#241E19;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:rgba(0,0,0,0.04)">Créer une enveloppe</button></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<button type="button" style="position:absolute;right:32px;bottom:32px;display:flex;align-items:center;gap:10px;height:56px;padding:0 26px 0 22px;border:0;border-radius:9999px;background:#4F46E5;color:#FFFFFF;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 32px rgba(60,42,28,0.13);z-index:20" style-hover="background:#3730A3">
+  <span aria-hidden="true" style="font-size:21px;line-height:1;font-weight:400">＋</span> Noter une dépense
+</button>
+</section>
+
+<section data-screen-label="Planche 3 — Réglages et Outils" style="background:#12100E;color:#F5F2ED;padding:26px 32px 60px">
+  <div style="max-width:1400px;margin:0 auto 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Planche 3</span>
+    <span style="font-size:15px;font-weight:600">Réglages et Outils</span>
+    <span style="font-size:13px;color:#A0968A">Ce que contient le bouton ⚙️ Réglages</span>
+  </div>
+<div style="max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:0 4px 4px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <button type="button" style="display:flex;align-items:center;gap:9px;height:44px;padding:0 16px;border:1px solid rgba(255,255,255,0.10);border-radius:9999px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;background:rgba(255,255,255,0.06)">← Retour au tableau de bord</button>
+      <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">⚙️</span> Réglages</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:9px;height:44px;padding:0 6px 0 14px;border-radius:9999px;background:#1B1815;border:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:13px;color:#A0968A">Richard</span>
+        <div style="width:32px;height:32px;border-radius:9999px;background:#6264ED;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#FFFFFF">RB</div>
+      </div>
+      <button type="button" style="height:44px;padding:0 16px;border:1px solid rgba(255,255,255,0.10);border-radius:9999px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer" style-hover="color:#F5F2ED;background:rgba(255,255,255,0.06)">Déconnexion</button>
+    </div>
+  </header>
+
+  <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:20px">
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px 20px 20px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">💵</span> Revenus du foyer</h2>
+        <p style="margin:8px 0 0;font-size:12.5px;color:#A0968A;line-height:1.55;text-wrap:pretty">Chaque mois garde son propre instantané : corriger septembre ne réécrit pas l'historique.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px">
+          <div>
+            <label for="salRichard" style="display:block;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:7px">Salaire Richard (€)</label>
+            <input id="salRichard" type="text" value="3050,88" style="width:100%;height:44px;padding:0 13px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:14px;outline:none">
+          </div>
+          <div>
+            <label for="salCindy" style="display:block;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:7px">Salaire Cindy (€)</label>
+            <input id="salCindy" type="text" value="970,00" style="width:100%;height:44px;padding:0 13px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:14px;outline:none">
+          </div>
+          <div>
+            <label for="extRichard" style="display:block;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:7px">Autres revenus Richard (€)</label>
+            <input id="extRichard" type="text" value="0,00" style="width:100%;height:44px;padding:0 13px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:14px;outline:none">
+          </div>
+          <div>
+            <label for="extCindy" style="display:block;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:7px">Autres revenus Cindy (€)</label>
+            <input id="extCindy" type="text" value="300,00" style="width:100%;height:44px;padding:0 13px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:14px;outline:none">
+          </div>
+        </div>
+        <div style="font-size:12px;color:#A0968A;margin-top:12px;line-height:1.55;text-wrap:pretty">Allocations, loyers perçus, activité annexe. Ils entrent dans l'assiette du prorata : c'est la capacité à payer qui compte, pas le seul salaire.</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;padding:12px 14px;border-radius:10px;background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.28)">
+          <span style="display:inline-block;width:100px;height:6px;border-radius:9999px;background:rgba(255,255,255,0.10);overflow:hidden;position:relative"><span style="position:absolute;inset:0 29% 0 0;background:#818CF8;border-radius:9999px"></span></span>
+          <span style="font-size:13px;font-weight:600">Prorata 71 / 29</span>
+          <span style="font-size:12.5px;color:#A0968A">sur une assiette de 4 320,88 €</span>
+        </div>
+      </section>
+
+      <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px 20px 20px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">⚖️</span> Règle de partage</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px">
+          <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(99,102,241,0.28);border-radius:10px;background:rgba(99,102,241,0.14);color:#F5F2ED;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
+            <span style="display:block"><span aria-hidden="true">📊</span> Prorata</span>
+            <span style="display:block;font-size:11.5px;color:#A0968A;font-weight:400;margin-top:2px">Au poids des revenus</span>
+          </button>
+          <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:600;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">
+            <span style="display:block"><span aria-hidden="true">⚖️</span> 50-50</span>
+            <span style="display:block;font-size:11.5px;font-weight:400;margin-top:2px">Sans révéler les revenus</span>
+          </button>
+          <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:600;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06);color:#F5F2ED">
+            <span style="display:block"><span aria-hidden="true">🎯</span> Personnalisé</span>
+            <span style="display:block;font-size:11.5px;font-weight:400;margin-top:2px">Une part que vous fixez</span>
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="min-width:0">
+            <div style="font-size:13.5px;font-weight:600">Reporter le solde d'un mois sur l'autre</div>
+            <div style="font-size:12.5px;color:#A0968A;line-height:1.5;margin-top:3px;text-wrap:pretty">Actif — c'est ce qui met les 40,51 € d'août en ta faveur dans le solde de septembre.</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:46px;height:26px;border-radius:9999px;background:#6264ED;padding:3px;flex-shrink:0">
+            <span style="width:20px;height:20px;border-radius:9999px;background:#FFFFFF;display:block"></span>
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="min-width:0">
+            <div style="font-size:13.5px;font-weight:600">Prénoms</div>
+            <div style="font-size:12.5px;color:#A0968A;margin-top:3px">Les deux comptes lisent le même enregistrement.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <input type="text" value="Richard" aria-label="Votre prénom" style="width:110px;height:44px;padding:0 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-size:13.5px;outline:none">
+            <input type="text" value="Cindy" aria-label="Prénom de votre partenaire" style="width:110px;height:44px;padding:0 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-size:13.5px;outline:none">
+          </div>
+        </div>
+      </section>
+
+      <section style="flex:1;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px 20px 20px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🔔</span> Rappels</h2>
+        <div style="margin-top:14px;padding:11px 14px;border-radius:10px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);font-size:12.5px;color:#FBBF24;line-height:1.5;text-wrap:pretty">Les rappels ne partent que si l'application est ouverte. Une page web ne peut pas prévenir quand elle est fermée.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px">
+          <div style="min-width:0">
+            <div style="font-size:13.5px;font-weight:600">Fin de mois</div>
+            <div style="font-size:12.5px;color:#A0968A;margin-top:2px">Compléter les charges avant la clôture.</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;width:46px;height:26px;border-radius:9999px;background:#23201C;border:1px solid rgba(255,255,255,0.10);padding:2px;flex-shrink:0"><span style="width:20px;height:20px;border-radius:9999px;background:#A0968A;display:block"></span></span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="min-width:0">
+            <div style="font-size:13.5px;font-weight:600">Budget dépassé</div>
+            <div style="font-size:12.5px;color:#A0968A;margin-top:2px">Alerte au-delà d'une limite mensuelle.</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;width:46px;height:26px;border-radius:9999px;background:#23201C;border:1px solid rgba(255,255,255,0.10);padding:2px;flex-shrink:0"><span style="width:20px;height:20px;border-radius:9999px;background:#A0968A;display:block"></span></span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="min-width:0">
+            <div style="font-size:13.5px;font-weight:600">Virement en attente</div>
+            <div style="font-size:12.5px;color:#A0968A;margin-top:2px">Si un solde reste ouvert plus de 7 jours.</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;width:46px;height:26px;border-radius:9999px;background:#23201C;border:1px solid rgba(255,255,255,0.10);padding:2px;flex-shrink:0"><span style="width:20px;height:20px;border-radius:9999px;background:#A0968A;display:block"></span></span>
+        </div>
+      </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <section style="flex:1;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px 20px 20px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🧰</span> Outils</h2>
+
+        <h3 style="margin:18px 0 10px;font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Vos listes</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button type="button" style="min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span style="display:block;font-weight:600"><span aria-hidden="true">🏷️</span> Catégories</span>
+            <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">19 catégories</span>
+          </button>
+          <button type="button" style="min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span style="display:block;font-weight:600"><span aria-hidden="true">🏦</span> Destinations</span>
+            <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">Comptes et enveloppes de virement</span>
+          </button>
+        </div>
+
+        <h3 style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Vos données</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span>
+              <span style="display:block;font-weight:600"><span aria-hidden="true">💾</span> Sauvegarde</span>
+              <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">Exporter tout, ou restaurer une sauvegarde</span>
+            </span>
+            <span style="font-size:11.5px;color:#34D399;white-space:nowrap">Auto · 03:17</span>
+          </button>
+          <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span>
+              <span style="display:block;font-weight:600"><span aria-hidden="true">🗑️</span> Corbeille</span>
+              <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">Éléments supprimés, tous mois confondus</span>
+            </span>
+          </button>
+          <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span>
+              <span style="display:block;font-weight:600"><span aria-hidden="true">📥</span> Importer CSV</span>
+              <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">Ajoute au mois affiché, n'écrase rien</span>
+            </span>
+          </button>
+        </div>
+
+        <h3 style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Sortir les données</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button type="button" style="min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span style="display:block;font-weight:600"><span aria-hidden="true">📊</span> Export CSV</span>
+            <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">Compatible Excel</span>
+          </button>
+          <button type="button" style="min-height:56px;padding:10px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:13px;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,0.06)">
+            <span style="display:block;font-weight:600"><span aria-hidden="true">📄</span> Imprimer PDF</span>
+            <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:2px">Le mois en une page</span>
+          </button>
+        </div>
+        <div style="font-size:11.5px;color:#A0968A;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);line-height:1.5;text-wrap:pretty">Les exports ne contiennent jamais tes dépenses privées.</div>
+      </section>
+
+      <section style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px 20px 20px">
+        <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">🔒</span> Mon espace privé</h2>
+        <p style="margin:8px 0 0;font-size:12.5px;color:#A0968A;line-height:1.55;text-wrap:pretty">Ce que Cindy peut lire de tes dépenses privées. Toi seul peux le changer.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 14px;border-radius:10px;background:#23201C;border:1px solid rgba(255,255,255,0.10)">
+          <span style="font-size:13px;font-weight:600">Un total, et un nombre</span>
+          <button type="button" style="height:44px;padding:0 14px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:rgba(255,255,255,0.06)">Changer</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;soloDansLaListe&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Arbitrage en cours&quot;},&quot;budgetsDefinis&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;États&quot;},&quot;premierJour&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;États&quot;}}">
+class Component extends DCLogic {
+  state = { scope: 'deux' };
+
+  renderVals() {
+    const premier = this.props.premierJour ?? false;
+    const budgets = this.props.budgetsDefinis ?? false;
+    const solo = this.props.soloDansLaListe ?? false;
+    const s = this.state.scope;
+    return {
+      premierJour: premier,
+      moisEnCours: !premier,
+      scopeDeux: s === 'deux',
+      scopeSolo: s === 'solo',
+      scopePrive: s === 'prive',
+      pasDeux: s !== 'deux',
+      pasSolo: s !== 'solo',
+      pasPrive: s !== 'prive',
+      allerDeux: () => this.setState({ scope: 'deux' }),
+      allerSolo: () => this.setState({ scope: 'solo' }),
+      allerPrive: () => this.setState({ scope: 'prive' }),
+      budgetsDefinis: budgets,
+      budgetsAbsents: !budgets,
+      soloInclus: solo,
+      soloExclu: !solo
+    };
+  }
+}
+</script>
+</body>
+</html>
