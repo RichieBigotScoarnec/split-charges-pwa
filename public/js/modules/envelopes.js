@@ -492,7 +492,11 @@ function showManageEnvelopesModal() {
         -->
         <div class="manage-list-add">
           <div class="manage-add-row">
-            <button type="button" id="envelopeEmojiBtn" class="manage-emoji-btn" title="Choisir une image">🧳</button>
+            <!-- L'attribut title ne suffit pas : le contenu d'un bouton
+                 l'emporte dans le calcul du nom accessible, et celui-ci
+                 s'annonçait « valise ». -->
+            <button type="button" id="envelopeEmojiBtn" class="manage-emoji-btn"
+                    aria-label="Choisir une image" title="Choisir une image">🧳</button>
             <label class="sr-only" for="envelopeNewLabel">Nom de l'enveloppe</label>
             <input type="text" id="envelopeNewLabel" placeholder="Ex : Vacances été" maxlength="30" />
           </div>
@@ -858,7 +862,8 @@ function ligneEnveloppe(enveloppe, index, charges) {
 
   return `
     <div class="manage-list-item envelope-item${enveloppe.cloturee ? ' envelope-close' : ''}" data-index="${index}">
-      <span class="manage-item-icon">${escapeHtml(enveloppe.icon)}</span>
+      <!-- Décoratif : le libellé qui suit dit déjà de quoi il s'agit. -->
+      <span class="manage-item-icon" aria-hidden="true">${escapeHtml(enveloppe.icon)}</span>
       <span class="manage-item-label">
         ${escapeHtml(enveloppe.label)}${enveloppe.cloturee ? ' <span class="envelope-etat">close</span>' : ''}${natureTag}${persoTag}${themeTag}
         <small class="envelope-detail">${formatCurrency(total)}${budget} ce mois-ci${fenetre}</small>

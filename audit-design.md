@@ -172,28 +172,59 @@ C'est ce qui autorise à lui faire confiance sur le reste.
   et le mode retenu une bordure et un lavis. L'information n'est jamais portée
   par la seule couleur : le manquement est de lisibilité, pas de sémantique.
 
-**D-4 — La liste des cibles tactiles est tenue à la main, et trois commandes récentes lui échappent.**
+**D-4 — La liste des cibles tactiles est tenue à la main, et bien plus que trois commandes lui échappent.**
 
 - **Fichier** : `public/css/responsive.css:395-437`
-- **Mesuré au doigt** (`hasTouch`, `pointer: coarse`, 390 px) :
+- Le relevé manuel de cet audit en avait vu **trois**. Le contrôle écrit ensuite
+  en a mesuré **dix-neuf**, sur les trois panneaux et la modale des enveloppes :
 
-  | Commande | Hauteur | Statut |
+  | Commande | Mesure | |
   | --- | ---: | --- |
-  | `.budget-row--ouvrable` | **37–38 px** | absente de la liste |
-  | `.summary-row--ouvrable` | ≥ 44 px aujourd'hui | absente de la liste |
-  | `.salary-input-group input` | **43 px** | absente de la liste |
+  | `#envelopeNewNature`, `#envelopeNewRang`, `#envelopeNewPerimetre`, `#envelopeNewTheme` | **19 px** | quatre `<select>` qu'aucune ligne ne visait |
+  | `#searchInput` | **18 px** | |
+  | `#searchTousMois` | 28 px | mesuré par son label |
+  | `.budget-row--ouvrable` ×4 | 37–38 px | |
+  | Salaires et prénoms ×4 | 43 px | |
+  | `#envelopeEmojiBtn` | 42 × 42 | |
+  | Champs de la modale d'enveloppe ×4 | 40–42 px | |
 
-- `.budget-row--ouvrable` et `.summary-row--ouvrable` sont les lignes rendues
-  cliquables le 28 août pour ouvrir le détail des dépenses ; la règle
-  `pointer: coarse` date d'avant et ne les nomme pas. `.salary-input-group input`
-  échappe au sélecteur `.form-group input` qui couvre les autres champs — ce
-  sont les quatre nombres qui décident du prorata.
-- Le seuil de 44 px est celui que `CLAUDE.md` s'impose (WCAG 2.5.5). Les trois
-  restent au-dessus du minimum AA de 24 px (WCAG 2.5.8) : c'est un manquement à
-  la règle du projet, pas à la conformité.
-- **Correctif** : ajouter les trois sélecteurs au bloc existant. Et, pour que le
-  quatrième oubli n'ait pas lieu, un contrôle qui **relève** toute commande
-  visible sous 44 px plutôt qu'une liste à tenir.
+- **La cause n'est pas l'oubli, c'est la forme.** Une liste de sélecteurs ne
+  couvre que ce dont quelqu'un s'est souvenu, et elle ne se dégrade pas d'un
+  coup : elle se dégrade au champ suivant que personne n'y ajoute. C'est
+  exactement la cause de D-2.
+- **Correctif appliqué** : la liste est remplacée par ce qu'elle essayait
+  d'exprimer — **toute commande**. `button`, `select`, `textarea`,
+  `[role="button"]`, tout `input` hors cases et boutons radio, et le `label` qui
+  enveloppe ceux-ci. Plus `tests/e2e/cible-tactile.spec.js`, qui **énumère** la
+  page rendue et tombe si une seule commande y échappe — y compris celle qu'on
+  ajoutera demain sans penser à ce fichier.
+
+#### Le seuil : 44, et non 24
+
+Les WCAG en offrent deux : **2.5.8** « Minimum », niveau AA, à 24 px ; **2.5.5**
+« Enhanced », niveau AAA, à 44 px.
+
+44 est retenu parce que c'est la règle que ce dépôt **s'est déjà donnée** —
+`CLAUDE.md` écrit « Cibles tactiles minimum 44×44px », et le commentaire du bloc
+`pointer: coarse` invoquait nommément 2.5.5. Retenir 24 aurait abaissé en
+silence une barre existante, sous couvert de conformité.
+
+Et 24 aurait coûté **plus** cher : 2.5.8 est assorti d'une exception
+d'espacement — une cible de 24 px passe si les disques de 24 px de ses voisines
+ne se recouvrent pas — qui oblige à mesurer le voisinage de chaque commande.
+Une liste de cas déguisée en critère. 44 n'en demande aucune, et le satisfaire
+satisfait AA mécaniquement.
+
+Trois exceptions, toutes définies par les WCAG et de forme **règle**, jamais de
+forme **site** : la commande désactivée, que les WCAG dispensent ; le lien **en
+ligne** dans du texte courant ; la case à cocher enveloppée d'un `<label>`, dont
+on mesure le label — décision que `responsive.css` avait déjà consignée.
+
+**Aucun pendant statique**, et c'est une différence réelle avec D-2. Une cible
+tactile est `padding + line-height + font-size + box-sizing + viewport + media
+query` : rien ne se résout en pixels sans moteur de rendu. Un contrôle statique
+ne pourrait que vérifier que la liste existe — mesurer la *forme* du correctif
+et non son effet, ce que ce dépôt a déjà payé deux fois.
 
 ### 🔵 Mineur
 
@@ -336,7 +367,7 @@ Consignés pour qu'ils ne reviennent pas — c'est la convention du dépôt.
 | 2 | Bilan en bas de page | ✅ Bilan en tête, et barre collante qui le suit |
 | 3 | Pas de solde net immédiat | ✅ Total commun en tête, écart nommé en dessous |
 | 4 | Contrastes sous AA | ⚠️ **Résolu sur les jetons de texte, pas sur les encres sémantiques** → D-1, D-2, D-3 |
-| 5 | Cibles tactiles | ⚠️ **Résolu par `pointer: coarse`, trois échappées depuis** → D-4 |
+| 5 | Cibles tactiles | ✅ **RÉSOLU** — la liste devient une règle générale, 19 échappées reprises |
 | 6 | Pas de `<main>` | ✅ `<main>` présent, un seul, plus `<nav>` et `<header>` |
 | 7 | Font Awesome non chargé | ✅ **0 occurrence** de `fa-` dans `public/` |
 | 8 | ~1 500 lignes commentées | ✅ **0 occurrence** de `COMMENTÉ` / `MIGRÉ VERS MODULES` |
@@ -353,9 +384,9 @@ Consignés pour qu'ils ne reviennent pas — c'est la convention du dépôt.
 | 2 | **D-1 + D-2** — 39 substitutions, jusqu'au vert des 4 familles | 5 feuilles | ✅ fait |
 | 3 a | **Les deux contrôles, commités ROUGES** — littéraux, opacité et surface héritées | les 2 contrôles | ✅ fait |
 | 3 b | **D-3 + périmètre élargi** — 18 sites de marque, 3 encres littérales, 2 opacités, l'enveloppe close | `variables.css` + 6 feuilles | ✅ fait |
-| 4 | **D-4** — contrôle qui **énumère** les commandes et vérifie la cible, pas trois sélecteurs de plus | `responsive.css` + test | à faire |
+| 4 | **D-4** — la liste `pointer: coarse` remplacée par une règle générale, plus le contrôle qui énumère | `responsive.css` + test | ✅ fait |
 | — | **D-5** — hauteur du champ de recherche | `responsive.css` | reporté |
-| — | `.search-bar-icon` et `.manage-item-icon` sans `aria-hidden` | balisage | identifié, non fait |
+| — | `.search-bar-icon` et `.manage-item-icon` sans `aria-hidden` ; deux boutons emoji sans nom accessible | balisage | ✅ fait |
 
 **D-1 n'est pas une étape.** Le premier plan en faisait un correctif à part ;
 c'est faux. La barre de solde est **un des 33 sites** de D-2 — celui qui compte
