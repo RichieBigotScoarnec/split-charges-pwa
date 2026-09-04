@@ -353,7 +353,10 @@
     <!-- Search Bar -->
     <div class="search-bar-container" id="searchBarContainer" hidden>
       <div class="search-bar">
-        <span class="search-bar-icon">🔍</span>
+        <!-- Décoratif : le champ porte son propre libellé juste en dessous.
+             Sans cet attribut, un lecteur d'écran annonce « loupe » avant le
+             champ, et le contrôle de contraste le mesure comme du texte. -->
+        <span class="search-bar-icon" aria-hidden="true">🔍</span>
         <label for="searchInput" class="sr-only">Rechercher une charge</label>
         <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
         <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>

@@ -232,7 +232,7 @@
 
 .quick-add-location-detach:hover {
   border-color: var(--danger-color);
-  color: var(--danger-color);
+  color: var(--danger-ink);
 }
 
 /* Description : facultative, donc plus sobre que le champ du montant */
@@ -295,7 +295,7 @@
 .category-btn.selected {
   border-color: var(--primary-color);
   background: var(--primary-glow);
-  color: var(--primary-light);
+  color: var(--primary-ink);
   box-shadow: 0 0 16px var(--primary-glow);
 }
 
@@ -380,7 +380,7 @@
 .payer-toggle button.selected {
   border-color: var(--primary-color);
   background: var(--primary-glow);
-  color: var(--primary-light);
+  color: var(--primary-ink);
 }
 
 /* ===== MANAGE LISTS MODAL (Categories/Destinations) ===== */
@@ -450,7 +450,7 @@
 
 .manage-item-delete:hover {
   background: var(--danger-color);
-  color: white;
+  color: var(--on-danger);
 }
 
 /* Add new item row */
@@ -677,7 +677,19 @@
 /* Une enveloppe close reste lisible — les vacances de l'an dernier ont eu
    lieu — mais s'efface derrière les enveloppes en cours. */
 .envelope-close {
-  opacity: 0.6;
+  /* L'effacement porte sur l'ÉLÉVATION, jamais sur l'encre.
+     `opacity: 0.6` atténuait tout le sous-arbre : neuf textes entre 2,32 et
+     4,26:1, `--text-primary` compris. Or l'intention écrite ici était « reste
+     lisible » — elle échouait donc sur sa première moitié.
+     Réduire l'opacité ne pouvait pas la sauver : l'étiquette de thème est
+     calibrée à 4,60 sur son lavis, et toute atténuation la fait tomber. L'alpha
+     maximal tenable était 1,00, c'est-à-dire aucun.
+     Une enveloppe close cesse donc d'être une puce en relief et repose à plat
+     sur la modale. Le contraste s'améliore partout, `--card-bg` étant la plus
+     contrastée des trois surfaces. L'état est de toute façon écrit en toutes
+     lettres à côté du libellé : l'atténuation n'a jamais porté l'information. */
+  background: transparent;
+  border-color: transparent;
 }
 
 .envelope-etat {
@@ -879,7 +891,7 @@
   border: none;
   border-top: 1px solid var(--border-color);
   background: transparent;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   font-size: 13px;
   font-family: var(--font);
   cursor: pointer;
@@ -984,7 +996,7 @@
    toucher, et laisse croire à une panne. */
 .quick-add-segment--manquant {
   border-color: var(--primary-color);
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 /* Un seul panneau déplié à la fois — deux reproduiraient l'empilement qu'on
@@ -1255,8 +1267,7 @@
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--text-secondary);
-  opacity: 0.75;
+  color: var(--text-muted);
 }
 
 /* La nature se lit sur la ligne : une mensuelle et une cagnotte ne répondent
@@ -1293,14 +1304,14 @@
 
 .envelope-nature {
   background: var(--primary-soft);
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 /* Le même lavis que la marque « perso » d'une charge : c'est la même notion,
    elle doit avoir la même couleur des deux côtés. */
 .envelope-perso {
   background: var(--info-soft);
-  color: var(--info-color);
+  color: var(--info-ink);
 }
 
 /*
@@ -1381,7 +1392,7 @@
    montant s'ajoute au lieu de se retrancher. */
 .enveloppe-versement-montant {
   font-weight: 600;
-  color: var(--success-color);
+  color: var(--success-ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1479,7 +1490,7 @@
   font-weight: 600;
   color: var(--text-secondary);
 }
-.prive-aval-etat--actif { color: var(--success-color); }
+.prive-aval-etat--actif { color: var(--success-ink); }
 
 .prive-saisie {
   display: flex;
@@ -1804,7 +1815,7 @@
 }
 
 .rapport-solde--regle {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .rapport-grille {
@@ -1861,8 +1872,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.rapport-bouge--hausse { color: var(--danger-color); }
-.rapport-bouge--baisse { color: var(--success-color); }
+.rapport-bouge--hausse { color: var(--danger-ink); }
+.rapport-bouge--baisse { color: var(--success-ink); }
 
 .rapport-bouge strong { color: var(--text-primary); }
 
