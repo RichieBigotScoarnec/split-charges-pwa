@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
-> **Version** : 4.0.0 | **Mise à jour** : 2026-09-03 | **Branche unique** : main
+> **Version** : 4.0.0 | **Mise à jour** : 2026-09-04 | **Branche unique** : main
 
 ## Stack
 
@@ -789,6 +789,7 @@ chacun **reproduit avant d'être corrigé** et tenu par un mutant mesuré.
 | L'inventaire des dépendances était inscrit en dur dans la CI. Il a menti trois fois en trois jours — 8 avis, puis 5, puis 2, sur des paquets différents | `.github/workflows/deploy.yml` | ✅ RÉSOLU 2026-09-03 — la méthode remplace l'inventaire, avec l'exemple du jour gardé comme modèle | `npm audit fix` ne corrige rien ici (mesuré), et `--force` redescend firebase-tools de plusieurs majeures. Le seuil `--audit-level=high` était déjà le bon raisonnement |
 | Douze modules ne figuraient nulle part dans ce fichier — et les quatre défauts vérifiés de l'audit vivaient tous dedans | `CLAUDE.md` | ✅ RÉSOLU 2026-09-03 — inventaire complété, comptes remis à jour (25 → 30 modules, 59 → 64 aides) | Deuxième fois que cet inventaire dérive, après « `utils/` listé à cinq fichiers » |
 | **« 26 avertissements, le plafond exact de la CI » est faux deux fois** : `npx eslint .` en rend 32, et la CI ne compte plus les avertissements globaux depuis le passage au plafond `no-unsanitized` seul | ce fichier, entrées des 2026-08-31 et 2026-09-01 | ⚠️ CONSIGNÉ, ENTRÉES NON RÉÉCRITES — elles étaient vraies à leur date ; c'est la phrase « le plafond exact de la CI » qui a cessé de l'être | Le plafond d'injection est à **24/24, marge nulle**, et c'est voulu. Aucun des huit correctifs n'a ajouté d'`innerHTML` |
+| **L'avis `stream-json` n'a aucun correctif atteignable**, et c'est le fait qui décide plutôt que la gravité. `GHSA-528h-pc64-c93x` — filtres `pick`/`ignore`/`filter`/`replace` en O(profondeur²), déni de service — donne pour plage vulnérable `<=3.4.0` : le correctif n'existe qu'à partir de la 3.5.0, et la ligne 1.x s'arrête à la 1.9.1, celle qu'installe `firebase-tools`. Or sa 15.29.0, **dernière version publiée**, exige toujours `^1.7.3` : l'amont n'a pas élargi sa plage, il n'y a donc pas de mise à jour qui règle ça toute seule | `package.json` | ⚠️ MESURÉ, LAISSÉ EN L'ÉTAT — dépendance de développement, seuil CI à `--audit-level=high` donc rien n'est bloqué, et le JSON analysé est la sauvegarde du foyer, pas l'entrée d'un tiers | Un `overrides` vers `^3.5.0` fermerait l'alerte au prix de deux majeures forcées sur l'outil qui déploie ET qui porte la sauvegarde chiffrée. À reprendre quand l'amont élargira sa plage — Dependabot le proposera de lui-même, rien à surveiller à la main |
 
 > **Ce qui reste ouvert et ne se referme pas dans le code.** Le compte cantonné
 > au bac à sable garde un accès sans adresse vérifiée : le refermer demande de
