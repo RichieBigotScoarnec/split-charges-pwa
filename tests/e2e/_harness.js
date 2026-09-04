@@ -348,15 +348,65 @@ export async function waitForApp(page, { query = '' } = {}) {
  * colonnes — et l'appel ne fait rien : les suites qui tournent à la largeur
  * par défaut n'ont pas à savoir que les onglets existent.
  *
+ * ─────────────────────────────────────────────────────────────────────
+ * DEUX ABSENCES QUE LA GARDE CONFONDAIT
+ *
+ * Elle tenait en une ligne : `if (!(await onglet.isVisible())) return false`.
+ * Or `isVisible()` sur zéro correspondance rend `false` sans lever — mesuré
+ * contre un vrai Chromium — et les 58 appels de la suite ignorent tous le
+ * booléen. Un onglet DISPARU était donc indiscernable d'une barre
+ * légitimement absente, et le balayage repartait sur le panneau courant.
+ *
+ * Conséquence chiffrée : une refonte de la navigation ne rendrait ni
+ * `encre-rendue.spec.js` ni `cible-tactile.spec.js` rouges. Les deux
+ * tourneraient trois fois sur le même panneau et resteraient VERTS en
+ * mesurant le tiers des surfaces — dont plus du tout `panneauReglages`, où le
+ * contrôle tactile a trouvé les quatre `<select>` à 19 px.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE QUI LES SÉPARE : PAS LA LARGEUR
+ *
+ * Recopier 900 ici en ferait un troisième endroit où ce nombre est écrit, et
+ * il mentirait le jour où la mise en page change de point de rupture. La
+ * question honnête est : LA SURFACE EST-ELLE DÉJÀ LÀ ?
+ *
+ *   1. l'onglet répond              → on le touche, chemin nominal ;
+ *   2. sinon le panneau est visible → il n'y avait rien à faire ;
+ *   3. sinon                        → aucun chemin n'y mène : on lève.
+ *
+ * Relevé sur l'application réelle, et c'est ce qui fonde la règle :
+ *
+ *   1280 px         barre absente, onglet absent, panneau VISIBLE   → cas 2
+ *   390 px intact   barre présente, onglet visible, panneau caché   → cas 1
+ *   390 px sabordé  barre présente, onglet ABSENT, panneau CACHÉ    → cas 3
+ *
+ * La règle ne nomme ni panneau ni largeur : elle vaut pour une navigation
+ * qu'on renomme, pour une quatrième destination, pour deux colonnes au lieu
+ * de trois. C'est `tests/e2e/garde-du-panneau.spec.js` qui la tient.
+ *
  * @param {import('@playwright/test').Page} page
  * @param {string} id - Identifiant du panneau ('panneauBilan', 'panneauCharges', 'panneauReglages')
  * @returns {Promise<boolean>} A-t-on réellement changé d'onglet ?
+ * @throws {Error} Si aucun chemin ne mène à ce panneau.
  */
 export async function allerAuPanneau(page, id) {
   const onglet = page.locator(`.onglet[data-panneau="${id}"]`);
-  if (!(await onglet.isVisible())) return false;
+  if (await onglet.isVisible()) {
+    await onglet.click();
+    await page.waitForSelector(`#${id}.panneau--actif`, { state: 'visible', timeout: 5000 });
+    return true;
+  }
 
-  await onglet.click();
-  await page.waitForSelector(`#${id}.panneau--actif`, { state: 'visible', timeout: 5000 });
-  return true;
+  // Pas d'onglet, mais le panneau est à l'écran : ses colonnes sont déployées,
+  // il n'y avait rien à faire. C'est le cas que la garde d'origine servait.
+  if (await page.locator(`#${id}`).isVisible()) return false;
+
+  // Ni onglet, ni panneau rendu. Le test qui suit croirait mesurer cette
+  // surface et mesurerait celle d'à côté, en silence.
+  throw new Error(
+    `Aucun chemin ne mène à #${id} : ni onglet .onglet[data-panneau="${id}"], `
+    + `ni panneau rendu. La barre d'onglets a-t-elle changé de destinations ? `
+    + `Un balayage lancé ici mesurerait le panneau courant en croyant visiter `
+    + `celui-ci.`
+  );
 }
