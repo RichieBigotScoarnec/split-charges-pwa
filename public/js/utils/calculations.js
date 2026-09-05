@@ -465,7 +465,25 @@ export function computeVirementsByDestination(fixedCharges, params) {
     grouped[dest].charges.push({
       description: charge.description,
       amount,
-      partnerShare
+      partnerShare,
+      // LA RÈGLE DÉROGATOIRE VOYAGE AVEC LE MONTANT QU'ELLE A PRODUIT.
+      //
+      // Ce calcul est le SEUL lecteur de `splitOverride` qui abandonne la
+      // charge pour construire un objet neuf : `computeSummary` la somme dans
+      // des scalaires, `detail.js` l'étale en entier. Ce qui n'est pas mis ici
+      // est donc perdu pour l'écran — et le panneau disait combien virer en
+      // appliquant une règle dérogatoire sans qu'aucune trace ne le signale.
+      // Une charge en 50/50 dans un foyer au prorata réclamait 500,00 € au lieu
+      // de 272,73 €, et le chiffre était le seul indice.
+      //
+      // C'est la DÉROGATION qui est poussée, pas la règle appliquée. Une
+      // pastille sur toutes les lignes n'en serait plus une : elle perdrait sa
+      // propriété la plus utile, que sa présence même veuille dire quelque
+      // chose. Le prédicat est donc celui des deux listes — la charge porte-t-elle
+      // un `splitOverride` — et non « s'écarte-t-elle du mode du mois » : deux
+      // panneaux qui répondraient différemment de la même ligne selon l'onglet
+      // ouvert travailleraient contre ce que cette pastille sert à faire.
+      derogation: charge.splitOverride || null
     });
     grouped[dest].total += partnerShare;
   });

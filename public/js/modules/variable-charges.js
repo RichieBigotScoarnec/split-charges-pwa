@@ -31,6 +31,7 @@ import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { categorieProposee } from '../utils/memoire-libelle.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
 
 /**
@@ -754,8 +755,12 @@ export function renderVariableCharges() {
       const chargeDiv = document.createElement('div');
       chargeDiv.className = 'charge-item';
       chargeDiv.dataset.id = charge.id;
-      const splitTag = charge.splitOverride
-        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
+      // La grammaire est la même sur les trois surfaces qui l'écrivent : cette
+      // liste, celle des charges fixes, et le récap des virements. Elle vit
+      // dans `utils/repartition.js` — une troisième copie aurait divergé.
+      const repartition = libelleDeLaRepartition(charge.splitOverride);
+      const splitTag = repartition
+        ? `<span class="charge-split-tag">${escapeHtml(repartition)}</span>`
         : '';
       const dateLisible = formatDateEtHeure(charge);
       const dateTag = dateLisible
