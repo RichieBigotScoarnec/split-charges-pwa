@@ -113,7 +113,7 @@ header::before {
   height: 1em;
   flex: 0 0 auto;
   vertical-align: -0.14em;
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 header h1 {

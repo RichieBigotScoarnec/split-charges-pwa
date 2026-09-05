@@ -277,7 +277,7 @@
 .current-period-badge {
   display: inline-block;
   background: var(--success-color);
-  color: #fff;
+  color: var(--on-success);
   padding: 2px 10px;
   border-radius: var(--radius-full);
   font-size: 11px;
@@ -378,12 +378,12 @@
 }
 
 .save-indicator .saving {
-  color: var(--warning-color);
+  color: var(--warning-ink);
   display: none;
 }
 
 .save-indicator .saved {
-  color: var(--success-color);
+  color: var(--success-ink);
   display: none;
 }
 
@@ -455,8 +455,7 @@
 
 .charge-location {
   font-size: 11px;
-  color: var(--primary-light);
-  opacity: 0.8;
+  color: var(--primary-ink);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -527,7 +526,7 @@
 .btn-icon:not(.btn-delete):hover {
   background: var(--primary-glow);
   border-color: var(--primary-color);
-  color: var(--primary-light);
+  color: var(--primary-ink);
 }
 
 .btn-delete {
@@ -550,12 +549,12 @@
 .btn-delete:hover {
   background: var(--danger-soft);
   border-color: var(--danger-color);
-  color: var(--danger-color);
+  color: var(--danger-ink);
 }
 
 .btn-danger {
   background: var(--danger-color);
-  color: #fff;
+  color: var(--on-danger);
   border: 1px solid var(--danger-color);
   padding: 10px 20px;
   border-radius: var(--radius);
@@ -781,7 +780,7 @@
   font-size: 17px;
   font-weight: 600;
   font-family: var(--font-mono);
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 /* ===== MODES DE PARTAGE ===== */
@@ -834,7 +833,7 @@
      partage RETENU — la règle qui décide qui paie quoi —, et c'était le texte
      le moins lisible du panneau. La teinte pleine passe à 5,49:1 ; la
      bordure et le lavis continuent de porter la sélection. */
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 .custom-percentages {
@@ -886,11 +885,11 @@
 }
 
 .share-mode-validation.valid {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .share-mode-validation.invalid {
-  color: var(--error-color);
+  color: var(--danger-ink);
 }
 
 /* `.export-actions` rangeait les dix boutons d'outils sur une seule ligne.
@@ -1063,7 +1062,7 @@
   padding: var(--space-sm) 0;
   border: none;
   background: none;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   font-family: var(--font);
   font-size: 13px;
   font-weight: 600;
@@ -1114,7 +1113,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   font-family: inherit;
   font-size: inherit;
   font-weight: 600;
@@ -1224,11 +1223,11 @@
 }
 
 .reimbursements-total.you-owe strong {
-  color: var(--warning-color);
+  color: var(--warning-ink);
 }
 
 .reimbursements-total.partner-owes strong {
-  color: var(--success-color);
+  color: var(--success-ink);
 }
 
 .reimbursements-total.balanced {
@@ -1337,7 +1336,7 @@
 .form-hint--proposee {
   margin-top: var(--space-xs);
   font-size: 12px;
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 /*

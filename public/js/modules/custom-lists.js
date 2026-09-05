@@ -621,7 +621,8 @@ function showManageModal(listType) {
             </div>
           ` : `
             <div class="manage-list-item" data-index="${index}">
-              <span class="manage-item-icon">${escapeHtml(item.icon)}</span>
+              <!-- Décoratif : le libellé qui suit dit déjà de quoi il s'agit. -->
+              <span class="manage-item-icon" aria-hidden="true">${escapeHtml(item.icon)}</span>
               <span class="manage-item-label">${escapeHtml(item.label)}</span>
               <button type="button" class="btn-icon manage-item-editer" data-index="${index}" aria-label="Renommer ${escapeHtml(item.label || '')}">
                 ✏️
@@ -637,7 +638,11 @@ function showManageModal(listType) {
 
         <div class="manage-list-add">
           <div class="manage-add-row">
-            <button type="button" id="manageEmojiBtn" class="manage-emoji-btn" title="Choisir icône">📦</button>
+            <!-- L'attribut title ne suffit pas : le contenu d'un bouton
+                 l'emporte dans le calcul du nom accessible, et celui-ci
+                 s'annonçait « colis ». -->
+            <button type="button" id="manageEmojiBtn" class="manage-emoji-btn"
+                    aria-label="Choisir une icône" title="Choisir icône">📦</button>
             <input type="text" id="manageNewLabel" placeholder="${isCategories ? 'Nouvelle catégorie...' : 'Nouvelle destination...'}" maxlength="30" />
             <button type="button" id="manageAddBtn" class="btn btn-primary btn-sm">Ajouter</button>
           </div>

@@ -364,7 +364,7 @@
   border: 1px solid var(--primary-color);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -378,60 +378,72 @@
   color: #FFFFFF;
 }
 
-.balance-bar.balance-positive strong { color: var(--success-color); }
-.balance-bar.balance-negative strong { color: var(--danger-color); }
+.balance-bar.balance-positive strong { color: var(--success-ink); }
+.balance-bar.balance-negative strong { color: var(--danger-ink); }
 .balance-bar.balance-zero { color: var(--text-secondary); }
 
 /* ===== CIBLES TACTILES ===== */
 /*
    Sur un écran tactile, une commande de moins de 44 px se rate au doigt —
-   seuil des WCAG 2.5.5. La vérification sur mobile émulé en a relevé treize,
-   toutes limitées en hauteur : 19 px pour l'en-tête des rappels, 24 pour la
-   déconnexion, 38 pour les boutons d'ajout.
+   seuil des WCAG 2.5.5, et règle que ce dépôt s'est donnée dans CLAUDE.md.
 
    `pointer: coarse` vise le doigt et laisse la souris intacte : agrandir
    partout alourdirait l'écran de bureau sans bénéfice.
+
+   ─────────────────────────────────────────────────────────────────────
+   CE BLOC ÉNUMÉRAIT, IL QUALIFIE DÉSORMAIS.
+
+   Il portait une liste de treize sélecteurs, puis de trois de plus, tenue à
+   la main au fil des vérifications. Elle ne couvrait donc que ce dont
+   quelqu'un s'était souvenu : `tests/e2e/cible-tactile.spec.js` a relevé
+   DIX-NEUF commandes encore sous le seuil, dont quatre `<select>` à 19 px
+   dans la modale des enveloppes qu'aucune de ces lignes ne visait.
+
+   C'est la cause exacte du défaut d'encre du 31 août — une règle appliquée
+   là où on l'a regardée. Une liste ne se dégrade pas d'un coup : elle se
+   dégrade au champ suivant que personne n'y ajoute.
+
+   La liste est donc remplacée par ce qu'elle essayait d'exprimer : TOUTE
+   commande. Le contrôle mesure la page rendue et tombe si une seule y
+   échappe — y compris celle qu'on ajoutera demain sans penser à ce fichier.
+   ─────────────────────────────────────────────────────────────────────
 */
 @media (pointer: coarse) {
-  .btn,
-  .btn-logout,
+  button,
+  select,
+  textarea,
+  [role="button"],
+  /* Les cases à cocher et les boutons radio gardent leur taille : la zone
+     visée est leur label, que la règle suivante porte à 44 px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  a.btn {
+    min-height: 44px;
+  }
+
+  /* Un label qui enveloppe une case à cocher EST la cible : c'est lui qu'on
+     touche, et c'est lui que le contrôle mesure. */
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Une commande carrée doit l'être dans les deux sens : sans cela un bouton
+     d'icône reste un trait de 44 px de haut et de 30 de large. */
   .btn-icon,
-  .btn-settle,
-  .btn-restore,
-  .btn-link,
   .period-arrow,
-  .share-mode-option,
-  .trends-header,
-  .reminders-header,
-  .extra-income-toggle,
-  .reminder-toggle-slider,
-  .toggle-slider {
-    min-height: 44px;
-  }
-
-  /*
-     La passe précédente n'avait relevé que des boutons : les champs de
-     formulaire étaient hors de son champ. Ils tombent pourtant sous le seuil
-     eux aussi — 41 px pour le sélecteur de période, 40 pour les listes et les
-     saisies des modales — et ce sont les commandes qu'on vise le plus souvent.
-     Les cases à cocher gardent leur taille : leur zone cliquable est le label.
-  */
-  .period-dropdown,
-  .form-group select,
-  .form-group input:not([type="checkbox"]):not([type="radio"]) {
-    min-height: 44px;
-  }
-
-  /* Les flèches de période sont carrées : leur largeur suit. */
-  .period-arrow,
-  .btn-icon {
+  .manage-emoji-btn {
     min-width: 44px;
   }
 
-  /* Les en-têtes dépliables restent alignés une fois agrandis. */
+  /* Les en-têtes dépliables et les lignes ouvrables restent alignés une fois
+     agrandis — sans quoi leur contenu se colle en haut de la boîte. */
   .trends-header,
   .reminders-header,
-  .extra-income-toggle {
+  .extra-income-toggle,
+  .budget-row--ouvrable,
+  .summary-row--ouvrable {
     display: flex;
     align-items: center;
   }
