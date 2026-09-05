@@ -265,6 +265,46 @@ npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 > casser. La règle vaut pour les suites de tests comme pour les commandes de la
 > CI, et la seule façon de la tenir est de les rejouer toutes.
 
+### Le tuyau efface le code de sortie — la règle dont trois pannes sont des cas
+
+Trois entrées de ce fichier racontent la même panne sous trois déguisements :
+un jar d'émulateur qui garde son port, un `--reporter=basic` qui n'existe pas,
+un `| tail -45` qui coupe le rapport. Le point commun n'est ni la commande ni
+l'option. **C'est le tuyau.**
+
+```bash
+npx playwright test 2>&1 | tail -45 ; echo $?     # 0 — c'est celui de `tail`
+```
+
+`$?` rend le code de sortie du DERNIER maillon. Filtrer une sortie, c'est donc
+remplacer le verdict du programme par celui du filtre — et `tail`, `grep`,
+`head`, `sed` réussissent presque toujours. Mesuré le 2026-09-05 : `0` annoncé
+sur **32 tests en échec**.
+
+Ce qu'un tuyau détruit va au-delà du code : il coupe aussi le TEXTE qui aurait
+permis de comprendre. Le même jour, `tail -45` a emporté le message de la seule
+défaillance qui comptait, et la passe suivante a écrasé `test-results/` où
+vivait son contexte. La cause est perdue, définitivement.
+
+**La règle, dans cet ordre :**
+
+1. Lancer **sans tuyau**, avec un rapporteur qui tient dans la sortie
+   (`--reporter=line`).
+2. Lire le **code de sortie** — `; echo EXIT=$?` —, avant et non après le
+   résumé, qui n'en est pas un synonyme.
+3. Relever les **artefacts** d'une défaillance avant toute relance.
+4. Filtrer ensuite, sur la sortie déjà conservée, si besoin.
+
+Et si un tuyau est vraiment nécessaire dans la même commande, c'est
+`${PIPESTATUS[0]}` qu'il faut lire, jamais `$?`.
+
+> **Ce que les trois cas partagent, et pourquoi la règle vaut mieux que trois
+> anecdotes.** Le symptôme n'est jamais un test rouge : c'est une suite qui ne
+> tourne pas, ou qui tourne et dont on ne lit pas le verdict. **On croit avoir
+> mesuré, on n'a rien mesuré** — et le chiffre qu'on s'apprête à consigner est
+> supposé. Une quatrième variante arrivera sous une commande encore différente ;
+> ce qui la reconnaîtra, c'est cette règle, pas la liste de ses trois aînées.
+
 ### Le jar d'émulateur qui survit à son arrêt
 
 `firebase emulators:exec` annonce « Stopping Database Emulator » et n'obtient
@@ -273,7 +313,7 @@ suivante échoue à démarrer** sur `Could not start Database Emulator, port
 taken`. Observé deux fois dans la même soirée, le 2026-09-04.
 
 Ce n'est pas anodin : le symptôme n'est pas un test rouge, c'est une suite qui
-**ne tourne pas du tout**. On croit avoir mesuré, on n'a rien mesuré — et le
+**ne tourne pas du tout** — le premier des trois cas de la règle ci-dessus. On croit avoir mesuré, on n'a rien mesuré — et le
 chiffre qu'on s'apprête à consigner est supposé. C'est le même défaut que la
 section précédente, un cran plus haut : là on mesure autre chose que ce qu'on
 croit, ici on ne mesure rien.
@@ -987,7 +1027,7 @@ une charge déroge au mode de partage du foyer.
 > tableau vide, `null` — ne mesure pas le câblage, il le masque. Quand ce qu'on
 > tient est un rendu, le double doit produire du balisage qu'on puisse compter.
 
-| **`npx vitest run --reporter=basic` n'existe pas en Vitest 4**, et la suite n'a pas tourné du tout : `Failed to load custom Reporter from basic`, `EXIT=1`. Un `tail -8` a alors montré le résumé d'une exécution PRÉCÉDENTE restée dans le tampon — « 1 failed, 153 fichiers, 11 errors » — que j'ai failli consigner comme un résultat | — | ⚠️ CONSIGNÉ 2026-09-05 — la sortie a été relue EN ENTIER, la commande rejouée sans le drapeau : 164 fichiers, 2 993 contrôles, tous verts | C'est le § « jar d'émulateur » en miniature, et je suis tombé dedans le lot d'après l'avoir écrit. **Le symptôme n'est pas un test rouge, c'est une suite qui ne tourne pas** — et un résumé qui ressemble à un résultat suffit à le cacher. Lire le code de sortie AVANT le résumé |
+| **`npx vitest run --reporter=basic` n'existe pas en Vitest 4**, et la suite n'a pas tourné du tout : `Failed to load custom Reporter from basic`, `EXIT=1`. Un `tail -8` a alors montré le résumé d'une exécution PRÉCÉDENTE restée dans le tampon — « 1 failed, 153 fichiers, 11 errors » — que j'ai failli consigner comme un résultat | — | ⚠️ CONSIGNÉ 2026-09-05 — la sortie a été relue EN ENTIER, la commande rejouée sans le drapeau : 164 fichiers, 2 993 contrôles, tous verts | Deuxième cas de la règle « le tuyau efface le code de sortie » : c'est `tail -8` qui a servi le résumé d'une exécution précédente restée dans le tampon. **Le symptôme n'est pas un test rouge, c'est une suite qui ne tourne pas** — et un résumé qui ressemble à un résultat suffit à le cacher. Lire le code de sortie AVANT le résumé |
 | **Le récap des virements appliquait `splitOverride` sans jamais l'afficher** (`calculations.js:448`). Il est le SEUL lecteur du champ qui abandonne la charge pour construire un objet neuf — `computeSummary` la somme dans des scalaires, `detail.js` l'étale en entier — donc ce qu'il n'y met pas est perdu pour l'écran. Le panneau qui dit combien virer à la banque appliquait une règle dérogatoire en silence : une charge en 50/50 dans un foyer au prorata y réclame **500,00 € au lieu de 272,73 €**, et le chiffre était le seul indice. La pastille existe pourtant — dans les listes, qui vivent dans l'onglet « Charges » quand ce panneau vit dans « Bilan » : sous 900 px, deux écrans que rien ne relie | `public/js/utils/calculations.js`, `public/js/modules/summary.js`, `tests/modules/virements-du-mois.test.js` | ✅ RÉSOLU 2026-09-05 — la fabrique pousse `derogation` avec le montant qu'elle a produit, et le gabarit rend la pastille dans le premier `<span>` de la ligne. 4 cas, 3 mutants (fabrique, gabarit, pastille partout), 3 chutes | Le périmètre a été arbitré sur mesure : `calculateChargeShares` et `calculateJointPayment` ne sont PAS étendues — 3 de leurs 4 appelants jettent l'information à la ligne suivante, et le quatrième (`detail.js`) l'a déjà puisqu'il étale la charge |
 | Le prédicat retenu est **« la charge porte un `splitOverride` »**, et non « elle s'écarte du mode du mois » | `public/js/utils/calculations.js` | ⚠️ DÉCIDÉ 2026-09-05 — celui des deux listes, à l'identique | Faire dépendre la pastille d'une comparaison au mode du mois donnerait DEUX réponses pour la même ligne selon l'onglet ouvert, le même jour. Un cas de test l'énonce, pour qu'on ait à le retourner sciemment |
 | **Écrire la pastille dans `summary.js` en aurait fait la TROISIÈME rédaction de la même grammaire** — et la neuvième occurrence du défaut `normalizePair`, commise par le lot qui existe pour en refermer une | `public/js/utils/repartition.js` | ✅ RÉSOLU 2026-09-05 — `libelleDeLaRepartition`, fabrique unique lue par les trois surfaces. Le refactor des deux listes était sûr parce qu'elles venaient d'être tenues par un témoin | Elle rend du TEXTE, pas du balisage : une fabrique qui rendrait du HTML serait un site d'injection de plus, que `plafond-innerhtml.mjs` compte et refuse sans relecture |
@@ -1038,7 +1078,7 @@ tôt de couvrir la moitié de ce qu'il regarde.
 | **`hauteurDe` rendait `0` pour un élément sans géométrie**, sous un commentaire qui l'annonçait — « nulle s'il est masqué ». Son unique lecteur demande `toBeLessThan(100)`, et `0 < 100` est vrai : un en-tête devenu invisible passait pour un en-tête qui tient sur une ligne. La façon la plus simple de rendre ce contrôle inattaquable n'était pas de compacter l'en-tête, c'était de le retirer de l'écran | `tests/e2e/onglets.spec.js` | ✅ RÉSOLU 2026-09-05 — zéro n'est pas une hauteur, c'est l'absence de mesure : `null`, que `toBeLessThan` rejette bruyamment. Et le contrôle dit ses DEUX moitiés, « tient sur une ligne » présupposant « est là » | **Neuvième site** du motif, consigné la veille comme chemin résiduel. Deux rouges : le témoin joué contre `return 0` rend « Received: 0 », et le contrôle principal, l'en-tête réellement masqué, « il n'y a rien à mesurer — Received: null » |
 | Ce que cette garde ne couvre pas est mesuré et dit : `visibility: hidden` laisse la géométrie entière | `tests/e2e/onglets.spec.js` | ⚠️ DÉLIBÉRÉ 2026-09-05 — un en-tête invisible mais toujours mis en page occupe bien sa place, et « tient sur une ligne » garde alors son sens | C'est la géométrie nulle qui est en cause, pas l'invisibilité. L'hypothèse voisine — `null < 100` — reste réfutée par la mesure et n'a pas été reprise |
 | **Un contrôle est tombé une fois, et je ne peux pas dire pourquoi** — `detail-depenses.spec.js:112`, « les deux détails réunis font le total des charges », à la première passe complète. Il n'a pas reproduit : seconde passe complète verte, cinq répétitions parallèles vertes, deux passes isolées vertes | — | ⚠️ NON EXPLIQUÉ 2026-09-05 — consigné plutôt que rangé en « flottant », faute d'avoir la cause | Ce contrôle tient sur des délais fixes (`waitForTimeout`) pour lire un total qui change entre deux ouvertures. C'est la classe de fragilité déjà consignée le 2026-08-25, et le job de bout en bout conditionne la publication |
-| **Et le texte de l'erreur a été perdu par ma propre commande.** `npx playwright test 2>&1 \| tail -45` coupe le rapport — et rend en prime le code de sortie de `tail`, donc `0` sur 32 échecs. La seconde passe a écrasé `test-results/`, où vivait le contexte d'erreur | — | ⚠️ CONSIGNÉ 2026-09-05 — ne jamais passer le rapporteur au tuyau : `--reporter=line` puis `echo EXIT=$?`, et relever les artefacts AVANT de relancer | Variante exacte du § « jar d'émulateur » et du `--reporter=basic` de la veille : le résumé ressemblait à un résultat, et le code de sortie disait le contraire de ce qui s'était passé |
+| **Et le texte de l'erreur a été perdu par ma propre commande.** `npx playwright test 2>&1 \| tail -45` coupe le rapport — et rend en prime le code de sortie de `tail`, donc `0` sur 32 échecs. La seconde passe a écrasé `test-results/`, où vivait le contexte d'erreur | — | ⚠️ CONSIGNÉ 2026-09-05 — ne jamais passer le rapporteur au tuyau : `--reporter=line` puis `echo EXIT=$?`, et relever les artefacts AVANT de relancer | Troisième cas de la règle « le tuyau efface le code de sortie », qui existe désormais pour eux trois : le résumé ressemblait à un résultat, et le code de sortie disait le contraire de ce qui s'était passé |
 
 **165 fichiers, 3 014 contrôles unitaires** verts ; bout en bout **565 passés**,
 7 écartés, **31 rouges qui sont les 31 exigeant les émulateurs Firebase** —

@@ -51,10 +51,46 @@ async function ouvrir(page, { db = semence(), vue = VUE } = {}) {
   await setupFirebaseMock(page);
   await page.addInitScript(`window.__db = ${JSON.stringify(db)};`);
   await waitForApp(page);
-  await page.waitForTimeout(1500);
+
+  // On attend que le bilan PORTE les charges semées, et non une durée. Mesuré :
+  // la ligne de catégorie est le premier repère visible que les charges créent,
+  // et elle l'est sans rien déplier. Un délai trop court rendait la main sur un
+  // bilan encore à zéro — et « les deux détails réunis font le total » compare
+  // alors 0 + 0 à 0, c'est-à-dire réussit sans rien mesurer.
+  await expect(page.locator('[data-action="ouvrirDetailCategorie"][data-arg="Maison"]'))
+    .toBeVisible();
+
   // Les paiements réels vivent sous « Voir le détail ».
   await page.locator('.summary-details > summary').click();
-  await page.waitForTimeout(250);
+  await expect(page.locator('[data-action="ouvrirDetailPayeur"][data-arg="vous"]'))
+    .toBeVisible();
+}
+
+/**
+ * Ouvre le détail d'un payeur et attend LE RENDU VISÉ
+ *
+ * La modale n'est jamais retirée du document : refermée, elle garde à l'écran
+ * le total de l'ouverture précédente. Un délai fixe qui s'écoule trop vite
+ * relit donc cette valeur-là, sans erreur et sans un mot.
+ *
+ * Le titre reprend MOT POUR MOT le libellé de la ligne cliquée — « Untel a
+ * payé » : c'est le seul repère qui distingue le rendu voulu de celui qui reste
+ * affiché. Et `rendre()` écrit le contenu AVANT d'ouvrir la modale, donc
+ * « visible » implique déjà « à jour » ; le titre le dit en clair.
+ */
+async function ouvrirLaCategorie(page, categorie) {
+  await page.locator(`[data-action="ouvrirDetailCategorie"][data-arg="${categorie}"]`).click();
+  await expect(page.locator('#modalDetailDepenses')).toBeVisible();
+  await expect(page.locator('#detailDepensesTitre')).toHaveText(categorie);
+}
+
+async function ouvrirLePayeur(page, qui) {
+  const ligne = page.locator(`[data-action="ouvrirDetailPayeur"][data-arg="${qui}"]`);
+  const attendu = (await ligne.locator('span').innerText()).trim();
+
+  await ligne.click();
+  await expect(page.locator('#modalDetailDepenses')).toBeVisible();
+  await expect(page.locator('#detailDepensesTitre')).toHaveText(attendu);
 }
 
 /** Un montant affiché, ramené à un nombre */
@@ -72,12 +108,9 @@ test.describe('Le détail d\'un payeur', () => {
     await expect(ligne).toBeVisible();
     const surLaLigne = enNombre(await ligne.locator('strong').innerText());
 
-    await ligne.click();
-    await page.waitForTimeout(400);
+    await ouvrirLePayeur(page, 'vous');
 
     const modale = page.locator('#modalDetailDepenses');
-    await expect(modale).toBeVisible();
-
     const dansLaModale = enNombre(await modale.locator('.detail-total-montant').innerText());
     expect(dansLaModale, 'la modale annonce un autre total que la ligne')
       .toBeCloseTo(surLaLigne, 2);
@@ -86,8 +119,7 @@ test.describe('Le détail d\'un payeur', () => {
   test('elle montre les dépenses avancées, et pas celles d\'en face', async ({ page }) => {
     await ouvrir(page);
 
-    await page.locator('[data-action="ouvrirDetailPayeur"][data-arg="vous"]').click();
-    await page.waitForTimeout(400);
+    await ouvrirLePayeur(page, 'vous');
 
     const modale = page.locator('#modalDetailDepenses');
     await expect(modale).toContainText('Loyer');
@@ -101,8 +133,7 @@ test.describe('Le détail d\'un payeur', () => {
     // retombe pas sur le total : c'est le total qu'il mettrait en doute.
     await ouvrir(page);
 
-    await page.locator('[data-action="ouvrirDetailPayeur"][data-arg="vous"]').click();
-    await page.waitForTimeout(400);
+    await ouvrirLePayeur(page, 'vous');
 
     const partagee = page.locator('.detail-ligne', { hasText: 'Week-end' });
     await expect(partagee).toBeVisible();
@@ -113,13 +144,14 @@ test.describe('Le détail d\'un payeur', () => {
     await ouvrir(page);
 
     const lire = async (qui) => {
-      await page.locator(`[data-action="ouvrirDetailPayeur"][data-arg="${qui}"]`).click();
-      await page.waitForTimeout(350);
+      await ouvrirLePayeur(page, qui);
       const total = enNombre(
         await page.locator('#modalDetailDepenses .detail-total-montant').innerText()
       );
       await page.locator('#detailDepensesFermer').click();
-      await page.waitForTimeout(300);
+      // Refermée pour de bon avant la suivante : sans quoi le clic sur l'autre
+      // ligne porterait sur un voile qui la recouvre encore.
+      await expect(page.locator('#modalDetailDepenses')).toBeHidden();
       return total;
     };
 
@@ -140,12 +172,10 @@ test.describe('Le détail d\'un payeur', () => {
   test('Échap referme', async ({ page }) => {
     await ouvrir(page);
 
-    await page.locator('[data-action="ouvrirDetailPayeur"][data-arg="vous"]').click();
-    await page.waitForTimeout(400);
+    await ouvrirLePayeur(page, 'vous');
     await expect(page.locator('#modalDetailDepenses')).toBeVisible();
 
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(400);
     await expect(page.locator('#modalDetailDepenses')).toBeHidden();
   });
 });
@@ -159,11 +189,9 @@ test.describe('Le détail d\'une catégorie', () => {
 
     const surLaLigne = enNombre(await ligne.locator('.budget-row-amounts').innerText());
 
-    await ligne.click();
-    await page.waitForTimeout(400);
+    await ouvrirLaCategorie(page, 'Maison');
 
     const modale = page.locator('#modalDetailDepenses');
-    await expect(modale).toBeVisible();
     await expect(modale).toContainText('Loyer');
 
     const dansLaModale = enNombre(await modale.locator('.detail-total-montant').innerText());
@@ -174,8 +202,7 @@ test.describe('Le détail d\'une catégorie', () => {
   test('une catégorie ne montre pas les dépenses d\'une autre', async ({ page }) => {
     await ouvrir(page);
 
-    await page.locator('[data-action="ouvrirDetailCategorie"][data-arg="Courses"]').click();
-    await page.waitForTimeout(400);
+    await ouvrirLaCategorie(page, 'Courses');
 
     const modale = page.locator('#modalDetailDepenses');
     await expect(modale).toContainText('Courses du samedi');
@@ -191,12 +218,10 @@ test.describe('Le détail d\'une catégorie', () => {
     await setupFirebaseMock(page);
     await page.addInitScript(`window.__db = ${JSON.stringify(db)};`);
     await waitForApp(page);
-    await page.waitForTimeout(1500);
-    await page.locator('.summary-details > summary').click();
-    await page.waitForTimeout(250);
+    await expect(page.locator('[data-action="ouvrirDetailCategorie"][data-arg="Courses"]'))
+      .toBeVisible();
 
-    await page.locator('[data-action="ouvrirDetailCategorie"][data-arg="Courses"]').click();
-    await page.waitForTimeout(400);
+    await ouvrirLaCategorie(page, 'Courses');
 
     await expect(page.locator('#modalDetailDepenses')).toContainText('<img src=x');
     expect(await page.locator('#modalDetailDepenses img').count()).toBe(0);
@@ -256,8 +281,7 @@ test.describe('La répartition dérogatoire, dans la modale du détail', () => {
         vue: { width: largeur, height: 844 }
       });
 
-      await page.locator('[data-action="ouvrirDetailPayeur"][data-arg="vous"]').click();
-      await page.waitForTimeout(400);
+      await ouvrirLePayeur(page, 'vous');
 
       const ligne = page.locator('.detail-ligne', { hasText: 'Abonnement électricité' });
       await expect(ligne).toBeVisible();
