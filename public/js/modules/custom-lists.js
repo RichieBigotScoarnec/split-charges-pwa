@@ -42,7 +42,14 @@ const EMOJI_PICKER = [
   // Vie courante
   '📱', '💳', '🎓', '🐾', '👶', '🎁', '👕', '💇',
   // Comptes et virements
-  '🏦', '🤝', '👤', '💰', '🧾', '🗑️', '📋', '📦', '⚡'
+  // 🔁 nomme un RYTHME quand tout le reste nomme un domaine : une charge fixe
+  // se définit par le fait qu'elle revient — abonnement, prélèvement,
+  // cotisation —, et le foyer n'avait que 🏠 pour se la représenter, le seul
+  // glyphe qui pouvait à peu près faire l'affaire et qui dit autre chose.
+  // Rangé ici plutôt qu'en « Vie courante » : ce qui revient tous les mois
+  // relève de la mécanique du compte, aux côtés de 🏦, 💰 et 🧾, pas des
+  // objets du quotidien que sont 👕 et 💇.
+  '🏦', '🤝', '👤', '💰', '🧾', '🗑️', '📋', '📦', '⚡', '🔁'
 ];
 
 /**
