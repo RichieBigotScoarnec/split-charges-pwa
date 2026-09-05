@@ -745,3 +745,26 @@ solides.
 | **Le relevé des 225 `waitForTimeout` de la suite, et la décision de ne PAS les convertir.** 109 d'installation, 57 suivis d'un `expect()` qui réessaie donc redondants, 8 devant une géométrie dont l'échec est bruyant, 51 devant une lecture brute. Dans ces 51, la forme réellement suspecte — le même repère relu après un changement — ne concerne que trois fichiers | — | ⚠️ DÉCIDÉ 2026-09-05 — les trois ont été mesurés, aucun ne ment aujourd'hui. Réécrire 225 sites sur une théorie démentie deux fois serait beaucoup de mouvement pour un risque qu'on n'arrive pas à faire apparaître | La conversion reste défendable là où elle se présente pour ce qu'elle est : de la lisibilité et de la vitesse |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
+
+> **La règle qui gouverne les autres : une explication doit pouvoir être
+> fausse.**
+>
+> Des trois réfutations ci-dessus, deux venaient d'un doute que je voulais
+> lever. La troisième était **ma propre thèse** — le correctif déjà écrit, le
+> message de commit déjà rédigé autour d'elle. Et rien ne m'obligeait à la
+> tester : le fichier était vert, la conversion défendable, l'histoire tenait
+> debout. C'est le cas dangereux, parce qu'il ne ressemble pas à un doute.
+>
+> Ce qui l'a fait tomber, c'est d'avoir voulu la **prouver** plutôt que la
+> raconter. C'est le mutant appliqué à une explication au lieu d'un contrôle :
+> **ne pas se contenter qu'une histoire soit cohérente — exiger qu'elle puisse
+> être fausse, et vérifier qu'elle ne l'est pas.**
+>
+> Les quatre règles que ce fichier répète disent toutes cela, à des endroits
+> différents. **Le rouge avant le correctif** : un correctif dont le contrôle
+> n'a jamais été rouge n'explique rien, il coïncide. **Le mutant** : un contrôle
+> qui ne peut pas tomber ne prouve rien, il accompagne. **Le témoin positif** :
+> une propriété que le vide satisfait ne mesure rien, elle s'auto-confirme. **Le
+> tuyau** : ce qui aurait pu vous contredire doit survivre à la commande qui
+> l'observe. Quatre endroits, un seul principe — et c'est celui-là qu'il faut
+> tenir le jour où l'un des quatre ne s'applique pas.
