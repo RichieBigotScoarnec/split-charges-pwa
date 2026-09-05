@@ -21,6 +21,7 @@ import { formatDate, formatPeriod, dateDeLaCharge } from '../utils/date.js';
 import { memberLabel } from '../utils/members.js';
 import { resolveShareMode, resolvePercents } from '../utils/calculations.js';
 import { detailDuPayeur, detailDeLaCategorie } from '../utils/detail.js';
+import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { log } from '../utils/debug.js';
 
 /** Identifiant de la modale, créée à la première ouverture */
@@ -135,11 +136,32 @@ function ligneDetail(entree, surLaPart) {
     ? `<span class="detail-part">part de ${formatCurrency(entree.amount)}</span>`
     : '';
 
+  // La quatrième surface de la même grammaire, par la même fabrique.
+  //
+  // La modale disait déjà la PARTIALITÉ d'une ligne — « part de 1 000,00 € » —
+  // sans jamais dire la RÈGLE qui l'a produite. C'est pourtant ici que la
+  // question se pose : on vient d'ouvrir un total pour comprendre d'où il sort,
+  // et une charge en 50/50 dans un foyer au prorata y entre pour 500,00 € là où
+  // la règle commune en donnerait 750,00. Les deux mentions se complètent, elles
+  // ne se remplacent pas.
+  //
+  // `detail.js` pousse la charge ENTIÈRE dans la ligne : `splitOverride` est
+  // déjà là, rien n'est relu ni recalculé. Et le prédicat est celui des trois
+  // autres surfaces — « la charge porte un `splitOverride` » — y compris sur un
+  // détail de catégorie, où le montant est plein : le faire dépendre de
+  // `surLaPart` donnerait deux réponses pour la même charge selon le chiffre
+  // par lequel on l'a ouverte.
+  const repartition = libelleDeLaRepartition(entree.splitOverride);
+  const splitTag = repartition
+    ? `<span class="charge-split-tag">${escapeHtml(repartition)}</span>`
+    : '';
+
   return `
     <div class="detail-ligne">
       <div class="detail-ligne-titre">
         ${escapeHtml(entree.description || 'Sans description')}
         ${entree.fixe ? '<span class="charge-split-tag">fixe</span>' : ''}
+        ${splitTag}
       </div>
       <div class="detail-ligne-info">
         ${escapeHtml([quand, situe].filter(Boolean).join(' · '))}
