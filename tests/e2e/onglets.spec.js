@@ -216,13 +216,32 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
     await waitForApp(page);
   });
 
-  /** La hauteur d'un élément, marges comprises — nulle s'il est masqué */
+  /**
+   * La hauteur d'un élément RENDU, marges comprises
+   *
+   * Elle rendait `0` pour un élément sans géométrie, sous un commentaire qui
+   * l'annonçait — « nulle s'il est masqué ». Or son unique lecteur demande
+   * `toBeLessThan(100)`, et `0 < 100` est vrai : un en-tête devenu invisible
+   * passait pour un en-tête qui tient sur une ligne. La seule mesure de ce
+   * fichier qui puisse tomber en silence, et elle tombait du bon côté.
+   *
+   * Zéro n'est pas une hauteur : c'est l'absence de mesure. Absent du document
+   * ou présent sans géométrie, le résultat est le même — `null`, que
+   * `toBeLessThan` REJETTE bruyamment. La distinction est portée par le
+   * message, pas par une valeur qu'un opérateur de comparaison accepterait.
+   *
+   * Ce que cela ne couvre pas, et c'est mesuré : `visibility: hidden` laisse la
+   * géométrie intacte. Un en-tête invisible mais toujours mis en page occupe
+   * réellement sa place, et « tient sur une ligne » garde alors son sens.
+   *
+   * @returns {Promise<number|null>} La hauteur, ou `null` si rien n'est rendu
+   */
   async function hauteurDe(page, selecteur) {
     return page.evaluate((s) => {
       const el = document.querySelector(s);
       if (!el) return null;
       const r = el.getBoundingClientRect();
-      if (r.height === 0) return 0;
+      if (r.height === 0) return null;
       const style = getComputedStyle(el);
       return Math.round(r.height + parseFloat(style.marginTop) + parseFloat(style.marginBottom));
     }, selecteur);
@@ -233,7 +252,29 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
     // sur trois rangées centrées. Le seuil est large à dessein — ce qui est
     // verrouillé, c'est « une ligne », pas un pixel précis.
     const entete = await hauteurDe(page, '#mainApp > header');
+
+    // Deux moitiés d'une même propriété, et la première n'était pas dite :
+    // « tient sur une ligne » présuppose « est là ». Sans elle, la seule façon
+    // de satisfaire ce contrôle à coup sûr serait de faire disparaître ce
+    // qu'il mesure.
+    expect(entete, 'aucun en-tête rendu : il n\'y a rien à mesurer').not.toBeNull();
     expect(entete, `l'en-tête mesure ${entete} px`).toBeLessThan(100);
+  });
+
+  test('TÉMOIN — un en-tête masqué ne passe pas pour un en-tête compact', async ({ page }) => {
+    // Le contrôle ci-dessus doit pouvoir ÉCHOUER. Tant que la mesure rendait
+    // `0`, le rendre inattaquable ne demandait pas de compacter l'en-tête : il
+    // suffisait de le retirer de l'écran, et « 0 px, sous la barre des 100 »
+    // s'affichait comme une réussite.
+    //
+    // `display: none` et non `visibility: hidden` : c'est la GÉOMÉTRIE nulle
+    // qui est en cause, et la seconde la laisse entière.
+    await page.addStyleTag({ content: '#mainApp > header { display: none !important; }' });
+
+    expect(
+      await hauteurDe(page, '#mainApp > header'),
+      'un en-tête sans géométrie rend une hauteur, donc un chiffre comparable'
+    ).toBeNull();
   });
 
   test('moins d\'un quart de l\'écran avant le premier contenu', async ({ page }) => {
