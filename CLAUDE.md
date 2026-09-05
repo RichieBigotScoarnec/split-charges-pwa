@@ -262,6 +262,33 @@ npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 > casser. La règle vaut pour les suites de tests comme pour les commandes de la
 > CI, et la seule façon de la tenir est de les rejouer toutes.
 
+### Le jar d'émulateur qui survit à son arrêt
+
+`firebase emulators:exec` annonce « Stopping Database Emulator » et n'obtient
+pas toujours l'arrêt : le processus `java` reste, garde le port, et **la passe
+suivante échoue à démarrer** sur `Could not start Database Emulator, port
+taken`. Observé deux fois dans la même soirée, le 2026-09-04.
+
+Ce n'est pas anodin : le symptôme n'est pas un test rouge, c'est une suite qui
+**ne tourne pas du tout**. On croit avoir mesuré, on n'a rien mesuré — et le
+chiffre qu'on s'apprête à consigner est supposé. C'est le même défaut que la
+section précédente, un cran plus haut : là on mesure autre chose que ce qu'on
+croit, ici on ne mesure rien.
+
+Diagnostic, puis nettoyage ciblé (ports lus dans `firebase.json` : database
+9010, auth 9099) :
+
+```bash
+netstat -ano | grep -E ":(9010|9099) "          # le PID qui tient le port
+powershell.exe -NoProfile -Command "Get-Process -Id <PID> | Select Id,ProcessName,StartTime"
+powershell.exe -NoProfile -Command "Stop-Process -Id <PID> -Force"
+```
+
+Vérifier `StartTime` avant de tuer : c'est ce qui distingue un jar résiduel
+d'un autre `java` qui travaille. La variante large — `Get-Process java |
+Stop-Process -Force` — dépanne, mais elle emporte tout ce qui tourne sous la
+même JVM.
+
 ## Contraintes
 
 - NE PAS modifier `state.js`, `toast.js`, `firebase-init.js`, `db.js` sans vérifier tous les imports
@@ -901,6 +928,31 @@ chacun **reproduit avant d'être corrigé** et tenu par un mutant mesuré.
 > de casser la CI. Et une entrée forgée visant `salaries` reste indiscernable
 > de l'écriture légitime : le remède est un nom de domaine propre, pas un
 > contrôle client.
+
+### Le banc d'essai avalait ce qu'il ne trouvait plus — 2026-09-04
+
+Relevé en préparant une refonte du tableau de bord, avant d'en écrire la
+première ligne : que casserait-elle, et le dirait-elle ?
+
+| Déclaration CLAUDE.md | Fichier réel | État | Action |
+|---|---|---|---|
+| **`allerAuPanneau` confondait deux absences.** Sa garde rendait `false` quand l'onglet n'était pas visible — juste au-delà de 900 px, où la barre n'existe pas et où les trois panneaux ont leurs colonnes ; faux quand la barre est ATTENDUE et que l'onglet a disparu. Mesuré : `isVisible()` sur zéro correspondance rend `false` sans lever, et **les 58 appels de la suite ignorent tous le booléen**. Une navigation renommée n'aurait donc rendu ni `encre-rendue` ni `cible-tactile` rouges : les deux balayages tournaient trois fois sur le panneau courant et restaient VERTS en mesurant le tiers des surfaces — dont plus du tout `panneauReglages`, où le contrôle tactile avait trouvé les quatre `<select>` à 19 px | `tests/e2e/_harness.js`, `tests/e2e/garde-du-panneau.spec.js` | ✅ RÉSOLU 2026-09-04 — la règle ne nomme ni largeur ni panneau : *la surface est-elle déjà là ?* L'onglet répond → on le touche ; sinon le panneau est visible → rien à faire ; sinon on lève | **Cinquième site** du motif « un contrôle qui ne mesure rien est pire qu'un contrôle absent ». Recopier 900 ici en aurait fait un troisième endroit où ce nombre est écrit |
+| Les deux témoins des contrôles du chantier ne l'attrapaient pas : « plus de 40 textes visibles » et « plus de 3 commandes par panneau » sont satisfaits par le même panneau compté trois fois | `tests/e2e/garde-du-panneau.spec.js` | ✅ RÉSOLU 2026-09-04 — trois cas, un seul rouge ; les deux autres sont ses témoins, sans quoi une garde qui lèverait TOUJOURS passerait et les 24 suites appelant à 1280 px deviendraient rouges pour rien | On mesure une DISTINCTION, pas une sévérité |
+| **`coherence-visuelle.spec.js` tenait sa propre copie de la garde**, avec le défaut que le banc d'essai venait de perdre — et un second : `waitForTimeout(350)` n'attend pas le panneau, il attend le temps | `tests/e2e/coherence-visuelle.spec.js` | ✅ RÉSOLU 2026-09-05 — la copie est supprimée, la navigation passe par `allerAuPanneau` | **Sixième site.** Une copie ne se dégrade pas d'un coup : elle se dégrade au correctif suivant que personne n'y reporte |
+| **Et ce fichier n'avait AUCUN témoin.** Ses seize cas s'écrivent tous `expect(x).toEqual([])` : un relevé vide les satisfait tous les quatre, qu'il soit vide parce que la navigation n'a pas eu lieu ou parce qu'un sélecteur a cessé de correspondre. `cible-tactile` et `encre-rendue` ont chacun le leur ; celui-ci, écrit avant eux, n'en a jamais eu | `tests/e2e/coherence-visuelle.spec.js` | ✅ RÉSOLU 2026-09-04 — quatre témoins, un par largeur : quand la barre est rendue, c'est le panneau VISÉ qui doit porter `panneau--actif` — une classe qu'on lit, pas une statistique — et le relevé est borné par le bas sur des comptes **mesurés** avant d'être écrits | 16 → 21 cas |
+| **Le second angle mort ne se refermait PAS avec le sixième site, et un docstring affirmait le contraire.** `coherence-visuelle.spec.js:350` écrivait : « sous 900 px, la navigation aura levé avant d'y arriver ». C'est faux, et la mesure le dit : `allerAuPanneau` cherche `.onglet[data-panneau=…]` puis `#panneauX`, **jamais `#onglets`**. Renommer le conteneur de la barre en gardant ses enfants laisse la navigation réussir, puis `if (!barre) return null` rend « rien à signaler » et `toEqual([])` passe | `tests/e2e/coherence-visuelle.spec.js` | ✅ RÉSOLU 2026-09-05 — mesure extraite en `resteSousLaBarre`, dont la règle ne nomme aucune largeur : barre absente du document → on lève ; barre rendue sans hauteur → `null` est juste. Deux cas, dont son témoin | Un docstring qui annonce une couverture inexistante est **pire** qu'une couverture absente : il éteint la vigilance. 21 → 23 cas |
+| **Septième site, et il est dans la garde de contraste elle-même.** `rgb()` n'analyse que `rgb()`/`rgba()` ; `mesurer()` rendait `null` sur toute autre notation et `if (!m) continue` écartait l'élément EN SILENCE, sous une assertion `toEqual([])`. Mesuré dans ce Chromium : `getComputedStyle` **préserve** `oklch()`, `lab()` et `color(display-p3 …)` — il ne les convertit pas. Un passage de `variables.css` en gamut étendu aurait éteint d'un coup la garde qui protège les 56 sites du chantier | `tests/e2e/encre-rendue.spec.js` | ✅ RÉSOLU 2026-09-05 — ce qu'on ne sait pas mesurer est SIGNALÉ, avec la notation en cause ; le fond illisible cesse d'être traité comme transparent | Le témoin du fichier ne l'aurait pas vu : il compte les nœuds de texte par un `TreeWalker`, sans passer par `mesurer()`. **Latent, pas actif** : aucune de ces notations dans `public/css/` aujourd'hui |
+| Arbitrage retenu sur les 58 appels qui ignorent le booléen : **ne pas les toucher** | — | ⚠️ DÉCIDÉ 2026-09-04 — après correction, `true` = on a navigué, `false` = la surface était déjà là, `throw` = inatteignable : les trois garantissent la propriété qui compte. Leur faire exiger `true` serait une liste tenue à la main déguisée, avec exceptions pour ceux qui tournent à 1280 px | La troisième voie — supprimer le booléen — coûte zéro aujourd'hui (58/58 l'ignorent, mesuré) mais ôte une information qu'un appelant futur pourrait vouloir |
+| `barre-solde-scintillement.spec.js:104` garde sa copie, et c'est délibéré : son `click()` sans garde EXPIRE | — | ⚠️ LAISSÉ — une expiration est bruyante, ce n'est pas un trou | Seul le silence est un trou |
+| `onglets.spec.js:223` — `hauteurDe()` rend `0` pour un élément masqué, et `0 < 100` satisfait « l'en-tête tient sur une ligne » : un en-tête devenu invisible passerait pour compact | `tests/e2e/onglets.spec.js` | ⚠️ CONSIGNÉ 2026-09-05, HORS PÉRIMÈTRE — chemin résiduel du même motif, à traiter dans son lot | **Hypothèse réfutée par la mesure** en chemin : `hauteurDe()` rend `null` sur sélecteur absent, et j'ai cru que `null < 100` passerait. Playwright comme Vitest **rejettent** `null` sur `toBeLessThan` — vérifié, le contrôle tombe bruyamment. Seul le `return 0` reste silencieux |
+| **Le jar d'émulateur survit à son arrêt** et bloque le port de la passe suivante | `CLAUDE.md` § Commandes | ✅ CONSIGNÉ 2026-09-04 — diagnostic et nettoyage ciblé écrits, `StartTime` vérifié avant de tuer | Le symptôme n'est pas un test rouge : c'est une suite qui **ne tourne pas**. Deux fois dans la même soirée, et la seconde a failli faire consigner un chiffre supposé |
+
+> **Ce que ce lot n'est pas.** Aucune ligne de refonte. La maquette du tableau de
+> bord ne couvre que le grand écran (`max-width:1400px`, aucune `@media`), alors
+> que les trois contrôles du chantier et six suites visuelles vivent à 390 px :
+> **la navigation mobile appartient à un brief qui n'existe pas encore.** Ce lot
+> ne fait que rendre bruyant ce qui serait passé en silence le jour où il
+> existera.
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 

@@ -122,12 +122,18 @@ const BALAYAGE = `
     // opacités qui le surplombent.
     let fond = [255, 255, 255];
     for (let i = ch.length - 1; i >= 0; i--) {
-      const b = rgb(getComputedStyle(ch[i]).backgroundColor);
-      if (!b || b.a === 0) continue;
+      const brut = getComputedStyle(ch[i]).backgroundColor;
+      const b = rgb(brut);
+      // Une notation que \`rgb()\` ne sait pas lire n'est PAS un fond
+      // transparent : on ne sait pas composer, et poursuivre reviendrait à
+      // inventer du blanc sous le texte.
+      if (!b) return { illisible: brut };
+      if (b.a === 0) continue;
       fond = melange({ c: b.c, a: b.a * opac[i] }, fond);
     }
-    const e = rgb(getComputedStyle(el).color);
-    if (!e) return null;
+    const brutEncre = getComputedStyle(el).color;
+    const e = rgb(brutEncre);
+    if (!e) return { illisible: brutEncre };
     const encre = melange({ c: e.c, a: e.a * opac[0] }, fond);
     return { ratio: ratio(encre, fond), opacite: opac[0] };
   }
@@ -193,7 +199,30 @@ const BALAYAGE = `
       const seuil = glyphe || taille >= 24 || (gras && taille >= 18.66) ? 3 : 4.5;
 
       const m = mesurer(el);
-      if (!m) continue;
+
+      // SEPTIÈME SITE DU MOTIF. Ceci s'écrivait \`if (!m) continue\` : une
+      // couleur que \`rgb()\` ne sait pas lire écartait l'élément EN SILENCE,
+      // et l'assertion finale s'écrit \`toEqual([])\`. Chromium préserve
+      // \`oklch()\`, \`lab()\` et \`color()\` dans \`getComputedStyle\` — mesuré —
+      // donc le jour d'un passage en gamut étendu, cette garde se serait
+      // éteinte sans un mot, sur les 56 sites qu'elle protège. Le témoin de ce
+      // fichier ne l'aurait pas vu : il compte les nœuds de texte visibles par
+      // un \`TreeWalker\`, sans passer par \`mesurer\`.
+      //
+      // Ce qu'on ne sait pas mesurer se signale, il ne se jette pas.
+      if (m.illisible) {
+        out.push({
+          surface: etiquette,
+          texte: txt.slice(0, 34),
+          classe: String(el.className || el.tagName).slice(0, 44),
+          px: taille,
+          opacite: 1,
+          ratio: 'non mesuré',
+          seuil,
+          illisible: m.illisible
+        });
+        continue;
+      }
 
       const cle = etiquette + '|' + (el.className || el.tagName) + '|' + Math.round(m.ratio * 100);
       if (vus.has(cle)) continue;
@@ -258,9 +287,10 @@ for (const theme of ['light', 'dark']) {
     await contexte.close();
 
     const detail = manquements
-      .map((m) => `    ${m.surface.padEnd(18)} ${String(m.ratio).padEnd(6)} / ${m.seuil}`
+      .map((m) => `    ${m.surface.padEnd(18)} ${String(m.ratio).padEnd(10)} / ${m.seuil}`
         + `   ${m.px}px${m.opacite !== 1 ? ` opacity ${m.opacite}` : ''}`
-        + `   « ${m.texte} »   .${m.classe}`)
+        + `   « ${m.texte} »   .${m.classe}`
+        + (m.illisible ? `\n      └─ couleur illisible pour ce contrôle : ${m.illisible}` : ''))
       .join('\n');
 
     expect(
@@ -294,6 +324,84 @@ test('le balayage voit vraiment quelque chose', async ({ page }) => {
   }, { code: BALAYAGE });
 
   expect(compte, 'le bilan doit porter du texte visible').toBeGreaterThan(40);
+});
+
+test('une couleur en gamut étendu est signalée, jamais écartée en silence', async ({ page }) => {
+  /**
+   * LE SEPTIÈME SITE DU MOTIF, et un trou dans la garde de contraste
+   * elle-même — celle qui protège les 56 sites du chantier.
+   *
+   * `rgb()` n'analyse que `rgb()` et `rgba()`. Toute autre notation lui rend
+   * `null`, `mesurer()` rendait `null`, et `if (!m) continue` écartait
+   * l'élément SANS RIEN DIRE — alors que l'assertion finale s'écrit
+   * `toEqual([])`.
+   *
+   * Ce n'était pas théorique : **mesuré dans ce même Chromium**,
+   * `getComputedStyle` PRÉSERVE `oklch(0.7 0.1 250)`, `lab(50 40 30)` et
+   * `color(display-p3 …)` — il ne les convertit pas en `rgb()`. Le jour d'un
+   * passage de `variables.css` en gamut étendu, toute la garde se serait
+   * éteinte d'un coup, en restant verte.
+   *
+   * Et le témoin ci-dessus ne l'aurait pas vu : il compte les nœuds de texte
+   * visibles par un `TreeWalker`, sans jamais passer par `mesurer()`. Il aurait
+   * annoncé « plus de 40 textes » pendant que zéro était mesuré.
+   *
+   * On teinte le DOM, pas la feuille de style : ce cas mesure la GARDE, pas
+   * l'application. `variables.css` n'emploie aujourd'hui aucune de ces
+   * notations — vérifié — et c'est précisément pourquoi le trou était latent.
+   */
+  await setupFirebaseMock(page);
+  await waitForApp(page);
+
+  const trouves = await page.evaluate(({ code }) => {
+    // Même idiome que `releverTout` : la valeur de complétion de l'`eval` REND
+    // la fonction. La laisser comme identifiant libre est une erreur `no-undef`,
+    // qu'`npx eslint .` refuse — la CI l'a attrapée ici avant le push.
+    //
+    // Le nom local DIFFÈRE à dessein : un `eval` direct partage la portée
+    // englobante, et le code évalué y déclare `function balayer`. Écrire
+    // `const balayer = eval(…)` lève `Identifier 'balayer' has already been
+    // declared`, avant même de s'exécuter.
+    const balayerLaPage = eval(`${code}; balayer`);
+
+    // Un élément de texte bien réel du premier écran, repeint en oklch().
+    const marche = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let x, cible = null;
+    while ((x = marche.nextNode())) {
+      const el = x.parentElement;
+      if (x.textContent.trim().length > 3 && el?.checkVisibility?.()) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) { cible = el; break; }
+      }
+    }
+    if (!cible) return { erreur: 'aucun texte visible à teindre' };
+
+    cible.style.color = 'oklch(0.7 0.1 250)';
+    // Prémisse : Chromium garde bien la notation, sinon ce cas ne mesure rien.
+    const rendu = getComputedStyle(cible).color;
+
+    return { rendu, releve: balayerLaPage('témoin') };
+  }, { code: BALAYAGE });
+
+  expect(
+    trouves.erreur,
+    'prémisse : il faut un texte visible à teindre'
+  ).toBeUndefined();
+
+  expect(
+    trouves.rendu,
+    'prémisse : Chromium doit préserver la notation, sans quoi ce cas ne mesure rien'
+  ).toContain('oklch');
+
+  const illisibles = trouves.releve.filter((m) => m.illisible);
+
+  expect(
+    illisibles.length,
+    `une couleur que le contrôle ne sait pas lire doit être SIGNALÉE, jamais écartée. `
+    + `Relevé : ${JSON.stringify(trouves.releve.slice(0, 3))}`
+  ).toBeGreaterThan(0);
+
+  expect(illisibles[0].illisible, 'et le rapport doit nommer la notation en cause').toContain('oklch');
 });
 
 test('l\'enveloppe close est bien rendue, et son opacité héritée mesurée', async ({ page }) => {

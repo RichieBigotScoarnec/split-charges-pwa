@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Le garde-fou qui manquait : ce qui a l'air faux
@@ -64,13 +64,77 @@ async function semer(page) {
   await page.waitForTimeout(1200);
 }
 
-/** Ouvre un onglet, si la barre est là */
+/**
+ * Ouvre un onglet, si la barre est là — par la garde du banc d'essai.
+ *
+ * Cette fonction tenait sa propre copie de la garde : `if (visible) { click }`,
+ * sans `else`. Deux défauts dans six lignes.
+ *
+ *   1. Un onglet DISPARU ne produisait rien. Les quatre balayages repartaient
+ *      alors sur le panneau courant, en croyant visiter celui qu'on leur avait
+ *      nommé — et comme ils s'écrivent tous `expect(x).toEqual([])`, ils
+ *      restaient VERTS en mesurant le tiers des surfaces.
+ *   2. `waitForTimeout(350)` n'attend pas le panneau, il attend le temps. Sous
+ *      charge, le balayage pouvait mesurer celui d'avant.
+ *
+ * `allerAuPanneau` traite les deux : elle attend `panneau--actif` plutôt qu'un
+ * délai, et elle LÈVE quand aucun chemin ne mène au panneau — ni onglet, ni
+ * panneau rendu. Au-delà de 900 px elle rend `false` sans rien faire, ce qui
+ * est le cas légitime dont cette fonction avait besoin.
+ *
+ * Une seule garde pour toute la suite : une copie ne se dégrade pas d'un coup,
+ * elle se dégrade au correctif suivant que personne n'y reporte.
+ *
+ * Le petit repos qui suit est conservé, et lui seul : les quatre contrôles de
+ * ce fichier mesurent une GÉOMÉTRIE, et la classe posée précède de peu la mise
+ * en page qui en découle.
+ */
 async function ouvrir(page, id) {
-  const onglet = page.locator(`.onglet[data-panneau="${id}"]`);
-  if (await onglet.isVisible()) {
-    await onglet.click();
-    await page.waitForTimeout(350);
+  const aChange = await allerAuPanneau(page, id);
+  if (aChange) await page.waitForTimeout(350);
+}
+
+/**
+ * Ce qui reste du panneau sous la barre d'onglets, en pixels — `null` si rien.
+ *
+ * Extraite de « la fin de chaque panneau reste atteignable », où elle vivait en
+ * ligne et où elle rendait `null` pour QUATRE raisons distinctes : la barre
+ * absente du document, la barre présente mais sans hauteur, le panneau absent,
+ * et le seul vrai succès — rien ne dépasse. Les trois premières ne se
+ * distinguaient pas de la quatrième, et l'assertion s'écrit `toEqual([])` :
+ * renommer `#onglets` faisait donc passer le contrôle sans rien mesurer.
+ *
+ * La règle ne nomme aucune largeur, comme celle du banc d'essai : *la barre
+ * est-elle là ?* Absente du document → personne ne peut répondre, on lève.
+ * Présente sans hauteur → les colonnes sont déployées, il n'y a rien à
+ * réserver, et `null` est la bonne réponse.
+ */
+async function resteSousLaBarre(page, id) {
+  const mesure = await page.evaluate((panneauId) => {
+    const barre = document.getElementById('onglets');
+    if (!barre) return { introuvable: 'la barre #onglets' };
+
+    const cadre = barre.getBoundingClientRect();
+    // Barre rendue sans hauteur : cas légitime, rien à réserver.
+    if (cadre.height === 0) return { reste: null };
+
+    const panneau = document.getElementById(panneauId);
+    if (!panneau) return { introuvable: `le panneau #${panneauId}` };
+
+    const bas = panneau.getBoundingClientRect().bottom;
+    // Un pixel de tolérance pour les arrondis de rendu.
+    return { reste: bas > cadre.top + 1 ? Math.round(bas - cadre.top) : null };
+  }, id);
+
+  if (mesure.introuvable) {
+    throw new Error(
+      `${mesure.introuvable} est introuvable : la mesure « reste-t-il du contenu `
+      + `sous la barre ? » n'a pas de réponse. Rendre \`null\` ici ferait passer `
+      + `le contrôle sans rien mesurer, puisqu'il s'écrit \`toEqual([])\`.`
+    );
   }
+
+  return mesure.reste;
 }
 
 for (const { nom, viewport } of LARGEURS) {
@@ -237,24 +301,207 @@ for (const { nom, viewport } of LARGEURS) {
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await page.waitForTimeout(400);
 
-        const trouve = await page.evaluate((panneauId) => {
-          const barre = document.getElementById('onglets');
-          if (!barre) return null;
-          const cadre = barre.getBoundingClientRect();
-          if (cadre.height === 0) return null;      // barre absente : rien à réserver
-
-          const panneau = document.getElementById(panneauId);
-          if (!panneau) return null;
-
-          const bas = panneau.getBoundingClientRect().bottom;
-          // Un pixel de tolérance pour les arrondis de rendu.
-          return bas > cadre.top + 1 ? Math.round(bas - cadre.top) : null;
-        }, id);
+        const trouve = await resteSousLaBarre(page, id);
 
         if (trouve !== null) restes.push(`${id} : ${trouve} px sous la barre`);
       }
 
       expect(restes, restes.join(' | ')).toEqual([]);
     });
+
+    test('le balayage voit vraiment quelque chose, et sur le bon panneau', async ({ page }) => {
+      /**
+       * LE TÉMOIN QUI MANQUAIT AUX SEIZE CAS.
+       *
+       * Les quatre contrôles ci-dessus s'écrivent tous `expect(x).toEqual([])`.
+       * Un relevé VIDE les satisfait donc tous les quatre — et il peut être
+       * vide pour deux raisons qui n'ont rien d'un succès : la navigation qui
+       * n'a pas eu lieu, ou un sélecteur qui a cessé de correspondre.
+       *
+       * `cible-tactile.spec.js` et `encre-rendue.spec.js` ont chacun le leur,
+       * précisément pour ça. Ce fichier, écrit avant eux, n'en avait aucun.
+       *
+       * Deux propriétés, et la première est la plus forte : quand la barre est
+       * rendue, c'est le panneau VISÉ qui doit être actif. Ce n'est pas une
+       * statistique, c'est une classe qu'on lit. La seconde borne le relevé
+       * par le bas, pour le cas où le sélecteur cesserait de ramener quoi que
+       * ce soit alors même que la navigation aboutit.
+       *
+       * Comptes mesurés avant d'écrire les seuils, aux quatre largeurs :
+       *   320   bilan 5/26   charges 4/38   réglages  6/58
+       *   390   bilan 5/26   charges 4/38   réglages 10/58
+       *   768   bilan 5/26   charges 5/38   réglages 12/58
+       *  1280   les trois à 9/84 — la barre n'existe pas, tout est à l'écran
+       *
+       * Le minimum observé est 4 commandes ; le seuil est à 2, pour borner
+       * sans transformer un contenu qui bouge en contrôle instable.
+       */
+      const releves = [];
+
+      for (const id of ONGLETS) {
+        await ouvrir(page, id);
+
+        if (await page.locator('#onglets').isVisible()) {
+          await expect(
+            page.locator(`#${id}`),
+            `la barre est rendue : c'est ${id} qui doit être actif`
+          ).toHaveClass(/panneau--actif/);
+        }
+
+        releves.push(await page.evaluate(() => {
+          const flottant = (el) => {
+            if (el.closest('.onglets, .bandeau-colle, .fab, .modal-overlay')) return true;
+            const s = getComputedStyle(el);
+            return s.position === 'fixed' || s.position === 'sticky';
+          };
+          const replie = (el) => el.closest('details:not([open])') !== null;
+
+          const commandes = [...document.querySelectorAll('button, a[href], select, input:not([type="hidden"])')]
+            .filter((el) => {
+              const r = el.getBoundingClientRect();
+              const s = getComputedStyle(el);
+              return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.opacity !== '0'
+                && r.bottom > 0 && r.top < window.innerHeight && !flottant(el) && !replie(el);
+            }).length;
+
+          let textes = 0;
+          const marche = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n;
+          while ((n = marche.nextNode())) {
+            if (n.textContent.trim() && n.parentElement?.checkVisibility?.()) textes++;
+          }
+          return { commandes, textes };
+        }));
+      }
+
+      releves.forEach((r, i) => {
+        expect(r.commandes, `${ONGLETS[i]} : aucune commande relevée`).toBeGreaterThan(2);
+        expect(r.textes, `${ONGLETS[i]} : aucun texte relevé`).toBeGreaterThan(15);
+      });
+      expect(
+        releves.reduce((s, r) => s + r.commandes, 0),
+        'les trois panneaux réunis portent trop peu de commandes pour que le balayage ait mesuré quoi que ce soit'
+      ).toBeGreaterThan(9);
+    });
   });
 }
+
+test.describe('La navigation de ce fichier, elle-même', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('un panneau devenu inatteignable fait tomber le contrôle, jamais silence', async ({ page }) => {
+    /**
+     * LE CAS DÉCISIF, et le sixième site du motif.
+     *
+     * `ouvrir()` est une copie locale de la garde du banc d'essai, et elle a
+     * gardé le défaut que celle-ci vient de perdre : `if (visible) { click }`,
+     * sans `else`. Un onglet disparu ne produit donc rien — pas d'erreur, pas
+     * de navigation — et les quatre balayages repartent sur le panneau
+     * courant, en croyant visiter celui qu'on leur a nommé.
+     *
+     * Le second angle mort du même fichier, `if (!barre) return null` dans
+     * « la fin de chaque panneau reste atteignable », NE se referme PAS du
+     * même geste — c'est le cas suivant qui s'en charge, et l'avoir cru était
+     * une erreur mesurée. Voir son commentaire.
+     *
+     * On saborde le DOM, pas le code de l'application : ce cas mesure la
+     * NAVIGATION de ce fichier. La barre d'onglets, elle, est tenue par
+     * `onglets.spec.js`.
+     */
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await page.evaluate(() => {
+      document.querySelector('.onglet[data-panneau="panneauReglages"]')?.remove();
+    });
+
+    await expect(
+      page.locator('.onglet[data-panneau="panneauReglages"]'),
+      'prémisse : l\'onglet a bien disparu'
+    ).toHaveCount(0);
+
+    await expect(
+      page.locator('#panneauReglages'),
+      'prémisse : et le panneau n\'est pas rendu pour autant'
+    ).toBeHidden();
+
+    await expect(
+      ouvrir(page, 'panneauReglages'),
+      'un panneau qu\'aucun chemin n\'atteint doit faire tomber le contrôle'
+    ).rejects.toThrow(/panneauReglages/);
+  });
+
+  test('une barre d\'onglets renommée fait tomber le contrôle, jamais silence', async ({ page }) => {
+    /**
+     * LE SECOND ANGLE MORT, et il ne se refermait PAS avec le sixième site.
+     *
+     * Le commentaire du cas ci-dessus affirmait le contraire : « sous 900 px,
+     * la navigation aura levé avant d'y arriver ». C'est faux, et la mesure le
+     * dit. `allerAuPanneau` cherche `.onglet[data-panneau=…]` puis `#panneauX` ;
+     * elle ne regarde JAMAIS `#onglets`. Renommer le conteneur de la barre en
+     * gardant ses enfants laisse donc la navigation réussir — les onglets sont
+     * toujours là, cliquables — puis `getElementById('onglets')` rend `null`,
+     * rien n'est poussé, et `expect(restes).toEqual([])` passe.
+     *
+     * Un docstring qui annonce une couverture inexistante est pire qu'une
+     * couverture absente : il éteint la vigilance. Celui-là a été corrigé dans
+     * le même geste que ce cas.
+     *
+     * On renomme plutôt qu'on ne supprime, et c'est tout le sujet : supprimer
+     * `#onglets` emporterait ses onglets, la navigation lèverait, et le cas
+     * passerait pour la mauvaise raison. Ce qu'on veut éprouver, c'est la
+     * MESURE, une fois la navigation réussie.
+     */
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await page.evaluate(() => {
+      document.getElementById('onglets').id = 'onglets-renomme';
+    });
+
+    await expect(
+      page.locator('#onglets'),
+      'prémisse : la barre ne répond plus à son identifiant'
+    ).toHaveCount(0);
+
+    await expect(
+      page.locator('.onglet[data-panneau="panneauCharges"]'),
+      'prémisse : mais ses onglets sont intacts, donc la navigation réussira'
+    ).toBeVisible();
+
+    await expect(
+      ouvrir(page, 'panneauCharges'),
+      'prémisse : la navigation aboutit — c\'est bien la mesure qui est en cause'
+    ).resolves.toBeUndefined();
+
+    await expect(
+      resteSousLaBarre(page, 'panneauCharges'),
+      'une barre introuvable doit faire tomber la mesure, pas rendre « rien à signaler »'
+    ).rejects.toThrow(/#onglets/);
+  });
+
+  test('une barre légitimement absente reste un cas silencieux', async ({ page }) => {
+    /**
+     * LE TÉMOIN DU CAS PRÉCÉDENT.
+     *
+     * Sans lui, une mesure qui lèverait TOUJOURS satisferait le cas ci-dessus
+     * et rendrait rouges les quatre largeurs — dont les deux au-dessus de
+     * 900 px, où la barre n'a légitimement aucune hauteur.
+     *
+     * C'est la distinction qui est mesurée, jamais la sévérité.
+     */
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    await expect(
+      page.locator('#onglets'),
+      'prémisse : la barre est dans le document, mais sans hauteur'
+    ).toHaveCount(1);
+
+    expect(
+      await resteSousLaBarre(page, 'panneauCharges'),
+      'colonnes déployées : il n\'y a rien à réserver, et rien à signaler'
+    ).toBeNull();
+  });
+});
