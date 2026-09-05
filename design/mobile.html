@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('public/fonts/dm-sans-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap; src: url('public/fonts/jetbrains-mono-latin.woff2') format('woff2'); }
+  html, body { margin: 0; padding: 0; background: #12100E; }
+  * { box-sizing: border-box; }
+  a { color: #818CF8; text-decoration: none; }
+  a:hover { color: #A5B4FC; text-decoration: underline; }
+  button { font: inherit; }
+</style>
+</helmet>
+
+<div style="font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#12100E;color:#F5F2ED;padding:28px 32px 60px;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;gap:44px">
+
+  <div style="max-width:900px;display:flex;flex-direction:column;gap:14px">
+    <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.01em">FairSplit — régime mobile</h1>
+    <p style="margin:0;font-size:14px;color:#A0968A;line-height:1.6;text-wrap:pretty">La barre du bas garde <strong style="color:#F5F2ED;font-weight:600">Bilan / Charges / Réglages</strong> — l'axe de la tâche, et les trois destinations que cible ton banc d'essai. Les <strong style="color:#F5F2ED;font-weight:600">périmètres</strong> deviennent un sélecteur collant sous le mois : c'est un filtre, pas une destination. Il gouverne Bilan et Charges, et s'efface sur Réglages.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;color:#A0968A;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:9999px;padding:6px 12px">panneauBilan · inchangé, gagne un état de portée</span>
+      <span style="font-size:12px;color:#A0968A;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:9999px;padding:6px 12px">panneauCharges · inchangé, gagne un état de portée</span>
+      <span style="font-size:12px;color:#A0968A;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:9999px;padding:6px 12px">panneauReglages · inchangé, sans portée</span>
+    </div>
+    <p style="margin:0;font-size:13px;color:#A0968A;line-height:1.6">Cadres dépliés : le défilement est montré en entier, la barre du bas est ancrée au pied de chaque cadre.</p>
+  </div>
+
+  <section data-screen-label="Planche 4 — 390 px, thème sombre" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Planche 4</span>
+      <span style="font-size:15px;font-weight:600">390 px — thème sombre</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Bilan · À deux</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:20px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600">
+            <span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪▪ ▮</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;padding:2px 10px 8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:15px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 10px 4px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">👤</span> Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🔒</span> Privé</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 18px">
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px 16px">
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Solde du mois</div>
+              <div style="font-size:16px;color:#A0968A;margin-top:12px">Tu dois</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:#FBBF24">66,94 €</div>
+              <div style="font-size:16px;color:#A0968A;margin-top:2px">à Cindy</div>
+              <div style="margin-top:16px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:13px;font-weight:600">Ta part du commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">152,45 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:8px 13px 8px 22px;background:rgba(255,255,255,0.015)">
+                  <span style="font-size:12.5px;color:#A0968A">Courses, prorata 71 %</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#A0968A">129,95 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:8px 13px 8px 22px;background:rgba(255,255,255,0.015);border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:12.5px;color:#A0968A">Festival, 50/50</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#A0968A">22,50 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:13px;color:#A0968A">Tu as avancé</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#34D399">− 45,00 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:13px;color:#A0968A">Report d'août, en ta faveur</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#34D399">− 40,51 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:11px 13px;background:#23201C">
+                  <span style="font-size:13px;font-weight:600">Reste dû à Cindy</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#FBBF24">66,94 €</span>
+                </div>
+              </div>
+              <button type="button" style="width:100%;height:48px;margin-top:14px;border:0;border-radius:12px;background:#6264ED;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer">Enregistrer le virement</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Reste à vivre</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-0.02em;margin-top:8px">2 888,43 €</div>
+                <div style="display:inline-flex;margin-top:10px;padding:4px 9px;border-radius:9999px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.28);font-size:11.5px;color:#34D399;font-weight:600">Effort 5 %</div>
+              </div>
+              <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Dépensé à deux</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-0.02em;margin-top:8px">229,04 €</div>
+                <div style="font-size:11.5px;color:#A0968A;margin-top:10px;line-height:1.45">3 charges communes</div>
+              </div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="font-size:13px;font-weight:600"><span aria-hidden="true">⚖️</span> Prorata 71 / 29</span>
+                <a href="#reglages" style="display:inline-flex;align-items:center;min-height:44px;padding:0 6px;margin:-11px -6px;font-size:12.5px;font-weight:600">Modifier</a>
+              </div>
+              <div style="height:6px;border-radius:9999px;background:#23201C;margin-top:10px;overflow:hidden;position:relative"><div style="position:absolute;inset:0 29% 0 0;background:#6264ED;border-radius:9999px"></div></div>
+              <div style="font-size:11.5px;color:#A0968A;margin-top:8px;line-height:1.45;text-wrap:pretty">D'après 3 050,88 € et 1 270,00 € de revenus mensuels.</div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="font-size:13px;font-weight:600"><span aria-hidden="true">🎯</span> Où part votre argent</span>
+                <button type="button" style="height:44px;padding:0 13px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:500;cursor:pointer">Définir</button>
+              </div>
+              <div style="margin-top:14px">
+                <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px"><span><span aria-hidden="true">🛒</span> Courses</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600">184,04 €</span></div>
+                <div style="height:6px;border-radius:9999px;background:#23201C;margin-top:7px;overflow:hidden;position:relative"><div style="position:absolute;inset:0 20% 0 0;background:#6264ED;border-radius:9999px"></div></div>
+              </div>
+              <div style="margin-top:12px">
+                <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px"><span><span aria-hidden="true">🎮</span> Loisirs</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600">45,00 €</span></div>
+                <div style="height:6px;border-radius:9999px;background:#23201C;margin-top:7px;overflow:hidden;position:relative"><div style="position:absolute;inset:0 80% 0 0;background:#818CF8;border-radius:9999px"></div></div>
+              </div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="font-size:13px;font-weight:600"><span aria-hidden="true">📍</span> Où vous dépensez</span>
+                <a href="#carte" style="display:inline-flex;align-items:center;min-height:44px;padding:0 6px;margin:-11px -6px;font-size:12.5px;font-weight:600">La carte</a>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em">184,04 €</span>
+                <span style="font-size:12.5px;color:#A0968A">à Landivisiau</span>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:6px">92,02 € par passage, sur 2 passages.</div>
+            </div>
+
+            <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:56px;padding:0 14px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;color:#F5F2ED;font-size:13px;font-weight:600;cursor:pointer;text-align:left"><span><span aria-hidden="true">📈</span> Tendances sur 6 mois</span><span style="color:#A0968A;font-size:11px" aria-hidden="true">▼</span></button>
+            <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:56px;padding:0 14px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;color:#F5F2ED;font-size:13px;font-weight:600;cursor:pointer;text-align:left"><span><span aria-hidden="true">🧳</span> Enveloppes à deux</span><span style="color:#A0968A;font-size:11px" aria-hidden="true">→</span></button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#23201C;color:#818CF8"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:600">Bilan</span></div>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:500">Charges</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:500">Réglages</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Charges · À deux</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:20px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600"><span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:4px;padding:2px 10px 8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:15px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 10px 4px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">👤</span> Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🔒</span> Privé</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 90px">
+            <div style="display:flex;align-items:center;gap:8px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0 14px;height:48px">
+              <span style="color:#A0968A;font-size:14px" aria-hidden="true">🔍</span>
+              <label for="mRech" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0">Rechercher une charge</label>
+              <input id="mRech" type="search" placeholder="Rechercher…" style="flex:1;min-width:0;height:100%;border:0;background:transparent;color:#F5F2ED;font-size:14px;outline:none;font-family:inherit">
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">⚡</span> Variables</span>
+                <button type="button" style="height:44px;padding:0 15px;border:0;border-radius:9px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">+ Ajouter</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                <span style="font-size:12.5px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#A0968A">184,04 €</span>
+              </div>
+
+              <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses Lidl</span>
+                  <button type="button" aria-label="Actions sur Courses Lidl" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:12px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">4 sept. · 11:16 · Cindy · Lidl, Landivisiau</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">80,18 €</span>
+                </div>
+              </div>
+
+              <div style="padding:10px 14px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses</span>
+                  <button type="button" aria-label="Actions sur Courses" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:12px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 14:08 · Cindy · Bd de la République</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">103,86 €</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                <span style="font-size:12.5px;font-weight:600"><span aria-hidden="true">🎮</span> Loisirs</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#A0968A">45,00 €</span>
+              </div>
+
+              <div style="padding:10px 14px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Festival « Ils sont fous ces bretons »</span>
+                  <button type="button" aria-label="Actions sur le Festival" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:-4px">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#60A5FA;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.28);border-radius:9999px;padding:3px 8px;flex:none">⚖️ 50/50</span>
+                  <span style="flex:1;min-width:0;font-size:12px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · Richard</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">45,00 €</span>
+                </div>
+              </div>
+
+              <div style="padding:11px 14px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                  <span style="font-size:13px;font-weight:600">Total commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">229,04 €</span>
+                </div>
+                <div style="font-size:11.5px;color:#A0968A;margin-top:5px;line-height:1.45;text-wrap:pretty">Ta dépense solo de 10,00 € est rangée dans Solo.</div>
+              </div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">🏠</span> Charges fixes</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#A0968A">0,00 €</span>
+              </div>
+              <div style="font-size:12.5px;color:#A0968A;margin-top:5px;line-height:1.5;text-wrap:pretty">Aucune ce mois-ci — loyer, assurance, abonnements se reconduisent tout seuls.</div>
+              <button type="button" style="width:100%;height:44px;margin-top:12px;border:1px solid rgba(255,255,255,0.10);border-radius:9px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer">+ Ajouter une charge fixe</button>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">💸</span> Virements</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#A0968A">0,00 €</span>
+              </div>
+              <div style="font-size:12.5px;color:#A0968A;margin-top:5px;line-height:1.5;text-wrap:pretty">Aucun ce mois-ci. Les 66,94 € du solde sont encore ouverts.</div>
+              <button type="button" style="width:100%;height:44px;margin-top:12px;border:1px solid rgba(255,255,255,0.10);border-radius:9px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer">+ Enregistrer un virement</button>
+            </div>
+          </div>
+
+          <div style="position:relative">
+            <button type="button" style="position:absolute;right:14px;top:-72px;display:flex;align-items:center;gap:8px;height:52px;padding:0 22px 0 18px;border:0;border-radius:9999px;background:#6264ED;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.45)"><span aria-hidden="true" style="font-size:19px;font-weight:400">＋</span> Dépense</button>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+              <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:500">Bilan</span></button>
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#23201C;color:#818CF8"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:600">Charges</span></div>
+              <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:500">Réglages</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Bilan · Solo</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:20px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600"><span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:4px;padding:2px 10px 8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:15px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 10px 4px">
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🤝</span> À deux</button>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:10px;background:#23201C;border:1px solid rgba(255,255,255,0.10);color:#F5F2ED;font-size:13px;font-weight:600"><span aria-hidden="true">👤</span> Solo</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🔒</span> Privé</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 18px">
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px 16px">
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Mes dépenses solo</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;margin-top:10px">10,00 €</div>
+              <p style="margin:12px 0 0;font-size:13px;color:#A0968A;line-height:1.6;text-wrap:pretty">Ce que tu as payé pour toi seul. Rien de tout cela n'entre dans le solde : personne ne doit rien à personne dessus.</p>
+              <div style="margin-top:14px;padding:11px 13px;border-radius:10px;background:#23201C;border:1px solid rgba(255,255,255,0.06);font-size:12px;color:#A0968A;line-height:1.5;text-wrap:pretty"><strong style="color:#F5F2ED;font-weight:600">Cindy voit cette liste.</strong> Pour ce qu'elle ne doit pas voir, c'est Privé.</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ma part du commun</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-0.02em;margin-top:8px">152,45 €</div>
+                <div style="font-size:11.5px;color:#A0968A;margin-top:8px;line-height:1.45">Prorata 71 %, plus 22,50 € en 50/50</div>
+              </div>
+              <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ce qu'il me reste</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-0.02em;margin-top:8px">2 888,43 €</div>
+                <div style="font-size:11.5px;color:#A0968A;margin-top:8px;line-height:1.45">Sur 3 050,88 € de revenus</div>
+              </div>
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">👤</span> Mes charges solo</span>
+                <button type="button" style="height:44px;padding:0 15px;border:0;border-radius:9px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">+ Ajouter</button>
+              </div>
+              <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.06)">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses Leclerc</span>
+                  <button type="button" aria-label="Actions" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:12px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">3 sept. · Repas du midi · Le Folgoët</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">10,00 €</span>
+                </div>
+              </div>
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <span style="font-size:14px;font-weight:600"><span aria-hidden="true">🧳</span> Mes enveloppes solo</span>
+              <p style="margin:8px 0 0;font-size:12.5px;color:#A0968A;line-height:1.55;text-wrap:pretty">Aucune pour l'instant. Une enveloppe solo met de l'argent de côté pour toi, sans toucher au solde du couple.</p>
+              <button type="button" style="width:100%;height:44px;margin-top:12px;border:1px solid rgba(255,255,255,0.10);border-radius:9px;background:transparent;color:#F5F2ED;font-size:13px;font-weight:500;cursor:pointer">Créer une enveloppe solo</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#23201C;color:#818CF8"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:600">Bilan</span></div>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:500">Charges</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:500">Réglages</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Bilan · Privé</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:20px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600"><span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:4px;padding:2px 10px 8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:15px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 10px 4px">
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🤝</span> À deux</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">👤</span> Solo</button>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:10px;background:#23201C;border:1px solid rgba(52,211,153,0.28);color:#F5F2ED;font-size:13px;font-weight:600"><span aria-hidden="true">🔒</span> Privé</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 18px">
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-top:2px solid #34D399;border-radius:16px;padding:18px 16px">
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A"><span aria-hidden="true">🔒</span> Mon espace privé</div>
+              <h2 style="margin:12px 0 0;font-size:20px;font-weight:600;letter-spacing:-0.01em;line-height:1.3">Cindy voit un total. Jamais ce que tu as acheté.</h2>
+              <p style="margin:10px 0 0;font-size:13px;color:#A0968A;line-height:1.6;text-wrap:pretty">Le refus vient du serveur : cet espace n'est lisible que par ton compte, et toi seul peux ouvrir l'accès.</p>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:16px">
+                <span style="font-size:12.5px;color:#A0968A;white-space:nowrap">Total du mois</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;letter-spacing:0.14em;color:#A0968A;white-space:nowrap">••••</span>
+              </div>
+              <button type="button" style="width:100%;height:48px;margin-top:12px;border:0;border-radius:12px;background:#6264ED;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer">Afficher le détail</button>
+              <div style="font-size:11.5px;color:#A0968A;margin-top:10px;line-height:1.5;text-wrap:pretty">Masqué contre les regards par-dessus l'épaule. Se referme dès que tu quittes l'onglet.</div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px">
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Ce que Cindy voit</div>
+              <div style="display:flex;flex-direction:column;margin-top:12px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;overflow:hidden">
+                <button type="button" style="width:100%;min-height:56px;text-align:left;border:0;background:transparent;padding:11px 13px;color:#A0968A;cursor:pointer">
+                  <span style="display:block;font-size:13px;font-weight:600">Rien</span>
+                  <span style="display:block;font-size:11.5px;margin-top:2px">Pas même l'existence d'un montant.</span>
+                </button>
+                <div style="padding:11px 13px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600"><span aria-hidden="true">✓</span> Un total, et un nombre</span>
+                  <span style="display:block;font-size:11.5px;color:#A0968A;margin-top:3px;line-height:1.5;text-wrap:pretty">« 340 € en 2 dépenses ». Jamais un libellé. Réglage actuel.</span>
+                </div>
+                <button type="button" style="width:100%;min-height:56px;text-align:left;border:0;background:transparent;padding:11px 13px;color:#A0968A;cursor:pointer">
+                  <span style="display:block;font-size:13px;font-weight:600">Le détail</span>
+                  <span style="display:block;font-size:11.5px;margin-top:2px">Tout, ligne par ligne. Révocable.</span>
+                </button>
+              </div>
+              <div style="font-size:11px;color:#A0968A;margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,0.06);line-height:1.5;text-wrap:pretty">Ce total est publié par ton appareil. Le serveur ne peut pas le vérifier — il n'a pas le droit d'additionner ce qu'il n'a pas le droit de lire.</div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px">
+                <span style="font-size:14px;font-weight:600">Mes dépenses privées</span>
+                <button type="button" style="height:44px;padding:0 15px;border:0;border-radius:9px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">+ Ajouter</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 14px;border-top:1px solid rgba(255,255,255,0.06)"><span style="height:11px;width:42%;border-radius:9999px;background:#23201C"></span><span style="height:11px;width:58px;border-radius:9999px;background:#2E2A25"></span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 14px;border-top:1px solid rgba(255,255,255,0.06)"><span style="height:11px;width:56%;border-radius:9999px;background:#23201C"></span><span style="height:11px;width:66px;border-radius:9999px;background:#2E2A25"></span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 14px;border-top:1px solid rgba(255,255,255,0.06)"><span style="height:11px;width:31%;border-radius:9999px;background:#23201C"></span><span style="height:11px;width:50px;border-radius:9999px;background:#2E2A25"></span></div>
+              <div style="padding:12px 14px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015);font-size:11.5px;color:#A0968A">3 dépenses, masquées.</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#23201C;color:#818CF8"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:600">Bilan</span></div>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:500">Charges</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:500">Réglages</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Réglages · sans portée</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:20px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600"><span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 14px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <h1 style="margin:0;font-size:18px;font-weight:600;letter-spacing:-0.01em"><span aria-hidden="true">⚙️</span> Réglages</h1>
+            <div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 5px 0 12px;border-radius:9999px;background:#1B1815;border:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:12.5px;color:#A0968A">Richard</span>
+              <div style="width:28px;height:28px;border-radius:9999px;background:#6264ED;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#FFFFFF">RB</div>
+            </div>
+          </div>
+          <div style="padding:8px 12px 6px;font-size:11.5px;color:#A0968A;line-height:1.5;text-wrap:pretty">Pas de sélecteur de périmètre ici : ces réglages sont ceux du foyer.</div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 18px">
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 14px">
+              <span style="font-size:14px;font-weight:600"><span aria-hidden="true">💵</span> Revenus du foyer</span>
+              <p style="margin:7px 0 0;font-size:12px;color:#A0968A;line-height:1.5;text-wrap:pretty">Chaque mois garde son instantané : corriger septembre ne réécrit pas l'historique.</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+                <div>
+                  <label for="mSalR" style="display:block;font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:6px">Salaire Richard</label>
+                  <input id="mSalR" type="text" value="3050,88" style="width:100%;height:44px;padding:0 11px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:13.5px;outline:none">
+                </div>
+                <div>
+                  <label for="mSalC" style="display:block;font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:6px">Salaire Cindy</label>
+                  <input id="mSalC" type="text" value="970,00" style="width:100%;height:44px;padding:0 11px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:13.5px;outline:none">
+                </div>
+                <div>
+                  <label for="mExtR" style="display:block;font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:6px">Autres Richard</label>
+                  <input id="mExtR" type="text" value="0,00" style="width:100%;height:44px;padding:0 11px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:13.5px;outline:none">
+                </div>
+                <div>
+                  <label for="mExtC" style="display:block;font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#A0968A;margin-bottom:6px">Autres Cindy</label>
+                  <input id="mExtC" type="text" value="300,00" style="width:100%;height:44px;padding:0 11px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:#23201C;color:#F5F2ED;font-family:'JetBrains Mono',monospace;font-size:13.5px;outline:none">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding:11px 13px;border-radius:10px;background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.28)">
+                <span style="display:inline-block;width:70px;height:6px;border-radius:9999px;background:rgba(255,255,255,0.10);overflow:hidden;position:relative"><span style="position:absolute;inset:0 29% 0 0;background:#818CF8;border-radius:9999px"></span></span>
+                <span style="font-size:12.5px;font-weight:600">Prorata 71 / 29</span>
+                <span style="font-size:12px;color:#A0968A">assiette 4 320,88 €</span>
+              </div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 14px">
+              <span style="font-size:14px;font-weight:600"><span aria-hidden="true">⚖️</span> Règle de partage</span>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+                <div style="display:flex;flex-direction:column;gap:3px;min-height:56px;justify-content:center;padding:10px 13px;border:1px solid rgba(99,102,241,0.28);border-radius:10px;background:rgba(99,102,241,0.14)">
+                  <span style="font-size:13px;font-weight:600"><span aria-hidden="true">📊</span> Prorata</span>
+                  <span style="font-size:11.5px;color:#A0968A">au poids des revenus</span>
+                </div>
+                <button type="button" style="display:flex;flex-direction:column;gap:3px;min-height:56px;justify-content:center;padding:10px 13px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#A0968A;cursor:pointer;text-align:left">
+                  <span style="font-size:13px;font-weight:600"><span aria-hidden="true">⚖️</span> 50-50</span>
+                  <span style="font-size:11.5px">sans révéler les revenus</span>
+                </button>
+                <button type="button" style="display:flex;flex-direction:column;gap:3px;min-height:56px;justify-content:center;padding:10px 13px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#A0968A;cursor:pointer;text-align:left">
+                  <span style="font-size:13px;font-weight:600"><span aria-hidden="true">🎯</span> Personnalisé</span>
+                  <span style="font-size:11.5px">une part que vous fixez</span>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+                <div style="min-width:0">
+                  <div style="font-size:13px;font-weight:600">Reporter le solde</div>
+                  <div style="font-size:11.5px;color:#A0968A;line-height:1.5;margin-top:3px;text-wrap:pretty">Actif — c'est ce qui met les 40,51 € d'août en ta faveur.</div>
+                </div>
+                <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:46px;height:26px;border-radius:9999px;background:#6264ED;padding:3px;flex:none"><span style="width:20px;height:20px;border-radius:9999px;background:#FFFFFF;display:block"></span></span>
+              </div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 14px">
+              <span style="font-size:14px;font-weight:600"><span aria-hidden="true">🧰</span> Outils</span>
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A;margin:14px 0 8px">Vos listes</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left"><span aria-hidden="true">🏷️</span> Catégories</button>
+                <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left"><span aria-hidden="true">🏦</span> Destinations</button>
+              </div>
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A;margin:16px 0 8px">Vos données</div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button type="button" style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;cursor:pointer;text-align:left"><span style="font-weight:600;white-space:nowrap"><span aria-hidden="true">💾</span> Sauvegarde</span><span style="font-size:11px;color:#34D399;white-space:nowrap;flex:none">Auto · 03:17</span></button>
+                <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left"><span aria-hidden="true">🗑️</span> Corbeille</button>
+                <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left"><span aria-hidden="true">📥</span> Importer CSV</button>
+              </div>
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A;margin:16px 0 8px">Sortir les données</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left"><span aria-hidden="true">📊</span> Export CSV</button>
+                <button type="button" style="min-height:56px;padding:10px 12px;border:1px solid rgba(255,255,255,0.10);border-radius:10px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left"><span aria-hidden="true">📄</span> Imprimer PDF</button>
+              </div>
+              <div style="font-size:11px;color:#A0968A;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);line-height:1.5">Les exports ne contiennent jamais tes dépenses privées.</div>
+            </div>
+
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 14px">
+              <span style="font-size:14px;font-weight:600"><span aria-hidden="true">🔔</span> Rappels</span>
+              <div style="margin-top:12px;padding:11px 13px;border-radius:10px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);font-size:12px;color:#FBBF24;line-height:1.5;text-wrap:pretty">Les rappels ne partent que si l'application est ouverte.</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px"><span style="font-size:13px;font-weight:600">Fin de mois</span><span style="display:inline-flex;align-items:center;width:46px;height:26px;border-radius:9999px;background:#23201C;border:1px solid rgba(255,255,255,0.10);padding:2px;flex:none"><span style="width:20px;height:20px;border-radius:9999px;background:#A0968A;display:block"></span></span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)"><span style="font-size:13px;font-weight:600">Budget dépassé</span><span style="display:inline-flex;align-items:center;width:46px;height:26px;border-radius:9999px;background:#23201C;border:1px solid rgba(255,255,255,0.10);padding:2px;flex:none"><span style="width:20px;height:20px;border-radius:9999px;background:#A0968A;display:block"></span></span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)"><span style="font-size:13px;font-weight:600">Virement en attente</span><span style="display:inline-flex;align-items:center;width:46px;height:26px;border-radius:9999px;background:#23201C;border:1px solid rgba(255,255,255,0.10);padding:2px;flex:none"><span style="width:20px;height:20px;border-radius:9999px;background:#A0968A;display:block"></span></span></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:500">Bilan</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:500">Charges</span></button>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#23201C;color:#818CF8"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:600">Réglages</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section data-screen-label="Planche 5 — 390 px, thème clair" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Planche 5</span>
+      <span style="font-size:15px;font-weight:600">390 px — thème clair</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Bilan · À deux</div>
+        <div style="border:1px solid rgba(0,0,0,0.14);border-radius:20px;overflow:hidden;background:#FAF8F5;color:#241E19;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600"><span>9:41</span><span style="color:#6B5D50" aria-hidden="true">▪▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:4px;padding:2px 10px 8px;border-bottom:1px solid rgba(0,0,0,0.08);background:#FFFFFF">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:15px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 10px 4px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:10px;background:#4F46E5;color:#FFFFFF;font-size:13px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">👤</span> Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🔒</span> Privé</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 18px">
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:16px;padding:18px 16px;box-shadow:0 1px 3px rgba(60,42,28,0.07)">
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Solde du mois</div>
+              <div style="font-size:16px;color:#6B5D50;margin-top:12px">Tu dois</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:#9D510A">66,94 €</div>
+              <div style="font-size:16px;color:#6B5D50;margin-top:2px">à Cindy</div>
+              <div style="margin-top:16px;border:1px solid rgba(0,0,0,0.08);border-radius:12px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 13px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:13px;font-weight:600">Ta part du commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">152,45 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:8px 13px 8px 22px;background:#F3EFE9">
+                  <span style="font-size:12.5px;color:#6B5D50">Courses, prorata 71 %</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B5D50">129,95 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:8px 13px 8px 22px;background:#F3EFE9;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:12.5px;color:#6B5D50">Festival, 50/50</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B5D50">22,50 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 13px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:13px;color:#6B5D50">Tu as avancé</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#047253">− 45,00 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 13px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:13px;color:#6B5D50">Report d'août, en ta faveur</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#047253">− 40,51 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:11px 13px;background:#F3EFE9">
+                  <span style="font-size:13px;font-weight:600">Reste dû à Cindy</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#9D510A">66,94 €</span>
+                </div>
+              </div>
+              <button type="button" style="width:100%;height:48px;margin-top:14px;border:0;border-radius:12px;background:#4F46E5;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer">Enregistrer le virement</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:14px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Reste à vivre</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-0.02em;margin-top:8px">2 888,43 €</div>
+                <div style="display:inline-flex;margin-top:10px;padding:4px 9px;border-radius:9999px;background:rgba(5,150,105,0.10);border:1px solid rgba(5,150,105,0.22);font-size:11.5px;color:#047253;font-weight:600">Effort 5 %</div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:14px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Dépensé à deux</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-0.02em;margin-top:8px">229,04 €</div>
+                <div style="font-size:11.5px;color:#6B5D50;margin-top:10px;line-height:1.45">3 charges communes</div>
+              </div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="font-size:13px;font-weight:600"><span aria-hidden="true">⚖️</span> Prorata 71 / 29</span>
+                <a href="#reglages" style="display:inline-flex;align-items:center;min-height:44px;padding:0 6px;margin:-11px -6px;font-size:12.5px;font-weight:600;color:#4F46E5">Modifier</a>
+              </div>
+              <div style="height:6px;border-radius:9999px;background:#F3EFE9;margin-top:10px;overflow:hidden;position:relative"><div style="position:absolute;inset:0 29% 0 0;background:#4F46E5;border-radius:9999px"></div></div>
+              <div style="font-size:11.5px;color:#6B5D50;margin-top:8px;line-height:1.45;text-wrap:pretty">D'après 3 050,88 € et 1 270,00 € de revenus mensuels.</div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="font-size:13px;font-weight:600"><span aria-hidden="true">📍</span> Où vous dépensez</span>
+                <a href="#carte" style="display:inline-flex;align-items:center;min-height:44px;padding:0 6px;margin:-11px -6px;font-size:12.5px;font-weight:600;color:#4F46E5">La carte</a>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em">184,04 €</span>
+                <span style="font-size:12.5px;color:#6B5D50">à Landivisiau</span>
+              </div>
+              <div style="font-size:12px;color:#6B5D50;margin-top:6px">92,02 € par passage, sur 2 passages.</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(0,0,0,0.08);background:#FFFFFF">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#F3EFE9;color:#4F46E5"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:600">Bilan</span></div>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#6B5D50;cursor:pointer"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:500">Charges</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#6B5D50;cursor:pointer"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:500">Réglages</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">Charges · À deux</div>
+        <div style="border:1px solid rgba(0,0,0,0.14);border-radius:20px;overflow:hidden;background:#FAF8F5;color:#241E19;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 18px 3px;font-size:12px;font-weight:600"><span>9:41</span><span style="color:#6B5D50" aria-hidden="true">▪▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:4px;padding:2px 10px 8px;border-bottom:1px solid rgba(0,0,0,0.08);background:#FFFFFF">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:15px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 10px 4px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:10px;background:#4F46E5;color:#FFFFFF;font-size:13px;font-weight:600"><span aria-hidden="true">🤝</span> À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">👤</span> Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;gap:6px;height:44px;border:0;border-radius:10px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer"><span aria-hidden="true">🔒</span> Privé</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:8px 10px 90px">
+            <div style="display:flex;align-items:center;gap:8px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:0 14px;height:48px">
+              <span style="color:#6B5D50;font-size:14px" aria-hidden="true">🔍</span>
+              <label for="mRechC" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0">Rechercher une charge</label>
+              <input id="mRechC" type="search" placeholder="Rechercher…" style="flex:1;min-width:0;height:100%;border:0;background:transparent;color:#241E19;font-size:14px;outline:none;font-family:inherit">
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">⚡</span> Variables</span>
+                <button type="button" style="height:44px;padding:0 15px;border:0;border-radius:9px;background:#4F46E5;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">+ Ajouter</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;background:#F3EFE9;border-top:1px solid rgba(0,0,0,0.08);border-bottom:1px solid rgba(0,0,0,0.08)">
+                <span style="font-size:12.5px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#6B5D50">184,04 €</span>
+              </div>
+              <div style="padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses Lidl</span>
+                  <button type="button" aria-label="Actions sur Courses Lidl" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#6B5D50;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:12px;color:#6B5D50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">4 sept. · 11:16 · Cindy · Lidl, Landivisiau</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">80,18 €</span>
+                </div>
+              </div>
+              <div style="padding:10px 14px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses</span>
+                  <button type="button" aria-label="Actions sur Courses" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#6B5D50;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:12px;color:#6B5D50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 14:08 · Cindy · Bd de la République</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">103,86 €</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;background:#F3EFE9;border-top:1px solid rgba(0,0,0,0.08);border-bottom:1px solid rgba(0,0,0,0.08)">
+                <span style="font-size:12.5px;font-weight:600"><span aria-hidden="true">🎮</span> Loisirs</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#6B5D50">45,00 €</span>
+              </div>
+              <div style="padding:10px 14px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Festival « Ils sont fous ces bretons »</span>
+                  <button type="button" aria-label="Actions sur le Festival" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#6B5D50;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:-4px">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#225AD5;background:rgba(37,99,235,0.10);border:1px solid rgba(37,99,235,0.22);border-radius:9999px;padding:3px 8px;flex:none">⚖️ 50/50</span>
+                  <span style="flex:1;min-width:0;font-size:12px;color:#6B5D50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · Richard</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;flex:none">45,00 €</span>
+                </div>
+              </div>
+              <div style="padding:11px 14px;border-top:1px solid rgba(0,0,0,0.08);background:#F3EFE9">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                  <span style="font-size:13px;font-weight:600">Total commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">229,04 €</span>
+                </div>
+                <div style="font-size:11.5px;color:#6B5D50;margin-top:5px;line-height:1.45;text-wrap:pretty">Ta dépense solo de 10,00 € est rangée dans Solo.</div>
+              </div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">🏠</span> Charges fixes</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#6B5D50">0,00 €</span>
+              </div>
+              <div style="font-size:12.5px;color:#6B5D50;margin-top:5px;line-height:1.5;text-wrap:pretty">Aucune ce mois-ci — loyer, assurance, abonnements se reconduisent tout seuls.</div>
+              <button type="button" style="width:100%;height:44px;margin-top:12px;border:1px solid rgba(0,0,0,0.14);border-radius:9px;background:transparent;color:#241E19;font-size:13px;font-weight:500;cursor:pointer">+ Ajouter une charge fixe</button>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:14px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-size:14px;font-weight:600"><span aria-hidden="true">💸</span> Virements</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#6B5D50">0,00 €</span>
+              </div>
+              <div style="font-size:12.5px;color:#6B5D50;margin-top:5px;line-height:1.5;text-wrap:pretty">Aucun ce mois-ci. Les 66,94 € du solde sont encore ouverts.</div>
+              <button type="button" style="width:100%;height:44px;margin-top:12px;border:1px solid rgba(0,0,0,0.14);border-radius:9px;background:transparent;color:#241E19;font-size:13px;font-weight:500;cursor:pointer">+ Enregistrer un virement</button>
+            </div>
+          </div>
+          <div style="position:relative">
+            <button type="button" style="position:absolute;right:14px;top:-72px;display:flex;align-items:center;gap:8px;height:52px;padding:0 22px 0 18px;border:0;border-radius:9999px;background:#4F46E5;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 32px rgba(60,42,28,0.13)"><span aria-hidden="true" style="font-size:19px;font-weight:400">＋</span> Dépense</button>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(0,0,0,0.08);background:#FFFFFF">
+              <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#6B5D50;cursor:pointer"><span style="font-size:18px" aria-hidden="true">📊</span><span style="font-size:11px;font-weight:500">Bilan</span></button>
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;background:#F3EFE9;color:#4F46E5"><span style="font-size:18px" aria-hidden="true">🧾</span><span style="font-size:11px;font-weight:600">Charges</span></div>
+              <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:60px;border:0;background:transparent;color:#6B5D50;cursor:pointer"><span style="font-size:18px" aria-hidden="true">⚙️</span><span style="font-size:11px;font-weight:500">Réglages</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section data-screen-label="Planche 6 — 320 px, ce qui casse" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Planche 6</span>
+      <span style="font-size:15px;font-weight:600">320 px — les cinq adaptations forcées</span>
+    </div>
+    <div style="max-width:900px;display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:#A0968A;line-height:1.65">
+      <div style="display:grid;grid-template-columns:24px 1fr;gap:12px"><span style="color:#FBBF24;font-weight:700">1</span><span><strong style="color:#F5F2ED;font-weight:600">Le héros passe de 40 à 32 px.</strong> « 66,94 € » en JetBrains Mono 40 px mesure 168 px sur 288 px utiles — il tient, mais « Tu dois » et « à Cindy » ne peuvent plus l'encadrer sur la même ligne. Ils sont déjà empilés à 390 px : à 320 la seule perte est la taille du chiffre.</span></div>
+      <div style="display:grid;grid-template-columns:24px 1fr;gap:12px"><span style="color:#FBBF24;font-weight:700">2</span><span><strong style="color:#F5F2ED;font-weight:600">Le grand-livre est le premier à céder.</strong> La sous-ligne « Courses, prorata 71 % » + « 129,95 € » demande environ 251 px sur 288 : il reste moins de 25 px de marge, donc <em>n'importe quel libellé de catégorie plus long casse la ligne</em> — « Alimentation » suffirait. Les six lignes passent donc en grille <code style="font-family:'JetBrains Mono',monospace;font-size:12px">1fr auto</code> où le libellé s'enroule sur deux lignes et le montant reste ancré à droite. Aucune troncature : dans un grand-livre auditable, le libellé porte la preuve autant que le chiffre.</span></div>
+      <div style="display:grid;grid-template-columns:24px 1fr;gap:12px"><span style="color:#FBBF24;font-weight:700">3</span><span><strong style="color:#F5F2ED;font-weight:600">Les deux cartes de statistiques s'empilent.</strong> « 2 888,43 € » en mono 21 px mesure 132 px ; dans une demi-colonne de 136 px il ne reste rien pour le padding. Une colonne, deux cartes.</span></div>
+      <div style="display:grid;grid-template-columns:24px 1fr;gap:12px"><span style="color:#FBBF24;font-weight:700">4</span><span><strong style="color:#F5F2ED;font-weight:600">Le sélecteur de périmètre perd ses emojis.</strong> Trois segments de 96 px : « 🤝 À deux » demande 69 px de contenu plus le padding. Le texte seul tient, l'emoji non. Les onglets du bas les gardent — ils ont toute la largeur pour eux.</span></div>
+      <div style="display:grid;grid-template-columns:24px 1fr;gap:12px"><span style="color:#FBBF24;font-weight:700">5</span><span><strong style="color:#F5F2ED;font-weight:600">Le bouton flottant redevient un cercle.</strong> La pastille « ＋ Dépense » de 145 px occupe la moitié de la largeur au-dessus de la liste. Un cercle de 56 px garde la cible et rend l'espace.</span></div>
+      <div style="display:grid;grid-template-columns:24px 1fr;gap:12px"><span style="color:#34D399;font-weight:700">✓</span><span>Ce qui ne bouge pas : le badge <strong style="color:#F5F2ED;font-weight:600">⚖️ 50/50</strong>, les six lignes du grand-livre, les cibles à 44 px, les jetons, les emojis du dépôt.</span></div>
+    </div>
+
+    <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">
+
+      <div style="width:320px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">320 · Bilan · sombre</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:18px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px 3px;font-size:11.5px;font-weight:600"><span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:2px;padding:2px 8px 8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:14px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:9px 8px 3px">
+            <div style="display:flex;align-items:center;justify-content:center;height:44px;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600">À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer">Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer">Privé</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;padding:8px 8px 16px">
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 13px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Solde du mois</div>
+              <div style="font-size:15px;color:#A0968A;margin-top:10px">Tu dois</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;letter-spacing:-0.03em;line-height:1.15;color:#FBBF24">66,94 €</div>
+              <div style="font-size:15px;color:#A0968A;margin-top:2px">à Cindy</div>
+              <div style="margin-top:14px;border:1px solid rgba(255,255,255,0.06);border-radius:11px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:12.5px;font-weight:600">Ta part du commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600">152,45 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 11px 8px 18px;background:rgba(255,255,255,0.015)">
+                  <span style="font-size:12px;color:#A0968A;line-height:1.4">Courses, prorata 71 %</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#A0968A">129,95 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 11px 8px 18px;background:rgba(255,255,255,0.015);border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:12px;color:#A0968A;line-height:1.4">Festival, 50/50</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#A0968A">22,50 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:12.5px;color:#A0968A">Tu as avancé</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#34D399">− 45,00 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:12.5px;color:#A0968A;line-height:1.4">Report d'août, en ta faveur</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#34D399">− 40,51 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 11px;background:#23201C">
+                  <span style="font-size:12.5px;font-weight:600">Reste dû à Cindy</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:#FBBF24">66,94 €</span>
+                </div>
+              </div>
+              <button type="button" style="width:100%;height:48px;margin-top:13px;border:0;border-radius:12px;background:#6264ED;color:#FFFFFF;font-size:13.5px;font-weight:600;cursor:pointer">Enregistrer le virement</button>
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:13px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Reste à vivre</div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em">2 888,43 €</span>
+                <span style="padding:4px 9px;border-radius:9999px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.28);font-size:11px;color:#34D399;font-weight:600;white-space:nowrap">Effort 5 %</span>
+              </div>
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:13px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#A0968A">Dépensé à deux</div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em">229,04 €</span>
+                <span style="font-size:11.5px;color:#A0968A;white-space:nowrap">3 charges</span>
+              </div>
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:13px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="font-size:12.5px;font-weight:600"><span aria-hidden="true">⚖️</span> Prorata 71 / 29</span>
+                <a href="#reglages" style="display:inline-flex;align-items:center;min-height:44px;padding:0 6px;margin:-11px -6px;font-size:12px;font-weight:600">Modifier</a>
+              </div>
+              <div style="height:6px;border-radius:9999px;background:#23201C;margin-top:9px;overflow:hidden;position:relative"><div style="position:absolute;inset:0 29% 0 0;background:#6264ED;border-radius:9999px"></div></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;background:#23201C;color:#818CF8"><span style="font-size:17px" aria-hidden="true">📊</span><span style="font-size:10.5px;font-weight:600">Bilan</span></div>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:17px" aria-hidden="true">🧾</span><span style="font-size:10.5px;font-weight:500">Charges</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:17px" aria-hidden="true">⚙️</span><span style="font-size:10.5px;font-weight:500">Réglages</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:320px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">320 · Charges · sombre</div>
+        <div style="border:1px solid rgba(255,255,255,0.10);border-radius:18px;overflow:hidden;background:#12100E;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px 3px;font-size:11.5px;font-weight:600"><span>9:41</span><span style="color:#A0968A" aria-hidden="true">▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:2px;padding:2px 8px 8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:14px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#A0968A;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:9px 8px 3px">
+            <div style="display:flex;align-items:center;justify-content:center;height:44px;border-radius:10px;background:#6264ED;color:#FFFFFF;font-size:13px;font-weight:600">À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer">Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;height:44px;border:0;border-radius:10px;background:transparent;color:#A0968A;font-size:13px;font-weight:500;cursor:pointer">Privé</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;padding:8px 8px 90px">
+            <div style="display:flex;align-items:center;gap:8px;background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0 13px;height:48px">
+              <span style="color:#A0968A;font-size:14px" aria-hidden="true">🔍</span>
+              <label for="mRech320" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0">Rechercher une charge</label>
+              <input id="mRech320" type="search" placeholder="Rechercher…" style="flex:1;min-width:0;height:100%;border:0;background:transparent;color:#F5F2ED;font-size:14px;outline:none;font-family:inherit">
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px">
+                <span style="font-size:13.5px;font-weight:600"><span aria-hidden="true">⚡</span> Variables</span>
+                <button type="button" style="height:44px;padding:0 14px;border:0;border-radius:9px;background:#6264ED;color:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer">+ Ajouter</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 13px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                <span style="font-size:12px;font-weight:600"><span aria-hidden="true">🛒</span> Courses</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#A0968A">184,04 €</span>
+              </div>
+              <div style="padding:9px 13px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses Lidl</span>
+                  <button type="button" aria-label="Actions sur Courses Lidl" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:11.5px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">4 sept. · 11:16 · Cindy</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;flex:none">80,18 €</span>
+                </div>
+              </div>
+              <div style="padding:9px 13px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Courses</span>
+                  <button type="button" aria-label="Actions sur Courses" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:-6px">
+                  <span style="flex:1;min-width:0;font-size:11.5px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept. · 14:08 · Cindy</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;flex:none">103,86 €</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 13px;background:#23201C;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                <span style="font-size:12px;font-weight:600"><span aria-hidden="true">🎮</span> Loisirs</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#A0968A">45,00 €</span>
+              </div>
+              <div style="padding:9px 13px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Festival « Ils sont fous… »</span>
+                  <button type="button" aria-label="Actions sur le Festival" style="width:44px;height:44px;flex:none;border:0;border-radius:9px;background:transparent;color:#A0968A;font-size:17px;cursor:pointer">⋯</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px;margin-top:-4px">
+                  <span style="font-size:9.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#60A5FA;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.28);border-radius:9999px;padding:3px 7px;flex:none">⚖️ 50/50</span>
+                  <span style="flex:1;min-width:0;font-size:11.5px;color:#A0968A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">1 sept.</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;flex:none">45,00 €</span>
+                </div>
+              </div>
+              <div style="padding:10px 13px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+                  <span style="font-size:12.5px;font-weight:600">Total commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700">229,04 €</span>
+                </div>
+                <div style="font-size:11px;color:#A0968A;margin-top:5px;line-height:1.45;text-wrap:pretty">Ta dépense solo de 10,00 € est rangée dans Solo.</div>
+              </div>
+            </div>
+            <div style="background:#1B1815;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:13px">
+              <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                <span style="font-size:13.5px;font-weight:600"><span aria-hidden="true">🏠</span> Charges fixes</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#A0968A">0,00 €</span>
+              </div>
+              <div style="font-size:12px;color:#A0968A;margin-top:5px;line-height:1.5;text-wrap:pretty">Aucune ce mois-ci — loyer, assurance, abonnements se reconduisent tout seuls.</div>
+              <button type="button" style="width:100%;height:44px;margin-top:11px;border:1px solid rgba(255,255,255,0.10);border-radius:9px;background:transparent;color:#F5F2ED;font-size:12.5px;font-weight:500;cursor:pointer">+ Ajouter une charge fixe</button>
+            </div>
+          </div>
+          <div style="position:relative">
+            <button type="button" aria-label="Noter une dépense" style="position:absolute;right:12px;top:-68px;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border:0;border-radius:9999px;background:#6264ED;color:#FFFFFF;font-size:24px;font-weight:400;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.45)"><span aria-hidden="true">＋</span></button>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,0.06);background:#1B1815">
+              <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:17px" aria-hidden="true">📊</span><span style="font-size:10.5px;font-weight:500">Bilan</span></button>
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;background:#23201C;color:#818CF8"><span style="font-size:17px" aria-hidden="true">🧾</span><span style="font-size:10.5px;font-weight:600">Charges</span></div>
+              <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border:0;background:transparent;color:#A0968A;cursor:pointer"><span style="font-size:17px" aria-hidden="true">⚙️</span><span style="font-size:10.5px;font-weight:500">Réglages</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:320px;flex:none;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#818CF8">320 · Bilan · clair</div>
+        <div style="border:1px solid rgba(0,0,0,0.14);border-radius:18px;overflow:hidden;background:#FAF8F5;color:#241E19;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px 3px;font-size:11.5px;font-weight:600"><span>9:41</span><span style="color:#6B5D50" aria-hidden="true">▪▪ ▮</span></div>
+          <div style="display:flex;align-items:center;gap:2px;padding:2px 8px 8px;border-bottom:1px solid rgba(0,0,0,0.08);background:#FFFFFF">
+            <button type="button" aria-label="Mois précédent" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;font-size:12px;cursor:pointer">◀</button>
+            <div style="flex:1;text-align:center;font-size:14px;font-weight:600">septembre 2026</div>
+            <button type="button" aria-label="Mois suivant" style="width:44px;height:44px;border:0;border-radius:9999px;background:transparent;color:#6B5D50;font-size:12px;cursor:pointer">▶</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:9px 8px 3px">
+            <div style="display:flex;align-items:center;justify-content:center;height:44px;border-radius:10px;background:#4F46E5;color:#FFFFFF;font-size:13px;font-weight:600">À deux</div>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;height:44px;border:0;border-radius:10px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer">Solo</button>
+            <button type="button" style="display:flex;align-items:center;justify-content:center;height:44px;border:0;border-radius:10px;background:transparent;color:#6B5D50;font-size:13px;font-weight:500;cursor:pointer">Privé</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;padding:8px 8px 16px">
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:16px 13px;box-shadow:0 1px 3px rgba(60,42,28,0.07)">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Solde du mois</div>
+              <div style="font-size:15px;color:#6B5D50;margin-top:10px">Tu dois</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;letter-spacing:-0.03em;line-height:1.15;color:#9D510A">66,94 €</div>
+              <div style="font-size:15px;color:#6B5D50;margin-top:2px">à Cindy</div>
+              <div style="margin-top:14px;border:1px solid rgba(0,0,0,0.08);border-radius:11px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 11px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:12.5px;font-weight:600">Ta part du commun</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600">152,45 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 11px 8px 18px;background:#F3EFE9">
+                  <span style="font-size:12px;color:#6B5D50;line-height:1.4">Courses, prorata 71 %</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6B5D50">129,95 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 11px 8px 18px;background:#F3EFE9;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:12px;color:#6B5D50;line-height:1.4">Festival, 50/50</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6B5D50">22,50 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 11px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:12.5px;color:#6B5D50">Tu as avancé</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#047253">− 45,00 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 11px;border-bottom:1px solid rgba(0,0,0,0.08)">
+                  <span style="font-size:12.5px;color:#6B5D50;line-height:1.4">Report d'août, en ta faveur</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#047253">− 40,51 €</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 11px;background:#F3EFE9">
+                  <span style="font-size:12.5px;font-weight:600">Reste dû à Cindy</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:#9D510A">66,94 €</span>
+                </div>
+              </div>
+              <button type="button" style="width:100%;height:48px;margin-top:13px;border:0;border-radius:12px;background:#4F46E5;color:#FFFFFF;font-size:13.5px;font-weight:600;cursor:pointer">Enregistrer le virement</button>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:13px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Reste à vivre</div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em">2 888,43 €</span>
+                <span style="padding:4px 9px;border-radius:9999px;background:rgba(5,150,105,0.10);border:1px solid rgba(5,150,105,0.22);font-size:11px;color:#047253;font-weight:600;white-space:nowrap">Effort 5 %</span>
+              </div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:13px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:#7A6A5B">Dépensé à deux</div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em">229,04 €</span>
+                <span style="font-size:11.5px;color:#6B5D50;white-space:nowrap">3 charges</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(0,0,0,0.08);background:#FFFFFF">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;background:#F3EFE9;color:#4F46E5"><span style="font-size:17px" aria-hidden="true">📊</span><span style="font-size:10.5px;font-weight:600">Bilan</span></div>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border:0;background:transparent;color:#6B5D50;cursor:pointer"><span style="font-size:17px" aria-hidden="true">🧾</span><span style="font-size:10.5px;font-weight:500">Charges</span></button>
+            <button type="button" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border:0;background:transparent;color:#6B5D50;cursor:pointer"><span style="font-size:17px" aria-hidden="true">⚙️</span><span style="font-size:10.5px;font-weight:500">Réglages</span></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+</x-dc>
+</body>
+</html>

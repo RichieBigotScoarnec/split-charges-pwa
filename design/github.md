@@ -4,7 +4,19 @@ path: public/
 
 ## Last sync
 
-date: 2026-09-04T19:20:03Z
+date: 2026-09-04T21:46:58Z
+commit: de61b911587c
+
+### Updated in this project
+
+- Marque réelle posée sur les 11 cartes du premier écran (`tools/logo-fairsplit.svg`, cercle partagé 55/45 en `currentColor`) et logo Google à quatre couleurs prescrites (`FairSplit.html:194`), à la place de mes deux substituts.
+- `FairSplit Connexion.dc.html` : premier écran — les trois états de `.auth-overlay` (attente, attente longue `--lent`, formulaire) en sombre, deux en clair, plus la page de redirection `index.html`. Ajout du parcours **mot de passe oublié** (planches 10 et 11, deux thèmes) : lien dans le formulaire, écran de demande, confirmation non révélatrice, et renvoi vers la réinitialisation sur `auth/invalid-credential` uniquement.
+- **Appairage — constaté, non dessiné** : `ALLOWED_EMAILS` (`config.js:230`) est une liste en dur, `auth.js:671` déconnecte tout compte hors liste, et `database.rules.json:935`/`:975` écrivent les deux adresses dans les règles. `SECURITY.md:66` : ajouter un utilisateur impose de modifier les deux. `README.md:64` : ni invitation, ni UID à échanger. Aucun parcours d'invitation à dessiner.
+- `FairSplit Mobile.dc.html` : régime mobile — 390 px sombre (Bilan, Charges, Solo, Privé, Réglages), 390 px clair (Bilan, Charges), 320 px sombre et clair avec les cinq adaptations forcées.
+- **Décision de navigation** : la barre du bas garde Bilan / Charges / Réglages (axe de la tâche). Les périmètres deviennent un sélecteur collant sous le mois (axe de la portée).
+
+  **Contrainte d'implémentation :** le sélecteur de portée est présent dans `panneauBilan` et `panneauCharges`, et ABSENT de `panneauReglages`. Les trois identifiants, leurs `data-panneau` et la classe `.onglet` sont préservés — le sélecteur de portée est un état interne aux panneaux, pas une destination de navigation.
+- Grilles à deux colonnes du grand écran alignées en pied (`stretch` + dernière carte en `flex:1`, action ancrée en bas).
 
 ### Updated in this project
 
@@ -17,7 +29,7 @@ date: 2026-09-04T19:20:03Z
 
 ### À traiter côté code, hors maquette
 
-Quatre points relevés en lisant le dépôt, aucun ne concerne les planches.
+Sept points relevés en lisant le dépôt, aucun ne concerne les planches.
 
 1. **`EMOJI_PICKER` n'a aucune flèche de répétition** (`custom-lists.js:31`, 57 entrées). 🔁 dirait mieux « charge fixe » que 🏠 — elle se reconduit, elle n'est pas la maison. Ajouter l'entrée est une évolution du code, et le test des 57 propositions doit suivre. La planche reste sur 🏠, qui existe dans `CATEGORIES`.
 
@@ -26,6 +38,12 @@ Quatre points relevés en lisant le dépôt, aucun ne concerne les planches.
 3. **La classe `charge-split-tag` porte deux sémantiques.** Elle rend la répartition dérogatoire dans les deux listes de charges, mais le mot « fixe » dans `detail-depenses.js:142` et `envelopes.js:1918`. Piège de lecture : chercher la classe rend quatre sites, dont deux étrangers au champ. Chercher `splitOverride` est la bonne entrée.
 
 4. **`computeVirementsByDestination` applique `splitOverride` sans l'afficher** (`calculations.js:448`). Le panneau dit combien virer par destination et n'expose que le montant : une charge fixe en 50/50 y change le chiffre sans qu'aucune trace ne le signale. Le badge existe dans la liste, pas dans ce panneau. Aggravé par `abonnements.js:149`, qui recopie `source?.splitOverride || null` : la répartition est alors **héritée**, l'utilisateur ne l'a pas choisie pour cette occurrence, et le badge est son unique signal.
+
+5. **Le bouton flottant peut recouvrir la dernière action d'une colonne.** Cause : padding de pied insuffisant sous un bouton `fixed` de 72 px. Constaté en maquette, à vérifier dans l'app à 390 et 320 px. Aucun contrôle ne l'attrape : cible-tactile mesure la taille des commandes, pas leur recouvrement.
+
+6. **Aucune réinitialisation de mot de passe.** Un compte inscrit par email qui perd son mot de passe n'a aucune issue dans l'application — `sendPasswordResetEmail` n'est appelé nulle part. Planches 10 et 11. À implémenter avec le renvoi depuis `auth/invalid-credential` seul : les autres codes d'`auth-errors.js` nomment déjà leur geste.
+
+7. **`tests/logo-unifie.test.js:42` n'attend que deux occurrences de `class="marque"`** dans `FairSplit.html`. Le parcours de réinitialisation en ajoute une troisième : le test doit suivre l'implémentation, pas la découvrir.
 
 ### Traces visibles de `splitOverride`, inventaire
 
@@ -64,4 +82,6 @@ Un élément d'interface qui porte une règle de calcul ne se supprime pas au no
 | — polices copiées dans le projet | `public/fonts/dm-sans-latin.woff2`, `public/fonts/jetbrains-mono-latin.woff2` |
 | — catégories et emojis, destinations, emplacements par compte | `public/js/config.js` |
 | — badge de mode de partage par ligne | `public/js/utils/calculations.js` (`calculateChargeShares`, `splitOverride`) |
+| FairSplit Connexion.dc.html — planches 7 à 9 | `public/css/auth.css`, `public/FairSplit.html` (bloc `.auth-overlay`, l. 178-212), `public/js/modules/auth.js` (état `--lent`, l. 238), `public/index.html` |
 | Planche 3 — Réglages et Outils | `public/FairSplit.html` (panneau Réglages), `public/js/modules/share-mode.js`, `carry-over.js`, `notifications.js`, `custom-lists.js`, `backup.js`, `export.js` |
+| FairSplit Mobile.dc.html — planches 4 à 6 (390 px, 320 px, deux thèmes) | `public/css/responsive.css`, `public/css/onglets.css`, `public/js/utils/onglets.js`, `public/js/utils/entete.js`, `public/FairSplit.html` (`nav.onglets`, `panneauBilan` / `panneauCharges` / `panneauReglages`) |
