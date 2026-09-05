@@ -1915,7 +1915,7 @@ function ligneDepense(charge) {
     <div class="enveloppe-depense">
       <div class="enveloppe-depense-titre">
         ${escapeHtml(charge.description || 'Sans description')}
-        ${charge.fixe ? '<span class="charge-split-tag">fixe</span>' : ''}
+        ${charge.fixe ? '<span class="charge-nature-tag">fixe</span>' : ''}
       </div>
       <div class="enveloppe-depense-detail">
         ${escapeHtml(quand)}${charge.category ? ` · ${escapeHtml(charge.category)}` : ''}

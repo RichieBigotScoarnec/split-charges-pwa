@@ -46,10 +46,10 @@ function semence() {
   };
 }
 
-async function ouvrir(page) {
-  await page.setViewportSize(VUE);
+async function ouvrir(page, { db = semence(), vue = VUE } = {}) {
+  await page.setViewportSize(vue);
   await setupFirebaseMock(page);
-  await page.addInitScript(`window.__db = ${JSON.stringify(semence())};`);
+  await page.addInitScript(`window.__db = ${JSON.stringify(db)};`);
   await waitForApp(page);
   await page.waitForTimeout(1500);
   // Les paiements réels vivent sous « Voir le détail ».
@@ -201,4 +201,120 @@ test.describe('Le détail d\'une catégorie', () => {
     await expect(page.locator('#modalDetailDepenses')).toContainText('<img src=x');
     expect(await page.locator('#modalDetailDepenses img').count()).toBe(0);
   });
+});
+
+/**
+ * La pastille de répartition, et la place qu'elle prend
+ *
+ * Cette modale n'est visitée par AUCUN contrôle de cohérence visuelle :
+ * `coherence-visuelle.spec.js` ne connaît que les trois panneaux, et
+ * `theme-enveloppe.spec.js` que la modale des enveloppes. Ajouter une étiquette
+ * dans une cellule de grille sans la mesurer, c'est supposer.
+ *
+ * Ce qui est mesuré tient en trois propriétés, sur la largeur la plus étroite
+ * qu'un téléphone donne (320 px) autant que sur celle de référence :
+ *
+ * 1. Aucune ligne ne défile horizontalement — `.detail-ligne` est une grille
+ *    `1fr auto` dont la colonne du titre n'a pas de `min-width: 0` : une
+ *    étiquette insécable de plus y pousse la largeur minimale du contenu.
+ * 2. Rien ne sort de la modale par la droite.
+ * 3. La pastille ne recouvre pas le montant, la seule chose que la ligne
+ *    contient de plus important qu'elle.
+ *
+ * Et un TÉMOIN, sans quoi les trois seraient satisfaites par une modale où la
+ * pastille n'existe pas : elle doit être là, et porter la règle.
+ */
+test.describe('La répartition dérogatoire, dans la modale du détail', () => {
+  /**
+   * Un mois où une charge déroge, sous un libellé long
+   *
+   * Le libellé court ne mesure rien : c'est la ligne dont le titre remplit déjà
+   * sa colonne qui dit si l'étiquette tient.
+   */
+  function semenceDerogatoire() {
+    const p = moisCourant();
+    return {
+      'household/salaries': { vous: 3000, conjointe: 1000 },
+      [`household/periods/${p}/salaries`]: { vous: 3000, conjointe: 1000 },
+      [`household/periods/${p}/variableCharges/v1`]: {
+        description: 'Abonnement électricité et gaz du logement',
+        amount: 1000, category: 'Maison', paidBy: 'partage',
+        date: `${p}-05`, deleted: false,
+        splitOverride: { mode: '50-50' }
+      },
+      [`household/periods/${p}/variableCharges/v2`]: {
+        description: 'Courses', amount: 74.25, category: 'Maison',
+        paidBy: 'vous', date: `${p}-12`, deleted: false
+      }
+    };
+  }
+
+  for (const largeur of [390, 320]) {
+    test(`la pastille dit la règle et ne casse rien à ${largeur} px`, async ({ page }) => {
+      await ouvrir(page, {
+        db: semenceDerogatoire(),
+        vue: { width: largeur, height: 844 }
+      });
+
+      await page.locator('[data-action="ouvrirDetailPayeur"][data-arg="vous"]').click();
+      await page.waitForTimeout(400);
+
+      const ligne = page.locator('.detail-ligne', { hasText: 'Abonnement électricité' });
+      await expect(ligne).toBeVisible();
+
+      // TÉMOIN — sans lui, les trois mesures ci-dessous sont vraies d'une
+      // modale qui ne porte aucune pastille, donc vraies pour rien.
+      await expect(
+        ligne.locator('.charge-split-tag'),
+        'la ligne dérogatoire ne porte pas sa règle'
+      ).toHaveText('50/50');
+
+      const defauts = await page.evaluate(() => {
+        const modale = document.querySelector('#modalDetailDepenses .modal');
+        const cadre = modale.getBoundingClientRect();
+        const resultats = [];
+
+        for (const ligne of document.querySelectorAll('#modalDetailDepenses .detail-ligne')) {
+          const titre = ligne.querySelector('.detail-ligne-titre');
+          const montant = ligne.querySelector('.detail-ligne-montant');
+
+          // Une ligne qui défile a du contenu que personne ne verra jamais :
+          // rien dans cette modale n'offre de barre horizontale.
+          if (ligne.scrollWidth > ligne.clientWidth + 1) {
+            resultats.push(
+              `« ${titre.textContent.trim().slice(0, 24)} » déborde de sa ligne `
+              + `(${ligne.scrollWidth} > ${ligne.clientWidth})`
+            );
+          }
+
+          for (const el of [titre, montant, ...ligne.querySelectorAll('.charge-split-tag')]) {
+            const r = el.getBoundingClientRect();
+            if (r.right > cadre.right + 1 || r.left < cadre.left - 1) {
+              resultats.push(
+                `${el.className || el.tagName} sort de la modale `
+                + `[${Math.round(r.left)} → ${Math.round(r.right)}] `
+                + `hors de [${Math.round(cadre.left)} → ${Math.round(cadre.right)}]`
+              );
+            }
+          }
+
+          // La pastille par-dessus le montant : on perdrait le chiffre pour
+          // gagner son explication.
+          const rm = montant.getBoundingClientRect();
+          for (const tag of ligne.querySelectorAll('.charge-split-tag')) {
+            const rt = tag.getBoundingClientRect();
+            const largeur = Math.min(rt.right, rm.right) - Math.max(rt.left, rm.left);
+            const hauteur = Math.min(rt.bottom, rm.bottom) - Math.max(rt.top, rm.top);
+            if (largeur > 2 && hauteur > 2) {
+              resultats.push(`la pastille « ${tag.textContent.trim()} » recouvre le montant`);
+            }
+          }
+        }
+
+        return resultats;
+      });
+
+      expect(defauts, defauts.join(' | ')).toEqual([]);
+    });
+  }
 });

@@ -13,6 +13,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
  * (`variable-charges.js`, `fixed-charges.js`). C'est le seul endroit de
  * l'application où l'on apprend qu'une charge ne suit pas la règle commune.
  *
+ * Depuis, la grammaire est passée en fabrique unique (`utils/repartition.js`)
+ * et deux surfaces de plus la portent : le récap des virements — son témoin
+ * vit dans `virements-du-mois.test.js`, avec le reste du panneau — et la
+ * modale du détail, tenue plus bas dans ce fichier.
+ *
  * Elle n'avait aucun témoin. `grep -rn "charge-split-tag" tests/` rendait zéro :
  * retirer la pastille — donc effacer d'un coup la seule trace visible du champ —
  * laissait la suite entière verte. Huitième site du motif « un contrôle qui ne
@@ -75,6 +80,8 @@ vi.mock('../../public/js/modules/envelopes.js', () => ({
 
 const { renderVariableCharges } = await import('../../public/js/modules/variable-charges.js');
 const { renderFixedCharges } = await import('../../public/js/modules/fixed-charges.js');
+const { ouvrirDetailPayeur, ouvrirDetailCategorie } =
+  await import('../../public/js/modules/detail-depenses.js');
 const { setState, resetState } = await import('../../public/js/state.js');
 
 /**
@@ -172,5 +179,162 @@ describe.each(LISTES)('La répartition dérogatoire se voit — $nom', ({ etat, 
     ).toBeNull();
 
     expect(document.querySelectorAll('.charge-split-tag')).toHaveLength(2);
+  });
+});
+
+/**
+ * LA QUATRIÈME SURFACE — la modale du détail
+ *
+ * Elle est celle qui ouvre un chiffre du bilan sur les dépenses qui le
+ * composent, et elle dit déjà la PARTIALITÉ d'une ligne (« part de 400,00 € »)
+ * sans jamais dire la RÈGLE qui l'a produite. Or c'est exactement là que la
+ * question se pose : on vient de cliquer sur un total pour comprendre d'où il
+ * sort, et une charge en 50/50 dans un foyer au prorata y entre pour 500,00 €
+ * quand la règle commune en donnerait 750,00. Le chiffre était le seul indice.
+ *
+ * `detail.js:92` pousse déjà la charge ENTIÈRE dans la ligne — `splitOverride`
+ * compris : rien n'est à relire, ni à recalculer.
+ *
+ * ## Et la charge dérogatoire est FIXE, ce qui n'était pas possible avant
+ *
+ * `charge-split-tag` portait DEUX sémantiques : la répartition dérogatoire et
+ * le mot « fixe ». Une charge fixe qui déroge portait donc deux pastilles de
+ * même classe, et le témoin de comptage aurait mesuré la collision plutôt que
+ * la pastille — le jeu d'essai avait dû se limiter aux charges variables, et la
+ * moitié fixe de `chargesRetenues` restait sans témoin.
+ *
+ * Le second sens vit maintenant sous `charge-nature-tag`. Le comptage redevient
+ * exact, et le loyer — la charge fixe par excellence, et celle sur laquelle une
+ * dérogation se pose le plus naturellement — entre au jeu d'essai. Un contrôle
+ * exige d'ailleurs que la ligne porte les DEUX étiquettes : elles disent deux
+ * choses différentes, et confondre leurs classes revenait à confondre leurs
+ * sens.
+ */
+describe('La répartition dérogatoire se voit — modale du détail', () => {
+  /** Salaires inégaux : sans eux, prorata et 50-50 donnent le même chiffre */
+  const SALAIRES = { vous: 3000, conjointe: 1000 };
+
+  /**
+   * La charge qui déroge est FIXE, et partagée
+   *
+   * Fixe : c'est la moitié de `chargesRetenues` que le jeu d'essai ne pouvait
+   * pas exercer tant que les deux sémantiques partageaient une classe.
+   * Partagée : c'est le seul cas où la règle change le montant affiché, donc le
+   * seul où la pastille explique quelque chose.
+   */
+  const FIXES = [
+    {
+      id: 'moitie', amount: 1000, description: 'Loyer', category: 'Maison',
+      paidBy: 'partage', date: '2026-09-05', deleted: false,
+      splitOverride: { mode: '50-50' }
+    }
+  ];
+
+  const DEPENSES = [
+    {
+      id: 'libre', amount: 200, description: 'Électricité', category: 'Maison',
+      paidBy: 'partage', date: '2026-09-06', deleted: false,
+      splitOverride: { mode: 'custom', vous: 70, conjointe: 30 }
+    },
+    {
+      id: 'ordinaire', amount: 100, description: 'Internet', category: 'Maison',
+      paidBy: 'vous', date: '2026-09-07', deleted: false
+    }
+  ];
+
+  /** La ligne d'une dépense, telle que la modale vient de la peindre */
+  function ligneDe(description) {
+    return [...document.querySelectorAll('#modalDetailDepenses .detail-ligne')]
+      .find(l => l.querySelector('.detail-ligne-titre')?.textContent.includes(description));
+  }
+
+  const OUVERTURES = [
+    { nom: 'détail d\'un payeur', ouvrir: () => ouvrirDetailPayeur('vous') },
+    { nom: 'détail d\'une catégorie', ouvrir: () => ouvrirDetailCategorie('Maison') }
+  ];
+
+  beforeEach(() => {
+    setState('salaries', SALAIRES);
+    setState('variableCharges', DEPENSES);
+    setState('fixedCharges', FIXES);
+    setState('reimbursements', []);
+    setState('shareMode', 'prorata');
+  });
+
+  describe.each(OUVERTURES)('$nom', ({ ouvrir }) => {
+    beforeEach(() => ouvrir());
+
+    it('une charge qui déroge porte une pastille SUR SA LIGNE', () => {
+      for (const description of ['Loyer', 'Électricité']) {
+        expect(ligneDe(description), `ligne « ${description} » absente`).toBeTruthy();
+        expect(
+          ligneDe(description).querySelector('.charge-split-tag'),
+          `« ${description} » déroge au mode du foyer et la modale ne le dit pas : `
+          + 'elle annonce la partialité de la ligne sans jamais nommer la règle'
+        ).not.toBeNull();
+      }
+    });
+
+    it('et la pastille DIT la règle', () => {
+      expect(
+        ligneDe('Loyer').querySelector('.charge-split-tag')?.textContent.trim(),
+        'un partage en deux doit se lire « 50/50 »'
+      ).toBe('50/50');
+
+      expect(
+        ligneDe('Électricité').querySelector('.charge-split-tag')?.textContent.trim(),
+        'des pourcentages libres doivent se lire, tous les deux'
+      ).toBe('70/30');
+    });
+
+    it('TÉMOIN — une charge ordinaire n\'en porte aucune', () => {
+      expect(
+        ligneDe('Internet').querySelector('.charge-split-tag'),
+        'une charge qui suit le mode du foyer n\'a rien à signaler'
+      ).toBeNull();
+
+      // Ce comptage est ce que le double sens de la classe interdisait : le
+      // loyer est FIXE, il portait donc une seconde pastille de même classe et
+      // le total valait 3 sans qu'aucune répartition de plus soit affichée.
+      expect(
+        document.querySelectorAll('#modalDetailDepenses .charge-split-tag')
+      ).toHaveLength(2);
+    });
+
+    it('et « fixe » n\'est pas une répartition : deux étiquettes, deux classes', () => {
+      // Les deux se posent sur la même ligne et ne disent pas la même chose :
+      // l'une nomme la collection d'où vient la charge, l'autre la règle qui a
+      // produit son montant. Leur donner la même classe rendait `splitOverride`
+      // introuvable — chercher la pastille rendait quatre sites dont deux
+      // étrangers — et bornait ce fichier aux charges variables.
+      const loyer = ligneDe('Loyer');
+
+      expect(
+        loyer.querySelector('.charge-nature-tag')?.textContent.trim(),
+        'la mention « fixe » a disparu avec le renommage'
+      ).toBe('fixe');
+
+      expect(
+        loyer.querySelector('.charge-split-tag')?.textContent.trim(),
+        'la répartition doit rester sur sa propre classe'
+      ).toBe('50/50');
+
+      expect(
+        ligneDe('Électricité').querySelector('.charge-nature-tag'),
+        'une charge variable n\'est pas fixe'
+      ).toBeNull();
+    });
+  });
+
+  it('la pastille ne remplace pas la mention de partialité, elle s\'y ajoute', () => {
+    // Les deux répondent à des questions différentes : « part de 1 000,00 € »
+    // dit que la ligne ne compte pas en entier, « 50/50 » dit pourquoi elle
+    // compte pour ce montant-là. Poser l'une à la place de l'autre ferait
+    // passer les contrôles ci-dessus en perdant la moitié de l'explication.
+    ouvrirDetailPayeur('vous');
+
+    const ligne = ligneDe('Loyer');
+    expect(ligne.querySelector('.charge-split-tag')?.textContent.trim()).toBe('50/50');
+    expect(ligne.querySelector('.detail-part')?.textContent).toContain('part de');
   });
 });

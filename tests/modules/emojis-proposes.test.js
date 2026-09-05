@@ -36,6 +36,22 @@ describe('Les emojis proposés à la création', () => {
     }
   });
 
+  it('couvrent le RYTHME, pas seulement le domaine', () => {
+    // Toutes les autres propositions nomment un domaine de dépense — une
+    // maison, une voiture, un café. Une charge fixe, elle, se définit par son
+    // rythme : elle revient. Un abonnement, un prélèvement mensuel, une
+    // cotisation ne sont d'aucun domaine en particulier, et le foyer n'avait
+    // que 🏠 pour se les représenter — le seul glyphe qui pouvait vaguement
+    // faire l'affaire, et qui dit tout autre chose.
+    //
+    // La présentation du glyphe a été MESURÉE avant de l'inscrire : U+1F501
+    // porte `Emoji_Presentation=Yes` et Chromium le peint par la police,
+    // insensible à `color`, comme les 57 autres. Il tombe donc du bon côté de
+    // la garde de contraste d'`encre-rendue.spec.js`, qui écarte les emoji
+    // couleur et mesure au seuil de 3:1 les glyphes qui, eux, suivent `color`.
+    expect(proposes, 'aucune image pour une charge qui revient').toContain('🔁');
+  });
+
   it('couvrent aussi les familles courantes du foyer', () => {
     // Courses, essence, santé, loisirs, maison, transport : les six catégories
     // livrées doivent rester représentables après une suppression.
