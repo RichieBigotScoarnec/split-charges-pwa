@@ -819,7 +819,6 @@ export function renderFixedCharges() {
           <span class="charge-description">${escapeHtml(charge.description)} ${ponctuelTag} ${splitTag}${perimetreTag}</span>
           <span class="charge-payer">${dateTag}Payé par ${escapeHtml(formatPaidBy(charge.paidBy))} ${destinationTag}</span>
           ${etiquetteEnveloppe(charge)}
-          ${etiquetteEnveloppe(charge)}
         </div>
         <div class="charge-actions">
           <span class="charge-amount">${formatCurrency(charge.amount)}</span>
