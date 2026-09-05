@@ -29,6 +29,7 @@ import { normaliserEmplacement } from '../utils/members.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { coutDesChargesFixes } from '../utils/cout-annuel.js';
 
 /**
@@ -806,8 +807,12 @@ export function renderFixedCharges() {
       const ponctuelTag = charge.recurring === false
         ? '<span class="charge-ponctuel">ponctuelle</span>'
         : '';
-      const splitTag = charge.splitOverride
-        ? `<span class="charge-split-tag">${charge.splitOverride.mode === '50-50' ? '50/50' : `${escapeHtml(charge.splitOverride.vous)}/${escapeHtml(charge.splitOverride.conjointe)}`}</span>`
+      // Même fabrique que la liste variable et que le récap des virements :
+      // les trois surfaces écrivent la répartition de la même façon, et c'est
+      // ce qui permet de relier deux panneaux séparés par un onglet.
+      const repartition = libelleDeLaRepartition(charge.splitOverride);
+      const splitTag = repartition
+        ? `<span class="charge-split-tag">${escapeHtml(repartition)}</span>`
         : '';
       // Une dépense perso se voit dans la liste, sinon elle se confond avec
       // une charge commune et son absence du bilan devient inexplicable.

@@ -20,6 +20,7 @@ import { blocPriveDuResume, initResumePrive } from './resume-prive.js';
 import { expliquerLeReport } from '../utils/explication-solde.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
+import { libelleDeLaRepartition } from '../utils/repartition.js';
 
 /**
  * L'onglet du résumé affiché, pour cette session seulement
@@ -937,12 +938,32 @@ function renderSummary(summary) {
             <strong class="virement-dest-total">${formatCurrency(group.total)}</strong>
           </div>
           <div class="virement-details">
-            ${group.charges.map(c => `
+            ${group.charges.map(c => {
+    // Même grammaire que les deux listes de charges, par la même fabrique.
+    //
+    // Ce panneau vit dans l'onglet « Bilan », les listes dans « Charges » :
+    // sous 900 px ce sont deux écrans que rien ne relie. La pastille
+    // identique est ce qui permet de rapprocher un montant à virer qui
+    // surprend de la charge qui l'explique — une charge en 50/50 dans un
+    // foyer au prorata réclame 500,00 € là où le prorata en demanderait
+    // 272,73, et le chiffre était jusqu'ici le seul indice.
+    //
+    // Le montant PLEIN de la charge reste hors de la ligne, et c'est mesuré :
+    // à 320 px, l'ajouter fait boucler toute ligne dérogatoire, « Loyer »
+    // compris. La pastille dit pourquoi le chiffre surprend, pas s'il est
+    // exact — cette seconde question a sa réponse dans les listes, où le
+    // montant plein est affiché avec cette même pastille.
+    const repartition = libelleDeLaRepartition(c.derogation);
+    const pastille = repartition
+      ? ` <span class="charge-split-tag">${escapeHtml(repartition)}</span>`
+      : '';
+    return `
               <div class="virement-detail-row">
-                <span>${escapeHtml(c.description)}</span>
+                <span>${escapeHtml(c.description)}${pastille}</span>
                 <span>${formatCurrency(c.partnerShare)}</span>
               </div>
-            `).join('')}
+            `;
+  }).join('')}
           </div>
         </div>
       `).join('')}
