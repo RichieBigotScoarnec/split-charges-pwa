@@ -149,6 +149,129 @@ describe('L\'ASSIETTE du prorata, et non les salaires bruts', () => {
   });
 });
 
+/**
+ * Un foyer au prorata, où DEUX charges dérogent et une troisième non
+ *
+ * Assiette 4 000 / 1 500 : la conjointe pèse 27,27 %. Sur ce fond, les deux
+ * dérogations déplacent réellement le chiffre à virer :
+ *
+ *   Loyer 1 000 € en 50/50    → 500,00 € au lieu de 272,73 €
+ *   Électricité 200 € en 70/30 →  60,00 € au lieu de  54,55 €
+ *   Internet 100 €, ordinaire  →  27,27 €
+ *
+ * C'est tout le défaut : 227,27 € d'écart sur le seul loyer, et rien à l'écran
+ * ne dit pourquoi.
+ */
+const FIXES_DEROGATOIRES = [
+  {
+    id: 'd1', description: 'Loyer', amount: 1000, paidBy: 'vous',
+    destination: 'Compte Joint', deleted: false,
+    splitOverride: { mode: '50-50' }
+  },
+  {
+    id: 'd2', description: 'Électricité', amount: 200, paidBy: 'vous',
+    destination: 'Compte Joint', deleted: false,
+    splitOverride: { mode: 'custom', vous: 70, conjointe: 30 }
+  },
+  {
+    id: 'd3', description: 'Internet', amount: 100, paidBy: 'vous',
+    destination: 'Compte Joint', deleted: false
+  }
+];
+
+/**
+ * Rend le bilan et rend la LIGNE du récap qui porte ce libellé
+ *
+ * Le récap ne pose aucun identifiant sur ses lignes : on les retrouve par le
+ * libellé, qui est ce que le lecteur y lit.
+ */
+function ligneDuRecap(description, { fixes = FIXES_DEROGATOIRES, modeDuMois = 'prorata' } = {}) {
+  resetState();
+  document.body.innerHTML = '<div id="summarySection"></div>';
+
+  setState('salaries', SALAIRES);
+  setState('fixedCharges', fixes);
+  setState('variableCharges', []);
+  setState('reimbursements', []);
+  setState('currentPeriod', '2026-07');
+  setState('shareMode', 'prorata');
+  setState('shareModeDuMois', modeDuMois);
+
+  calculateSummary();
+
+  const lignes = [...document.querySelectorAll('.virement-detail-row')];
+  expect(lignes.length, 'le panneau des virements n\'a pas été rendu').toBeGreaterThan(0);
+
+  const trouvee = lignes.find(l => l.textContent.includes(description));
+  expect(trouvee, `aucune ligne « ${description} » dans le récap`).toBeDefined();
+  return trouvee;
+}
+
+/**
+ * LA RÈGLE APPLIQUÉE SE LIT, sur la surface qu'on recopie à la banque
+ *
+ * `computeVirementsByDestination` lit `splitOverride` et l'applique — puis rend
+ * `{ description, amount, partnerShare }`. Le mode n'y est PAS : seul de tous
+ * les lecteurs du champ, ce calcul ABANDONNE la charge pour construire un objet
+ * neuf, et ce qu'il n'y met pas est perdu pour l'écran.
+ *
+ * Le panneau dit donc combien virer en appliquant une règle dérogatoire, sans
+ * qu'aucune trace ne le signale. Les deux listes portent bien une pastille —
+ * mais elles vivent dans l'onglet « Charges », quand ce panneau vit dans
+ * « Bilan » : sous 900 px, ce sont deux écrans que rien ne relie.
+ *
+ * La grammaire est reprise des listes À L'IDENTIQUE — même classe, même mots,
+ * même prédicat — parce que c'est ce qui permet de faire le lien entre les deux
+ * panneaux. Une pastille sur TOUTES les lignes n'en serait plus une : elle
+ * perdrait sa propriété la plus utile, que sa présence même veuille dire
+ * quelque chose.
+ */
+describe('LA RÈGLE DÉROGATOIRE se lit sur la ligne qu\'elle déplace', () => {
+  it('une charge en 50/50 le dit, dans un foyer au prorata', () => {
+    const pastille = ligneDuRecap('Loyer').querySelector('.charge-split-tag');
+
+    expect(
+      pastille,
+      'ce virement est calculé en 50/50 dans un foyer au prorata — 500,00 € '
+      + 'au lieu de 272,73 € — et la ligne ne le dit pas'
+    ).not.toBeNull();
+
+    expect(pastille.textContent.trim()).toBe('50/50');
+  });
+
+  it('et une charge aux pourcentages libres dit lesquels', () => {
+    // Une pastille muette — « dérogation » — situerait la ligne sans expliquer
+    // le chiffre. C'est la RÈGLE qui explique pourquoi 60,00 € et non 54,55 €.
+    expect(
+      ligneDuRecap('Électricité').querySelector('.charge-split-tag')?.textContent.trim(),
+      'des pourcentages libres doivent se lire, tous les deux'
+    ).toBe('70/30');
+  });
+
+  it('TÉMOIN — une charge qui suit le mode du mois n\'en porte aucune', () => {
+    // Sans lui, poser la pastille sur toutes les lignes passerait les deux
+    // contrôles ci-dessus, et le panneau redeviendrait du décor.
+    expect(ligneDuRecap('Internet').querySelector('.charge-split-tag')).toBeNull();
+    expect(document.querySelectorAll('.virement-detail-row .charge-split-tag')).toHaveLength(2);
+  });
+
+  it('le prédicat est celui des listes : porter un `splitOverride`, et non s\'écarter du mois', () => {
+    // Une charge en 50/50 dans un mois FIGÉ au 50-50 applique le même taux que
+    // ses voisines : son chiffre ne surprend pas. Elle porte pourtant la
+    // pastille dans les deux listes — le champ est là, et il continuera de
+    // s'appliquer si le foyer change de mode.
+    //
+    // Les deux panneaux doivent dire la même chose de la même charge. Faire
+    // dépendre la pastille d'une comparaison au mode du mois donnerait deux
+    // réponses selon l'onglet ouvert, pour la même ligne, le même jour.
+    const pastille = ligneDuRecap('Loyer', { modeDuMois: '50-50' })
+      .querySelector('.charge-split-tag');
+
+    expect(pastille, 'la pastille suit le champ, pas l\'écart au mode du mois').not.toBeNull();
+    expect(pastille.textContent.trim()).toBe('50/50');
+  });
+});
+
 describe('LA CORBEILLE, sur la surface qu\'on recopie à la banque', () => {
   it('une charge fixe supprimée ne réclame aucun virement', () => {
     // Le filtre vit chez l'appelant ET dans la fonction. Ce contrôle-ci tient le

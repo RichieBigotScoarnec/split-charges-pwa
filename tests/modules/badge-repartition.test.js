@@ -1,0 +1,176 @@
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+/**
+ * La SEULE trace visible de `splitOverride`, et personne ne la tenait
+ *
+ * Une charge peut déroger au mode de partage du foyer : `splitOverride` porte
+ * alors « 50-50 » ou deux pourcentages, et le calcul les applique — bilan,
+ * paiements réels, report de solde, détail par payeur, montants à virer. Quatre
+ * surfaces dont les chiffres changent.
+ *
+ * Une seule le DIT : la pastille des deux listes de charges
+ * (`variable-charges.js`, `fixed-charges.js`). C'est le seul endroit de
+ * l'application où l'on apprend qu'une charge ne suit pas la règle commune.
+ *
+ * Elle n'avait aucun témoin. `grep -rn "charge-split-tag" tests/` rendait zéro :
+ * retirer la pastille — donc effacer d'un coup la seule trace visible du champ —
+ * laissait la suite entière verte. Huitième site du motif « un contrôle qui ne
+ * mesure rien est pire qu'un contrôle absent », et le premier dans le code
+ * applicatif : les sept précédents étaient dans le banc d'essai.
+ *
+ * ## Pourquoi les deux modules dans le même fichier
+ *
+ * La pastille est écrite DEUX FOIS, mot pour mot (`variable-charges.js:757`,
+ * `fixed-charges.js:809`). Un témoin qui n'en tiendrait qu'une laisserait la
+ * jumelle libre — et une copie ne se dégrade pas d'un coup, elle se dégrade au
+ * correctif suivant que personne n'y reporte. Chaque propriété est donc jouée
+ * sur les deux listes.
+ *
+ * ## Ce qui est mesuré, et pourquoi pas moins
+ *
+ * 1. La pastille EXISTE sur la ligne dérogatoire — sinon la trace disparaît.
+ * 2. Elle est sur CETTE ligne-là — une étiquette posée ailleurs dans la liste
+ *    ne dirait pas de quelle charge on parle.
+ * 3. Elle DIT LA RÈGLE — « 50/50 », « 70/30 ». Une pastille muette (« modifié »,
+ *    « dérogation ») satisferait les deux premières et n'apprendrait rien.
+ * 4. TÉMOIN POSITIF : une charge ordinaire n'en porte aucune. Sans lui, poser la
+ *    pastille sur toutes les lignes passerait, et elle cesserait de distinguer
+ *    quoi que ce soit.
+ */
+
+vi.mock('../../public/js/db.js', () => ({
+  dbGet: vi.fn(() => Promise.resolve(null)),
+  dbSet: vi.fn(() => Promise.resolve()),
+  dbUpdate: vi.fn(() => Promise.resolve()),
+  dbPush: vi.fn(() => Promise.resolve('cle')),
+  getDataPath: vi.fn(path => `household/${path}`)
+}));
+vi.mock('../../public/js/components/toast.js', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
+}));
+vi.mock('../../public/js/components/modal.js', () => ({
+  showModal: vi.fn(), closeModal: vi.fn(),
+  showConfirmModal: vi.fn(() => Promise.resolve(true))
+}));
+vi.mock('../../public/js/utils/debug.js', () => ({
+  log: vi.fn(), warn: vi.fn(), error: vi.fn()
+}));
+vi.mock('../../public/js/modules/summary.js', () => ({
+  calculateSummary: vi.fn(() => ({ balance: 0 }))
+}));
+vi.mock('../../public/js/modules/trash.js', () => ({ refreshTrashButton: vi.fn() }));
+vi.mock('../../public/js/modules/map.js', () => ({ refreshMapButton: vi.fn() }));
+vi.mock('../../public/js/modules/trends.js', () => ({ invalidateTrends: vi.fn() }));
+vi.mock('../../public/js/modules/custom-lists.js', () => ({
+  getCategoryIcon: vi.fn(() => '🏠'),
+  getCategories: vi.fn(() => [{ id: 'maison', icon: '🏠', label: 'Maison' }]),
+  populateCategorySelect: vi.fn(),
+  populateDestinationSelect: vi.fn()
+}));
+vi.mock('../../public/js/modules/envelopes.js', () => ({
+  populateEnvelopeSelect: vi.fn(),
+  etiquetteEnveloppe: vi.fn(() => '')
+}));
+
+const { renderVariableCharges } = await import('../../public/js/modules/variable-charges.js');
+const { renderFixedCharges } = await import('../../public/js/modules/fixed-charges.js');
+const { setState, resetState } = await import('../../public/js/state.js');
+
+/**
+ * Trois charges : une au 50-50, une aux pourcentages libres, une ordinaire
+ *
+ * La troisième n'est pas du décor : c'est elle qui rend la pastille
+ * DISTINCTIVE. Sans elle, « toujours poser la pastille » passerait.
+ */
+const CHARGES = [
+  {
+    id: 'moitie', amount: 1000, description: 'Loyer', category: 'Maison',
+    paidBy: 'vous', destination: 'Compte Joint',
+    splitOverride: { mode: '50-50' }
+  },
+  {
+    id: 'libre', amount: 200, description: 'Électricité', category: 'Maison',
+    paidBy: 'vous', destination: 'Compte Joint',
+    splitOverride: { mode: 'custom', vous: 70, conjointe: 30 }
+  },
+  {
+    id: 'ordinaire', amount: 100, description: 'Internet', category: 'Maison',
+    paidBy: 'vous', destination: 'Compte Joint'
+  }
+];
+
+/**
+ * Les deux listes, sous le même jeu d'essai
+ *
+ * Chaque propriété est rejouée pour les deux : la pastille est écrite deux fois
+ * dans le code, elle doit être tenue deux fois ici.
+ */
+const LISTES = [
+  { nom: 'charges variables', etat: 'variableCharges', rendre: renderVariableCharges },
+  { nom: 'charges fixes', etat: 'fixedCharges', rendre: renderFixedCharges }
+];
+
+/** La ligne d'une charge, telle que la liste vient de la peindre */
+function ligne(id) {
+  return document.querySelector(`.charge-item[data-id="${id}"]`);
+}
+
+beforeEach(() => {
+  resetState();
+  document.body.innerHTML = `
+    <div id="variableChargesList"></div><span id="variableChargesTotal"></span>
+    <div id="fixedChargesList"></div><span id="fixedChargesTotal"></span>
+  `;
+  setState('currentPeriod', '2026-09');
+});
+
+describe.each(LISTES)('La répartition dérogatoire se voit — $nom', ({ etat, rendre }) => {
+  beforeEach(() => {
+    setState(etat, CHARGES);
+    rendre();
+  });
+
+  it('une charge qui déroge porte une pastille SUR SA LIGNE', () => {
+    // Sur sa ligne, et pas ailleurs dans la liste : une pastille flottante ne
+    // dirait pas de quelle charge elle parle.
+    for (const id of ['moitie', 'libre']) {
+      expect(ligne(id), `ligne « ${id} » absente du rendu`).not.toBeNull();
+      expect(
+        ligne(id).querySelector('.charge-split-tag'),
+        `« ${id} » déroge au mode du foyer et sa ligne ne le dit pas : `
+        + 'la seule trace visible de `splitOverride` a disparu'
+      ).not.toBeNull();
+    }
+  });
+
+  it('et la pastille DIT la règle, elle ne signale pas seulement une dérogation', () => {
+    // Une pastille muette — « modifié », « dérogation » — satisferait le
+    // contrôle précédent sans rien apprendre. C'est la RÈGLE appliquée qui
+    // explique pourquoi le montant à virer n'est pas celui qu'on attendait.
+    //
+    // La pastille est lue par `?.` plutôt que déréférencée : absente, ce
+    // contrôle doit DIRE quelle règle manquait, pas tomber sur un `TypeError`
+    // qui ne nomme que la ligne de test.
+    expect(
+      ligne('moitie').querySelector('.charge-split-tag')?.textContent.trim(),
+      'un partage en deux doit se lire « 50/50 » sur sa ligne'
+    ).toBe('50/50');
+
+    expect(
+      ligne('libre').querySelector('.charge-split-tag')?.textContent.trim(),
+      'des pourcentages libres doivent se lire, tous les deux'
+    ).toBe('70/30');
+  });
+
+  it('TÉMOIN — une charge ordinaire n\'en porte aucune', () => {
+    // Sans ce contrôle, poser la pastille sur TOUTES les lignes passerait les
+    // deux précédents — et elle cesserait de distinguer quoi que ce soit.
+    expect(
+      ligne('ordinaire').querySelector('.charge-split-tag'),
+      'une charge qui suit le mode du foyer n\'a rien à signaler'
+    ).toBeNull();
+
+    expect(document.querySelectorAll('.charge-split-tag')).toHaveLength(2);
+  });
+});
