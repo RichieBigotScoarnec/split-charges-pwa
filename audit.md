@@ -1,5 +1,12 @@
 # Audit FairSplit — journal
 
+> **Instantané daté du 03/09.** Les tailles et la structure de `CLAUDE.md`
+> citées ici sont celles de cette date — le fichier faisait alors 163 Ko et
+> portait son journal. Il a été restructuré le 05/09 : les constats clos sont
+> passés dans `journal-archive.md`, les gotchas et les règles de méthode sont
+> remontés en tête. Ce document n'est pas mis à jour, et c'est voulu : un audit
+> décrit ce qu'il a mesuré, le jour où il l'a mesuré.
+
 ## Synthèse
 
 **Date** : 2026-09-03
