@@ -195,29 +195,42 @@ describe.each(LISTES)('La répartition dérogatoire se voit — $nom', ({ etat, 
  * `detail.js:92` pousse déjà la charge ENTIÈRE dans la ligne — `splitOverride`
  * compris : rien n'est à relire, ni à recalculer.
  *
- * ## Le jeu d'essai n'emploie que des charges variables, et c'est délibéré
+ * ## Et la charge dérogatoire est FIXE, ce qui n'était pas possible avant
  *
- * `charge-split-tag` porte aujourd'hui DEUX sémantiques : la répartition
- * dérogatoire et le mot « fixe » (`detail-depenses.js:142`). Une charge fixe
- * dérogatoire porterait donc deux pastilles de même classe, et le témoin de
- * comptage mesurerait la collision plutôt que la pastille. Les trois charges
- * sont variables ; la séparation des deux sens est un lot à elle seule.
+ * `charge-split-tag` portait DEUX sémantiques : la répartition dérogatoire et
+ * le mot « fixe ». Une charge fixe qui déroge portait donc deux pastilles de
+ * même classe, et le témoin de comptage aurait mesuré la collision plutôt que
+ * la pastille — le jeu d'essai avait dû se limiter aux charges variables, et la
+ * moitié fixe de `chargesRetenues` restait sans témoin.
+ *
+ * Le second sens vit maintenant sous `charge-nature-tag`. Le comptage redevient
+ * exact, et le loyer — la charge fixe par excellence, et celle sur laquelle une
+ * dérogation se pose le plus naturellement — entre au jeu d'essai. Un contrôle
+ * exige d'ailleurs que la ligne porte les DEUX étiquettes : elles disent deux
+ * choses différentes, et confondre leurs classes revenait à confondre leurs
+ * sens.
  */
 describe('La répartition dérogatoire se voit — modale du détail', () => {
   /** Salaires inégaux : sans eux, prorata et 50-50 donnent le même chiffre */
   const SALAIRES = { vous: 3000, conjointe: 1000 };
 
   /**
-   * Les deux charges qui dérogent sont PARTAGÉES : c'est le seul cas où la
-   * règle change le montant affiché, donc le seul où la pastille explique
-   * quelque chose.
+   * La charge qui déroge est FIXE, et partagée
+   *
+   * Fixe : c'est la moitié de `chargesRetenues` que le jeu d'essai ne pouvait
+   * pas exercer tant que les deux sémantiques partageaient une classe.
+   * Partagée : c'est le seul cas où la règle change le montant affiché, donc le
+   * seul où la pastille explique quelque chose.
    */
-  const DEPENSES = [
+  const FIXES = [
     {
       id: 'moitie', amount: 1000, description: 'Loyer', category: 'Maison',
       paidBy: 'partage', date: '2026-09-05', deleted: false,
       splitOverride: { mode: '50-50' }
-    },
+    }
+  ];
+
+  const DEPENSES = [
     {
       id: 'libre', amount: 200, description: 'Électricité', category: 'Maison',
       paidBy: 'partage', date: '2026-09-06', deleted: false,
@@ -243,7 +256,7 @@ describe('La répartition dérogatoire se voit — modale du détail', () => {
   beforeEach(() => {
     setState('salaries', SALAIRES);
     setState('variableCharges', DEPENSES);
-    setState('fixedCharges', []);
+    setState('fixedCharges', FIXES);
     setState('reimbursements', []);
     setState('shareMode', 'prorata');
   });
@@ -280,9 +293,36 @@ describe('La répartition dérogatoire se voit — modale du détail', () => {
         'une charge qui suit le mode du foyer n\'a rien à signaler'
       ).toBeNull();
 
+      // Ce comptage est ce que le double sens de la classe interdisait : le
+      // loyer est FIXE, il portait donc une seconde pastille de même classe et
+      // le total valait 3 sans qu'aucune répartition de plus soit affichée.
       expect(
         document.querySelectorAll('#modalDetailDepenses .charge-split-tag')
       ).toHaveLength(2);
+    });
+
+    it('et « fixe » n\'est pas une répartition : deux étiquettes, deux classes', () => {
+      // Les deux se posent sur la même ligne et ne disent pas la même chose :
+      // l'une nomme la collection d'où vient la charge, l'autre la règle qui a
+      // produit son montant. Leur donner la même classe rendait `splitOverride`
+      // introuvable — chercher la pastille rendait quatre sites dont deux
+      // étrangers — et bornait ce fichier aux charges variables.
+      const loyer = ligneDe('Loyer');
+
+      expect(
+        loyer.querySelector('.charge-nature-tag')?.textContent.trim(),
+        'la mention « fixe » a disparu avec le renommage'
+      ).toBe('fixe');
+
+      expect(
+        loyer.querySelector('.charge-split-tag')?.textContent.trim(),
+        'la répartition doit rester sur sa propre classe'
+      ).toBe('50/50');
+
+      expect(
+        ligneDe('Électricité').querySelector('.charge-nature-tag'),
+        'une charge variable n\'est pas fixe'
+      ).toBeNull();
     });
   });
 

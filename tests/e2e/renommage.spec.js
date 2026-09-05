@@ -217,5 +217,16 @@ test.describe('Voir une enveloppe', () => {
     // Les trois dépenses, du plus récent au plus ancien.
     expect(await page.locator('.enveloppe-depense-titre').allInnerTexts())
       .toEqual(['Restaurant du port', 'Location gîte fixe', 'Péage']);
+
+    // Et « fixe » porte sa propre classe. Cette vue est le second des deux
+    // sites qui écrivaient la mention sous `charge-split-tag`, la classe de la
+    // répartition dérogatoire : chercher où `splitOverride` se voit rendait
+    // quatre sites dont deux étrangers. Le texte, lui, était déjà tenu
+    // ci-dessus — c'est la CLASSE que rien ne regardait.
+    await expect(page.locator('.enveloppe-depense .charge-nature-tag')).toHaveText('fixe');
+    expect(
+      await page.locator('.enveloppe-depense .charge-split-tag').count(),
+      'aucune de ces trois dépenses ne déroge au mode du foyer'
+    ).toBe(0);
   });
 });

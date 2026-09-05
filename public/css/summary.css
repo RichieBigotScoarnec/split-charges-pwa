@@ -980,8 +980,26 @@
    violette — indiscernable de la couleur d'interface, et donc lue comme une
    action possible. En neutre, elle se lit pour ce qu'elle est : une étiquette.
    Le vert, le rouge et l'ambre restent réservés à ce qui porte du sens.
+
+   DEUX NOMS, UNE SEULE RÈGLE, ET C'EST VOULU. `charge-split-tag` dit la
+   répartition dérogatoire — quatre surfaces l'écrivent ; `charge-nature-tag`
+   dit d'où vient la charge (« fixe »), dans la modale du détail et la vue
+   d'enveloppe, deux listes qui mêlent les deux collections. Le second sens
+   portait la classe du premier : chercher où `splitOverride` se voit rendait
+   quatre sites dont deux étrangers, et une charge fixe dérogatoire affichait
+   deux pastilles indiscernables l'une de l'autre.
+
+   Les séparer en dupliquant ces dix déclarations aurait créé la copie que ce
+   dépôt paie huit fois dans son journal. Une seule liste de sélecteurs : le
+   rendu est identique par construction, et le reste.
+
+   Reste une question de DESIGN, ouverte et non tranchée ici : « fixe » est une
+   nature, comme « ponctuelle » — qui, elle, s'affiche en ambre
+   (`.charge-ponctuel`). Le neutre a été justifié pour la répartition, jamais
+   pour la nature. Ce lot ne change rien à ce qui est peint.
 */
-.charge-split-tag {
+.charge-split-tag,
+.charge-nature-tag {
   display: inline-block;
   background: var(--elevated-bg);
   border: 1px solid var(--border-color);

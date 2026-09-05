@@ -160,7 +160,7 @@ function ligneDetail(entree, surLaPart) {
     <div class="detail-ligne">
       <div class="detail-ligne-titre">
         ${escapeHtml(entree.description || 'Sans description')}
-        ${entree.fixe ? '<span class="charge-split-tag">fixe</span>' : ''}
+        ${entree.fixe ? '<span class="charge-nature-tag">fixe</span>' : ''}
         ${splitTag}
       </div>
       <div class="detail-ligne-info">
