@@ -597,10 +597,39 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   (voir *Décisions*) : `true` = on a navigué, `false` = la surface était déjà là,
   et une surface **inatteignable lève**. Ne pas rétablir un `return false`
   silencieux — c'est ce qui faisait mesurer trois fois le même panneau.
-- **`detail-depenses.spec.js` est tombé une fois, et reste OUVERT.** Non
-  reproduit en deux passes complètes et sept répétitions ; l'hypothèse de la
-  lecture périmée est réfutée. Ne pas le refermer sur une explication non
-  exécutée.
+- **`detail-depenses.spec.js` est retombé, et reste OUVERT — 2ᵉ occurrence, la
+  première exploitable.** Le 2026-09-05 en CI (run `33990487535`), sur
+  `:131 une charge partagée dit qu'elle ne compte que pour une part` — **un autre
+  test que la première fois**, mais **le même helper `ouvrirLePayeur:92`**. Le
+  défaut est donc dans le helper, pas dans un cas.
+  Faits relevés, artefacts sauvés **avant** relance : `expect(#modalDetailDepenses)
+  .toBeVisible()` échoue sur `element(s) not found`, pas sur « masqué » — or cet
+  identifiant est **fabriqué en JS** (`detail-depenses.js:28`), il n'est pas dans
+  le balisage. La modale n'a donc jamais été créée ; le `click()` de la ligne,
+  lui, a réussi. `main` était vert 45 minutes plus tôt, la branche ne changeait
+  que du Markdown, et la relance du seul job est passée : **intermittent**.
+  Le fichier **ne fige pas l'horloge** — piste à mesurer, pas à supposer.
+  Ne pas le refermer sur une explication non exécutée : l'hypothèse de la lecture
+  périmée reste réfutée.
+- **`share-mode.test.js` fait tomber la suite unitaire une passe sur deux, et
+  reste OUVERT.** `EnvironmentTeardownError: [vitest-worker]: Closing rpc while
+  "onUserConsoleLog" was pending` — une course au démontage du worker, dans une
+  suite qui journalise beaucoup pendant sa fermeture.
+  **Le résumé et le code de sortie se contredisent** : `3014 passed` affiché,
+  `EXIT=1` rendu. Jouée seule, la suite passe (19 contrôles) ; deuxième passe
+  complète verte. Rien n'est expliqué, et c'est pour cela que l'entrée existe.
+  **La règle 3 a fonctionné** : cette contradiction est exactement ce qu'elle dit
+  de chercher, et sans `echo EXIT=$?` avant le résumé, la passe serait passée
+  pour verte. Vitest prévient lui-même qu'une erreur non gérée « might cause
+  false positive tests ».
+
+> **Deux contrôles ouverts et inexpliqués : c'est un état correct, pas une
+> dette.** Aucun des deux n'est refermé sur une hypothèse, et la règle 5 dit
+> pourquoi — refermer sur une explication fausse est pire que laisser ouvert, on
+> cesse de surveiller en croyant avoir compris. Le jour où l'un des deux
+> retombe, on aura sa sortie complète et ses artefacts : la règle 3 est
+> appliquée, et la 2ᵉ occurrence de `detail-depenses` vient de le prouver — la
+> première n'avait rien laissé, celle-ci a livré le helper fautif.
 
 ### Livraison et commandes
 
