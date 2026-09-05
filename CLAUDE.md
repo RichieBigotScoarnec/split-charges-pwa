@@ -265,26 +265,30 @@ npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 > casser. La règle vaut pour les suites de tests comme pour les commandes de la
 > CI, et la seule façon de la tenir est de les rejouer toutes.
 
-### Le tuyau efface le code de sortie — la règle dont trois pannes sont des cas
+### Le tuyau coupe le texte qui aurait permis de comprendre
 
-Trois entrées de ce fichier racontent la même panne sous trois déguisements :
-un jar d'émulateur qui garde son port, un `--reporter=basic` qui n'existe pas,
-un `| tail -45` qui coupe le rapport. Le point commun n'est ni la commande ni
-l'option. **C'est le tuyau.**
+**Un tuyau ne détruit pas seulement le code de sortie : il emporte ce qui
+aurait expliqué la panne.** C'est le cœur de la règle, et c'est ce qui la rend
+irréversible — un verdict faux se rejoue, un message d'erreur perdu ne revient
+pas. Le 2026-09-05, `| tail -45` a emporté le message de la seule défaillance
+qui comptait, et la passe suivante a écrasé `test-results/` où vivait son
+contexte. Le contrôle est resté ouvert faute de savoir pourquoi il était tombé.
+
+Le code de sortie vient ensuite, et il est plus simple :
 
 ```bash
 npx playwright test 2>&1 | tail -45 ; echo $?     # 0 — c'est celui de `tail`
 ```
 
-`$?` rend le code de sortie du DERNIER maillon. Filtrer une sortie, c'est donc
-remplacer le verdict du programme par celui du filtre — et `tail`, `grep`,
-`head`, `sed` réussissent presque toujours. Mesuré le 2026-09-05 : `0` annoncé
-sur **32 tests en échec**.
+`$?` rend le code du DERNIER maillon. Filtrer une sortie, c'est remplacer le
+verdict du programme par celui du filtre — et `tail`, `grep`, `head`, `sed`
+réussissent presque toujours. Mesuré le même jour : `0` annoncé sur **32 tests
+en échec**.
 
-Ce qu'un tuyau détruit va au-delà du code : il coupe aussi le TEXTE qui aurait
-permis de comprendre. Le même jour, `tail -45` a emporté le message de la seule
-défaillance qui comptait, et la passe suivante a écrasé `test-results/` où
-vivait son contexte. La cause est perdue, définitivement.
+Trois entrées de ce fichier racontent cette panne sous trois déguisements : un
+jar d'émulateur qui garde son port, un `--reporter=basic` qui n'existe pas, un
+`| tail -45` qui coupe le rapport. Le point commun n'est ni la commande ni
+l'option. **C'est le tuyau.**
 
 **La règle, dans cet ordre :**
 
@@ -1027,7 +1031,7 @@ une charge déroge au mode de partage du foyer.
 > tableau vide, `null` — ne mesure pas le câblage, il le masque. Quand ce qu'on
 > tient est un rendu, le double doit produire du balisage qu'on puisse compter.
 
-| **`npx vitest run --reporter=basic` n'existe pas en Vitest 4**, et la suite n'a pas tourné du tout : `Failed to load custom Reporter from basic`, `EXIT=1`. Un `tail -8` a alors montré le résumé d'une exécution PRÉCÉDENTE restée dans le tampon — « 1 failed, 153 fichiers, 11 errors » — que j'ai failli consigner comme un résultat | — | ⚠️ CONSIGNÉ 2026-09-05 — la sortie a été relue EN ENTIER, la commande rejouée sans le drapeau : 164 fichiers, 2 993 contrôles, tous verts | Deuxième cas de la règle « le tuyau efface le code de sortie » : c'est `tail -8` qui a servi le résumé d'une exécution précédente restée dans le tampon. **Le symptôme n'est pas un test rouge, c'est une suite qui ne tourne pas** — et un résumé qui ressemble à un résultat suffit à le cacher. Lire le code de sortie AVANT le résumé |
+| **`npx vitest run --reporter=basic` n'existe pas en Vitest 4**, et la suite n'a pas tourné du tout : `Failed to load custom Reporter from basic`, `EXIT=1`. Un `tail -8` a alors montré le résumé d'une exécution PRÉCÉDENTE restée dans le tampon — « 1 failed, 153 fichiers, 11 errors » — que j'ai failli consigner comme un résultat | — | ⚠️ CONSIGNÉ 2026-09-05 — la sortie a été relue EN ENTIER, la commande rejouée sans le drapeau : 164 fichiers, 2 993 contrôles, tous verts | Deuxième cas de la règle « le tuyau coupe le texte qui aurait permis de comprendre » : c'est `tail -8` qui a servi le résumé d'une exécution précédente restée dans le tampon. **Le symptôme n'est pas un test rouge, c'est une suite qui ne tourne pas** — et un résumé qui ressemble à un résultat suffit à le cacher. Lire le code de sortie AVANT le résumé |
 | **Le récap des virements appliquait `splitOverride` sans jamais l'afficher** (`calculations.js:448`). Il est le SEUL lecteur du champ qui abandonne la charge pour construire un objet neuf — `computeSummary` la somme dans des scalaires, `detail.js` l'étale en entier — donc ce qu'il n'y met pas est perdu pour l'écran. Le panneau qui dit combien virer à la banque appliquait une règle dérogatoire en silence : une charge en 50/50 dans un foyer au prorata y réclame **500,00 € au lieu de 272,73 €**, et le chiffre était le seul indice. La pastille existe pourtant — dans les listes, qui vivent dans l'onglet « Charges » quand ce panneau vit dans « Bilan » : sous 900 px, deux écrans que rien ne relie | `public/js/utils/calculations.js`, `public/js/modules/summary.js`, `tests/modules/virements-du-mois.test.js` | ✅ RÉSOLU 2026-09-05 — la fabrique pousse `derogation` avec le montant qu'elle a produit, et le gabarit rend la pastille dans le premier `<span>` de la ligne. 4 cas, 3 mutants (fabrique, gabarit, pastille partout), 3 chutes | Le périmètre a été arbitré sur mesure : `calculateChargeShares` et `calculateJointPayment` ne sont PAS étendues — 3 de leurs 4 appelants jettent l'information à la ligne suivante, et le quatrième (`detail.js`) l'a déjà puisqu'il étale la charge |
 | Le prédicat retenu est **« la charge porte un `splitOverride` »**, et non « elle s'écarte du mode du mois » | `public/js/utils/calculations.js` | ⚠️ DÉCIDÉ 2026-09-05 — celui des deux listes, à l'identique | Faire dépendre la pastille d'une comparaison au mode du mois donnerait DEUX réponses pour la même ligne selon l'onglet ouvert, le même jour. Un cas de test l'énonce, pour qu'on ait à le retourner sciemment |
 | **Écrire la pastille dans `summary.js` en aurait fait la TROISIÈME rédaction de la même grammaire** — et la neuvième occurrence du défaut `normalizePair`, commise par le lot qui existe pour en refermer une | `public/js/utils/repartition.js` | ✅ RÉSOLU 2026-09-05 — `libelleDeLaRepartition`, fabrique unique lue par les trois surfaces. Le refactor des deux listes était sûr parce qu'elles venaient d'être tenues par un témoin | Elle rend du TEXTE, pas du balisage : une fabrique qui rendrait du HTML serait un site d'injection de plus, que `plafond-innerhtml.mjs` compte et refuse sans relecture |
@@ -1077,14 +1081,28 @@ tôt de couvrir la moitié de ce qu'il regarde.
 | **Ma première sonde mesurait autre chose que ce qu'elle annonçait** : elle testait `\p{Emoji_Presentation}` sur `g[0]`, c'est-à-dire sur un demi-couple de substitution. Elle rendait donc `false` pour 🔁 — et aussi pour 🏠, résultat invraisemblable qui l'a trahie | — | ⚠️ CONSIGNÉ 2026-09-05 — une sonde se lit d'abord sur ses cas connus : c'est le témoin qui a dit que la mesure était fausse, pas le raisonnement | Le motif habituel d'un cran plus bas : ici ce n'est pas un contrôle qui ne mesure rien, c'est une mesure qui répond à une autre question que celle posée |
 | **`hauteurDe` rendait `0` pour un élément sans géométrie**, sous un commentaire qui l'annonçait — « nulle s'il est masqué ». Son unique lecteur demande `toBeLessThan(100)`, et `0 < 100` est vrai : un en-tête devenu invisible passait pour un en-tête qui tient sur une ligne. La façon la plus simple de rendre ce contrôle inattaquable n'était pas de compacter l'en-tête, c'était de le retirer de l'écran | `tests/e2e/onglets.spec.js` | ✅ RÉSOLU 2026-09-05 — zéro n'est pas une hauteur, c'est l'absence de mesure : `null`, que `toBeLessThan` rejette bruyamment. Et le contrôle dit ses DEUX moitiés, « tient sur une ligne » présupposant « est là » | **Neuvième site** du motif, consigné la veille comme chemin résiduel. Deux rouges : le témoin joué contre `return 0` rend « Received: 0 », et le contrôle principal, l'en-tête réellement masqué, « il n'y a rien à mesurer — Received: null » |
 | Ce que cette garde ne couvre pas est mesuré et dit : `visibility: hidden` laisse la géométrie entière | `tests/e2e/onglets.spec.js` | ⚠️ DÉLIBÉRÉ 2026-09-05 — un en-tête invisible mais toujours mis en page occupe bien sa place, et « tient sur une ligne » garde alors son sens | C'est la géométrie nulle qui est en cause, pas l'invisibilité. L'hypothèse voisine — `null < 100` — reste réfutée par la mesure et n'a pas été reprise |
-| **Un contrôle est tombé une fois, et je ne peux pas dire pourquoi** — `detail-depenses.spec.js:112`, « les deux détails réunis font le total des charges », à la première passe complète. Il n'a pas reproduit : seconde passe complète verte, cinq répétitions parallèles vertes, deux passes isolées vertes | — | ⚠️ NON EXPLIQUÉ 2026-09-05 — consigné plutôt que rangé en « flottant », faute d'avoir la cause | Ce contrôle tient sur des délais fixes (`waitForTimeout`) pour lire un total qui change entre deux ouvertures. C'est la classe de fragilité déjà consignée le 2026-08-25, et le job de bout en bout conditionne la publication |
-| **Et le texte de l'erreur a été perdu par ma propre commande.** `npx playwright test 2>&1 \| tail -45` coupe le rapport — et rend en prime le code de sortie de `tail`, donc `0` sur 32 échecs. La seconde passe a écrasé `test-results/`, où vivait le contexte d'erreur | — | ⚠️ CONSIGNÉ 2026-09-05 — ne jamais passer le rapporteur au tuyau : `--reporter=line` puis `echo EXIT=$?`, et relever les artefacts AVANT de relancer | Troisième cas de la règle « le tuyau efface le code de sortie », qui existe désormais pour eux trois : le résumé ressemblait à un résultat, et le code de sortie disait le contraire de ce qui s'était passé |
+| **Un contrôle est tombé une fois, et il RESTE OUVERT** — `detail-depenses.spec.js`, « les deux détails réunis font le total des charges », à la première passe complète. Non reproduit : deux passes complètes, sept répétitions dont cinq parallèles, toutes vertes. La cause est perdue avec les artefacts, écrasés par la passe suivante | — | ⚠️ **OUVERT** 2026-09-05 — et c'est le bon état. L'hypothèse de la lecture périmée est RÉFUTÉE : sous un ralentissement du processeur ×40, ×150 puis ×400, l'ancienne forme rend toujours les bons chiffres — `ouvrirDetailPayeur` est synchrone, le rendu est déjà à jour quand `click()` rend la main | **Un contrôle qu'on referme sur une hypothèse fausse est pire qu'un contrôle laissé ouvert : on cesse de le surveiller en croyant l'avoir compris.** La prochaine occurrence sera exploitable — la règle du tuyau est appliquée, le message et les artefacts survivront |
+| **Et le texte de l'erreur a été perdu par ma propre commande.** `npx playwright test 2>&1 \| tail -45` coupe le rapport — et rend en prime le code de sortie de `tail`, donc `0` sur 32 échecs. La seconde passe a écrasé `test-results/`, où vivait le contexte d'erreur | — | ⚠️ CONSIGNÉ 2026-09-05 — ne jamais passer le rapporteur au tuyau : `--reporter=line` puis `echo EXIT=$?`, et relever les artefacts AVANT de relancer | Troisième cas de la règle « le tuyau coupe le texte qui aurait permis de comprendre », qui existe désormais pour eux trois : le résumé ressemblait à un résultat, et le code de sortie disait le contraire de ce qui s'était passé |
 
 **165 fichiers, 3 014 contrôles unitaires** verts ; bout en bout **565 passés**,
 7 écartés, **31 rouges qui sont les 31 exigeant les émulateurs Firebase** —
 tous `ECONNREFUSED 127.0.0.1:9099`, dans `regles-donnees.spec.js`. Eslint :
 0 erreur, 32 avertissements ; plafond d'injection **24 sur 24, inchangé** — les
 deux pastilles neuves entrent dans des gabarits existants.
+
+### Trois hypothèses réfutées par la mesure — 2026-09-05
+
+Un lot dont le résultat principal n'est pas un correctif : c'est d'avoir
+démenti, avant d'écrire du code dessus, trois théories qui paraissaient toutes
+solides.
+
+| Déclaration CLAUDE.md | Fichier réel | État | Action |
+|---|---|---|---|
+| **Trois pannes racontaient la même chose sous trois déguisements**, et le fichier les gardait comme trois anecdotes qui se citaient l'une l'autre : jar d'émulateur, `--reporter=basic`, `\| tail -45`. Le point commun n'est ni la commande ni l'option — c'est le TUYAU | `CLAUDE.md` § Commandes | ✅ RÉSOLU 2026-09-05 — écrite comme une règle, dans son ordre, et les trois entrées y renvoient. Ce qu'elle met EN TÊTE n'est pas le code de sortie mais le texte perdu : un verdict faux se rejoue, un message d'erreur ne revient pas | Une quatrième variante arrivera sous une commande encore différente ; ce qui la reconnaîtra, c'est la règle, pas la liste de ses aînées |
+| **Les quinze délais fixes de `detail-depenses.spec.js`** remplacés par des attentes sur ce qui est affiché — la ligne de catégorie pour dire que le bilan porte les charges semées, le titre de la modale pour dire que c'est le rendu visé qu'on lit | `tests/e2e/detail-depenses.spec.js` | ✅ RÉSOLU 2026-09-05 — quinze délais, zéro restant, 55,7 s → 42,6 s | **Présenté comme un choix de STYLE, pas comme une correction** : plus lisible et plus rapide. Le vendre comme un correctif aurait été s'attribuer la fermeture d'une panne dont le mécanisme n'a jamais été montré |
+| **L'hypothèse qui justifiait cette conversion était FAUSSE.** La modale n'étant jamais retirée du document, je pensais qu'un délai trop court relisait le total de l'ouverture précédente. Mesuré sous un ralentissement du processeur ×40, ×150 puis ×400 : l'ancienne forme rend toujours les bons chiffres | — | ⚠️ RÉFUTÉ 2026-09-05 — `ouvrirDetailPayeur` est SYNCHRONE : le gestionnaire écrit le contenu et ouvre la modale dans la même tâche, donc le rendu est déjà à jour quand `click()` rend la main. Ces 350 ms ne protégeaient de rien, et ne pouvaient donc pas mentir | Deuxième réfutation du fil, après `null < 100`. L'invraisemblance se voit en exécutant, jamais en relisant |
+| Et une troisième, sur le contrôle qui m'inquiétait le plus : `reconduction-variable` affirme une NON-CHANGE (`toBe(avant)`), qu'un rendu trop lent aurait satisfaite trivialement | `tests/e2e/reconduction-variable.spec.js` | ⚠️ RÉFUTÉ 2026-09-05 — en lui donnant une charge de 500 € qui DOIT déplacer le solde, il tombe correctement à ×1, ×40 et ×200 : il mesure bien | Le seul moyen de savoir si une assertion de non-change vaut quelque chose est de lui présenter un changement |
+| **Le relevé des 225 `waitForTimeout` de la suite, et la décision de ne PAS les convertir.** 109 d'installation, 57 suivis d'un `expect()` qui réessaie donc redondants, 8 devant une géométrie dont l'échec est bruyant, 51 devant une lecture brute. Dans ces 51, la forme réellement suspecte — le même repère relu après un changement — ne concerne que trois fichiers | — | ⚠️ DÉCIDÉ 2026-09-05 — les trois ont été mesurés, aucun ne ment aujourd'hui. Réécrire 225 sites sur une théorie démentie deux fois serait beaucoup de mouvement pour un risque qu'on n'arrive pas à faire apparaître | La conversion reste défendable là où elle se présente pour ce qu'elle est : de la lisibilité et de la vitesse |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
