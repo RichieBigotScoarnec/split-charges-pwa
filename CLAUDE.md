@@ -55,7 +55,7 @@ FairSplit/
 │       │                       # sans y penser), resume-prive (ce que l'autre
 │       │                       # voit d'un espace privé : un total, jamais le
 │       │                       # détail)
-│       └── utils/              # 64 aides pures — dont onglets (quel panneau
+│       └── utils/              # 65 aides pures — dont onglets (quel panneau
 │                               # l'écran montre, sous 900 px), entete (l'en-tête
 │                               # se compacte une fois sorti de l'écran),
 │                               # provisions (ce qu'il faut mettre de côté chaque
@@ -82,6 +82,9 @@ FairSplit/
 │                               # identifiant (fabrique d'identifiants, partagée
 │                               # par catégories, destinations et enveloppes),
 │                               # recherche-texte (chercher sans les accents),
+│                               # repartition (la façon d'écrire une
+│                               # répartition dérogatoire — une seule, pour les
+│                               # deux listes ET le récap des virements),
 │                               # ecouteur (un écouteur posé une seule fois),
 │                               # periodes (les mois que le sélecteur propose),
 │                               # renommage (renommer sans détacher les charges),
@@ -953,6 +956,66 @@ première ligne : que casserait-elle, et le dirait-elle ?
 > **la navigation mobile appartient à un brief qui n'existe pas encore.** Ce lot
 > ne fait que rendre bruyant ce qui serait passé en silence le jour où il
 > existera.
+
+### Le bouchon était l'angle mort — 2026-09-05
+
+Relevé en tenant la seule trace visible de `splitOverride`, le champ par lequel
+une charge déroge au mode de partage du foyer.
+
+| Déclaration CLAUDE.md | Fichier réel | État | Action |
+|---|---|---|---|
+| **La pastille de répartition n'avait aucun témoin.** `grep -rn "charge-split-tag" tests/` rendait zéro : la retirer des deux listes — donc effacer d'un coup la SEULE surface de l'application qui dise qu'une charge ne suit pas la règle commune — laissait les 2 989 contrôles verts. Le champ décide pourtant de quatre chiffres : parts théoriques, paiements réels, report de solde, montants à virer | `tests/modules/badge-repartition.test.js` | ✅ RÉSOLU 2026-09-05 — 3 propriétés × 2 listes : la pastille EXISTE sur la ligne dérogatoire, elle DIT la règle (« 50/50 », « 70/30 »), et une charge ordinaire n'en porte aucune | **Huitième site** du motif « un contrôle qui ne mesure rien est pire qu'un contrôle absent », et le PREMIER dans le code applicatif : les sept précédents étaient dans le banc d'essai. Quatre mutants, quatre chutes |
+| Un témoin qui n'aurait tenu qu'une liste : la pastille est écrite deux fois, mot pour mot (`variable-charges.js:757`, `fixed-charges.js:809`) | `tests/modules/badge-repartition.test.js` | ✅ RÉSOLU 2026-09-05 — chaque propriété est jouée sur les DEUX listes, et les mutants le confirment : retirer la pastille d'un côté ne fait tomber que les trois cas de ce côté-là | Une copie ne se dégrade pas d'un coup : elle se dégrade au correctif suivant que personne n'y reporte |
+| **Un mutant ÉCARTÉ, et il vaut les quatre retenus.** `const splitTag = true ? …` — censé forcer la pastille partout — LÈVE sur la charge ordinaire (`charge.splitOverride.mode` sur `undefined`). Il fait bien tomber trois contrôles, mais par un plantage du rendu, pas par la propriété visée | — | ⚠️ CONSIGNÉ 2026-09-05 — remplacé par un mutant qui pose la pastille en repli du ternaire : il passe les deux autres propriétés et ne fait tomber que le témoin positif | Un mutant qui casse plus que ce qu'il mesure ne prouve pas ce qu'on croit. Le compter aurait fait consigner une couverture qu'on n'a pas |
+| **`fixed-charges.js` appelait `etiquetteEnveloppe(charge)` DEUX FOIS dans le même gabarit** : toute charge fixe rattachée à une enveloppe affichait « 🏖️ Vacances 🏖️ Vacances ». La liste variable ne l'appelle qu'une fois — les deux gabarits avaient divergé | `public/js/modules/fixed-charges.js`, `tests/modules/etiquette-enveloppe-unique.test.js` | ✅ RÉSOLU 2026-09-05 — une ligne supprimée, et la propriété tenue sur les deux listes. Rouge contre le code réel, sans mutant : le défaut était vivant | Trouvé À L'ŒIL en relisant le bloc, pas en rouge — et c'est tout le sujet de l'entrée suivante |
+
+> **Le bouchon EST l'angle mort — une variante du motif qu'on n'avait pas encore
+> vue.** Jusqu'ici ce dépôt a payé des contrôles qui ne mesurent rien : une
+> navigation qui n'a pas lieu, un relevé vide, une lecture de source qui survit
+> au renommage. Celui-ci est autre chose. **Les quatre suites qui rendent une
+> liste bouchonnent `etiquetteEnveloppe` à la chaîne vide** — et `'' + ''` se lit
+> exactement comme `''`. Le défaut était donc couvert par un rendu, mesuré par un
+> test, et invisible aux deux : non pas un contrôle qui ne mesure rien, mais un
+> contrôle qui mesure **un monde où le défaut ne peut pas exister**.
+>
+> La fonction pure est éprouvée sous tous ses angles (`enveloppes-ecran.test.js`
+> la monte pour de vrai) ; c'est le CÂBLAGE qui était nu, et le bouchon qui l'a
+> gardé nu. Le témoin de la pastille, écrit une heure plus tôt sur ces deux mêmes
+> gabarits, ne pouvait pas le voir non plus : il bouchonne pareil.
+>
+> **La règle qui en sort** : un bouchon qui rend une valeur NEUTRE — chaîne vide,
+> tableau vide, `null` — ne mesure pas le câblage, il le masque. Quand ce qu'on
+> tient est un rendu, le double doit produire du balisage qu'on puisse compter.
+
+| **`npx vitest run --reporter=basic` n'existe pas en Vitest 4**, et la suite n'a pas tourné du tout : `Failed to load custom Reporter from basic`, `EXIT=1`. Un `tail -8` a alors montré le résumé d'une exécution PRÉCÉDENTE restée dans le tampon — « 1 failed, 153 fichiers, 11 errors » — que j'ai failli consigner comme un résultat | — | ⚠️ CONSIGNÉ 2026-09-05 — la sortie a été relue EN ENTIER, la commande rejouée sans le drapeau : 164 fichiers, 2 993 contrôles, tous verts | C'est le § « jar d'émulateur » en miniature, et je suis tombé dedans le lot d'après l'avoir écrit. **Le symptôme n'est pas un test rouge, c'est une suite qui ne tourne pas** — et un résumé qui ressemble à un résultat suffit à le cacher. Lire le code de sortie AVANT le résumé |
+| **Le récap des virements appliquait `splitOverride` sans jamais l'afficher** (`calculations.js:448`). Il est le SEUL lecteur du champ qui abandonne la charge pour construire un objet neuf — `computeSummary` la somme dans des scalaires, `detail.js` l'étale en entier — donc ce qu'il n'y met pas est perdu pour l'écran. Le panneau qui dit combien virer à la banque appliquait une règle dérogatoire en silence : une charge en 50/50 dans un foyer au prorata y réclame **500,00 € au lieu de 272,73 €**, et le chiffre était le seul indice. La pastille existe pourtant — dans les listes, qui vivent dans l'onglet « Charges » quand ce panneau vit dans « Bilan » : sous 900 px, deux écrans que rien ne relie | `public/js/utils/calculations.js`, `public/js/modules/summary.js`, `tests/modules/virements-du-mois.test.js` | ✅ RÉSOLU 2026-09-05 — la fabrique pousse `derogation` avec le montant qu'elle a produit, et le gabarit rend la pastille dans le premier `<span>` de la ligne. 4 cas, 3 mutants (fabrique, gabarit, pastille partout), 3 chutes | Le périmètre a été arbitré sur mesure : `calculateChargeShares` et `calculateJointPayment` ne sont PAS étendues — 3 de leurs 4 appelants jettent l'information à la ligne suivante, et le quatrième (`detail.js`) l'a déjà puisqu'il étale la charge |
+| Le prédicat retenu est **« la charge porte un `splitOverride` »**, et non « elle s'écarte du mode du mois » | `public/js/utils/calculations.js` | ⚠️ DÉCIDÉ 2026-09-05 — celui des deux listes, à l'identique | Faire dépendre la pastille d'une comparaison au mode du mois donnerait DEUX réponses pour la même ligne selon l'onglet ouvert, le même jour. Un cas de test l'énonce, pour qu'on ait à le retourner sciemment |
+| **Écrire la pastille dans `summary.js` en aurait fait la TROISIÈME rédaction de la même grammaire** — et la neuvième occurrence du défaut `normalizePair`, commise par le lot qui existe pour en refermer une | `public/js/utils/repartition.js` | ✅ RÉSOLU 2026-09-05 — `libelleDeLaRepartition`, fabrique unique lue par les trois surfaces. Le refactor des deux listes était sûr parce qu'elles venaient d'être tenues par un témoin | Elle rend du TEXTE, pas du balisage : une fabrique qui rendrait du HTML serait un site d'injection de plus, que `plafond-innerhtml.mjs` compte et refuse sans relecture |
+| Et la fabrique referme au passage le **« undefined/undefined »** des deux listes : `{mode:'custom'}` sans ses chiffres — forme que les règles acceptent et que `pourcentages()` documente — s'écrit désormais « 50/50 », la règle réellement appliquée au montant d'à côté ; `{mode:'prorata'}` ne rend plus rien | `public/js/utils/repartition.js`, `tests/utils/repartition.test.js` | ✅ RÉSOLU 2026-09-05 — 7 contrôles, dont un témoin exigeant que les libellés rendus ne soient pas tous identiques ; le mutant qui rend toujours « 50/50 » en fait tomber 2 | Aucune des trois surfaces n'exerce ces deux cas : seuls les formulaires écrivent, et ils n'écrivent que les deux formes nominales |
+| **Trois formes possibles pour la ligne du récap**, et le montant plein de la charge — `amount` — est déjà dans la charge utile sans être affiché : sans dénominateur, le lecteur ne peut pas refaire le calcul | `public/js/modules/summary.js` | ⚠️ DÉCIDÉ 2026-09-05 — forme (a), `Loyer [50/50] … 500,00 €`, le montant plein reste hors de la ligne | Mesuré sur la cascade réelle : `.virement-details` offre 266 px à 390 px, 196 px à 320 px. `[50/50] sur 1 000,00 €` et `[50/50 de 1 000,00 €]` font BOUCLER toute ligne dérogatoire à 320 px — « Loyer » compris, cinq lettres — et ne gardent que 25 à 33 px de marge à 390 px |
+
+> **Ce que la pastille EST, et c'est ce qui tranche — pas la largeur.** Elle
+> répond à « **pourquoi ce chiffre n'est pas celui que j'attendais** », jamais à
+> « ce chiffre est-il exact ». La tentation était de la croire vérifiable :
+> 500,00 € est bien la moitié de 1 000, et l'on se dit que le lecteur refait le
+> calcul de tête. **Ce raisonnement ne vaut que pour le 50/50.** Sur
+> « Électricité [70/30] → 60,00 € », retrouver les 200 € demande une division par
+> 0,3 : la pastille n'a jamais rendu la ligne arithmétiquement vérifiable, sur
+> aucune des trois formes.
+>
+> La question « ce chiffre est-il exact » a sa réponse à un onglet de distance,
+> dans la liste où le montant plein est affiché **avec la même pastille** — et
+> c'est exactement ce que la reprise de grammaire à l'identique achète. Payer
+> 41 px par ligne à 320 px pour éviter un aller-retour serait un mauvais échange.
+>
+> Le pire cas de (a) a été mesuré avant d'être écarté : un libellé long PORTANT
+> une pastille boucle dès 390 px. Mais le même libellé sans pastille occupe déjà
+> 179 px sur 266 et boucle **aujourd'hui** à 320 px : (a) déclenche une
+> fragilité existante sur les libellés longs, (b) et (c) la déclenchent sur tous.
+
+| **`git checkout -- <fichier>` pour défaire un mutant EFFACE le correctif qu'on est en train d'écrire**, puisqu'il restaure HEAD et que le travail n'est pas commité. Deux fois de suite : le champ `derogation` et la pastille du gabarit ont disparu avec leurs mutants, et la suite est repassée au rouge sans qu'aucune ligne fautive ne subsiste pour l'expliquer | — | ⚠️ CONSIGNÉ 2026-09-05 — copie de sûreté du fichier AVANT de le muter, restauration par `cp`. `git checkout` ne convient que sur un arbre propre | Le piège est discret : le rouge qui suit ressemble à un mutant mal défait, pas à un correctif effacé. On rejoue alors le mutant au lieu de rétablir le code |
+| **La garde du précache a attrapé le module neuf**, et c'est le seul contrôle de la suite qui pouvait le faire : `sw.js` tient sa liste à la main, `utils/repartition.js` n'y figurait pas | `public/sw.js` | ✅ RÉSOLU 2026-09-05 — ajouté à la liste | Hors ligne, le module manquant aurait fait échouer le rendu des deux listes ET du bilan. Le test date du 2026-08-22 ; c'est sa première prise consignée |
+| Les règles acceptent `splitOverride.mode === 'prorata'` (`database.rules.json:278`), qu'aucun formulaire n'écrit. Une telle charge afficherait « undefined/undefined » : le gabarit de pastille fait `mode === '50-50' ? '50/50' : \`${vous}/${conjointe}\`` | `public/js/utils/repartition.js` | ✅ RÉSOLU 2026-09-05 — dans le même lot : la fabrique unique est arrivée le jour même, et ce cas y est traité avec son contrôle. Trouvé en mesurant l'atteignabilité du repli prorata → 50-50, qui, lui, n'est PAS atteignable (`summary.js:172` retourne avant le panneau) | Consigné le matin comme « à traiter le jour où la grammaire passera en fabrique unique » : refermé l'après-midi, quand écrire la pastille sur une troisième surface a rendu cette fabrique nécessaire |
 
 Quand un écart est corrigé → changer l'état en ✅ RÉSOLU avec la date.
 
