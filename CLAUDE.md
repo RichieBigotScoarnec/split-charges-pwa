@@ -17,9 +17,11 @@ App web PWA de partage de charges en couple au prorata des salaires. Synchronisa
 ```text
 FairSplit/
 ├── public/                     # Tout ce qui est publié — et rien d'autre
-│   ├── FairSplit.html          # Point d'entrée HTML
+│   ├── FairSplit.html          # Point d'entrée HTML — aucun JS inline
 │   ├── index.html              # Redirection
 │   ├── sw.js  manifest.json  icon-*.png
+│   ├── fonts/                  # DM Sans + JetBrains Mono, auto-hébergées :
+│   │                           # c'est ce qui rend `font-src 'self'` tenable
 │   ├── css/
 │   │   ├── variables.css       # Tokens design (couleurs, espacements)
 │   │   ├── base.css            # Reset, typographie, header
@@ -33,9 +35,16 @@ FairSplit/
 │   │   └── responsive.css      # Media queries + print
 │   └── js/
 │       ├── app.js              # Entry point — init Firebase, auth, modules
+│       ├── anti-cadre.js       # Script CLASSIQUE, en tête de <head>, avant la
+│       │                       # première feuille : la page se vide si elle est
+│       │                       # encadrée. Fichier externe, pour se passer
+│       │                       # d'`unsafe-inline` — ne pas l'y remettre
+│       ├── init.js             # Délégation `data-action` — liste blanche de
+│       │                       # 43 actions, tenue au balisage dans les deux sens
 │       ├── config.js           # Firebase config, DATA_ROOT, liste blanche
 │       ├── firebase-init.js    # Init Firebase, providers, émulateurs
-│       ├── db.js               # Abstraction DB (préfixage DATA_ROOT)
+│       ├── db.js               # Abstraction DB (préfixage DATA_ROOT) + les
+│       │                       # quatre accès absolus du détail privé
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 30 modules fonctionnels — dont trash (rétablir
@@ -108,11 +117,20 @@ FairSplit/
 │                               # jamais rien publier),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # generer-icones.mjs, enveloppe-sauvegarde.mjs,
-│                               # migration-repartition.mjs,
+├── tools/                      # 8 outils, hors `public/` donc jamais publiés :
+│                               # adherences.mjs (les dépendants d'un module,
+│                               # imports dynamiques compris),
+│                               # plafond-innerhtml.mjs (le plafond des sites
+│                               # d'injection, joué par la CI),
+│                               # regles-restrictives.mjs,
+│                               # charges-mal-rangees.mjs (relève les charges
+│                               # rangées dans un autre mois que leur date, sur
+│                               # une sauvegarde, sans rien modifier),
 │                               # fusionner-couverture.mjs + couverture-lignes.mjs
-│                               # (la couverture réelle, E2E comprise)
-│                               # (hors `public/`, donc jamais publié)
+│                               # (la couverture réelle, E2E comprise),
+│                               # enveloppe-sauvegarde.mjs,
+│                               # migration-repartition.mjs, generer-icones.mjs
+│                               # + logo-fairsplit.svg (la marque)
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
 └── database.rules.json         # Règles de sécurité — source de vérité unique
 ```
@@ -123,23 +141,54 @@ l'être.
 
 ## Adhérences critiques
 
-Avant de modifier un module très importé, vérifier les dépendants : `grep -rl "from '.*MODULE_NAME" js/`
+Avant de modifier un module très importé, compter ses dépendants :
+`node tools/adherences.mjs MODULE` — il résout les spécificateurs relatifs et
+compte **les deux formes d'import**. Sans argument, il rend le classement complet.
 
-| Module | Imports | Risque |
-|---|---|---|
-| `state.js` | 22 | Critique — état global |
-| `toast.js` | 13 | Critique — feedback utilisateur partout |
-| `firebase-init.js` | 5 | Critique — connexion DB |
-| `auth.js` | Hub | Critique — initialise TOUS les modules |
-| `db.js` | 8 | Critique — abstraction DB |
-| `format.js` | 9 | Important — affichage monétaire |
-| `summary.js` | 7 | Important — calculs dépendants |
+> **Un `grep` ne suffit pas, et c'est mesuré.** La version précédente de cette
+> section prescrivait `grep -rl "from '.*MODULE_NAME" js/`. Elle échouait deux
+> fois : le dossier `js/` n'existe pas — c'est `public/js/` —, donc la commande
+> rendait une erreur plutôt qu'une liste ; et `from '…'` ne voit que les imports
+> **statiques**. Sur `db.js`, 22 des 25 dépendants passent par `import()`
+> dynamique : la garde en montrait 3 sur 25. Les chiffres du tableau, tenus à la
+> main, avaient dérivé dans le sens dangereux — 13 annoncés pour `toast.js` là
+> où il y en a 26.
+
+Le tableau retient **tout module à 13 dépendants ou plus**, plus les deux points
+de passage que leur seul compte ne décrit pas. Le seuil est explicite pour que
+la liste se refasse à l'identique plutôt que de dériver par ajouts successifs.
+
+| Module | Dépendants | dont dynamiques | Risque |
+|---|---|---|---|
+| `utils/debug.js` | 35 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 31 | 1 | Critique — état global |
+| `utils/format.js` | 27 | 0 | Critique — affichage monétaire |
+| `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
+| `db.js` | 25 | **22** | Critique — abstraction DB |
+| `utils/date.js` | 24 | 0 | Important — date et période d'une charge |
+| `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
+| `utils/members.js` | 17 | 0 | Important — qui doit à qui |
+| `utils/perimetre.js` | 17 | 0 | Important — ce qui pèse sur le solde |
+| `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
+| `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
+| `modules/summary.js` | 13 | 5 | Important — calculs dépendants |
+| `firebase-init.js` | 6 | 3 | Critique — connexion DB |
+| `modules/auth.js` | 1 | 0 | Critique — **hub** : importe 28 modules et en initialise 26 |
+
+`auth.js` est le cas inverse des autres : presque personne ne l'importe, il
+importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 
 ## Conventions
 
 ### CSS
 - Tokens dans `public/css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
-- Mobile-first, breakpoint principal : 600px
+- Mobile-first. **Rupture principale : 900 px** — sous 899 px, les trois panneaux
+  deviennent trois onglets (`onglets.css:38` et `:225`) ; au-delà, ils sont trois
+  colonnes simultanées et la barre d'onglets disparaît (`responsive.css:222`).
+  C'est le même balisage des deux côtés.
+- Ruptures secondaires : 600 px (densité des listes — `responsive.css:72`,
+  `summary.css:611`), 1600 px et 2000 px (largeur maximale), `pointer: coarse`
+  (agrandit les cibles tactiles sur un vrai doigt)
 - Classes en kebab-case
 
 ### JavaScript
@@ -148,6 +197,12 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
   (lecture/écriture seules : le registre d'abonnés n'a jamais eu d'abonné et a
   été retiré — chaque module appelle son rendu après avoir écrit)
 - DB via `db.js` : `dbGet`, `dbSet`, `dbPush`, `dbUpdate` (chemins auto-préfixés par `DATA_ROOT` : `household/`, ou `sandbox/` avec `?sandbox=1`)
+- **Et quatre accès absolus** — `dbGetAbsolu`, `dbSetAbsolu`, `dbUpdateAbsolu`,
+  `dbPushAbsolu` — réservés au détail privé, qui vit hors de `household/`. Ils ne
+  préfixent pas, **et ne passent ni par le miroir ni par la file hors ligne** :
+  hors réseau une écriture privée échoue franchement plutôt que d'atterrir dans
+  `localStorage`, sur une origine que Pages partage entre tous les dépôts du
+  compte. La confidentialité vaut mieux qu'une saisie différée
 - Async/await + try/catch sur tous les appels Firebase
 - `escapeHtml()` obligatoire pour tout contenu dynamique injecté en HTML
 - Toast pour feedback : `toast.success()`, `toast.error()`
@@ -159,7 +214,11 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 - Classes CSS : kebab-case (`.charge-item`)
 
 ### Git
-- Commits français : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `chore:`
+- Commits français, avec portée facultative : `fix(versements) : …`. Types
+  employés, par fréquence réelle : `fix:` `feat:` `docs:` `chore:` `test:`
+  `refactor:` `perf:` — plus `design:` pour les lots de maquette. Le dépôt est
+  partagé entre `type:` et `type :` (espace avant deux-points, typographie
+  française) : les deux se lisent, aucune n'est imposée rétroactivement
 - main = branche unique et déployée. Travailler sur des branches courtes `fix/…` `feat/…`, puis PR vers main.
 - Un seul projet Firebase (fairsplit-foyer). Pour développer isolé : `npm run emulators` puis `FairSplit.html?emulator=1`
 
@@ -175,6 +234,33 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 - `npm run emulators` — Firebase emulators
 - `npm run deploy:hosting` — deploy Firebase Hosting (optionnel ; la prod est GitHub Pages)
 - `npm run serve` puis http://localhost:3333 — dev local
+- `node tools/adherences.mjs MODULE` — les dépendants d'un module, imports
+  dynamiques compris (cf. *Adhérences critiques*)
+
+### Avant de pousser : les deux contrôles de lint de la CI
+
+La CI en lance **deux**, et il faut rejouer **les deux, verbatim** :
+
+```bash
+npx eslint .                                                   # 0 erreur exigée
+npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
+```
+
+- **`npx eslint .`** — la CI l'exécute avec `--quiet`, qui n'affiche que les
+  erreurs. Le jouer **sans** `--quiet` montre aussi les avertissements ; c'est
+  la forme utile en local. Il couvre **tout le dépôt**, `tests/` compris.
+- **`node tools/plafond-innerhtml.mjs`** — le plafond des sites d'injection,
+  aujourd'hui **24 sur 24, marge nulle** et c'est voulu : tout `innerHTML`
+  supplémentaire fait échouer la CI tant qu'il n'a pas été relu. Le plafond ne
+  compte que `no-unsanitized/*`, jamais les autres règles.
+
+> **Deux fois consignées, deux fois payées.** Vérifier avec `npx eslint public/js`
+> — le dossier dont ce fichier parle — laisse passer tout ce qui vit dans
+> `tests/` : c'est ainsi que la CI est passée au rouge le 2026-08-31, sur des
+> séparateurs de milliers écrits en clair dans deux specs neuves. Un
+> sous-ensemble choisi par le correcteur ne mesure que ce qu'il a prévu de
+> casser. La règle vaut pour les suites de tests comme pour les commandes de la
+> CI, et la seule façon de la tenir est de les rejouer toutes.
 
 ## Contraintes
 
@@ -191,10 +277,12 @@ Avant de modifier un module très importé, vérifier les dépendants : `grep -r
 ## Workflow
 
 1. Lire les fichiers concernés avant de modifier
-2. Vérifier les adhérences si module critique (`grep -rl`)
+2. Vérifier les adhérences si module critique : `node tools/adherences.mjs MODULE`
 3. Proposer un plan (3-5 lignes) avant d'implémenter
 4. Implémenter avec escapeHtml pour contenu dynamique
-5. Vérifier : `npx vitest run` passe
+5. Vérifier : `npx vitest run` passe — **la suite entière, jamais un sous-ensemble
+   choisi pour l'occasion**
+6. Vérifier : les **deux** commandes de lint de la CI (cf. *Commandes*)
 
 ## Design
 
@@ -202,10 +290,26 @@ Secteur : finance personnelle / couple. Émotion : confiance, clarté, simplicit
 
 Principes UX :
 - Le BILAN doit être la première section visible après la période
-- Solde net en gros texte ("Conjointe vous doit X €") avant le détail
+- **La tête du bilan porte le fait SYMÉTRIQUE** — « Ensemble ce mois : 1 717,39 € » —
+  et l'écart vient entier juste en dessous, sans condition, zéro compris. Le mois
+  est nommé selon son état (`etatDuMois`) : « Ensemble en juillet 2026 » pour un
+  mois révolu, « Déjà engagé pour septembre 2026 » pour un mois à venir.
+  « Doit » garde sa place là où c'est le mot juste : au moment de régler, et sur
+  la barre collante. Le raisonnement est dans `summary.js:765`
 - Cibles tactiles minimum 44×44px
-- Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte)
+- Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
+  pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,
+  `tests/e2e/lisibilite.spec.js` tient les couples encre/fond réellement peints
 - Mobile-first, whitespace généreux
+
+> **Ce que cette section disait avant, et pourquoi c'est retiré.** Elle
+> prescrivait « Solde net en gros texte ("Conjointe vous doit X €") avant le
+> détail ». Le journal du 2026-08-31 a retiré ce cadrage — une application de
+> couple qui ouvre sur une créance transforme une organisation commune en
+> comptabilité entre deux parties, et c'est celui des deux qui doit qui le lit
+> chaque jour. Le principe est resté écrit ici quatre jours de plus que dans le
+> code : une consigne périmée en tête de fichier pèse plus lourd qu'un journal
+> exact, parce que c'est elle qu'on applique.
 
 ## État de cohérence
 
@@ -214,7 +318,7 @@ Suivi des écarts entre ce CLAUDE.md et l'état réel du code. Mettre à jour ce
 | Déclaration CLAUDE.md | Fichier réel | État | Action |
 |---|---|---|---|
 | Design = clarté, confiance, thème clair | `public/css/variables.css` | ✅ RÉSOLU 2026-03-22 — thème clair + dark mode auto | — |
-| Tout JS dans les modules | `public/FairSplit.html` | ✅ RÉSOLU — HTML propre (604 lignes, aucun JS inline) | — |
+| Tout JS dans les modules | `public/FairSplit.html` | ✅ RÉSOLU — HTML propre, aucun JS inline : les 7 `<script>` portent tous un `src` | Le compte de lignes qui figurait ici (604) suivait le fichier et se périmait seul ; c'est la propriété qui est vérifiée, pas la taille |
 | `utils.js` = legacy à supprimer | `js/utils.js` (supprimé) | ✅ RÉSOLU 2026-03-22 — git rm, aucun import résiduel | — |
 | `window.quickAddState` = legacy | `public/js/modules/quick-add.js` | ✅ RÉSOLU — local const, plus de global `window.quickAddState` | — |
 | Font Awesome non chargé | `public/js/modules/variable-charges.js`, `fixed-charges.js` | ✅ RÉSOLU 2026-03-22 — emojis utilisés + `.btn-icon` stylé | — |
