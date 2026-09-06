@@ -69,6 +69,34 @@ porte la commande qui le rend**, ou il est écrit comme une estimation.
 
 ---
 
+### Et la note qui vaut pour tout ce plan
+
+**Un plan de refonte écrit depuis les maquettes décrit l'écart entre deux
+dessins, pas entre un dessin et un code.**
+
+**Deux lots sur sept se sont révélés vides à la première mesure** — le jeton
+sans site (lot 1), la rupture sans adaptation (lot 3). Les deux pour la même
+raison : les planches décrivent un écran, et ce n'est pas celui-ci.
+
+- **Lot 1** — `--skeleton-bg` n'avait **zéro site** dans `public/` : le
+  squelette de montant masqué n'existe que dans la vue Privé, qui naît au lot 6.
+- **Lot 3** — les trois adaptations mesurables n'avaient **aucun objet** : le
+  héros est rendu à 28 px et non 40, le bouton flottant *est* déjà un cercle, et
+  la seule grille de cartes du bilan empile déjà par `auto-fit`.
+
+**Ce n'est pas un défaut du plan : c'est ce que coûte de ne pas mesurer avant
+d'écrire, et la mesure coûte moins cher que le lot.** Deux relevés d'une heure
+ont évité un jeton qu'aucun contrôle n'aurait pu éprouver et une requête média
+qui ne se serait déclenchée sur rien.
+
+> **À l'usage de qui reprend ce document** : ne pas croire que les cinq lots
+> restants sont tous pleins. Chacun décrit encore un écart entre une planche et
+> un dépôt, et cet écart n'est établi que là où une mesure est écrite à côté.
+> Le premier geste de chaque lot reste le même — mesurer ce qu'il prétend
+> changer, avant d'y toucher.
+
+---
+
 ## 2. L'inventaire repris
 
 ### Devenus des levées explicites
@@ -188,19 +216,19 @@ trancher en urgence au milieu du lot 5.
 
 ## 4. Le plan de lots
 
-**Ordre validé : 1 → 7.** Le lot 1 s'est révélé vide après mesure (§ ci-dessous)
-et le chantier démarre au lot 2 ; le lot 7 est né de la scission du lot 2 le
-2026-09-06.
+**Ordre : 2 → 4 → 5 → 6 → 7, puis 3.** Les lots 1 et 3 se sont révélés VIDES
+après mesure — tous deux adaptaient une mise en page qui n'existe pas encore. Le
+lot 7 est né de la scission du lot 2 le 2026-09-06.
 
 | Lot | Nature | Départ |
 | ---: | --- | --- |
 | 1 | *vide — le jeton migre au lot 6* | — |
 | 2 | Reflux `1fr auto` du grand-livre **existant** | **premier** |
-| 3 | Le sixième point de rupture | indépendant |
+| 3 | *vide en l'état — relevé fait, se rouvre après le lot 7* | — |
 | 4 | La portée comme état, sans surface | indépendant |
-| 5 | Le sélecteur de portée | après 3 et 4 |
+| 5 | Le sélecteur de portée | après 4 |
 | 6 | Solo et Privé deviennent des vues | après 4 et 5 |
-| 7 | La décomposition du grand-livre, par règle | après 2, **dernier** |
+| 7 | La décomposition du grand-livre, par règle | après 2 |
 
 Trois contraintes de forme tiennent sur tous :
 
@@ -358,67 +386,58 @@ chantier, le lot 1 s'étant révélé vide.
 
 ---
 
-### Lot 3 — Le sixième point de rupture
+### Lot 3 — VIDE en l'état, et le relevé le dit
 
-**Ce qu'il change** — les adaptations 1, 3 et 5 des planches : héros du solde
-40 → 32 px, les deux cartes de statistiques empilées en une colonne, bouton
-flottant redevenu cercle de 56 px.
+**Relevé fait le 2026-09-06**, sur l'application en marche, contexte tactile
+(`hasTouch`, `isMobile`), largeurs 390 · 360 · 340 · 320 · 300 · 280.
 
-**Le coût que la maquette ne montre pas.** `public/css/` ne porte **aucune
-requête média sous 600 px** — les ruptures existantes sont 600, 900, 1600, 2000
-et `pointer: coarse`. Les adaptations en exigent une **sixième**, autour de
-360 px : viser 320 seul ne se déclencherait pas à 350.
+Le lot devait poser une sixième requête média sous 600 px pour porter les
+adaptations 1, 3 et 5 des planches. **Aucune des trois n'a d'objet aujourd'hui**,
+et la raison est la même pour les trois : *elles adaptent la mise en page de la
+MAQUETTE, pas celle de l'application.*
 
-#### ⚠️ Le lot 3 ne s'ouvre pas sur 360. Il s'ouvre sur une mesure.
+| Adaptation | Ce que l'application fait réellement | Bascule | Verdict |
+| ---: | --- | --- | --- |
+| 1 — héros 40 → 32 px | il est rendu à **28 px**, pas 40 (`summary.css:270`) | déborde sa boîte à **300 px** (scroll 159 / boîte 146) | **sans objet ≥ 320** |
+| 2 — grand-livre en `1fr auto` | — | — | **livrée au lot 2** |
+| 3 — cartes de statistiques empilées | la grille 2-up « Reste à vivre / Dépensé à deux » de la maquette **n'existe pas** ; la seule grille de cartes du bilan est `.trends-stats-grid`, déjà en `repeat(auto-fit, minmax(min(140px, 100%), 1fr))` — elle empile **sans aucune rupture** | aucune | **sans objet** |
+| 4 — sélecteur sans emoji | la surface n'existe pas encore | non mesurable | **dépend du lot 5** |
+| 5 — bouton flottant en cercle | il **est déjà** un cercle, mesuré **52 × 52** | aucune | **sans objet** |
 
-**360 est un nombre rond, pas un résultat.** Il a été proposé ici avant d'avoir
-été mesuré, et c'est exactement la forme d'erreur que la journée du 2026-09-06 a
-payée trois fois : un chiffre écrit au même endroit et avec la même assurance
-qu'un chiffre mesuré. Ouvrir un lot dont le premier geste est une requête média
-« autour de 360 px » serait recommencer.
+**Et la page ne défile en travers à aucune largeur jusqu'à 280 px inclus.** Les
+premiers débordements apparaissent à 300 px (`strong` du héros,
+`.period-selector`) puis 280 px (`#userName`, `.card`, `#resumePanneauDuo`) —
+**sous le plus petit téléphone réel**, qui est 320.
 
-**Le premier geste du lot est donc un relevé**, pas une déclaration : à quelle
-largeur **chacune** des cinq adaptations devient-elle nécessaire ?
+> **Conclusion : aucune requête média neuve n'est justifiable aujourd'hui.**
+> Poser une rupture à 360 « pour préparer » reviendrait à écrire une règle qui
+> ne se déclenche sur rien — le pendant, côté CSS, du jeton à zéro site du
+> lot 1. Une règle qui ne peut pas s'appliquer ne peut pas non plus être
+> éprouvée.
 
-| Adaptation | Ce qu'on mesure | Largeur de bascule |
-| ---: | --- | --- |
-| 1 | à partir de quelle largeur « 66,94 € » en mono 40 px ne tient plus avec ses marges | à mesurer |
-| 2 | *(sans rupture — livrée au lot 2)* | — |
-| 3 | à partir de quelle largeur une demi-colonne ne loge plus « 2 888,43 € » en mono 21 px | à mesurer |
-| 4 | à partir de quelle largeur un segment ne loge plus « 🤝 À deux » | à mesurer *(dépend du lot 5)* |
-| 5 | à partir de quelle largeur la pastille « ＋ Dépense » prend la moitié de la ligne | à mesurer |
+#### Ce que le relevé change à l'ordre
 
-**La rupture est le MAXIMUM de ces largeurs**, arrondi vers le haut au dizaine
-près, et écrite dans `responsive.css` **avec les quatre mesures à côté**. Si
-elles se dispersent trop pour qu'un seul point les serve, c'est un résultat
-aussi : il faudra le dire plutôt que de choisir le plus commode.
+Le lot 3 **se rouvre après le lot 7**, quand la mise en page qu'il adapte
+existe : le héros à 40 px, les deux cartes de statistiques, le sélecteur de
+portée et sa pastille. Le relevé sera **refait à ce moment-là**, sur la même
+grille de largeurs, et la rupture sera le maximum des bascules trouvées — ou
+aucune, si elles restent sous 320.
 
-**Le lot comprend les quatre, explicitement** :
+Ce qu'il faudra vérifier alors, et qui ne se voit pas d'ici : si les bascules se
+dispersent trop pour qu'un seul point les serve, **c'est un résultat**, à dire
+plutôt qu'à arrondir vers le plus commode.
 
-1. **le relevé des largeurs de bascule** — le tableau ci-dessus, rempli ;
-2. la requête média neuve, à la valeur que le relevé donne, avec les mesures
-   écrites en commentaire ;
-3. les adaptations 1, 3 et 5 ;
-4. **la ligne de `CLAUDE.md` qui énumère les ruptures** — section *Conventions
-   › CSS*.
+**Ce qui reste du lot, et qui ne dépend de rien** : la ligne de `CLAUDE.md` qui
+énumère les ruptures est **exacte aujourd'hui** (600, 900, 1600, 2000,
+`pointer: coarse`). Elle n'est à corriger que le jour où une sixième naît. Rien
+à faire maintenant.
 
-Le point 3 n'est pas du ménage : laissé pour plus tard, le référentiel redevient
-faux, et une consigne périmée en tête de fichier pèse plus lourd qu'un journal
-exact, parce que c'est elle qu'on applique.
-
-**Ce qu'il fait tomber** — `mobile.spec.js` (« la page ne défile pas
-latéralement », « les commandes visibles atteignent la taille de cible »),
-`coherence-visuelle` × 320, `cible-tactile` — le cercle du bouton flottant reste
-à 56 px, la cible ne rétrécit pas.
-
-**Vert à la sortie** — `coherence-visuelle` aux 4 largeurs, `mobile` (9),
-`cible-tactile` (3).
-
-**Indépendance** — indépendant, **sauf l'adaptation n° 4** (le sélecteur perd ses
-emojis à 320) qui décrit une surface qui n'existe pas encore. Elle est
-explicitement reportée au lot 5. La scinder est ce qui garde ce lot indépendant.
-
----
+> **Deux lots vides sur sept, et ce n'est pas un raté de planification.** Le
+> lot 1 et le lot 3 décrivaient tous deux des adaptations d'une maquette dont la
+> mise en page n'est pas encore construite. Les mesurer avant de les écrire a
+> coûté deux relevés d'une heure et évité un jeton sans site plus une requête
+> média sans déclenchement. **Un lot qui se révèle vide après mesure est un lot
+> qui a mesuré.**
 
 ### Lot 4 — La portée comme état, sans surface
 
@@ -483,8 +502,9 @@ destinations. Plus l'adaptation n° 4, reportée du lot 3.
 **Mobile 390/320** — `coherence-visuelle` tourne déjà aux deux ; `cible-tactile`
 n'existe qu'à 390 : le lot lui ajoute une passe à 320, ou dit pourquoi non.
 
-**Indépendance** — dépend du lot 4 (l'état) et du lot 3 (la rupture qui retire
-les emojis). N'est pas prérequis du lot 6 pour la mécanique, mais l'est pour le
+**Indépendance** — dépend du lot 4 (l'état). Ne dépend plus du lot 3, devenu vide :
+l'adaptation n° 4 (le sélecteur sans emoji) se mesurera avec le reste, une fois la
+surface construite. N'est pas prérequis du lot 6 pour la mécanique, mais l'est pour le
 sens : une portée sans sélecteur n'est atteignable par personne.
 
 ---
