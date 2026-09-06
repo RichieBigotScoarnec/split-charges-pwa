@@ -86,10 +86,39 @@ document.addEventListener('click', function (e) {
     e.preventDefault();
     fn(arg);
   } else {
-    // Fonction pas encore exposée (module pas encore initialisé) — ignorer silencieusement
-    // console.warn('[Init] Action non trouvée sur window:', action);
+    noterActionIgnoree(action);
   }
 });
+
+/**
+ * Un geste qui n'a mené à rien, et qui le dit
+ *
+ * Le geste est perdu quoi qu'il arrive — l'action n'est pas dans la liste
+ * blanche, ou son module n'est pas encore initialisé et `window[nom]` n'existe
+ * pas. Ce qui change ici, c'est qu'il cesse d'être perdu **en silence**.
+ *
+ * Ce silence était documenté comme un choix, et il a coûté cher : une modale
+ * qui ne s'ouvre pas laisse exactement la même trace qu'un clic jamais émis —
+ * aucune. Deux occurrences de `detail-depenses.spec.js` n'ont rien livré avant
+ * qu'on relève les artefacts, et le seul symptôme lisible était un
+ * `element(s) not found` sur un élément que le gestionnaire aurait dû créer.
+ *
+ * Le compte survit à la fermeture de la console : `console.warn` s'efface d'un
+ * rechargement, `window.__actionsIgnorees` non — c'est lui qu'un contrôle ou
+ * un diagnostic peut lire après coup.
+ *
+ * @param {string} action - Le `data-action` qui n'a mené à rien
+ * @returns {void}
+ */
+function noterActionIgnoree(action) {
+  if (!Array.isArray(window.__actionsIgnorees)) window.__actionsIgnorees = [];
+  window.__actionsIgnorees.push({ action: action, t: Date.now() });
+
+  const motif = ACTIONS_AUTORISEES.has(action)
+    ? 'module pas encore initialisé'
+    : 'absente de la liste blanche';
+  console.warn('[Init] action ignorée : ' + action + ' — ' + motif);
+}
 
 // ===== 2. DÉLÉGATION CHANGE (data-on-change) =====
 document.addEventListener('change', function (e) {

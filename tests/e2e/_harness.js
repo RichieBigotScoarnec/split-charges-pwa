@@ -318,12 +318,43 @@ export const REACTIVE_FIREBASE_MOCK = `
 `;
 
 export async function setupFirebaseMock(page) {
+  surveillerLesErreursDePage(page);
   await page.route('**/firebasejs/**', route => route.fulfill({
     status: 200,
     contentType: 'application/javascript',
     body: '// Firebase CDN mock'
   }));
   await page.addInitScript(REACTIVE_FIREBASE_MOCK);
+}
+
+/**
+ * Rendre visibles les exceptions que la page lève toute seule
+ *
+ * Une levée dans un gestionnaire de clic ne casse aucun test : le geste ne
+ * produit simplement rien, et l'assertion qui suit tombe sur un symptôme —
+ * « element(s) not found » — qui ne nomme pas la cause. Quatre specs sur
+ * vingt-neuf posaient cet écouteur ; les vingt-cinq autres étaient aveugles,
+ * dont celle qui a fait tomber la CI deux fois.
+ *
+ * Posé ici, il couvre toute suite qui monte l'application, sans que chacune
+ * ait à y penser.
+ *
+ * **Il ne fait pas échouer**, et c'est délibéré pour l'instant : basculer 500
+ * contrôles en une fois ferait rougir ce qu'on n'a pas mesuré. Il PARLE — la
+ * trace part dans la sortie de Playwright, où elle survit au test, et
+ * `page.__erreursDePage` la rend lisible par un contrôle qui voudrait
+ * l'exiger.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @returns {void}
+ */
+export function surveillerLesErreursDePage(page) {
+  page.__erreursDePage = [];
+  page.on('pageerror', erreur => {
+    const trace = erreur?.stack || erreur?.message || String(erreur);
+    page.__erreursDePage.push(trace);
+    console.error(`\n  ⚠️  exception dans la page : ${trace}\n`);
+  });
 }
 
 export async function waitForApp(page, { query = '' } = {}) {
