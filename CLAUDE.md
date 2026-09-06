@@ -373,10 +373,24 @@ interdit :
 détail en archive.** Le plus cher de ce dépôt.
 
 Le dixième est le premier trouvé dans le **code applicatif au moment où il
-nuisait** : `init.js` ignorait **en silence, par conception** tout `data-action`
-dont la fonction n'est pas encore posée. Un geste perdu y laissait exactement la
-même trace qu'un clic jamais émis — aucune. Il journalise désormais, et retient
-son compte dans `window.__actionsIgnorees`.
+nuisait** : `init.js` ignorait tout `data-action` dont la fonction n'est pas
+encore posée. Un geste perdu y laissait exactement la même trace qu'un clic
+jamais émis — aucune. Il journalise désormais, et retient son compte dans
+`window.__actionsIgnorees`.
+
+**Et c'est le premier des dix où le silence était DÉLIBÉRÉ**, non pas oublié :
+le `else` portait le commentaire « ignorer silencieusement », avec sa raison —
+« module pas encore initialisé ». Cette justification était juste, et c'est
+précisément ce qui l'a rendue coûteuse : elle a fait passer pour un cas prévu
+ce qui était aussi le seul chemin par lequel un geste réel disparaissait sans
+trace. Il a fallu deux chutes de CI muettes pour le voir.
+
+> **Un silence choisi est plus dur à voir qu'un silence oublié, parce qu'il a
+> une justification écrite à côté.** Un `catch {}` vide interpelle ; un
+> `catch {}` commenté rassure. Quand une branche explique pourquoi elle ne dit
+> rien, la question à poser n'est pas « la raison est-elle bonne ? » — elle
+> l'est presque toujours — mais **« que perd-on quand elle se déclenche pour
+> une autre raison que celle-là ? »**
 
 Un contrôle absent se voit. Un contrôle vert qui ne mesure rien **éteint la
 vigilance** sur la surface qu'il prétend tenir : on cesse de la regarder en
@@ -624,6 +638,20 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   **Restent R1 (import échoué), R2 (exception avant `appendChild`) et R3 (clic sur
   un nœud détaché).** Le helper les relève tous les trois au moment de l'échec.
   Ne pas refermer sur une explication non exécutée.
+  **⚠️ Et la sonde peut avoir supprimé R3 en le mesurant.** Depuis la pose de
+  l'instrumentation, **600 tirages n'ont rien déclenché** — quand le défaut
+  paraissait 1 fois sur 200 juste avant. À ce taux, 5 % de chance de n'en voir
+  aucun : c'est bas. Or `elementHandle()` ajoute un aller-retour **exactement
+  dans la fenêtre où R3 se jouerait**, entre la lecture du libellé et le clic.
+  Un résultat nul reste donc indiscernable entre « pas eu de chance » et « la
+  sonde a déplacé ce qu'elle mesure », et **rejouer 400 tirages de plus avec le
+  même instrument ne lèverait pas cette ambiguïté** — c'est pourquoi on ne le
+  fait pas, et qu'on laisse la CI nommer la prochaine occurrence.
+  **Ces 600 tirages muets ne prouvent RIEN sur la disparition du défaut.** Lire
+  cette entrée comme « instrumenté, ne se reproduit plus » serait l'erreur
+  exacte que la règle 1 décrit, appliquée à un instrument plutôt qu'à un
+  contrôle : **une sonde qui ne peut plus rien voir ressemble à une surface
+  saine.**
 - **Au-delà de 4 workers, le banc fabrique ses propres échecs — à ne pas
   confondre avec un défaut.** Mesuré le 2026-09-06 : à `--workers=14`, la
   reproduction rend 10 à 18 `locator.click: Test timeout` et des
