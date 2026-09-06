@@ -634,6 +634,30 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   lit un montant doit l'échapper (` `, ` `, ` `) : l'écrire en
   clair a fait rougir la CI deux fois.
 
+- **Le grand-livre du bilan déborde son conteneur de 8 px à 320 px, et aucun
+  contrôle ne le dit.** `.summary-details` (`summary.js:873`) mesure
+  `scrollWidth` 226 pour une boîte de 218, avec un prénom **court**. Avec un
+  prénom de 25 caractères — `#prenomVous` accepte `maxlength="30"` — il monte à
+  **344**, et `documentElement.scrollWidth > innerWidth` devient vrai : la page
+  défile latéralement. Mesuré le 2026-09-06.
+  **Le contrôle existant ne peut pas être étendu à ce défaut, et c'est
+  structurel.** `coherence-visuelle:249` « aucun texte n'est coupé » mesure un
+  **rognage dans une boîte** — `scrollWidth > width` sur les FEUILLES. Ici la
+  boîte **grandit** : `.summary-row span { flex-shrink: 0 }` la porte à
+  `max-content`, et c'est le parent qui déborde. Deux propriétés différentes,
+  pas un seuil à ajuster. Trois portes fermées d'un coup : les lignes qui
+  portent un prénom contiennent un `.summary-percent` imbriqué, donc ne sont pas
+  des feuilles ; les feuilles ne débordent pas d'elles-mêmes, relevé nul sur les
+  cinq lignes ; `.summary-row` a des enfants, donc `continue`.
+  `coherence-visuelle:223` « aucune commande ne dépasse de l'écran » est aveugle
+  aussi, bien que les deux lignes `.summary-row--ouvrable` soient des
+  `<button>` : leur boîte s'arrête à x = 278 sur 320, c'est leur **contenu** qui
+  les déborde.
+  La propriété qui l'attrape est `documentElement.scrollWidth <= innerWidth` —
+  celle de `mobile.spec.js` « la page ne défile pas latéralement », qui ne tourne
+  que sur des profils d'appareil (Pixel 5, 393 px) et avec les prénoms par
+  défaut. C'est donc un contrôle **juste, qui ne visite pas le cas**.
+
 ### Le banc d'essai
 
 - **`toBeVisible()` ne voit pas `content-visibility: hidden`.** Un contenu de
