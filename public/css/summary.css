@@ -16,9 +16,49 @@
   letter-spacing: -0.01em;
 }
 
+/*
+   Deux colonnes : le libellé prend ce qui reste, le montant garde sa place.
+
+   C'était un `flex` avec `justify-content: space-between` et un libellé en
+   `flex-shrink: 0`. Sur un écran étroit, le libellé refusait donc de rétrécir :
+   il poussait la ligne, la ligne poussait le conteneur, et le conteneur
+   poussait la page. Mesuré à 320 px avec un prénom de 30 caractères — la
+   limite que `#prenomVous` laisse saisir — 424 px de contenu pour 320 px
+   d'écran, et la page défilait en travers.
+
+   Le montant reste en `auto` : il ne s'enroule jamais, et c'est ce qui compte
+   dans un grand-livre — la colonne de droite s'aligne, quelle que soit la
+   longueur du libellé de gauche.
+
+   CE QUE LES MUTANTS ONT DIT, ET UNE JUSTIFICATION RÉFUTÉE
+
+   Ce commentaire affirmait d'abord que `minmax(0, 1fr)` était indispensable —
+   une piste de grille ayant `min-width: auto`, écrire `1fr` seul aurait
+   reconduit le refus de rétrécir. **Mesuré, c'est faux** : avec `1fr`, les deux
+   contrôles restent verts, parce que `min-width: 0` sur l'enfant suffit à lever
+   la contrainte. L'inverse est vrai aussi — retirer `min-width: 0` en gardant
+   `minmax(0, 1fr)` laisse tout vert.
+
+   Les deux sont donc REDONDANTS, et ils restent tous les deux : `minmax` tient
+   la piste quel que soit l'enfant, `min-width` tient l'enfant quelle que soit
+   la piste. Une redondance mesurée et déclarée, plutôt qu'une justification
+   inventée après coup.
+
+   Le mutant qui tombe est ailleurs : `overflow-wrap: break-word`, sans lequel
+   un libellé insécable sort de sa boîte — 197 px de texte dans 149, jusqu'à
+   248 dans 148 sur la ligne « a payé » — et se pose sur les montants. Et il
+   tombe UNIQUEMENT sur le prénom insécable ; le sécable s'enroule tout seul et
+   restait vert.
+
+   `tests/e2e/grand-livre.spec.js` tient les deux propriétés — la page ne défile
+   pas, et aucun libellé ne déborde sa boîte. La seconde a été ajoutée parce que
+   la première ne voyait pas le mutant `overflow-wrap` : une fois les boîtes
+   contraintes, le débordement change de forme et cesse de faire défiler la page.
+*/
 .summary-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
   align-items: baseline;
   padding: 5px var(--space-sm);
   margin: 0 calc(-1 * var(--space-sm));
@@ -32,8 +72,20 @@
   background: var(--hover-bg);
 }
 
-.summary-row span {
-  flex-shrink: 0;
+/*
+   Le libellé s'enroule plutôt que de pousser.
+
+   `overflow-wrap: break-word` et non `anywhere` : le premier ne coupe un mot
+   que lorsqu'aucune autre solution n'existe, le second coupe dès que ça
+   arrange la mise en page. Un prénom ne se coupe qu'en dernier recours.
+
+   Aucune troncature, ni ici ni ailleurs dans ce dépliant : il porte
+   l'explication d'un chiffre d'argent, et un libellé amputé de sa fin
+   explique moins bien qu'un libellé sur deux lignes.
+*/
+.summary-row > span {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .summary-row strong {

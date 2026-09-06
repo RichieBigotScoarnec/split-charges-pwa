@@ -157,5 +157,45 @@ test(`le grand-livre ne fait pas défiler la page en travers — prénom ${preno
     mesure.page,
     `la page défile en travers : ${mesure.page} px de contenu pour ${mesure.fenetre} px d'écran`
   ).toBeLessThanOrEqual(mesure.fenetre);
+
+  /**
+   * LA SECONDE PROPRIÉTÉ, ET ELLE A ÉTÉ AJOUTÉE PARCE QU'UN MUTANT N'EST PAS
+   * TOMBÉ.
+   *
+   * L'assertion ci-dessus mesure le défilement de la PAGE. Elle suffisait tant
+   * que le libellé faisait grandir sa boîte : la ligne poussait le conteneur,
+   * le conteneur poussait la page. Une fois la boîte contrainte, le débordement
+   * change de forme — le texte sort de sa propre boîte et se pose sur la
+   * colonne des montants — et la page ne défile plus pour autant.
+   *
+   * Mesuré en retirant `overflow-wrap: break-word` du correctif : le libellé
+   * mesure 197 px de contenu dans une boîte de 149, et jusqu'à 248 dans 148 sur
+   * la ligne « a payé ». La page, elle, reste à 320. Le premier contrôle était
+   * VERT sur un grand-livre dont le libellé recouvrait les montants.
+   *
+   * Un contrôle qui cesse de mesurer dès que le défaut change de forme n'est
+   * pas un contrôle, c'est le souvenir d'un défaut.
+   */
+  const debordements = await page.evaluate(() => {
+    const trouves = [];
+    for (const ligne of document.querySelectorAll('.summary-details .summary-row')) {
+      for (const libelle of ligne.querySelectorAll(':scope > span')) {
+        const boite = libelle.getBoundingClientRect().width;
+        if (boite === 0) continue;
+        if (libelle.scrollWidth > Math.ceil(boite) + 2) {
+          trouves.push(
+            `« ${(libelle.textContent || '').trim().slice(0, 30)} » `
+            + `${libelle.scrollWidth} px de texte dans ${Math.round(boite)} px de boîte`
+          );
+        }
+      }
+    }
+    return trouves;
+  });
+
+  expect(
+    debordements,
+    `\n  ${debordements.length} libellé(s) débordant leur boîte :\n    ${debordements.join('\n    ')}\n`
+  ).toEqual([]);
 });
 }
