@@ -69,6 +69,34 @@ porte la commande qui le rend**, ou il est écrit comme une estimation.
 
 ---
 
+### Et la note qui vaut pour tout ce plan
+
+**Un plan de refonte écrit depuis les maquettes décrit l'écart entre deux
+dessins, pas entre un dessin et un code.**
+
+**Deux lots sur sept se sont révélés vides à la première mesure** — le jeton
+sans site (lot 1), la rupture sans adaptation (lot 3). Les deux pour la même
+raison : les planches décrivent un écran, et ce n'est pas celui-ci.
+
+- **Lot 1** — `--skeleton-bg` n'avait **zéro site** dans `public/` : le
+  squelette de montant masqué n'existe que dans la vue Privé, qui naît au lot 6.
+- **Lot 3** — les trois adaptations mesurables n'avaient **aucun objet** : le
+  héros est rendu à 28 px et non 40, le bouton flottant *est* déjà un cercle, et
+  la seule grille de cartes du bilan empile déjà par `auto-fit`.
+
+**Ce n'est pas un défaut du plan : c'est ce que coûte de ne pas mesurer avant
+d'écrire, et la mesure coûte moins cher que le lot.** Deux relevés d'une heure
+ont évité un jeton qu'aucun contrôle n'aurait pu éprouver et une requête média
+qui ne se serait déclenchée sur rien.
+
+> **À l'usage de qui reprend ce document** : ne pas croire que les cinq lots
+> restants sont tous pleins. Chacun décrit encore un écart entre une planche et
+> un dépôt, et cet écart n'est établi que là où une mesure est écrite à côté.
+> Le premier geste de chaque lot reste le même — mesurer ce qu'il prétend
+> changer, avant d'y toucher.
+
+---
+
 ## 2. L'inventaire repris
 
 ### Devenus des levées explicites
