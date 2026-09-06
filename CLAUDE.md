@@ -806,9 +806,26 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 
 ### Livraison et commandes
 
-- **`sw.js` tient sa liste de précache à la main** (111 entrées). **Tout module
-  neuf doit y être ajouté**, sinon le rendu échoue hors ligne. Un test compare la
-  liste au disque ; c'est lui qui a rattrapé `utils/repartition.js`.
+- **`sw.js` tient sa liste de précache à la main** (112 entrées). **Tout module
+  neuf doit y être ajouté**, sinon le rendu échoue hors ligne. La garde est
+  **`tests/utils/service-worker-precache.test.js`**, cas « couvre tous les
+  modules JavaScript publiés » : il énumère `public/**/*.js` et exige que chacun
+  figure dans `STATIC_ASSETS`. C'est lui qui a rattrapé `utils/repartition.js`.
+  **Et son voisin de nom ne tient PAS cette propriété.**
+  `service-worker-installation.test.js` porte « chaque fichier du socle est
+  réellement dans la liste de précache » — il vérifie `SOCLE ⊆ STATIC_ASSETS`,
+  soit **8 fichiers critiques**, pas les 112. Un module neuf absent du précache
+  le laisse **vert**. Mesuré le 2026-09-06 en retirant `utils/portee.js` de la
+  liste : `service-worker-installation` rend 6 passés, `service-worker-precache`
+  tombe en nommant le fichier manquant.
+  Les deux sont justes et complémentaires — le premier empêche un socle qui
+  nommerait un fichier jamais mis en cache, donc une installation qui échoue
+  pour toujours ; le second empêche un module publié hors du cache. C'est leur
+  ressemblance de nom qui trompe.
+  > **Un gotcha qui désigne « un test » envoie chercher au mauvais endroit.**
+  > La version précédente de cette entrée disait exactement cela, et l'imprécision
+  > a coûté une fausse alerte le jour même : garde crue morte parce que le
+  > mutant visait le fichier voisin.
 - **Plafond des sites d'injection : 24 sur 24, marge nulle**
   (`tools/plafond-innerhtml.mjs:64`). C'est voulu — tout `innerHTML`
   supplémentaire fait échouer la CI tant qu'il n'a pas été relu.
