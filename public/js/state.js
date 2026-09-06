@@ -1,4 +1,5 @@
 import { log, warn } from './utils/debug.js';
+import { PORTEE_PAR_DEFAUT } from './utils/portee.js';
 /**
  * FairSplit - State Management
  * @description Gestion d'état centralisée avec pattern Observer
@@ -12,6 +13,20 @@ const initialState = {
 
   // Period
   currentPeriod: null,
+
+  // Sur quel argent l'écran porte : à deux, solo, ou privé.
+  //
+  // En mémoire vive, et nulle part ailleurs — ni base, ni `localStorage`. Ce
+  // n'est pas un oubli : c'est ce qui fait qu'un rechargement rouvre sur « à
+  // deux » sans qu'aucune ligne ne s'en occupe. Rouvrir l'application
+  // directement sur l'espace privé l'exposerait au premier regard par-dessus
+  // l'épaule.
+  //
+  // Elle PERSISTE en revanche d'un mois à l'autre, à l'intérieur d'une session :
+  // comparer son solo de septembre à celui d'août est un seul geste, et le
+  // ramener à « à deux » à chaque flèche le ferait payer. La décision, et le
+  // raisonnement qui la fonde, sont dans `utils/portee.js`.
+  porteeCourante: PORTEE_PAR_DEFAUT,
 
   // Data
   salaries: { vous: 0, conjointe: 0 },
@@ -169,6 +184,12 @@ export function resetUserData() {
 
   // Clear UI state
   setState('editingCharge', null);
+
+  // La portée revient à « à deux ». Se reconnecter sur un autre compte sans
+  // recharger la page laisserait autrement l'écran ouvert sur « Privé » — la
+  // seule des trois dont l'ouverture par accident a un coût. Même exigence que
+  // la mémoire des libellés et l'historique du rapport, quelques lignes plus bas.
+  setState('porteeCourante', PORTEE_PAR_DEFAUT);
   setState('quickAddState', {
     selectedCategory: null,
     splitMode: 'prorata',
