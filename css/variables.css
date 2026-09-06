@@ -1,0 +1,354 @@
+/* ===== VARIABLES CSS — FairSplit v4 Design System ===== */
+
+/* ===== POLICES, SERVIES PAR L'APPLICATION ELLE-MÊME =====
+   Elles venaient de Google Fonts, d'abord par `@import` en tête de cette
+   feuille — une chaîne de quatre allers-retours bloquant le rendu — puis par un
+   <link> du document. Le <link> supprimait la mise en file, mais restait une
+   inclusion de code depuis une origine tierce, sans empreinte possible : le CSS
+   de Google varie selon le navigateur, `integrity` n'y est pas applicable.
+   CodeQL l'a signalé, à juste titre.
+
+   Les fichiers sont donc servis d'ici. Plus aucun tiers au démarrage : ni
+   résolution DNS, ni poignée de main TLS, ni requête vers Google. Le service
+   worker les met en cache comme le reste, ce qui les rend disponibles hors
+   ligne et gratuites aux visites suivantes.
+
+   Deux fichiers suffisent : ce sont des polices variables, chaque fichier
+   couvrant toutes ses graisses. Sous-ensemble latin, qui couvre les accents
+   français. Les blocs reproduisent ceux que Google servait, à l'URL près. */
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/dm-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/dm-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/dm-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/dm-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* Brand */
+  --primary-color: #4F46E5;
+  --primary-dark: #3730A3;
+  --primary-light: #6366F1;
+  --primary-glow: rgba(79, 70, 229, 0.12);
+  /* La marque en ENCRE — et la démonstration qu'elle ne pouvait pas être
+     économisée.
+     ---------------------------------------------------------------
+     `--primary-color` peint les boutons d'action, le bouton flottant et le
+     lien d'évitement, qui portent du blanc ; elle servait AUSSI d'encre sur
+     dix-huit sites. En thème sombre les deux usages posent des contraintes
+     opposées sur la même valeur :
+
+       PEINTURE  blanc dessus ≥ 4,5        →  L(primaire) ≤ 0,1833
+       ENCRE     sur --elevated-bg ≥ 4,5   →  L(primaire) ≥ 0,2413
+
+     0,2413 > 0,1833 : la fenêtre commune est VIDE. Aucune valeur ne satisfait
+     les deux — ce n'était donc pas un arbitrage entre deux voies coûteuses,
+     mais une impossibilité arithmétique. Séparer les rôles était la seule
+     issue, exactement comme pastille et encre pour les couleurs sémantiques.
+
+     Aucune teinte n'a été inventée : les deux valeurs existaient déjà dans le
+     nuancier, attribuées au mauvais rôle en thème sombre. */
+  --primary-ink: #4F46E5;
+  /* Une seule couleur de marque, et c'est délibéré.
+     `--secondary-color` valait #7C3AED : trente degrés de teinte et la même
+     clarté que la primaire, autrement dit la même couleur à l'œil. Une
+     secondaire qu'on ne distingue pas de la primaire n'est pas une secondaire,
+     c'est un doublon — elle ne servait qu'à trois dégradés invisibles et à une
+     pastille. Le vert, le rouge, l'ambre et le bleu portent déjà du sens ;
+     ajouter une sixième teinte aurait encombré sans rien dire de plus. */
+
+  /* Semantic */
+  --success-color: #059669;
+  --danger-color: #DC2626;
+  --danger-dark: #B91C1C;
+  --error-color: var(--danger-color);
+  --warning-color: #D97706;
+  /* Encre sur fond d'avertissement — volontairement fixe : --text-primary
+     s'inverse en thème sombre et tomberait à 1,5:1 sur l'ambre clair. */
+  --on-warning: #1E293B;
+  /* Les deux sœurs de --on-warning, et pourquoi elles ont tardé.
+     ---------------------------------------------------------------
+     Trois règles posaient du BLANC sur une couleur pleine, écrit en toutes
+     lettres — donc invisible à un contrôle qui ne lisait que `color: var(…)`.
+     Mesuré : blanc sur --success-color rend 3,77:1 en clair et **1,92:1** en
+     sombre, le pire rapport du dépôt ; blanc sur --danger-color rend 2,77:1
+     en sombre.
+
+     Une famille à un seul membre était le trou : `--on-warning` existait,
+     personne n'avait écrit ses sœurs, et les trois sites sont donc restés au
+     blanc faute de cible. C'est le même motif que la famille d'encres à trois
+     membres sur quatre.
+
+     Le blanc reste retenu là où il gagne — sur le rouge du thème clair, à
+     4,83:1. Ces jetons ne prescrivent pas une teinte, ils prescrivent la
+     LISIBILITÉ sur leur fond. */
+  --on-success: #131A26;
+  --on-danger: #FFFFFF;
+  --info-color: #2563EB;
+
+  /* Les mêmes couleurs, en ENCRE
+     ---------------------------------------------------------------
+     `--success-color` et consorts sont faites pour des pastilles, des bords et
+     des icônes, où le seuil est de 3:1. Employées comme couleur de TEXTE elles
+     tombent : mesuré sur `--card-bg`, #059669 rend 3,77:1 et #D97706 rend
+     3,19:1, pour un seuil de 4,5:1 sous 18,66 px.
+
+     Le témoin de lieu de la saisie rapide les portait toutes les deux, et il
+     est devenu une phrase porteuse — « ✓ Intermarché · "Courses" proposée
+     d'après le lieu » explique une catégorie qui se pose toute seule. Un jeton
+     conforme appliqué au mauvais endroit reste illisible : c'est le constat que
+     ce dépôt a déjà consigné, et le remède qu'il a déjà appliqué aux lavis.
+
+     Vérifiées sur les deux surfaces où elles se posent, dans les deux thèmes :
+     jamais sous 4,79:1.
+
+     ─────────────────────────────────────────────────────────────────────
+     CES QUATRE VALEURS SONT CALIBRÉES AU CENTIÈME. NE PAS LES ARRONDIR.
+
+     Cible : **4,60:1 sur son PROPRE lavis composé sur `--elevated-bg`**, la
+     pire des trois surfaces de base. `tests/encre-sur-surface.test.js` la
+     vérifie à chaque exécution, sur chaque site où l'encre est posée.
+
+     Pourquoi le lavis, et pas seulement la surface de base : `.envelope-theme`,
+     `.btn-delete:hover` et cinq autres règles posent leur texte sur
+     `--success-soft`, `--danger-soft` ou `--warning-soft` — un lavis à 10 %
+     de la couleur de la famille. L'encre y perd environ 0,55 de contraste.
+     Les valeurs précédentes (#047857, #A2530A, #C81E1E), calibrées pour les
+     seules surfaces de base, y tombaient à 4,28 · 4,40 · 4,32.
+
+     Pourquoi 4,60 et non 4,50 : le contrôle compose les lavis
+     ARITHMÉTIQUEMENT. Confronté aux pixels réellement rendus par Chromium,
+     ce modèle s'écarte jusqu'à **0,044** — assez pour qu'une valeur calibrée
+     à 4,51 rende 4,476 et manque le seuil. Les 0,10 d'écart absorbent la
+     différence : pire rendu mesuré 4,567, pour un seuil de 4,50.
+
+     Pourquoi pas une variante « encre pour lavis » : elle rétablirait un
+     choix à chaque déclaration — c'est-à-dire une liste d'exceptions
+     déguisée en jeton, la cause racine même que ce système supprime.
+     ───────────────────────────────────────────────────────────────────── */
+  --success-ink: #047253;
+  --warning-ink: #9D510A;
+  --danger-ink: #C01D1D;
+  /* La famille comptait trois membres sur quatre. `--info-color` servait
+     d'encre sur six sites, dont trois sur `--info-soft` où il rendait 3,95:1.
+     Une famille sémantique incomplète est le trou par lequel la dérive
+     revient : le site sans cible force l'exception. */
+  --info-ink: #225AD5;
+
+  /* Lavis et liserés sémantiques
+     ---------------------------------------------------------------
+     Le bilan, les jauges de budget, le récapitulatif de virements et deux
+     étiquettes de charge posent un fond très dilué de la couleur qui les
+     désigne, et un liseré un peu plus soutenu.
+
+     Ces valeurs étaient écrites en dur dans summary.css — et c'étaient les
+     teintes du thème SOMBRE : rgba(52, 211, 153, …) est le vert #34D399, celui
+     du bloc `prefers-color-scheme: dark`. Sur le thème clair, le lavis d'un
+     solde positif venait donc d'une palette et le texte qu'il encadre d'une
+     autre, sur un fond crème qui n'existait ni pour l'une ni pour l'autre.
+
+     Deux niveaux suffisent partout : un fond et un bord. Les huit valeurs
+     d'opacité qui traînaient (0,08 · 0,1 · 0,12 · 0,15 · 0,2 · 0,25) ne se
+     distinguaient pas à l'œil. */
+  --success-soft: rgba(5, 150, 105, 0.10);
+  --success-edge: rgba(5, 150, 105, 0.22);
+  --danger-soft: rgba(220, 38, 38, 0.10);
+  --danger-edge: rgba(220, 38, 38, 0.22);
+  --warning-soft: rgba(217, 119, 6, 0.10);
+  --warning-edge: rgba(217, 119, 6, 0.22);
+  --info-soft: rgba(37, 99, 235, 0.10);
+  --info-edge: rgba(37, 99, 235, 0.22);
+  --primary-soft: rgba(79, 70, 229, 0.10);
+  --primary-edge: rgba(79, 70, 229, 0.20);
+
+  /* Les trois courbes du graphe de tendances
+     Écrites en dur dans trends.js — #667eea, #f093fb, #4ade80 —, c'est-à-dire
+     l'ancienne palette froide, étrangère aux deux thèmes actuels. */
+  --serie-fixes: #4F46E5;
+  --serie-variables: #C026D3;
+  --serie-total: #059669;
+
+  /* Le voile d'une modale. Noir dans les deux thèmes : il assombrit ce qu'il
+     recouvre, ce qui est vrai d'un fond clair comme d'un fond sombre. */
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  /* Surfaces (thème clair)
+     Des neutres chauds, et non les gris bleutés d'origine (#F8FAFC, #F1F5F9).
+     Ceux-là sont ceux de tous les tableaux de bord : corrects, et froids. Une
+     application où deux personnes règlent leurs comptes gagne à ressembler à
+     un carnet posé sur une table plutôt qu'à un outil de bureau. La clarté est
+     conservée à un point près, les rapports de contraste ne bougent donc pas. */
+  --dark-bg: #FAF8F5;
+  --card-bg: #FFFFFF;
+  --elevated-bg: #F3EFE9;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  /* Text */
+  --text-primary: #241E19;
+  /* 4,34:1 sur --elevated-bg auparavant, sous le seuil AA de 4,5 — c'est la
+     couleur des libellés de la grille de catégories. Assombri juste assez
+     pour passer à 5,07:1 ; l'écart ne se voit pas, le manquement si.
+     Le thème sombre redéfinit ce jeton plus bas et n'est pas concerné : il
+     mesure déjà 4,98:1. */
+  --text-secondary: #6B5D50;
+  /* Le palier « discret », désormais AU-DESSUS du seuil AA — 4,54:1 au pire,
+     sur `--elevated-bg`.
+
+     Il valait #A8998A, soit 2,42:1, et cet écart était consigné comme une
+     décision assumée : « le monter à 4,5 le rendrait indiscernable de
+     `--text-secondary` et supprimerait le palier ». La mesure dit le
+     contraire. #7A6A5B est la teinte la plus CLAIRE de cette famille qui
+     franchisse le seuil, et sa luminance reste 32 % au-dessus de celle de
+     `--text-secondary` : l'œil sépare toujours les deux paliers, le lecteur
+     n'a simplement plus à deviner le second.
+
+     Deux faits ont emporté la décision. D'abord l'usage réel : ce jeton
+     portait des libellés de section, la phrase qui explique le solde et le
+     chevron d'une commande — du texte qu'on lit, pas de l'ornement. Ensuite
+     le thème sombre, qui a fondu `--text-secondary` et `--text-muted` dans la
+     même couleur depuis toujours : le système à trois paliers n'existait déjà
+     qu'à moitié, et personne ne s'en est plaint.
+
+     Ce qui tient un palier, ce n'est pas un contraste insuffisant — c'est la
+     taille, la graisse et l'espacement. Ils sont inchangés. */
+  --text-muted: #7A6A5B;
+
+  /* Interactive */
+  --hover-bg: rgba(0, 0, 0, 0.04);
+
+  /* Shadows */
+  /* Teintées chaud plutôt que noir pur : une ombre neutre sur un fond chaud
+     grise la surface au lieu de la creuser. */
+  --shadow: 0 1px 3px rgba(60, 42, 28, 0.07), 0 1px 2px rgba(60, 42, 28, 0.05);
+  --shadow-md: 0 4px 16px rgba(60, 42, 28, 0.09);
+  --shadow-lg: 0 8px 32px rgba(60, 42, 28, 0.13);
+  --shadow-glow: 0 0 24px var(--primary-glow);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration: 150ms;
+
+  /* Typography */
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+/* Dark mode (optionnel — suit la préférence système) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Assombrie de 1 % : le blanc qu'elle porte rendait 4,467:1, sous le
+       seuil. À 4,600 l'identité visuelle ne bouge pas de façon perceptible,
+       et les neuf sites qui posent du blanc dessus passent d'un seul geste. */
+    --primary-color: #6264ED;
+    --primary-dark: #4F46E5;
+    --primary-light: #818CF8;
+    /* L'encre de la marque en thème sombre : claire, là où la peinture est
+       foncée. C'est la valeur de `--primary-light`, qui remplissait déjà ce
+       rôle sans le nom. */
+    --primary-ink: #818CF8;
+    --on-success: #1E293B;
+    --on-danger: #1E293B;
+    --primary-glow: rgba(99, 102, 241, 0.15);
+    --success-color: #34D399;
+    --danger-color: #F87171;
+    --danger-dark: #EF4444;
+    --warning-color: #FBBF24;
+    --info-color: #60A5FA;
+    /* Sur fond sombre, ce sont les teintes CLAIRES qui font l'encre lisible :
+       6,39:1 pour la plus serrée des trois. */
+    --success-ink: #34D399;
+    --warning-ink: #FBBF24;
+    --danger-ink: #F87171;
+    --info-ink: #60A5FA;
+    /* Les mêmes lavis, tirés des teintes du thème sombre. Sur un fond
+       #12100E, un lavis dilué doit être plus soutenu pour se voir du tout. */
+    --success-soft: rgba(52, 211, 153, 0.12);
+    --success-edge: rgba(52, 211, 153, 0.28);
+    --danger-soft: rgba(248, 113, 113, 0.12);
+    --danger-edge: rgba(248, 113, 113, 0.28);
+    --warning-soft: rgba(251, 191, 36, 0.12);
+    --warning-edge: rgba(251, 191, 36, 0.28);
+    --info-soft: rgba(96, 165, 250, 0.12);
+    --info-edge: rgba(96, 165, 250, 0.28);
+    --primary-soft: rgba(99, 102, 241, 0.14);
+    --primary-edge: rgba(99, 102, 241, 0.28);
+    /* Plus claires sur fond sombre, pour rester lisibles. */
+    --serie-fixes: #818CF8;
+    --serie-variables: #E879F9;
+    --serie-total: #34D399;
+    --dark-bg: #12100E;
+    --card-bg: #1B1815;
+    --elevated-bg: #23201C;
+    --border-color: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.10);
+    --text-primary: #F5F2ED;
+    --text-secondary: #A0968A;
+    --text-muted: #A0968A;
+    --hover-bg: rgba(255, 255, 255, 0.06);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45);
+  }
+}

@@ -1,0 +1,1552 @@
+/* ===== SUMMARY CARD (Bilan du mois) ===== */
+.summary-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--primary-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.summary-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-lg) 0;
+  letter-spacing: -0.01em;
+}
+
+/*
+   Deux colonnes : le libellé prend ce qui reste, le montant garde sa place.
+
+   C'était un `flex` avec `justify-content: space-between` et un libellé en
+   `flex-shrink: 0`. Sur un écran étroit, le libellé refusait donc de rétrécir :
+   il poussait la ligne, la ligne poussait le conteneur, et le conteneur
+   poussait la page. Mesuré à 320 px avec un prénom de 30 caractères — la
+   limite que `#prenomVous` laisse saisir — 424 px de contenu pour 320 px
+   d'écran, et la page défilait en travers.
+
+   Le montant reste en `auto` : il ne s'enroule jamais, et c'est ce qui compte
+   dans un grand-livre — la colonne de droite s'aligne, quelle que soit la
+   longueur du libellé de gauche.
+
+   CE QUE LES MUTANTS ONT DIT, ET UNE JUSTIFICATION RÉFUTÉE
+
+   Ce commentaire affirmait d'abord que `minmax(0, 1fr)` était indispensable —
+   une piste de grille ayant `min-width: auto`, écrire `1fr` seul aurait
+   reconduit le refus de rétrécir. **Mesuré, c'est faux** : avec `1fr`, les deux
+   contrôles restent verts, parce que `min-width: 0` sur l'enfant suffit à lever
+   la contrainte. L'inverse est vrai aussi — retirer `min-width: 0` en gardant
+   `minmax(0, 1fr)` laisse tout vert.
+
+   Les deux sont donc REDONDANTS, et ils restent tous les deux : `minmax` tient
+   la piste quel que soit l'enfant, `min-width` tient l'enfant quelle que soit
+   la piste. Une redondance mesurée et déclarée, plutôt qu'une justification
+   inventée après coup.
+
+   Le mutant qui tombe est ailleurs : `overflow-wrap: break-word`, sans lequel
+   un libellé insécable sort de sa boîte — 197 px de texte dans 149, jusqu'à
+   248 dans 148 sur la ligne « a payé » — et se pose sur les montants. Et il
+   tombe UNIQUEMENT sur le prénom insécable ; le sécable s'enroule tout seul et
+   restait vert.
+
+   `tests/e2e/grand-livre.spec.js` tient les deux propriétés — la page ne défile
+   pas, et aucun libellé ne déborde sa boîte. La seconde a été ajoutée parce que
+   la première ne voyait pas le mutant `overflow-wrap` : une fois les boîtes
+   contraintes, le débordement change de forme et cesse de faire défiler la page.
+*/
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: baseline;
+  padding: 5px var(--space-sm);
+  margin: 0 calc(-1 * var(--space-sm));
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration) var(--ease);
+}
+
+.summary-row:hover {
+  background: var(--hover-bg);
+}
+
+/*
+   Le libellé s'enroule plutôt que de pousser.
+
+   `overflow-wrap: break-word` et non `anywhere` : le premier ne coupe un mot
+   que lorsqu'aucune autre solution n'existe, le second coupe dès que ça
+   arrange la mise en page. Un prénom ne se coupe qu'en dernier recours.
+
+   Aucune troncature, ni ici ni ailleurs dans ce dépliant : il porte
+   l'explication d'un chiffre d'argent, et un libellé amputé de sa fin
+   explique moins bien qu'un libellé sur deux lignes.
+*/
+.summary-row > span {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.summary-row strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.summary-row strong.positive {
+  color: var(--success-ink);
+}
+
+.summary-row strong.negative {
+  color: var(--danger-ink);
+}
+
+.summary-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: var(--space-sm) 0;
+}
+
+/* --- Section labels & enhanced rows --- */
+.summary-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: var(--space-sm);
+  margin-bottom: 2px;
+  padding: 0 var(--space-sm);
+}
+
+.summary-total-row {
+  font-size: 14px;
+}
+
+.summary-total-row strong {
+  font-size: 15px;
+  /* `--primary-color` et non `--primary-light` : mesuré sur le rendu, la teinte
+     claire tombe à 4,47:1 sur une carte blanche et 3,90:1 sur `--elevated-bg`.
+     Sous le seuil, et de peu — c'est-à-dire le genre d'écart qu'aucune capture
+     ne montre et qu'aucune relecture ne voit. La teinte pleine mesure 5,49:1 au
+     pire, pour une différence de nuance imperceptible sur du texte de cette
+     taille. `--primary-light` reste juste pour ce dont elle a la charge : les
+     bordures, les lavis, les états de survol. */
+  color: var(--primary-ink);
+}
+
+.summary-percent {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary-ink);
+  background: var(--primary-soft);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: 4px;
+  vertical-align: baseline;
+  font-family: var(--font-mono);
+}
+
+/* --- Balance finale (proéminente, en tête de bilan) --- */
+/* ===== CE QUI RESTE À PASSER =====
+   Sous le solde, et volontairement plus sobre que lui : c'est une précision
+   sur le montant du dessus, pas un second chiffre concurrent. Le ton est
+   informatif — rien ne va mal, une partie du mois est simplement devant. */
+.summary-previsionnel {
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  text-align: center;
+}
+
+/* Rien devant : le ton passe de l'information à la confirmation. Le bloc dit
+   qu'il a regardé et qu'il n'y a rien, ce qu'une absence ne dit pas. */
+.summary-previsionnel.previsionnel-solde {
+  border-color: var(--success-edge);
+  background: var(--success-soft);
+}
+
+.previsionnel-montant {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* En chiffres alignés, comme le solde : les deux se comparent d'un coup d'œil.
+   `display: block` de `.summary-balance strong` ne s'applique pas ici — ce
+   montant vit dans sa phrase. */
+.previsionnel-montant strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.previsionnel-sur {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* `--text-secondary`, et non `--text-muted` : sur le lavis d'information,
+   muted tombe sous le seuil AA en thème clair. Mesuré, pas estimé. */
+.previsionnel-detail {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* La seule ligne prospective du bilan. Ton neutre par défaut : « le mois
+   finira autour de 1 050 € » n'est ni une bonne ni une mauvaise nouvelle, et
+   la peindre en couleur enseignerait qu'une projection est une alerte.
+
+   Son propre bloc, jamais une ligne du prévisionnel : celui-ci passe au vert
+   quand tout est passé, et une projection sur fond « tout va bien » se
+   contredirait à l'œil. */
+.summary-projection {
+  margin: calc(-1 * var(--space-xs)) 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  text-align: center;
+}
+
+/* Au-delà du seuil, le ton monte — c'est le rôle que tenait la carte d'alerte
+   retirée de la veille. Le montant ne change pas de place : la personne lit la
+   même ligne, elle n'a pas à chercher ailleurs ce qui a changé. */
+.summary-projection--attention {
+  border-color: var(--warning-edge);
+  background: var(--warning-soft);
+}
+
+.projection-montant {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.projection-montant strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* `--text-secondary` et non `--text-muted` : sur le lavis d'avertissement,
+   muted tombe sous le seuil AA en thème clair. Même mesure que le
+   prévisionnel, même conclusion. */
+.projection-detail {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* La tête du bilan porte un TOTAL, pas une créance : elle est donc neutre.
+
+   Elle a longtemps été peinte en vert ou en rouge selon le sens du solde. Vert
+   quand la conjointe vous doit, rouge quand c'est l'inverse — sur un écran que
+   les deux personnes lisent, et où la première ligne était « Conjointe vous
+   doit 408,37 € ». Ce que le foyer a dépensé ensemble n'est ni une bonne ni une
+   mauvaise nouvelle ; le lavis sémantique appartient à l'écart, plus bas, et à
+   la barre collante, qui n'a pas changé. */
+.summary-balance {
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.summary-balance strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: var(--space-xs) 0;
+}
+
+/* Le libellé du total : ce qui NOMME le chiffre. Sans lui, « 1 717,39 € » en
+   28 px ne dit pas de quoi il parle — et le titre de la carte est masqué sous
+   900 px, où la barre d'onglets nomme déjà le panneau « Bilan ». */
+.bilan-tete {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+/* L'écart, en second. Il reste entier et nommé — rien n'est caché — mais il ne
+   commande plus le premier regard. */
+.bilan-ecart {
+  margin: var(--space-sm) 0 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.bilan-ecart--nul {
+  color: var(--text-secondary);
+}
+
+.bilan-ecart-montant {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.summary-balance small {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ===== BASCULE DU RÉSUMÉ =====
+   ---------------------------------------------------------------------------
+   Deux questions, deux panneaux : « qui doit combien à qui » et « qu'est-ce que
+   ce mois me coûte ». Empilées, elles mettent deux montants dominants en
+   concurrence et poussent la seconde sous la ligne de flottaison sur mobile.
+
+   À ne pas confondre avec `.onglets` : celle-là est la navigation de
+   l'application, posée en bas de l'écran. Celle-ci vit DANS la carte du bilan
+   et ne choisit pas une destination, mais un point de vue sur le même mois.
+   --------------------------------------------------------------------------- */
+.resume-onglets {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.resume-onglet {
+  flex: 1;
+  /* 44 px : le minimum des WCAG 2.5.5, comme toute commande de cette carte. */
+  min-height: 44px;
+  padding: 0 var(--space-sm);
+  border: none;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.resume-onglet:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/* On stylise `aria-selected`, jamais une classe seule : peindre un onglet actif
+   devient alors impossible sans l'annoncer aux lecteurs d'écran. C'est la règle
+   déjà tenue par `.onglet[aria-current]`, et elle vaut ici pour la même raison.
+   Le fond plein double la couleur — WCAG 1.4.1 interdit d'en faire le seul
+   véhicule de l'information. */
+.resume-onglet[aria-selected="true"] {
+  background: var(--primary-color);
+  color: #FFFFFF;
+}
+
+.resume-onglet:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* Le repère qui rend la mémoire de l'onglet acceptable : tant qu'un solde reste
+   dû, l'onglet du foyer le dit, même quand on l'a quitté. Sans lui, passer au
+   suivi personnel ferait disparaître une dette de tout l'écran. */
+.resume-onglet-repere {
+  margin-left: 4px;
+  color: var(--danger-ink);
+  font-size: 18px;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.resume-onglet[aria-selected="true"] .resume-onglet-repere {
+  color: #FFFFFF;
+}
+
+/* --- Panneau personnel --- */
+
+/* Volontairement PAS `.summary-balance` : cette classe est le témoin que
+   `barre-solde.js` observe pour décider de se taire. Le reste à vivre n'est pas
+   le solde, et le confondre ferait taire la barre sur un écran qui ne porte
+   aucune dette. */
+.resume-solo-tete {
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+
+.resume-solo-tete strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: var(--space-xs) 0;
+}
+
+.resume-solo-sous {
+  margin: var(--space-sm) 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.resume-solo-taux {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* La mention du privé n'est pas une petite ligne d'excuse : elle explique
+   pourquoi ce montant est optimiste de la valeur exacte qu'il protège. */
+.resume-solo-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --- Le bloc privé --- */
+.resume-prive {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.resume-prive-titre {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.resume-prive-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  /* 44 px : la ligne porte une commande, elle en respecte la cible. */
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.resume-prive-nom {
+  color: var(--text-secondary);
+}
+
+.resume-prive-valeur {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  white-space: nowrap;
+  /* Ni rétréci ni étiré : le caviardage garde exactement sa largeur, quelle que
+     soit la place restante. */
+  flex: 0 0 auto;
+}
+
+/*
+   Le caviardage : un bloc plein, PAS un flou.
+
+   Un `filter: blur()` laisse le texte dans le document — sélectionnable,
+   copiable, lisible par un lecteur d'écran, et récupérable dans une capture par
+   qui sait défaire un flou gaussien. Ici il n'y a pas de texte à masquer : la
+   valeur n'a pas été lue.
+
+   La largeur est FIXE. Proportionnelle, elle aurait dit l'ordre de grandeur —
+   « 3 € » et « 3 000 € » ne feraient pas le même bloc, et c'est déjà la moitié
+   de l'information.
+*/
+.resume-prive-valeur--masque {
+  display: inline-block;
+  width: 148px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--hover-bg);
+}
+
+.resume-prive-bouton {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resume-prive-bouton:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-ink);
+}
+
+.resume-prive-bouton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.resume-prive-aide {
+  margin: var(--space-sm) 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --- Détail pliable --- */
+.summary-details {
+  margin-top: var(--space-sm);
+}
+
+.summary-details summary {
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  list-style: none;
+  user-select: none;
+  transition: color var(--duration) var(--ease);
+}
+
+.summary-details summary::-webkit-details-marker { display: none; }
+
+.summary-details summary::after {
+  content: ' ▼';
+  font-size: 10px;
+}
+
+.summary-details[open] summary::after {
+  content: ' ▲';
+}
+
+.summary-details summary:hover {
+  color: var(--text-secondary);
+}
+
+/* Le sens du solde se lit sur le BORD, jamais sur le montant du total.
+
+   Un filet de 3 px : assez pour distinguer d'un coup d'œil un mois où l'on est
+   créditeur d'un mois où l'on doit, sans peindre en rouge un écran qu'on
+   consulte tous les jours. Le montant de l'écart, lui, reste en encre normale —
+   `--success-color` et `--danger-color` tombent respectivement à 3,77:1 et
+   4,83:1 sur cette surface, et un montant de 15 px exige 4,5:1. Mesuré, pas
+   supposé : c'est ce qui a fait choisir le bord plutôt que le texte. */
+.summary-balance.balance-positive {
+  border-left: 3px solid var(--success-color);
+}
+
+.summary-balance.balance-negative {
+  border-left: 3px solid var(--danger-color);
+}
+
+.summary-balance.balance-zero {
+  border-left: 3px solid var(--primary-color);
+}
+
+/* ===== ANALYSE PAR CATEGORIE ===== */
+.category-analysis {
+  margin-top: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.category-analysis-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+.category-chart-container {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.category-chart {
+  flex-shrink: 0;
+  width: 180px;
+  height: 180px;
+  border-radius: var(--radius-full);
+  position: relative;
+}
+
+.category-legend {
+  flex: 1;
+  min-width: 220px;
+}
+
+/* ===== TRENDS CHART ===== */
+.trends-section {
+  margin-top: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+/* L'en-tête est devenu le bouton d'ouverture de la section : le graphique
+   demande une lecture de tout l'historique, on ne le produit qu'au premier
+   dépliage. */
+.trends-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) 0;
+  border: none;
+  background: none;
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.trends-toggle-icon {
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: transform var(--duration) var(--ease);
+}
+
+.trends-header[aria-expanded="true"] .trends-toggle-icon {
+  transform: rotate(180deg);
+}
+
+/*
+   Une hauteur réelle, et non déduite du rapport des attributs.
+
+   `height: auto` laissait le navigateur calculer la hauteur d'après le rapport
+   600 × 240 du canevas : sur la carte d'un téléphone, large de 312 px, cela
+   donnait 125 px. Les marges du tracé — 40 en haut, 60 en bas — en mangeaient
+   100, et il restait **25 px** pour six graduations, qui se chevauchaient au
+   point d'être illisibles. Mesuré, puis remesuré après correction.
+*/
+#trendsCanvas {
+  width: 100%;
+  max-width: 100%;
+  height: 260px;
+  margin-bottom: var(--space-md);
+}
+
+@media (min-width: 600px) {
+  #trendsCanvas {
+    height: 300px;
+  }
+}
+
+/* ===== REMINDERS / NOTIFICATIONS ===== */
+.reminders-section {
+  margin-top: var(--space-md);
+  padding: 14px var(--space-md);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.reminders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+  color: inherit;
+}
+
+.reminders-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.reminders-toggle-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s var(--ease);
+}
+
+.reminders-toggle-icon.open {
+  transform: rotate(180deg);
+}
+
+.reminders-body {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.reminders-body.open {
+  display: block;
+}
+
+/*
+   Le sélecteur à bascule sert aussi à des réglages qui ne sont pas des
+   rappels. Les noms en `reminder-` sont historiques : les nouveaux réglages
+   utilisent `setting-`, qui partage la même apparence.
+*/
+.reminder-toggle-row,
+.setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+
+.reminder-toggle-label,
+.setting-toggle-label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.reminder-toggle-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* --text-muted tombe à 2,56:1 sur fond clair. Une description qui porte le
+   sens du réglage doit rester lisible : --text-secondary atteint 4,76:1. */
+.setting-toggle-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.setting-toggle-row {
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-md);
+}
+
+.budget-input-row {
+  padding: 0 var(--space-md) var(--space-sm);
+  display: none;
+}
+
+.budget-input-row.visible {
+  display: block;
+}
+
+.budget-input-row label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.budget-input-row input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  box-sizing: border-box;
+}
+
+.reminder-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+}
+
+.reminder-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.reminder-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--elevated-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  transition: all var(--duration) var(--ease);
+}
+
+.reminder-toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  transition: all var(--duration) var(--ease);
+}
+
+.reminder-toggle input:checked + .reminder-toggle-slider {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.reminder-toggle input:checked + .reminder-toggle-slider::before {
+  transform: translateX(18px);
+  background-color: white;
+}
+
+.notifications-status {
+  margin-top: var(--space-sm);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.notifications-status.granted {
+  color: var(--success-ink);
+}
+
+.notifications-status.denied {
+  color: var(--danger-ink);
+}
+
+/* ===== CARTE GPS & STATS LIEUX ===== *
+
+/* ===== JAUGE BUDGET ===== */
+.budget-gauge {
+  margin-top: var(--space-md);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.budget-gauge.budget-ok {
+  border-color: var(--success-edge);
+}
+
+.budget-gauge.budget-warning {
+  border-color: var(--warning-edge);
+}
+
+.budget-gauge.budget-over {
+  border-color: var(--danger-edge);
+}
+
+.budget-gauge h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.budget-gauge.budget-ok h3 { color: var(--success-ink); }
+.budget-gauge.budget-warning h3 { color: var(--warning-ink); }
+.budget-gauge.budget-over h3 { color: var(--danger-ink); }
+
+.budget-progress-container {
+  margin-bottom: var(--space-sm);
+}
+
+.budget-progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--elevated-bg);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--space-xs);
+}
+
+.budget-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s var(--ease);
+}
+
+.budget-progress-fill.budget-ok {
+  background: var(--success-color);
+}
+
+.budget-progress-fill.budget-warning {
+  background: var(--warning-color);
+}
+
+.budget-progress-fill.budget-over {
+  background: var(--danger-color);
+}
+
+.budget-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.budget-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-xs);
+}
+
+.budget-percentage {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+}
+
+.budget-ok .budget-percentage { color: var(--success-ink); }
+.budget-warning .budget-percentage { color: var(--warning-ink); }
+.budget-over .budget-percentage { color: var(--danger-ink); }
+
+.budget-remaining {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ===== RECAP VIREMENTS ===== */
+.virements-recap {
+  margin-top: var(--space-md);
+  background: var(--card-bg);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.virements-recap h3 {
+  color: var(--info-ink);
+  margin: 0 0 var(--space-xs) 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.virements-subtitle {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 var(--space-md) 0;
+}
+
+.virement-group {
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: var(--space-sm);
+}
+
+.virement-destination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+}
+
+.virement-dest-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.virement-dest-total {
+  font-size: 15px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--info-ink);
+}
+
+.virement-details {
+  padding-left: var(--space-sm);
+  border-left: 2px solid var(--info-edge);
+}
+
+.virement-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 0 2px var(--space-sm);
+}
+
+.virement-grand-total {
+  font-size: 14px;
+}
+
+.virement-grand-total strong {
+  color: var(--info-ink);
+  font-size: 16px;
+  font-family: var(--font-mono);
+}
+
+/* ===== TAGS CHARGES FIXES ===== */
+.charge-destination {
+  display: inline-block;
+  background: var(--info-soft);
+  color: var(--info-ink);
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 500;
+}
+
+/*
+   « 50/50 » classe une charge, il n'en dit pas l'état. La pastille était
+   violette — indiscernable de la couleur d'interface, et donc lue comme une
+   action possible. En neutre, elle se lit pour ce qu'elle est : une étiquette.
+   Le vert, le rouge et l'ambre restent réservés à ce qui porte du sens.
+
+   DEUX NOMS, UNE SEULE RÈGLE, ET C'EST VOULU. `charge-split-tag` dit la
+   répartition dérogatoire — quatre surfaces l'écrivent ; `charge-nature-tag`
+   dit d'où vient la charge (« fixe »), dans la modale du détail et la vue
+   d'enveloppe, deux listes qui mêlent les deux collections. Le second sens
+   portait la classe du premier : chercher où `splitOverride` se voit rendait
+   quatre sites dont deux étrangers, et une charge fixe dérogatoire affichait
+   deux pastilles indiscernables l'une de l'autre.
+
+   Les séparer en dupliquant ces dix déclarations aurait créé la copie que ce
+   dépôt paie huit fois dans son journal. Une seule liste de sélecteurs : le
+   rendu est identique par construction, et le reste.
+
+   Reste une question de DESIGN, ouverte et non tranchée ici : « fixe » est une
+   nature, comme « ponctuelle » — qui, elle, s'affiche en ambre
+   (`.charge-ponctuel`). Le neutre a été justifié pour la répartition, jamais
+   pour la nature. Ce lot ne change rien à ce qui est peint.
+*/
+.charge-split-tag,
+.charge-nature-tag {
+  display: inline-block;
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.split-override-options {
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: var(--space-sm);
+}
+
+.split-override-row select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.split-custom-row {
+  display: flex;
+  gap: 12px;
+  margin-top: var(--space-sm);
+}
+
+.split-custom-input {
+  flex: 1;
+}
+
+.split-custom-input label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.split-custom-input input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  box-sizing: border-box;
+}
+
+/*
+   La marque « perso » : une dépense qui ne pèse pas sur le solde.
+   Le lavis d'information plutôt que l'ambre de `charge-ponctuel` — ce n'est
+   pas un avertissement, c'est une nature. Et le distinguer visuellement du
+   tag de répartition, à côté duquel il s'affiche, importe : les deux touchent
+   au partage, mais l'un le modifie et l'autre le supprime.
+*/
+.charge-perimetre-tag {
+  display: inline-block;
+  background: var(--info-soft);
+  color: var(--info-ink);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/*
+   Une charge variable reconduite repart sans son montant : recopier le chiffre
+   d'un mois sur l'autre inventerait de l'argent dans un solde partagé. La ligne
+   doit donc dire ce qu'elle attend — sans quoi « 0,00 € » se lit comme une
+   dépense nulle et non comme une saisie inachevée.
+*/
+.charge-a-completer {
+  display: inline-block;
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.charge-ponctuel {
+  display: inline-block;
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/* ===== BUDGETS PAR CATÉGORIE ===== */
+/*
+   Le budget global disait qu'on avait trop dépensé, jamais en quoi. Chaque
+   catégorie porte ici sa propre jauge ; les plus tendues passent en tête,
+   puisque c'est là qu'une décision se prend.
+*/
+.budget-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-sm);
+}
+
+.budget-row {
+  padding: var(--space-sm) 0;
+}
+
+.budget-row + .budget-row {
+  border-top: 1px solid var(--border-color);
+}
+
+.budget-row-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.budget-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.budget-row-amounts {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.budget-row-track {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: var(--radius-full);
+  background: var(--elevated-bg);
+  overflow: hidden;
+}
+
+.budget-row-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--duration) var(--ease);
+}
+
+.budget-row-fill.budget-ok { background: var(--success-color); }
+.budget-row-fill.budget-warning { background: var(--warning-color); }
+.budget-row-fill.budget-over { background: var(--danger-color); }
+
+.budget-row-status {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.budget-row.budget-over .budget-row-status {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+.budget-editor-list {
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  margin-bottom: var(--space-md);
+}
+
+.budget-editor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+}
+
+/* Le libellé et, sous lui, ce que la catégorie coûte d'ordinaire. */
+.budget-editor-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Sans cela, un nom long pousserait le champ hors de la modale. */
+  min-width: 0;
+}
+
+.budget-editor-label {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/*
+   « environ 310 € par mois » : le chiffre qui manquait pour décider.
+
+   L'éditeur listait dix-neuf catégories à champs vides et demandait d'INVENTER
+   un nombre pour chacune. Un budget proposé se corrige d'un geste ; un budget
+   à inventer se remet à plus tard, indéfiniment — et tant qu'aucun budget
+   n'existe, toute la veille par catégorie n'a rien à surveiller.
+*/
+.budget-editor-indice {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/*
+   Les catégories dont l'application n'a rien à dire — ni dépense, ni médiane,
+   ni budget. Repliées, jamais retirées : sans elles on ne pourrait plus fixer
+   un budget avant la première dépense, ce qui est le cas normal.
+*/
+.budget-editor-repli {
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-sm);
+}
+
+.budget-editor-repli > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  /* La cible tactile que toute commande de cette application respecte. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.budget-editor-input {
+  flex: 0 0 110px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-align: right;
+}
+
+/* ===== STATISTIQUES DE TENDANCE ===== */
+/*
+   Le module produisait ce balisage depuis toujours, mais aucune règle ne lui
+   correspondait — la section n'étant jamais affichée, personne ne l'a vu.
+   Quatre cartes de lecture rapide plutôt qu'une liste verticale.
+*/
+.trends-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: var(--space-sm);
+}
+
+.stat-card {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  text-align: center;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.stat-period,
+.stat-percent {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dépenser plus que le mois de départ n'est pas une réussite : la hausse est
+   signalée en rouge, la baisse en vert. */
+/* Dépenser plus est signalé en rouge, moins en vert. Une dépense inchangée
+   n'est ni l'un ni l'autre : le test était `trend >= 0`, si bien qu'une
+   variation exactement nulle s'affichait « ↗ 0,00 € » en rouge. */
+.stat-card.trend-up .stat-value { color: var(--danger-ink); }
+.stat-card.trend-down .stat-value { color: var(--success-ink); }
+.stat-card.trend-flat .stat-value { color: var(--text-secondary); }
+
+/* La piste à suivre, sous les quatre cartes. Sur une ligne plutôt qu'en
+   cinquième carte : quatre tiennent sur un écran de téléphone et se lisent
+   d'un coup d'œil, huit deviennent un tableau de bord qu'on fait défiler sans
+   rien retenir. */
+.trends-piste {
+  margin: var(--space-md) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.trends-piste strong {
+  color: var(--text-primary);
+}
+
+/* ===== VEILLE — CE QUE L'APPLICATION REMARQUE ===== */
+
+/* Un bloc par observation, jamais d'encadré « tout va bien » : rien à dire est
+   le cas courant d'un mois qui se passe bien, et le silence est alors la bonne
+   réponse. Le rendu ne produit rien du tout quand la liste est vide. */
+.summary-veille {
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+}
+
+.veille-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.veille-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  text-align: left;
+}
+
+/* Ce qui appelle une décision se distingue de ce qui informe — par la couleur
+   comme par la place, les deux étant nécessaires : la couleur seule ne se lit
+   pas pour tout le monde, et l'ordre seul ne se voit pas d'un coup d'œil. */
+.veille-item--attention {
+  border-color: var(--warning-edge);
+  background: var(--warning-soft);
+}
+
+.veille-icone {
+  flex: 0 0 auto;
+  line-height: 1.4;
+}
+
+.veille-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.veille-titre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.veille-detail {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sur quoi l'observation se fonde. Volontairement plus discret que le reste,
+   mais présent : un conseil dont on ne peut pas vérifier l'assise n'est pas un
+   conseil. `--text-secondary` et non `--text-muted` — même mesure que le
+   prévisionnel, muted tombe sous le seuil AA sur ces lavis. */
+.veille-fonde {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/*
+   Le geste que propose une observation
+
+   Une carte qui dit « mettez 64 € de côté » et n'offre aucun moyen de le faire
+   laisse tout le travail à la main : lire le montant, ouvrir la gestion des
+   enveloppes, tout ressaisir. Le bouton reste discret — il s'agit d'accepter
+   un conseil, pas de régler un solde — mais il respecte la cible tactile de
+   44 px que toute action de cette application tient.
+*/
+.veille-action {
+  align-self: flex-start;
+  margin-top: var(--space-xs);
+  min-height: 44px;
+  font-size: 14px;
+}
+
+/*
+   Les observations au-delà des trois premières
+
+   Le premier écran appartient au solde : tout empiler le repousserait sous une
+   pile de conseils, et une vraie alerte se lirait comme du décor. Elles restent
+   à un geste, jamais cachées.
+*/
+.veille-reste {
+  margin-top: var(--space-sm);
+}
+
+.veille-reste > summary {
+  cursor: pointer;
+  padding: var(--space-xs) 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  /* La cible tactile vaut aussi pour un résumé qu'on déplie. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.veille-reste .veille-liste {
+  margin-top: var(--space-xs);
+}
+
+/*
+   Une ligne du bilan qui ouvre son détail
+
+   Un bouton, et non une division cliquable : la commande est alors atteignable
+   au clavier et annoncée comme telle. Reste à lui retirer l'apparence de bouton
+   que le navigateur lui donne, et à lui rendre celle de la ligne qu'elle était.
+*/
+.summary-row--ouvrable {
+  /*
+     Pas de `width: 100%`. `.summary-row` déborde de son conteneur par une
+     marge négative de part et d'autre, et compte sur `width: auto` pour le
+     faire symétriquement. Fixer la largeur sur-contraint l'équation
+     `marge gauche + largeur + marge droite = largeur du conteneur` : le
+     navigateur recalcule alors la marge droite, et le bouton s'arrête 16 px
+     avant le bord que les lignes voisines atteignent. Les montants des lignes
+     « a payé » ne s'alignaient plus sur ceux du reste du bilan.
+  */
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* La cible tactile que toute action de cette application respecte. */
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration) var(--ease);
+}
+
+.summary-row--ouvrable:hover,
+.summary-row--ouvrable:focus-visible {
+  background: var(--primary-soft);
+}
+
+/*
+   Le chevron dit que la ligne mène quelque part. Sans lui, rien ne distingue
+   une ligne qui s'ouvre d'une ligne qui informe, et personne n'essaie.
+*/
+.summary-row--ouvrable > span::after {
+  content: " ›";
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/*
+   L'entrée du rapport : sous le détail, jamais au-dessus du solde.
+   Le premier écran appartient au chiffre qu'on vient chercher ; le rapport se
+   consulte une fois le mois écoulé, pas à chaque ouverture.
+*/
+.rapport-ouvrir {
+  width: 100%;
+  margin-top: var(--space-md);
+  min-height: 44px;
+}

@@ -1,0 +1,245 @@
+/* ===== ACCESSIBILITY ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  z-index: 10000;
+  padding: 12px 24px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ===== RESET & BASE ===== */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/*
+   L'attribut `hidden` ne masque que via la feuille de style du navigateur,
+   dont la spécificité est la plus faible qui soit : la moindre règle posant
+   un `display` la neutralise. `.btn { display: inline-flex }` rendait ainsi
+   visible tout bouton porteur de `hidden`, et `#mainApp` avait déjà reçu son
+   correctif particulier. La règle appartient ici, une fois pour toutes.
+*/
+[hidden] {
+  display: none !important;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--dark-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md);
+  padding-bottom: 100px;
+}
+
+/* ===== HEADER ===== */
+header {
+  text-align: center;
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--primary-color));
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== LA MARQUE ===== */
+/*
+   Le cercle partagé, inline dans la page (source : tools/logo-fairsplit.svg).
+
+   `color` est posée explicitement et non héritée : le titre du bandeau se
+   peint en dégradé par `background-clip: text` avec un remplissage transparent,
+   et une marque qui aurait hérité de ce contexte se serait effacée avec lui.
+
+   Dimensionnée en `em` pour suivre la taille du texte qu'elle accompagne, et
+   alignée sur la ligne de base plutôt que sur le milieu de la boîte : sans
+   cela, elle flotte au-dessus des lettres.
+*/
+.marque {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  vertical-align: -0.14em;
+  color: var(--primary-ink);
+}
+
+header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ===== BANDEAU BAC À SABLE ===== */
+/* Affiché uniquement avec ?sandbox=1 — repère permanent pour ne jamais
+   confondre les données d'essai avec celles du foyer. */
+/*
+   Hors ligne — un bouclier de navigateur, un pare-feu, une coupure.
+
+   Il a longtemps été rouge, et il devait l'être : les saisies se perdaient.
+   Elles sont maintenant gardées sur l'appareil et repartent à la reconnexion,
+   ce qui est un état de marche dégradé, pas une panne. L'ambre le dit ; le
+   rouge, lui, apprendrait à ignorer un bandeau qui n'annonce plus de perte.
+
+   Il reste posé sous celui du bac à sable et visible au défilement : la
+   coupure ne cesse pas quand on descend dans la page.
+*/
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 99998;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md);
+  background: var(--warning-color);
+  color: var(--on-warning);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* Le message est long par nécessité : il doit nommer une cause à laquelle
+   personne ne penserait. Il reste lisible sans étirer la page. */
+.offline-banner > span:last-child {
+  max-width: 70ch;
+}
+
+/* Les deux issues, au bas du message. Le mode hors ligne se soigne tout seul,
+   mais ses délais s'espacent jusqu'à cinq minutes : quelqu'un qui vient de
+   rétablir son réseau n'a aucune raison d'attendre. */
+.offline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: 6px;
+}
+
+.btn-lien-bandeau {
+  /* Cible tactile de 44 px comme partout, sans donner à un lien l'aspect d'un
+     bouton plein : le bandeau porte déjà tout le poids visuel qu'il lui faut. */
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-lien-bandeau:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sandbox-banner {
+  position: sticky;
+  top: 0;
+  z-index: 99999;
+  padding: 8px var(--space-md);
+  background: var(--warning-color);
+  color: var(--on-warning);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+/* ===== PAGE DE REFUS D'ENCADREMENT =====
+   Le corps a été vidé : plus aucune carte, plus aucune mise en page. Ces règles
+   sont les seules à s'appliquer, et doivent tenir seules. */
+.cadre-refuse {
+  max-width: 32rem;
+  margin: 3rem auto 1rem;
+  padding: 0 var(--space-md);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.cadre-refuse + a {
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-lg);
+  /* 44 px de haut : la cible reste atteignable au pouce, comme partout. */
+  min-height: 44px;
+  border-radius: var(--radius);
+  background: var(--primary-color);
+  /* `white`, comme `.btn-primary` : le fond est la couleur de marque dans les
+     deux thèmes, et aucun jeton n'existe pour l'encre qui va dessus. */
+  color: white;
+  font-family: var(--font);
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 28px;
+}

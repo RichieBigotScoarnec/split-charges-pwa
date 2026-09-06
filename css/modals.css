@@ -1,0 +1,1882 @@
+/* ===== MODAL ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+/*
+   Une confirmation est toujours demandée par quelque chose : parfois par une
+   autre fenêtre. À z-index égal, l'ordre du document décidait — et la modale
+   de sauvegarde, déclarée après, recouvrait la confirmation qu'elle venait
+   d'ouvrir. Le bouton « Confirmer » devenait inatteignable, rendant la
+   restauration impossible à mener à son terme.
+*/
+#modalConfirm.modal-overlay {
+  z-index: 10001;
+}
+
+/*
+   Saisie rapide ouverte par le raccourci, avant que Firebase ait répondu.
+
+   L'écran d'attente de connexion est à 10000, la modale à 9999 : ouverte tôt,
+   elle s'ouvrait donc *derrière* lui — invisible, et le montant tapé partait
+   dans un champ que personne ne voyait. Cette classe n'est posée que pendant
+   l'anticipation, et retirée dès que l'application est prête : le reste du
+   temps, une modale n'a rien à faire par-dessus l'écran de connexion.
+
+   Les messages, à 10002, restent au-dessus.
+*/
+#modalQuickAdd.modal-overlay--anticipee {
+  z-index: 10001;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  max-width: 480px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  animation: modalSlideIn 0.25s var(--ease);
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-12px) scale(0.99);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--space-lg);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/*
+   L'action principale ne descend jamais sous l'écran.
+
+   `.modal` plafonne à 80vh et défile ; les actions défilaient avec le reste.
+   Mesuré sur un iPhone 13, avant l'ouverture du clavier : le bouton
+   « Ajouter » du formulaire de charge variable tombait à 1038 px sur 664 px
+   utiles — 374 px sous la ligne de flottaison, derrière 502 px de défilement
+   qu'aucun indice n'annonçait. Le formulaire complet devenait le chemin cher,
+   et la saisie rapide le seul praticable ; les charges restaient donc
+   incomplètes.
+
+   `bottom` compense le `padding` de `.modal` pour que la barre se colle au
+   bord bas réel et non à 24 px au-dessus. Le fond est plein — sans lui, le
+   contenu défilerait visiblement sous les boutons.
+*/
+/*
+   Ce qu'un formulaire ne demande qu'à une minorité de saisies.
+
+   Le lieu et l'enveloppe occupaient à eux deux le tiers du formulaire de
+   charge variable — quinze champs au total — alors qu'ils ne concernent
+   qu'une charge sur dix. Repliés, ils restent à un geste de distance pour qui
+   en a besoin, et cessent d'éloigner le bouton de validation de tous les
+   autres.
+*/
+.form-repli {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-md);
+}
+
+.form-repli > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  /* La cible tactile que toute commande de cette application respecte. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  /* `list-style` retire le triangle par défaut sur Firefox, le pseudo-élément
+     WebKit sur Safari : le dépliant porte son propre chevron. */
+  list-style: none;
+}
+
+.form-repli > summary::-webkit-details-marker { display: none; }
+
+.form-repli > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.form-repli[open] > summary::after { content: "▴"; }
+
+.form-repli[open] > summary {
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-md);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  position: sticky;
+  bottom: calc(var(--space-lg) * -1);
+  z-index: 1;
+  background: var(--card-bg);
+  padding-block: var(--space-md);
+  margin-bottom: calc(var(--space-lg) * -1);
+  box-shadow: 0 -1px 0 var(--border-color);
+}
+
+.modal-actions .btn {
+  flex: 1;
+}
+
+/* ===== QUICK ADD MODAL ===== */
+.quick-add-modal .modal {
+  max-width: 400px;
+}
+
+.quick-add-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+/* Saisie ouverte avant que l'application soit prête (raccourci d'appui long).
+   Ton d'information, jamais d'alerte : rien ne va mal, la connexion suit son
+   cours et la saisie est déjà possible. */
+.quick-add-attente {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.quick-add-attente[hidden] {
+  display: none;
+}
+
+/* Le témoin du lieu, sous les catégories : il dit POURQUOI l'une d'elles s'est
+   pré-sélectionnée. Il ne réserve plus sa ligne — `direLeLieu` le replie tant
+   qu'il n'a rien à dire, et un blanc de 18 px au milieu de la grille se lisait
+   comme un élément manquant. */
+.quick-add-location {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: var(--space-sm) 0 12px;
+  line-height: 1.5;
+}
+
+/* Les trois états portent l'ENCRE sémantique, pas la couleur de pastille :
+   à 12 px le seuil est de 4,5:1, et `--warning-color` tombait à 3,19:1,
+   `--success-color` à 3,77:1 — sur la phrase même qui explique une catégorie
+   pré-sélectionnée. Mesuré, pas supposé. */
+.quick-add-location.loading {
+  color: var(--warning-ink);
+}
+
+.quick-add-location.success {
+  color: var(--success-ink);
+}
+
+/* L'échec n'avait AUCUNE règle : il retombait sur la couleur de repos, et
+   « ✗ Position introuvable » se peignait comme une information ordinaire. */
+.quick-add-location.error {
+  color: var(--danger-ink);
+}
+
+/* Détacher le lieu : discret, mais assez grand pour le pouce (44 px minimum) */
+.quick-add-location-detach {
+  display: block;
+  margin: 0 auto var(--space-md);
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.quick-add-location-detach:hover {
+  border-color: var(--danger-color);
+  color: var(--danger-ink);
+}
+
+/* Description : facultative, donc plus sobre que le champ du montant */
+.quick-add-description {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.quick-add-description:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Category Grid */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.category-btn {
+  aspect-ratio: 1;
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  color: var(--text-secondary);
+  padding: var(--space-sm);
+}
+
+.category-btn .category-icon {
+  font-size: 28px;
+}
+
+.category-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.category-btn.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  color: var(--primary-ink);
+  box-shadow: 0 0 16px var(--primary-glow);
+}
+
+/* La tuile qui déplie le reste. Bordure discontinue et fond de la carte : elle
+   occupe la même case que les six autres, mais ne se donne pas pour une
+   catégorie — sans quoi on la choisirait en croyant classer sa dépense. */
+.category-btn--autres {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.category-btn--autres .category-icon {
+  /* Les trois points n'ont pas à peser autant qu'un emoji de catégorie. */
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Amount Input Large */
+.amount-input-large {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.amount-input-large input {
+  width: 100%;
+  padding: 14px 40px 14px 14px;
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.amount-input-large input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.amount-input-large .currency-symbol {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Payer Toggle */
+.payer-toggle {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.payer-toggle button {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+}
+
+.payer-toggle button:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.payer-toggle button.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  color: var(--primary-ink);
+}
+
+/* ===== MANAGE LISTS MODAL (Categories/Destinations) ===== */
+.manage-lists-modal {
+  max-width: 420px;
+}
+
+.manage-lists-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.manage-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+}
+
+.manage-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.manage-list-item:hover {
+  border-color: var(--text-muted);
+}
+
+.manage-item-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.manage-item-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.manage-item-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  font-size: 13px;
+}
+
+.manage-item-delete:hover {
+  background: var(--danger-color);
+  color: var(--on-danger);
+}
+
+/* Add new item row */
+.manage-list-add {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-md);
+}
+
+.manage-add-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.manage-emoji-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.manage-emoji-btn:hover {
+  border-color: var(--primary-color);
+}
+
+.manage-add-row input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.manage-add-row input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.manage-add-row .btn-sm {
+  padding: 10px 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Emoji picker grid */
+/* La planche est passée de vingt-quatre à cinquante-sept images : sans limite
+   de hauteur elle repoussait le bouton « Ajouter » hors de l'écran sur un
+   téléphone, et rien n'indiquait qu'il fallait faire défiler la modale. */
+.manage-emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--space-sm);
+  margin-top: var(--space-sm);
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--elevated-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+/*
+   44 px, et non 36 : c'est le seuil des WCAG 2.5.5, et la seule cible de
+   l'application qui restait en dessous. Une planche de cinquante-sept
+   pastilles serrées à 36 px se rate au doigt, et l'on repart avec une image
+   qu'on n'a pas choisie.
+*/
+.emoji-pick {
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration) var(--ease);
+}
+
+.emoji-pick:hover {
+  background: var(--primary-glow);
+  border-color: var(--primary-color);
+  transform: scale(1.15);
+}
+
+/* ===== MODAL CONFIRMATION ===== */
+.modal-confirm {
+  max-width: 360px;
+}
+
+.modal-confirm-message {
+  color: var(--text-secondary);
+  margin: var(--space-md) 0 var(--space-lg);
+  line-height: 1.6;
+}
+
+/* ===== CORBEILLE ===== */
+/*
+   Les suppressions sont douces depuis toujours : la donnée restait en base
+   sans qu'aucun écran ne la montre. Cette liste est cette fenêtre.
+*/
+.modal-hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.trash-list {
+  /* Une corbeille peut s'allonger : elle défile plutôt que d'étirer la modale
+     au-delà de l'écran. */
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  margin-bottom: var(--space-md);
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.trash-item:last-child {
+  border-bottom: none;
+}
+
+.trash-item-info {
+  /* Sans cela, une longue description élargirait la ligne au-delà de la modale. */
+  min-width: 0;
+}
+
+.trash-item-desc {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.trash-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.btn-restore {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* ===== SAUVEGARDE ===== */
+/*
+   La fenêtre présente deux actions de poids très différent : télécharger une
+   copie, et remplacer toutes les données. Elles sont séparées visuellement et
+   la seconde est précédée de sa conséquence, pas d'un simple libellé.
+*/
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.modal-separator {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: var(--space-lg) 0 var(--space-md);
+}
+
+.modal-hint-warning {
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--danger-color);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--elevated-bg);
+}
+
+/* La corbeille couvre tous les mois : chaque groupe porte le sien, sans quoi
+   deux dépenses homonymes de deux mois seraient indiscernables. */
+.trash-month {
+  margin-top: var(--space-md);
+  padding-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.trash-month:first-child {
+  margin-top: 0;
+}
+
+/* ===== ENVELOPPES TRANSVERSALES ===== */
+
+/* Le texte d'aide de l'écran de gestion. Une enveloppe est une notion neuve :
+   sans une phrase pour la distinguer d'une catégorie, l'écran ressemble à celui
+   des catégories et sera employé comme tel. */
+.manage-lists-aide {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.envelope-item {
+  align-items: flex-start;
+}
+
+/* Une enveloppe close reste lisible — les vacances de l'an dernier ont eu
+   lieu — mais s'efface derrière les enveloppes en cours. */
+.envelope-close {
+  /* L'effacement porte sur l'ÉLÉVATION, jamais sur l'encre.
+     `opacity: 0.6` atténuait tout le sous-arbre : neuf textes entre 2,32 et
+     4,26:1, `--text-primary` compris. Or l'intention écrite ici était « reste
+     lisible » — elle échouait donc sur sa première moitié.
+     Réduire l'opacité ne pouvait pas la sauver : l'étiquette de thème est
+     calibrée à 4,60 sur son lavis, et toute atténuation la fait tomber. L'alpha
+     maximal tenable était 1,00, c'est-à-dire aucun.
+     Une enveloppe close cesse donc d'être une puce en relief et repose à plat
+     sur la modale. Le contraste s'améliore partout, `--card-bg` étant la plus
+     contrastée des trois surfaces. L'état est de toute façon écrit en toutes
+     lettres à côté du libellé : l'atténuation n'a jamais porté l'information. */
+  background: transparent;
+  border-color: transparent;
+}
+
+.envelope-etat {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.envelope-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.envelope-toggle,
+.envelope-delete {
+  flex-shrink: 0;
+  /* Cible tactile : 44 px, comme partout ailleurs. */
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.envelope-add-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+/*
+   Le bouton clôt le formulaire, sous les champs qu'il envoie.
+
+   Il tenait auparavant dans la ligne du nom, avant le budget et les deux
+   dates : la disposition invitait à valider aux deux tiers de la saisie, et
+   les trois derniers champs partaient à la corbeille sans un mot.
+*/
+#envelopeAddBtn {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
+.envelope-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 120px;
+}
+
+.envelope-field label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.envelope-field input {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.envelope-field input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* La date de la saisie rapide : présente mais effacée. Le montant garde la
+   vedette et le focus — ce champ n'est là que pour les régularisations. */
+.quick-add-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.quick-add-date label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.quick-add-date input {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.quick-add-date input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* ===== CHOISIR UN LIEU APRÈS COUP ===== */
+
+.lieu-recherche {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.lieu-recherche input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cible tactile de 44 px, comme partout ailleurs. */
+.lieu-recherche .btn-icon {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* `:not([hidden])` est indispensable : `hidden` ne pose `display: none` que
+   par la feuille du navigateur, et n'importe quelle règle d'auteur portant
+   `display` la bat. Sans cette précaution, la boîte de propositions resterait
+   affichée en permanence, vide. */
+.lieu-resultats:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-xs);
+  /* Nominatim rend jusqu'à huit entrées : sans limite de hauteur, la liste
+     repousserait le reste du formulaire hors de l'écran sur un téléphone. */
+  max-height: 190px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+}
+
+.lieu-resultat {
+  /* Une proposition se lit en entier : le nom d'un lieu tient rarement sur une
+     ligne une fois la commune ajoutée. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* La distance appuie le nom, elle ne le concurrence pas. */
+.lieu-resultat-distance {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lieu-resultat:last-child {
+  border-bottom: none;
+}
+
+.lieu-resultat:hover,
+.lieu-resultat:focus-visible {
+  background: var(--primary-glow);
+  outline: none;
+}
+
+.lieu-etat {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* La sortie de secours quand le bon lieu est ailleurs — au bas de la liste,
+   après les propositions, parce qu'on n'y vient qu'après les avoir lues. */
+.lieu-elargir {
+  text-align: left;
+  padding: 10px 12px;
+  min-height: 44px;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--primary-ink);
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.lieu-elargir:hover,
+.lieu-elargir:focus-visible {
+  background: var(--primary-glow);
+  outline: none;
+}
+
+.lieu-retenu:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.lieu-retenu span:nth-of-type(2) {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lieu-retenu .btn-icon {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lieu-aide {
+  margin: var(--space-xs) 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ===== LA PHRASE DE LA SAISIE RAPIDE ===== */
+/*
+   Ce qui sera enregistré, dit en une ligne — et chaque partie ouvre son choix.
+
+   Elle remplace quatre blocs empilés : une grille de neuf catégories, une ligne
+   de raccourcis qui en répétait certaines, un choix de payeur, un choix de
+   répartition. Le bloc catégorie occupait à lui seul la majeure partie de la
+   modale, et le payeur — celui qui décide qui doit combien — se trouvait en
+   dessous. On y arrivait en faisant défiler neuf tuiles, donc en pratique on ne
+   le vérifiait pas.
+
+   Splitwise, Tricount et Settle Up procèdent tous ainsi : le chemin rapide ne
+   demande que le montant, le reste est un défaut énoncé et rectifiable d'un
+   geste.
+*/
+.quick-add-phrase {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-content: center;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.quick-add-segment {
+  /* 44 px de haut : la cible tactile minimale, que les anciens boutons de la
+     grille respectaient déjà et qu'un segment de phrase n'a aucune raison de
+     perdre sous prétexte qu'il ressemble à du texte. */
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+/* Le trait pointillé dit « ceci se change » sans ajouter d'icône à chaque
+   segment : quatre crayons alignés pèseraient plus que la phrase elle-même. */
+.quick-add-segment:hover,
+.quick-add-segment:focus-visible {
+  border-style: solid;
+  border-color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
+.quick-add-segment[aria-expanded="true"] {
+  border-style: solid;
+  border-color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
+/* La catégorie est le seul champ que la soumission exige. Le segment invite au
+   lieu d'attendre : un bouton d'enregistrement désactivé n'émet rien au
+   toucher, et laisse croire à une panne. */
+.quick-add-segment--manquant {
+  border-color: var(--primary-color);
+  color: var(--primary-ink);
+}
+
+/* Un seul panneau déplié à la fois — deux reproduiraient l'empilement qu'on
+   vient de défaire et repousseraient le bouton d'enregistrement hors de
+   l'écran. C'est `quick-add.js` qui le garantit ; cette règle ne fait que
+   ménager la place. */
+.quick-add-panneau {
+  margin-bottom: var(--space-md);
+}
+
+/* ===== ÉDITION SUR PLACE D'UNE ENTRÉE =====
+   Renommer était promis par les deux info-bulles — « Ajouter, renommer ou
+   retirer » — et n'existait nulle part : corriger « Restaurent » imposait de
+   supprimer et recréer, ce qui détachait toutes les charges passées.
+
+   L'édition se fait dans la ligne : ouvrir une seconde modale pour deux champs
+   ferait perdre de vue la liste dans laquelle on se repère. */
+.manage-list-item--edition {
+  gap: var(--space-sm);
+  border: 1px solid var(--primary-color);
+  background: var(--primary-soft);
+}
+
+.manage-list-item--edition input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+}
+
+.manage-list-item--edition input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.manage-item-emoji {
+  flex-shrink: 0;
+}
+
+.manage-item-editer {
+  flex-shrink: 0;
+}
+
+/* Le formulaire d'enveloppe édité occupe la ligne entière : quatre champs ne
+   tiennent pas côte à côte sur un téléphone. */
+.envelope-edition {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.envelope-edition-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.envelope-edition-actions .btn {
+  flex: 1;
+}
+
+/* ===== VUE D'UNE ENVELOPPE =====
+   L'écran de gestion ne comptait que le mois consulté, ce qui est l'inverse du
+   besoin : une enveloppe existe pour traverser les mois. Cette vue donne le
+   seul chiffre qu'on lui demande — ce qu'elle a coûté en tout — et la liste de
+   ce qu'elle contient. */
+.enveloppe-total {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+}
+
+.enveloppe-total-montant {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.enveloppe-total-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+/* ===== CE QU'IL FAUT METTRE DE CÔTÉ ===== */
+/*
+   Une charge annuelle n'appartient pas au mois où elle tombe. Ce bloc porte la
+   division qui manquait : le reste à réunir, divisé par les mois qui restent.
+
+   Trois états, trois lavis — et jamais la couleur seule : chacun porte aussi
+   son emoji et son intitulé, faute de quoi l'information serait perdue pour
+   qui ne distingue pas les teintes (WCAG 1.4.1).
+*/
+/*
+   D'où vient l'enveloppe. Discret à dessein : c'est une réponse qu'on vient
+   chercher quand la question se pose, pas une information à lire chaque fois.
+*/
+.enveloppe-provenance {
+  margin: var(--space-xs) 0 var(--space-md);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.enveloppe-provision {
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  border: 1px solid var(--info-edge);
+}
+
+.enveloppe-provision--atteinte {
+  background: var(--success-soft);
+  border-color: var(--success-edge);
+}
+
+.enveloppe-provision--retard {
+  background: var(--warning-soft);
+  border-color: var(--warning-edge);
+}
+
+.provision-titre {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.provision-titre strong {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+
+.provision-detail {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.provision-detail strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.enveloppe-jauge {
+  height: 8px;
+  margin-top: var(--space-md);
+  border-radius: var(--radius-full);
+  background: var(--border-color);
+  overflow: hidden;
+}
+
+.enveloppe-jauge-barre {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--success-color);
+}
+
+.enveloppe-jauge--proche .enveloppe-jauge-barre { background: var(--warning-color); }
+.enveloppe-jauge--depasse .enveloppe-jauge-barre { background: var(--danger-color); }
+
+.enveloppe-jauge-legende {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.enveloppe-depenses {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.enveloppe-depense {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.enveloppe-depense-titre {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.enveloppe-depense-detail {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.enveloppe-depense-montant {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Le total de la ligne ne porte que sur le mois consulté : dire où trouver
+   l'autre évite de prendre celui-ci pour le total de l'enveloppe. */
+.envelope-detail--indice {
+  display: block;
+  color: var(--text-muted);
+}
+
+/*
+   La phrase sous un panneau de saisie rapide.
+
+   « Perso » ne dit pas ce qu'il fait au solde, et c'est pourtant tout son
+   effet. Une ligne sous les trois boutons coûte moins qu'un solde inexpliqué
+   sur le téléphone d'en face.
+*/
+.quick-add-aide {
+  margin: var(--space-xs) 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* ===== ENVELOPPES : RANGS, NATURE, CADENCE ===== */
+/*
+   Le rangement par rythme de trésorerie, et non par sujet.
+
+   « Noël » et « Loisirs » se ressemblent — deux plaisirs — mais leur argent ne
+   se comporte pas pareil : l'un s'accumule vers une date connue, l'autre se
+   dépense dans le mois. Les ranger ensemble laisse la provision de décembre
+   financer un samedi soir d'août. Ces en-têtes existent pour que la différence
+   se voie avant qu'on ait à y penser.
+*/
+.envelope-rang {
+  margin-bottom: var(--space-md);
+}
+
+.envelope-rang-titre {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-sm);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.envelope-rang-aide {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+/* La nature se lit sur la ligne : une mensuelle et une cagnotte ne répondent
+   pas à la même question, et rien d'autre ne les distinguait. */
+.envelope-nature,
+.envelope-perso,
+.envelope-theme {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/* Le SUJET, distinct du rang qui dit le rythme. Sans cette marque, le thème
+   serait une propriété qu'on pose et qu'on ne relit jamais, et rien ne dirait
+   que deux enveloppes se rejoignent quelque part.
+
+   L'encre, pas la couleur de pastille : `--success-color` rend 3,77:1 sur cette
+   surface, pour un seuil de 4,5 à 10 px. Mesuré à 4,86 en clair et 7,38 en
+   sombre avec `--success-ink`. */
+.envelope-theme {
+  background: var(--success-soft);
+  color: var(--success-ink);
+}
+
+/* Le champ n'apparaît qu'après « + Nouveau thème » : le proposer d'emblée
+   ferait deux façons de dire la même chose sur la même ligne. */
+.envelope-theme-nouveau {
+  margin-top: var(--space-xs);
+}
+
+.envelope-nature {
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+}
+
+/* Le même lavis que la marque « perso » d'une charge : c'est la même notion,
+   elle doit avoir la même couleur des deux côtés. */
+.envelope-perso {
+  background: var(--info-soft);
+  color: var(--info-ink);
+}
+
+/*
+   La cadence : ce qu'il reste par jour.
+
+   Le seul chiffre qui fait ralentir en cours de mois. « Il vous reste 180 € »
+   ne dit pas s'il faut lever le pied ; « 20 € par jour pendant 9 jours » le dit.
+*/
+.enveloppe-jauge-cadence {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Le report n'a de sens que sur une mensuelle : le champ apparaît et disparaît
+   avec elle plutôt que de rester grisé, ce qui inviterait à le chercher. */
+.envelope-field--report[hidden] {
+  display: none;
+}
+
+/* ===== CAGNOTTE : ALIMENTER LE POT ===== */
+/*
+   Un budget se vide, une cagnotte se remplit.
+
+   La jauge d'une cagnotte alimentée monte vers son objectif là où celle d'un
+   budget descend vers zéro. Même widget, sens opposé — et c'est correct : on
+   ne lit pas de la même façon « il me reste 120 € à dépenser » et « j'ai mis
+   700 € de côté sur les 1 000 visés ».
+*/
+.enveloppe-versements {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.enveloppe-versements-titre {
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.enveloppe-versement-ajout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.enveloppe-versement-ajout input[type="text"] { flex: 1 1 7rem; min-width: 0; }
+.enveloppe-versement-ajout select { flex: 1 1 8rem; min-width: 0; }
+.enveloppe-versement-ajout input[type="date"] { flex: 1 1 9rem; min-width: 0; }
+
+.enveloppe-versements-liste {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.enveloppe-versement {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.enveloppe-versement:last-child { border-bottom: none; }
+
+.enveloppe-versement-detail {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Le vert de ce qui entre : c'est le seul endroit de l'application où un
+   montant s'ajoute au lieu de se retrancher. */
+.enveloppe-versement-montant {
+  font-weight: 600;
+  color: var(--success-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Objectif atteint : la même satisfaction visuelle qu'un budget tenu, et
+   surtout pas l'ambre de « vous approchez » — ici, approcher est le but. */
+.enveloppe-jauge--atteint .enveloppe-jauge-barre { background: var(--success-color); }
+
+/* ===== DÉPENSES PRIVÉES ET AVAL ===== */
+/*
+   L'écran le plus sensible de l'application, et celui qui doit le plus dire ce
+   qu'il fait. Deux avals s'y lisent — celui qu'on reçoit, celui qu'on donne —
+   parce qu'un pacte se lit dans les deux sens, et qu'un seul des deux affiché
+   laisserait croire à une réciprocité qui n'existe peut-être pas.
+*/
+.prive-avals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.prive-aval-titre {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.prive-aval-detail { font-size: 14px; }
+
+/*
+   L'échelle de partage : trois crans, du plus fermé au plus ouvert.
+
+   Une bascule à deux états ne pouvait pas dire la différence entre « je ne
+   publie rien » et « je publie mon total » — elle confondait le silence et le
+   chiffre. Trois boutons plutôt qu'un menu : les trois crans se lisent ensemble,
+   et c'est leur ordre qui enseigne ce qu'ils font.
+
+   L'état actif se stylise sur `aria-pressed`, pas sur la classe seule : peindre
+   un cran choisi devient impossible sans l'annoncer. Le fond plein double la
+   couleur — WCAG 1.4.1 interdit d'en faire le seul véhicule de l'information.
+*/
+.prive-posture {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-top: var(--space-xs);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.prive-posture-cran {
+  flex: 1;
+  /* 44 px : c'est une commande de confidentialité, elle mérite sa cible. */
+  min-height: 44px;
+  padding: 0 var(--space-xs);
+  border: none;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.prive-posture-cran:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.prive-posture-cran[aria-pressed="true"] {
+  background: var(--primary-color);
+  color: #FFFFFF;
+}
+
+.prive-posture-cran:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.prive-aval-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+/* Accordé : le vert de ce qui est acquis. Non accordé reste neutre plutôt que
+   rouge — ne pas avoir donné son accord n'est pas une anomalie. */
+.prive-aval-etat {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.prive-aval-etat--actif { color: var(--success-ink); }
+
+.prive-saisie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) 0;
+}
+
+.prive-saisie-ligne {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+.prive-saisie-ligne input[type="text"] { flex: 1 1 8rem; min-width: 0; }
+.prive-saisie-ligne input[type="date"] { flex: 1 1 9rem; min-width: 0; }
+
+.prive-sous-titre {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.prive-total {
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.prive-depense {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.prive-depense:last-of-type { border-bottom: none; }
+
+.prive-depense-info { flex: 1; min-width: 0; }
+.prive-depense-titre { display: block; }
+.prive-depense-date { font-size: 12px; color: var(--text-secondary); }
+.prive-depense-montant { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.prive-autre {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+/* ===== IMPORT CSV ===== */
+/*
+   Trois principes tiennent cet écran, et le style les suit : on n'écrase rien,
+   on montre avant d'écrire, on ne devine pas le payeur. D'où un aperçu qui
+   occupe la place, et un bloc de rejets qui ne se cache pas.
+*/
+.import-format {
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.import-format-titre {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.import-format-exemple {
+  display: block;
+  padding: var(--space-sm);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.import-resume {
+  padding: var(--space-sm) 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-xs);
+}
+
+.import-resume strong {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.import-ligne {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.import-ligne-titre {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-ligne-detail {
+  grid-column: 1;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.import-ligne-montant {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/*
+   Les rejets ne se cachent pas : un import qui avale une ligne sur trois sans
+   le dire est pire qu'un import qui refuse tout.
+*/
+.import-rejets {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-edge);
+  border-radius: var(--radius);
+}
+
+.import-rejets-titre {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.import-rejet {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ===== LE DÉTAIL DERRIÈRE UN CHIFFRE DU BILAN ===== */
+/*
+   Même langage visuel que la vue d'enveloppe, qui répond à la même question
+   pour un autre critère : un titre, un total, les dépenses qui le composent.
+*/
+.detail-total {
+  text-align: center;
+  padding: var(--space-md) 0 var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-md);
+}
+
+.detail-total-montant {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-total-info {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.detail-lignes {
+  max-height: 55vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detail-ligne {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "titre montant"
+    "info  montant";
+  gap: 2px var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.detail-ligne-titre {
+  grid-area: titre;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.detail-ligne-info {
+  grid-area: info;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.detail-ligne-montant {
+  grid-area: montant;
+  align-self: center;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/*
+   Une charge partagée n'entre dans le total du payeur que pour la part qu'il a
+   avancée. Le taire ferait une liste dont les montants ne s'additionnent pas
+   jusqu'à son propre total — et c'est le total qu'on mettrait en doute.
+*/
+.detail-part {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: normal;
+}
+
+/* ===== LE MOIS ÉCOULÉ, EN UNE PAGE ===== */
+/*
+   Un rapport se PARCOURT : on cherche d'abord si le mois est ordinaire, et
+   seulement ensuite pourquoi il ne l'est pas. La hiérarchie suit cet ordre —
+   le total, la comparaison, le solde, puis les trois chiffres qui l'expliquent.
+
+   Chaque case peut manquer, et disparaît alors de la grille : `auto-fit` la
+   referme au lieu de laisser un trou.
+*/
+.rapport-tete {
+  text-align: center;
+  padding: var(--space-md) 0 var(--space-md);
+}
+
+.rapport-total {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.rapport-total-info {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.rapport-comparaison {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  margin-bottom: var(--space-sm);
+}
+
+.rapport-comparaison--hausse {
+  background: var(--warning-soft);
+  border-color: var(--warning-edge);
+}
+
+.rapport-comparaison--baisse {
+  background: var(--success-soft);
+  border-color: var(--success-edge);
+}
+
+.rapport-comparaison-phrase {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/*
+   Le fondement du chiffre, toujours affiché : un repère dont on ignore d'où il
+   sort se lit comme un budget imposé par l'application.
+*/
+.rapport-comparaison-fonde,
+.rapport-bouge-fonde {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rapport-comparaison--muette {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.rapport-solde {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.rapport-solde--regle {
+  color: var(--success-ink);
+}
+
+.rapport-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.rapport-case {
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  text-align: center;
+}
+
+.rapport-case-valeur {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rapport-case-etiquette {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.rapport-case-precision {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rapport-bloc-titre {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-xs);
+}
+
+.rapport-bouge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.rapport-bouge--hausse { color: var(--danger-ink); }
+.rapport-bouge--baisse { color: var(--success-ink); }
+
+.rapport-bouge strong { color: var(--text-primary); }
+
+.rapport-bouge-fonde {
+  flex-basis: 100%;
+}

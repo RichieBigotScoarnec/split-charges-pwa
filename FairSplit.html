@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Refus d'encadrement, avant tout le reste.
+       `frame-ancestors` est ignorée en balise meta, et GitHub Pages ne pose
+       aucun en-tête : `js/utils/cadre.js` est donc le seul rempart. Mais il est
+       importé par `app.js`, chargé en module — donc différé jusqu'après
+       l'analyse complète du document. Toute l'interface, boutons compris, était
+       peinte avant que la garde ne vide la page ; et si `app.js` échouait à
+       charger, elle ne tournait pas du tout alors que le balisage, lui,
+       s'affichait.
+       Ces trois lignes ferment cette fenêtre : elles s'exécutent avant la
+       première feuille de style, donc avant le premier pixel. Le module garde
+       son rôle — afficher l'explication et le lien de sortie une fois le DOM
+       disponible.
+       Fichier externe, et non script en ligne : la politique se passe
+       d'unsafe-inline sur script-src, et ce n'est pas une protection qu'on
+       entame pour trois lignes. -->
+  <script src="js/anti-cadre.js"></script>
+
+  <!-- Content Security Policy en balise meta : GitHub Pages ne permet pas de
+       définir d'en-têtes HTTP, la politique de firebase.json n'y a donc jamais
+       été appliquée.
+
+       ⚠️ Cette balise doit rester DANS `<head>`. Une politique posée dans
+       `<body>` est purement ignorée — mesuré sous Chromium : script bloqué
+       quand la balise est en tête, exécuté quand elle a glissé dans le corps.
+       Or un commentaire mal fermé suffit à l'y pousser : du texte nu en tête
+       ferme `<head>` et ouvre `<body>`, emportant tout ce qui suit. C'est
+       arrivé le 2026-08-27, et le site a tourné sans aucune politique jusqu'à
+       ce qu'on s'en aperçoive. `tests/balisage-sain.test.js` le vérifie
+       désormais avec un analyseur HTML réel.
+
+       Les origines localhost figurent dans `connect-src`, et là seulement :
+       c'est le mode `?emulator=1`, dont vivent les tests d'intégration et le
+       développement local. Ce qui empêche un lien piégé de détourner la base
+       vers un service en écoute chez la victime, ce n'est pas leur absence
+       ici — une balise meta ne sait pas être conditionnelle — mais le fait que
+       `USE_EMULATOR` (js/config.js) exige désormais un hôte local. Sur
+       github.io, l'application n'ouvre aucune connexion locale, quoi que la
+       politique autorise. Les deux décisions sont attachées par un test : si
+       la garde d'hôte disparaît, les origines doivent disparaître aussi.
+
+       frame-ancestors et report-uri sont ignorés en meta : non utilisés ici.
+       www.google.com couvre reCAPTCHA, dont App Check dépend : son script vient
+       de là, son épreuve s'affiche dans un cadre de la même origine — et il y
+       fait aussi ses propres requêtes, ce que seul `connect-src` autorise.
+       Cette dernière origine manquait. reCAPTCHA n'obtenait donc jamais son
+       jeton, App Check rendait « 400 » puis se mettait en attente, et la base
+       restait injoignable sur un téléphone dont le réseau marchait très bien.
+       Une politique trop serrée ne se voit pas : elle se lit dans la console,
+       ou dans le journal de diagnostic, jamais à l'écran. -->
+  <!-- L'hôte de la base figure dans `script-src`, et ce n'est pas une erreur.
+       Realtime Database parle par WebSocket ; quand celui-ci échoue une fois —
+       un tunnel, un mode avion, une seconde de réseau perdue — le SDK écrit
+       `previous_websocket_failure` dans `localStorage` et bascule au tour
+       suivant sur le long-polling. Ce transport-là n'est pas du `fetch` : il
+       injecte des balises de script vers l'hôte de la base, dans une iframe
+       qu'il fabrique. Sans cette origine, il est refusé — et la bascule est
+       sans retour, le drapeau survivant à tous les rechargements. La base
+       devenait injoignable pour toujours sur un réseau parfaitement sain, et
+       seul l'effacement des données du site la ramenait.
+       Le refus, lui, ne se voyait pas : il a lieu dans l'iframe, dont le
+       document n'est pas celui qu'écoute le journal de diagnostic.
+       Ces origines sont contrôlées par tests/chargement-initial.test.js, qui
+       compare cette politique à celle de firebase.json **dans les deux sens** :
+       l'origine manquait ici et figurait là-bas, où elle ne s'applique pas. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com/leaflet@1.9.4/ https://apis.google.com https://*.firebasedatabase.app; style-src 'self' 'unsafe-inline' https://unpkg.com/leaflet@1.9.4/; font-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://www.google.com https://nominatim.openstreetmap.org wss://*.firebaseio.com wss://*.firebasedatabase.app http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app https://accounts.google.com https://www.google.com" />
+  <!-- `unpkg.com` est borné au chemin exact de Leaflet, et ce n'est pas
+       cosmétique : ce CDN sert *n'importe quel* paquet npm. L'autoriser en
+       entier revenait à autoriser du script arbitraire, ce qui vidait de sa
+       substance l'absence d'`'unsafe-inline'` — une injection HTML n'avait
+       qu'à pointer une balise de script vers un paquet quelconque de ce CDN.
+       Un préfixe de chemin, lui, ne laisse passer que ce qu'on charge vraiment.
+       (Aucune balise n'est citée ici, et c'est délibéré : une balise de script
+       écrite dans un commentaire ouvre un vrai élément dès que le commentaire
+       se ferme un caractère trop tôt. C'est exactement ce qui est arrivé le
+       2026-08-27 — cf. `tests/balisage-sain.test.js`.)
+       (L'idéal reste de servir Leaflet depuis l'application, comme les
+       polices : plus d'origine tierce du tout, et Dependabot le suivrait.) -->
+  <!-- Le géocodage inversé interroge Nominatim : sans politique explicite, les
+       navigateurs anciens joignaient l'adresse complète de la page à la
+       requête. L'origine seule suffit à ce que le service attend, et reste
+       envoyée — une restriction de clé API par référent continue donc de
+       fonctionner. -->
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="FairSplit - Partage équitable des charges au prorata des salaires" />
+  <meta name="theme-color" content="#4F46E5" />
+  <meta property="og:title" content="FairSplit - Charges Partagées" />
+  <meta property="og:description" content="Partage équitable des charges au prorata des salaires" />
+  <meta property="og:type" content="website" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>FairSplit - Charges Partagées</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192-maskable.png" />
+
+  <!-- Aucun preconnect : plus aucune origine tierce n'est jointe au demarrage.
+       Les polices sont servies par l'application (css/variables.css, fonts/),
+       Leaflet n'est charge que si la carte s'ouvre, et les scripts Firebase
+       portent leur propre empreinte SRI. -->
+
+  <!-- FairSplit CSS (ordre important) -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/summary.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/onglets.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+
+</head>
+<body>
+  <a href="#mainApp" class="skip-link">Aller au contenu principal</a>
+
+  <!-- Affiché uniquement en mode bac à sable (?sandbox=1), par js/app.js -->
+  <div id="sandboxBanner" class="sandbox-banner" role="status" hidden>
+    <span aria-hidden="true">🧪</span> Bac à sable — données d'essai, isolées de celles du foyer
+  </div>
+
+  <!--
+    Affiché quand la base reste injoignable, par js/utils/connection-banner.js.
+    Sans lui, un bouclier de navigateur produisait un écran vide parfaitement
+    crédible et des saisies perdues sans un mot.
+
+    Le message a changé de nature le jour où les saisies ont cessé d'être
+    perdues : elles sont désormais gardées sur l'appareil et repartent à la
+    reconnexion. D'où `role="status"` et non `role="alert"` — la panne n'invalide
+    plus ce qu'on est en train de faire. Annoncer l'inverse apprendrait à ne
+    plus lire le bandeau.
+  -->
+  <div id="offlineBanner" class="offline-banner" role="status" hidden>
+    <span aria-hidden="true">📴</span>
+    <span>
+      <strong>Hors ligne</strong> — <span id="offlineBannerAttente">vos saisies sont conservées sur cet appareil et partiront dès que la base sera de nouveau joignable.</span>
+      <strong>Elles ne vivent que sur cet appareil</strong> : effacer les données du site les
+      perdrait.
+      <!--
+        La cause est remplacée dès que la sonde la connaît (js/utils/sonde-liaison.js).
+        Ce texte est ce qu'on peut dire tant qu'on ne sait rien — une hypothèse,
+        et elle s'est révélée fausse le jour où la vraie cause était une session
+        expirée. Envoyer chercher un bloqueur de contenu qui n'existe pas coûte
+        des heures ; le dire au conditionnel ne suffit pas à l'excuser.
+      -->
+      <span id="offlineBannerCause">Si votre réseau fonctionne, un bloqueur de contenu (boucliers
+      Brave, uBlock), une extension de confidentialité ou un pare-feu peut en être la cause.</span>
+      <span class="offline-actions">
+        <button type="button" id="offlineBannerReessayer" class="btn-lien-bandeau">Réessayer</button>
+        <button type="button" class="btn-lien-bandeau" data-action="signOut">Se reconnecter</button>
+      </span>
+    </span>
+  </div>
+
+  <!-- Authentication Overlay -->
+  <!--
+    L'écran part en attente : logo et nom seuls. Le formulaire de connexion
+    n'apparaît qu'une fois Firebase joint, et seulement s'il annonce que
+    personne n'est connecté (js/modules/auth.js). Sans cet état, la page
+    s'ouvrait sur le formulaire, puis basculait sur l'application dès que la
+    session enregistrée était relue : à chaque rechargement, on croyait avoir
+    été déconnecté pendant une seconde.
+  -->
+  <div id="authOverlay" class="auth-overlay auth-overlay--attente">
+    <div class="auth-card">
+      <!-- La marque, et non un emoji. Le sac d'argent se dessinait autrement
+           sur chaque plateforme, portait un « $ » sur la plupart d'entre
+           elles — pour une application en euros — et ne ressemblait pas à
+           l'icône installée : l'écran d'accueil montrait un cercle partagé,
+           l'application un emoji. Deux identités pour un seul produit.
+           L'emoji n'est pas cité ici : un contrôle vérifie qu'il a quitté ce
+           fichier, commentaires compris. Source : tools/logo-fairsplit.svg. -->
+      <div class="auth-logo"><svg class="marque" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path d="M26.5 6.174 A 18 18 0 1 0 26.5 41.826 Z" fill="currentColor"/><path d="M26.5 6.174 A 18 18 0 0 1 26.5 41.826 Z" fill="currentColor" opacity="0.42"/></svg></div>
+      <div class="auth-title">FairSplit</div>
+      <div class="auth-subtitle">Partage équitable des charges</div>
+
+      <p class="auth-attente" role="status">Connexion…</p>
+      <!--
+        Affichés seulement si Firebase tarde. Le minuteur proposait auparavant
+        le formulaire de connexion, ce qui affirmait une déconnexion là où il
+        n'y avait qu'une attente : on croyait avoir été déconnecté, puis
+        l'application s'ouvrait seule. Une issue, donc, mais pas un état.
+      -->
+      <p class="auth-attente-longue" role="status">La connexion prend plus de temps que d'habitude.</p>
+      <button type="button" class="btn-link auth-attente-longue" id="authForcerFormulaire">Se connecter manuellement</button>
+
+      <button type="button" class="btn-google-signin" data-action="signInWithGoogle">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Connexion avec Google
+      </button>
+
+      <div class="auth-divider">ou</div>
+
+      <form id="authForm" novalidate>
+        <label for="authEmail" class="sr-only">Adresse email</label>
+        <input type="email" id="authEmail" class="auth-input" placeholder="Email" autocomplete="email" required />
+        <label for="authPassword" class="sr-only">Mot de passe</label>
+        <input type="password" id="authPassword" class="auth-input" placeholder="Mot de passe" autocomplete="current-password" required />
+        <button type="submit" class="btn-email-signin" data-action="signInWithEmail">Connexion Email</button>
+        <!-- Masqué par SIGNUP_ENABLED (js/config.js). Le parcours est conservé
+             pour une éventuelle ouverture plus large ; il n'a pas lieu d'être
+             exposé tant que les comptes du foyer sont les seuls autorisés. -->
+        <button type="button" class="btn-email-signin btn-create-account" id="createAccountBtn" data-action="createAccount" hidden>Créer un compte</button>
+      </form>
+
+      <div id="authError" class="auth-error" role="alert" aria-live="assertive"></div>
+    </div>
+  </div>
+
+  <main class="container" id="mainApp" hidden>
+    <!-- Header -->
+    <header>
+      <h1><svg class="marque" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path d="M26.5 6.174 A 18 18 0 1 0 26.5 41.826 Z" fill="currentColor"/><path d="M26.5 6.174 A 18 18 0 0 1 26.5 41.826 Z" fill="currentColor" opacity="0.42"/></svg> FairSplit</h1>
+      <!-- La signature du produit appartient à l'écran de connexion. Une fois
+           connecté, elle consomme ~60 px de haut à chaque ouverture pour une
+           information que les deux utilisateurs connaissent. -->
+      <div class="user-info-bar" id="userInfoBar">
+        <img class="user-avatar" id="userAvatar" src="" alt="Avatar" width="32" height="32" loading="lazy" />
+        <span class="user-name" id="userName"></span>
+        <button type="button" class="btn-logout" data-action="signOut">Déconnexion</button>
+      </div>
+    </header>
+
+    <!-- ==================== BANDEAU COLLÉ ====================
+      Le mois et le solde, gardés sous les yeux pendant le défilement.
+
+      Les deux sont réunis dans un seul conteneur collant plutôt que collés
+      chacun de son côté : empilés indépendamment, il aurait fallu donner au
+      solde un décalage égal à la hauteur du sélecteur — une valeur qui change
+      selon que le bandeau est compact ou non, et qu'un nombre écrit en dur
+      aurait fait mentir dans un cas sur deux. Réunis, ils s'empilent d'eux-mêmes.
+
+      Au-delà de 900 px le conteneur s'efface (`display: contents`) et rend ses
+      deux enfants à la grille, qui les place comme avant.
+    -->
+    <div class="bandeau-colle">
+
+    <!-- Period Navigation -->
+    <nav aria-label="Navigation des périodes">
+    <div class="card period-navigation">
+      <div class="period-selector">
+        <button type="button" class="period-arrow" data-action="navigatePeriod" data-arg="-1" title="Mois précédent" aria-label="Mois précédent">◀</button>
+        <label for="periodSelect" class="sr-only">Sélectionner la période</label>
+        <select class="period-dropdown" id="periodSelect" data-on-change="changePeriod">
+          <!-- Populated dynamically -->
+        </select>
+        <button type="button" class="period-arrow" data-action="navigatePeriod" data-arg="1" title="Mois suivant" aria-label="Mois suivant">▶</button>
+      </div>
+      <div class="period-info" id="periodInfo">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+    </nav>
+
+    <!-- Solde net, maintenu visible pendant le défilement. Rempli par
+         summary.js ; masqué tant qu'aucun bilan n'est calculable, et replié
+         par `barre-solde.js` tant que le bilan dit déjà la même chose. -->
+    <div id="balanceBar" class="balance-bar" role="status" hidden></div>
+
+    </div>
+    <!-- ==================== fin du bandeau collé ==================== -->
+
+    <!-- Summary Section -->
+    <!-- Colonne consultation : ce qu'on lit.
+         Sous 900 px elle devient le panneau « Bilan », premier onglet et écran
+         par défaut : l'application répond à une question, elle doit la poser
+         d'entrée. Au-delà, elle reprend sa colonne et la barre d'onglets
+         disparaît — il y a la place de tout montrer, cacher serait gratuit. -->
+    <div class="col-bilan panneau panneau--actif" id="panneauBilan">
+    <section aria-labelledby="sectionResume">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionResume"><span aria-hidden="true">📊</span> Résumé du Mois</h2>
+      </div>
+
+      <!-- Bilan dynamically populated by summary.js module -->
+      <div id="summarySection">
+        <!-- Populated dynamically by summary.js -->
+      </div>
+
+      <!-- Budgets par catégorie. Le panneau existait mais n'affichait rien :
+           sa cible de rendu n'existait pas et personne ne l'appelait.
+           Masqué tant qu'aucune dépense ni aucun budget n'existe. -->
+      <div id="categoryAnalysis" class="category-analysis" hidden>
+        <div class="category-analysis-header"><span aria-hidden="true">🎯</span> Budgets par catégorie</div>
+        <div id="categoryAnalysisContent">
+          <!-- Rempli par modules/category-budgets.js -->
+        </div>
+      </div>
+
+      <!-- Tendances Historiques — repliées par défaut : le graphique demande
+           une lecture de tout l'historique, inutile tant qu'on ne le regarde
+           pas. Les éléments que trends.js attendait — le canevas et le bloc de
+           statistiques — n'existaient pas : la section n'a jamais rien montré. -->
+      <div id="trendsSection" class="trends-section">
+        <button type="button" class="trends-header" id="trendsToggle"
+                data-action="toggleTrends" aria-expanded="false" aria-controls="trendsContent">
+          <span aria-hidden="true">📈</span> Tendances sur 6 mois
+          <span class="trends-toggle-icon" aria-hidden="true">▼</span>
+        </button>
+        <div id="trendsContent" hidden>
+          <canvas id="trendsCanvas" width="600" height="240"
+                  role="img" aria-label="Évolution des charges sur six mois"></canvas>
+          <div id="trendsStats"></div>
+        </div>
+      </div>
+
+      <!-- Le panneau des rappels a rejoint l'onglet Réglages : trois bascules
+           qu'on arme une fois n'ont rien à faire sur l'écran qu'on ouvre dix
+           fois par semaine. -->
+
+      <!-- Accès quotidiens.
+           Dix boutons se disputaient cette rangée : deux qu'on ouvre chaque
+           semaine et huit qu'on ouvre deux fois l'an. Rangés à égalité, il
+           fallait lire les dix pour en viser un.
+           Ne restent ici que les lectures du mois — les enveloppes, ce qui est
+           privé, et la carte si des dépenses sont localisées. Les huit autres
+           ont leur place dans l'onglet Réglages, groupés par ce qu'ils font. -->
+      <div class="acces-rapides">
+        <!-- Les enveloppes transversales : un séjour, un déménagement, un
+             chantier. Elles regroupent des dépenses par-delà les catégories et
+             les mois, sans jamais toucher au solde. -->
+        <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
+          <span aria-hidden="true">🧳</span> Enveloppes
+        </button>
+        <button type="button" class="btn btn-secondary" data-action="showPrivateExpensesModal" title="Vos dépenses privées, et l'accord mutuel qui les autorise">
+          <span aria-hidden="true">🔒</span> Privé
+        </button>
+        <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
+             la carte se trouvait dans un panneau en display:none, ce qui la
+             rendait inatteignable. Elle reste ici, avec les lectures du mois :
+             la ranger dans les réglages la rendrait introuvable une fois de
+             plus, et c'est exactement le défaut qu'on a corrigé. -->
+        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
+          <span aria-hidden="true">📍</span> Carte
+        </button>
+      </div>
+    </div>
+    </section>
+    </div>
+
+
+    <!-- Colonne saisie : ce qu'on alimente. Sous 900 px, l'onglet « Charges ».
+         La recherche vit ici et non dans le bilan : elle ne cherche que dans
+         ces trois listes, la poser ailleurs promettrait plus large. -->
+    <div class="col-listes panneau" id="panneauCharges">
+    <!-- Search Bar -->
+    <div class="search-bar-container" id="searchBarContainer" hidden>
+      <div class="search-bar">
+        <!-- Décoratif : le champ porte son propre libellé juste en dessous.
+             Sans cet attribut, un lecteur d'écran annonce « loupe » avant le
+             champ, et le contrôle de contraste le mesure comme du texte. -->
+        <span class="search-bar-icon" aria-hidden="true">🔍</span>
+        <label for="searchInput" class="sr-only">Rechercher une charge</label>
+        <input type="search" id="searchInput" placeholder="Rechercher une charge..." />
+        <button type="button" class="search-clear-btn" id="searchClearBtn" data-action="clearSearch" title="Effacer" aria-label="Effacer la recherche">✕</button>
+      </div>
+
+      <!-- La portée de la recherche.
+           Elle ne voyait que le mois affiché — et pour cause : elle masquait
+           des lignes déjà rendues, et les autres mois ne sont pas dans la page.
+           « Quand a-t-on acheté la machine à laver ? » restait sans réponse
+           alors que la donnée est là. Décochée par défaut : le mois courant
+           reste le cas ordinaire, et l'historique se lit à la demande. -->
+      <label class="search-portee">
+        <input type="checkbox" id="searchTousMois" />
+        <span>Chercher dans tous les mois</span>
+      </label>
+
+      <div class="search-results-info" id="searchResultsInfo"></div>
+
+      <!-- Les résultats des autres mois. Le filtrage des listes ne peut pas
+           les montrer : ils n'y sont pas. -->
+      <div class="search-historique" id="searchHistorique" hidden></div>
+    </div>
+
+    <!-- Variable Charges Section -->
+    <section aria-labelledby="sectionChargesVariables">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionChargesVariables"><span aria-hidden="true">⚡</span> Charges Variables</h2>
+        <div class="card-header-actions">
+          <!-- Ranger six courses dans la bonne catégorie demandait six
+               ouvertures de formulaire. `aria-pressed` porte l'état : le
+               libellé bascule aussi, mais un lecteur d'écran ne doit pas avoir
+               à déduire le mode du texte du bouton. -->
+          <button type="button" class="btn btn-secondary" id="selectionBasculer"
+                  data-action="basculerModeSelection" aria-pressed="false">Sélectionner</button>
+          <button type="button" class="btn btn-primary" id="addVariableChargeBtn">+ Ajouter</button>
+        </div>
+      </div>
+
+      <!-- La barre du lot.
+           `hidden` DANS le balisage servi, contrairement aux panneaux de la
+           saisie rapide : ceux-là existaient avant leur script et devaient
+           rester utilisables sans lui. Celle-ci est neuve — un script encore en
+           cache ne la connaît pas et ne la révélerait jamais. Livrée visible,
+           elle serait une barre morte au milieu de la liste. -->
+      <div class="selection-barre" id="selectionBarre" hidden
+           role="group" aria-label="Actions sur les charges sélectionnées">
+        <div class="selection-compte" id="selectionCompte" aria-live="polite"></div>
+        <div class="selection-gestes">
+          <button type="button" class="btn btn-secondary" id="selectionTout"
+                  data-action="toutSelectionner">Tout</button>
+          <label class="sr-only" for="selectionCategorie">Ranger la sélection dans une catégorie</label>
+          <select id="selectionCategorie" data-on-change="appliquerCategorieAuLot"></select>
+          <label class="sr-only" for="selectionEnveloppe">Rattacher la sélection à une enveloppe</label>
+          <select id="selectionEnveloppe" data-on-change="appliquerEnveloppeAuLot"></select>
+          <button type="button" class="btn btn-danger" id="selectionSupprimer"
+                  data-action="supprimerLaSelection">Supprimer</button>
+        </div>
+      </div>
+
+      <div id="variableChargesList">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Total des charges variables</span>
+        <strong id="variableChargesTotal">—</strong>
+      </div>
+    </div>
+    </section>
+
+    <!-- Fixed Charges Section -->
+    <section aria-labelledby="sectionChargesFixes">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionChargesFixes"><span aria-hidden="true">🔒</span> Charges Fixes</h2>
+        <button type="button" class="btn btn-primary" id="addFixedChargeBtn">+ Ajouter</button>
+      </div>
+      <div id="fixedChargesList">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Total des charges fixes</span>
+        <strong id="fixedChargesTotal">—</strong>
+      </div>
+      <!-- Un loyer se lit par mois, un abonnement se comprend par an : 9,99 €
+           ne se remarquent jamais, 119,88 € se discutent. Rempli par
+           `modules/fixed-charges.js`, vide s'il n'y a rien à dire. -->
+      <p class="list-annuel" id="fixedChargesAnnuel" hidden></p>
+    </div>
+    </section>
+
+    <!-- Reimbursements Section -->
+    <section aria-labelledby="sectionRemboursements">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionRemboursements"><span aria-hidden="true">💸</span> Remboursements</h2>
+        <button type="button" class="btn btn-primary" id="addReimbursementBtn">+ Ajouter</button>
+      </div>
+      <div id="reimbursementsList">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="list-total">
+        <span>Solde des remboursements</span>
+        <strong id="reimbursementsTotal">—</strong>
+      </div>
+    </div>
+    </section>
+    </div>
+
+    <!-- ==================== PANNEAU RÉGLAGES ==================== -->
+    <!-- Ce qu'on ajuste rarement : les revenus, la règle de partage, les
+         rappels, puis les outils. Au-delà de 1600 px il prend sa propre
+         colonne ; en deçà de 900 px il devient le troisième onglet. -->
+    <div class="col-reglages panneau" id="panneauReglages">
+
+    <!-- Rappels et notifications -->
+    <section aria-labelledby="sectionRappels">
+    <div class="card">
+      <div class="reminders-section">
+        <button type="button" class="reminders-header" id="sectionRappels" data-action="toggleRemindersPanel" aria-expanded="false" aria-controls="remindersBody">
+          <span class="reminders-header-left">
+            <span aria-hidden="true">🔔</span> Rappels et Notifications
+          </span>
+          <span class="reminders-toggle-icon" id="remindersToggleIcon" aria-hidden="true">▼</span>
+        </button>
+        <div class="reminders-body" id="remindersBody">
+          <!-- Ce que ces trois bascules peuvent réellement faire est énoncé par
+               `notificationsStatus`, en bas du panneau : les rappels ne partent
+               que si l'application est ouverte. Une page web ne peut pas
+               prévenir quand elle est fermée sans un serveur d'envoi, que ce
+               projet n'a pas. Le laisser sous-entendre revenait à promettre. -->
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Fin de mois</div>
+              <div class="reminder-toggle-desc">Rappel à compléter les charges avant la fin du mois</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderFinMois" aria-label="Rappel de fin de mois" data-on-change="saveReminderSettings" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Budget dépassé</div>
+              <div class="reminder-toggle-desc">Alerte si les charges dépassent le budget mensuel</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderBudget" aria-label="Alerte de budget dépassé" data-on-change="saveReminderSettings,toggleBudgetInput" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <div id="budgetInputRow" class="budget-input-row">
+            <label for="budgetAmount">Limite budget mensuel (€)</label>
+            <input type="text" id="budgetAmount" inputmode="decimal" placeholder="Ex: 3000" data-on-input="saveReminderSettings" />
+          </div>
+          <div class="reminder-toggle-row">
+            <div>
+              <div class="reminder-toggle-label">Remboursement en attente</div>
+              <div class="reminder-toggle-desc">Rappel si un remboursement est dû depuis plus de 7 jours</div>
+            </div>
+            <label class="reminder-toggle">
+              <input type="checkbox" id="reminderReimbursement" aria-label="Rappel de remboursement en attente" data-on-change="saveReminderSettings" />
+              <span class="reminder-toggle-slider"></span>
+            </label>
+          </div>
+          <!-- Ce bloc annonçait « Activez les notifications » quel que soit
+               l'état réel, sans offrir le moyen de le faire. Il est désormais
+               rempli par le module, qui connaît la permission accordée. -->
+          <div id="notificationsStatus" class="notifications-status"></div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- Salaries Section -->
+    <section aria-labelledby="sectionSalaires">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionSalaires"><span aria-hidden="true">💵</span> Salaires</h2>
+      </div>
+      <div class="salaries-grid" id="salariesGrid">
+        <div class="salary-input-group">
+          <label for="salaireVous" id="labelSalaireVous">Votre salaire (€)</label>
+          <input type="text" id="salaireVous" placeholder="Ex: 2500" inputmode="decimal" required />
+        </div>
+        <div class="salary-input-group">
+          <label for="salaireConjointe" id="labelSalaireConjointe">Salaire conjointe (€)</label>
+          <input type="text" id="salaireConjointe" placeholder="Ex: 1800" inputmode="decimal" required />
+        </div>
+      </div>
+
+      <!-- Revenus complémentaires — replié par défaut : la plupart des foyers
+           n'ont que des salaires. Déplié automatiquement si le mois en porte. -->
+      <button type="button" class="extra-income-toggle" id="extraIncomeToggle"
+              aria-expanded="false" aria-controls="extraIncomeFields">
+        <span aria-hidden="true">➕</span> Revenus complémentaires
+        <span class="extra-income-hint">allocations, loyers perçus, activité annexe</span>
+      </button>
+      <div class="salaries-grid" id="extraIncomeFields" hidden>
+        <div class="salary-input-group">
+          <label for="revenusVous" id="labelRevenusVous">Vos autres revenus (€)</label>
+          <input type="text" id="revenusVous" placeholder="0" inputmode="decimal" />
+        </div>
+        <div class="salary-input-group">
+          <label for="revenusConjointe" id="labelRevenusConjointe">Autres revenus conjointe (€)</label>
+          <input type="text" id="revenusConjointe" placeholder="0" inputmode="decimal" />
+        </div>
+      </div>
+
+      <!-- Prénoms — les données du foyer sont un enregistrement unique à
+           emplacements fixes que les deux comptes lisent. « Votre salaire »
+           était juste pour l'un et faux pour l'autre. Un prénom vide rétablit
+           le libellé d'origine. -->
+      <div class="salaries-grid" id="membersGrid">
+        <div class="salary-input-group">
+          <label for="prenomVous">Votre prénom</label>
+          <input type="text" id="prenomVous" placeholder="Vous" maxlength="30" data-on-change="saveMembers" />
+        </div>
+        <div class="salary-input-group">
+          <label for="prenomConjointe">Le prénom de votre partenaire</label>
+          <input type="text" id="prenomConjointe" placeholder="Conjointe" maxlength="30" data-on-change="saveMembers" />
+        </div>
+      </div>
+
+      <!-- Share Mode Selector -->
+      <div class="share-mode-selector">
+        <div class="share-mode-label"><span aria-hidden="true">⚖️</span> Mode de partage</div>
+        <div class="share-mode-options">
+          <button type="button" class="share-mode-option selected" id="modeProrata" data-action="selectShareMode" data-arg="prorata">
+            <span aria-hidden="true">📊</span> Prorata
+          </button>
+          <button type="button" class="share-mode-option" id="mode5050" data-action="selectShareMode" data-arg="50-50">
+            <span aria-hidden="true">⚖️</span> 50-50
+          </button>
+          <button type="button" class="share-mode-option" id="modeCustom" data-action="selectShareMode" data-arg="custom">
+            <span aria-hidden="true">🎯</span> Personnalisé
+          </button>
+        </div>
+        <div class="custom-percentages" id="customPercentages">
+          <div class="custom-percentage-group">
+            <label for="customPercentYou" id="labelPartVous">Votre part (%)</label>
+            <input type="text" id="customPercentYou" inputmode="numeric" value="50" />
+          </div>
+          <div class="custom-percentage-group">
+            <label for="customPercentPartner" id="labelPartConjointe">Part conjointe (%)</label>
+            <input type="text" id="customPercentPartner" inputmode="numeric" value="50" />
+          </div>
+        </div>
+        <div class="share-mode-validation" id="shareModeValidation"></div>
+
+        <!-- Report du solde : politique comptable globale, pas un choix
+             mensuel. Désactivé par défaut — l'activer change la lecture de
+             tous les mois passés. -->
+        <div class="setting-toggle-row">
+          <div>
+            <div class="setting-toggle-label">Reporter le solde d'un mois sur l'autre</div>
+            <div class="setting-toggle-desc">Un mois non réglé reste dû le mois suivant, au lieu de repartir de zéro</div>
+          </div>
+          <label class="reminder-toggle">
+            <input type="checkbox" id="carryOverToggle" data-on-change="toggleCarryOver" aria-label="Reporter le solde d'un mois sur l'autre" />
+            <span class="reminder-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="save-indicator" id="salariesSaveIndicator">
+        <span class="saving">⏳ Sauvegarde...</span>
+        <span class="saved">✓ Sauvegardé</span>
+      </div>
+    </div>
+    </section>
+
+    <!-- Outils.
+         Les huit boutons qui se disputaient l'écran d'accueil, rangés par ce
+         qu'ils font plutôt qu'alignés à égalité. Un intitulé au-dessus de deux
+         boutons se lit d'un coup d'œil ; huit boutons en file se lisent un
+         par un. -->
+    <section aria-labelledby="sectionOutils">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="sectionOutils"><span aria-hidden="true">🧰</span> Outils</h2>
+      </div>
+
+      <!-- L'écran de gestion des catégories existait, complet — liste,
+           sélecteur d'emoji, ajout, suppression, écriture en base — mais aucun
+           bouton ne l'ouvrait. Les destinations avaient le même angle mort. -->
+      <h3 class="outils-titre">Vos listes</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="showManageCategoriesModal" title="Ajouter, renommer ou retirer des catégories">
+          <span aria-hidden="true">🏷️</span> Catégories
+        </button>
+        <button type="button" class="btn btn-secondary" data-action="showManageDestinationsModal" title="Ajouter, renommer ou retirer des destinations de virement">
+          <span aria-hidden="true">🏦</span> Destinations
+        </button>
+      </div>
+
+      <!-- La corbeille reste toujours visible : masquée, on la cherchait sans
+           savoir si elle avait disparu ou n'avait jamais existé. Sans compteur :
+           elle couvre tout l'historique, un nombre qui ne ferait que croître
+           n'apprendrait rien. -->
+      <h3 class="outils-titre">Vos données</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="showBackup" title="Sauvegarder ou restaurer toutes les données">
+          <span aria-hidden="true">💾</span> Sauvegarde
+        </button>
+        <button type="button" class="btn btn-secondary" id="trashButton" data-action="showTrash" title="Éléments supprimés, tous mois confondus">
+          <span aria-hidden="true">🗑️</span> Corbeille
+        </button>
+        <!-- L'import n'écrase rien : il ajoute au mois affiché. C'est ce qui le
+             distingue de la restauration de sauvegarde, juste au-dessus, et
+             c'est pour cela qu'il vit avec les données plutôt qu'avec elle. -->
+        <button type="button" class="btn btn-secondary" data-action="showImportModal" title="Ajouter des charges depuis un fichier CSV">
+          <span aria-hidden="true">📥</span> Importer CSV
+        </button>
+      </div>
+
+      <h3 class="outils-titre">Sortir les données</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="exportToCSV" title="Export compatible Excel">
+          <span aria-hidden="true">📊</span> Export CSV
+        </button>
+        <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
+          <span aria-hidden="true">📄</span> Imprimer PDF
+        </button>
+      </div>
+    </div>
+    </section>
+    </div>
+
+    <!-- ==================== BARRE D'ONGLETS ==================== -->
+    <!--
+      Trois destinations, pas dix boutons.
+
+      Elle ne paraît qu'en dessous de 900 px. Au-delà, les trois panneaux
+      reprennent leurs colonnes et s'affichent ensemble : il y a la place, et
+      cacher deux tiers de l'écran pour rien serait une régression.
+
+      Volontairement `data-panneau` et non `data-action` : la délégation de
+      `init.js` résout un nom de fonction sur `window`, surface que la liste
+      blanche des 43 actions borne. Un onglet n'a pas besoin d'appeler une
+      fonction nommée — il désigne un identifiant de panneau, que le module
+      vérifie être un `.panneau` réel. Rien à ajouter à la liste blanche.
+    -->
+    <nav class="onglets" id="onglets" aria-label="Sections de l'application">
+      <button type="button" class="onglet" data-panneau="panneauBilan" aria-current="true">
+        <span class="onglet-icone" aria-hidden="true">📊</span>
+        <span class="onglet-nom">Bilan</span>
+      </button>
+      <button type="button" class="onglet" data-panneau="panneauCharges">
+        <span class="onglet-icone" aria-hidden="true">🧾</span>
+        <span class="onglet-nom">Charges</span>
+      </button>
+      <button type="button" class="onglet" data-panneau="panneauReglages">
+        <span class="onglet-icone" aria-hidden="true">⚙️</span>
+        <span class="onglet-nom">Réglages</span>
+      </button>
+    </nav>
+
+  </main>
+
+  <!-- Modal: Add Variable Charge (Refactored for module) -->
+  <div id="modalAddVariableCharge" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddVariableChargeTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalAddVariableChargeTitle">Ajouter Charge Variable</h2>
+      <form id="variableChargeForm">
+        <input type="hidden" id="variableChargeId" value="" />
+
+        <!-- Le montant vient en premier, comme dans la saisie rapide, et pour
+             la même raison : c'est la seule chose qu'on connaisse toujours en
+             saisissant une dépense. Le libellé se retrouve, la catégorie se
+             devine — `memoire-libelle.js` la propose d'après les saisies
+             passées du foyer —, le montant non. Le formulaire complet
+             demandait pourtant la description d'abord, à rebours du choix
+             déjà tranché deux modales plus loin. -->
+        <div class="form-group">
+          <label for="variableChargeAmount">Montant (€)</label>
+          <input type="text" id="variableChargeAmount" placeholder="Ex: 150,50" inputmode="decimal" maxlength="10" required />
+        </div>
+
+        <div class="form-group">
+          <label for="variableChargeDescription">Description</label>
+          <input type="text" id="variableChargeDescription" placeholder="Ex: Courses, Restaurant..." maxlength="100" required />
+        </div>
+
+        <!-- La date de la DÉPENSE, pas celle de la saisie. Le formulaire n'en
+             portait aucune : une course de samedi régularisée le lundi était
+             datée du lundi, et rien ne permettait de le corriger. -->
+        <div class="form-group form-group--datetime">
+          <div>
+            <label for="variableChargeDate">Date de la dépense</label>
+            <input type="date" id="variableChargeDate" />
+          </div>
+          <!-- Préremplie à l'heure courante, et effaçable : deux courses du
+               même samedi se lisaient à l'identique, mais une dépense qu'on ne
+               sait pas situer dans la journée ne doit pas s'en voir attribuer
+               une. Le vide se conserve. -->
+          <div>
+            <label for="variableChargeHeure">Heure</label>
+            <input type="time" id="variableChargeHeure" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="variableChargeCategory">Catégorie</label>
+          <select id="variableChargeCategory" required>
+            <option value="">-- Sélectionner --</option>
+          </select>
+          <!-- Ce que l'application a proposé, et sur quoi elle se fonde. Une
+               catégorie qui se pose toute seule sans un mot se lit comme un
+               bogue ; dire d'où elle vient la rend corrigeable. Rempli par
+               `modules/variable-charges.js`, vide le reste du temps. -->
+          <p class="form-hint form-hint--proposee" id="variableChargeCategoryHint" hidden></p>
+        </div>
+
+        <!-- Le lieu et l'enveloppe sont repliés, et ce n'est pas de la
+             cosmétique : ils concernent une minorité de charges, et ils
+             occupaient à eux deux le tiers d'un formulaire dont le bouton de
+             validation tombait 374 px sous l'écran. Les replier ramène la
+             saisie complète à ce qu'elle demande vraiment — un montant, un
+             libellé, une date, une catégorie, un payeur — et laisse le reste à
+             un geste de distance pour qui en a besoin.
+
+             `<details>` et non un affichage piloté en JavaScript : le repli
+             fonctionne sans script, et le contenu reste dans le document donc
+             dans l'ordre de tabulation une fois ouvert. -->
+        <details class="form-repli">
+          <summary>Lieu, enveloppe</summary>
+
+        <!-- Le lieu ne s'écrivait que par le GPS, au moment de la saisie rapide.
+             C'est le bon moment quand on paie, le mauvais dès qu'on note la
+             dépense plus tard : un verre bu hier soir, saisi le lendemain depuis
+             chez soi, épinglait le domicile. On cherche donc par le nom. -->
+        <div class="form-group">
+          <label for="variableChargeLieuRecherche">Lieu (facultatif)</label>
+          <div class="lieu-recherche">
+            <input
+              type="text"
+              id="variableChargeLieuRecherche"
+              placeholder="Ex : Le Bistrot Rennes"
+              maxlength="120"
+              autocomplete="off"
+            />
+            <!-- Un bouton « chercher » explicite. La première version n'offrait
+                 que 📍, dont le sens est « ma position actuelle » : on a tapé un
+                 nom, on a cliqué dessus, et il ne s'est rien passé de ce qu'on
+                 attendait. Une icône seule ne dit pas ce qu'elle fait. -->
+            <button type="button" id="variableChargeLieuChercher" class="btn-icon" title="Chercher ce lieu" aria-label="Chercher ce lieu">
+              🔍
+            </button>
+            <button type="button" id="variableChargeLieuIci" class="btn-icon" title="Utiliser ma position actuelle" aria-label="Utiliser ma position actuelle">
+              📍
+            </button>
+          </div>
+          <p class="lieu-aide">Tapez un nom, puis 🔍 — la recherche commence autour de vous. Ou 📍 pour votre position actuelle.</p>
+          <div id="variableChargeLieuResultats" class="lieu-resultats" hidden></div>
+          <div id="variableChargeLieuRetenu" class="lieu-retenu" hidden>
+            <span aria-hidden="true">📍</span>
+            <span id="variableChargeLieuNom"></span>
+            <button type="button" id="variableChargeLieuRetirer" class="btn-icon btn-delete" aria-label="Retirer le lieu">✕</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="variableChargeEnvelope">Enveloppe (facultatif)</label>
+          <select id="variableChargeEnvelope">
+            <option value="">-- Aucune --</option>
+          </select>
+        </div>
+        </details>
+
+        <div class="form-group">
+          <label for="variableChargePaidBy">Payé par</label>
+          <select id="variableChargePaidBy" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="vous" data-member="vous">Vous</option>
+            <option value="conjointe" data-member="conjointe">Conjointe</option>
+            <option value="partage">Partagé</option>
+          </select>
+        </div>
+
+        <!-- Périmètre : la dépense pèse-t-elle sur le solde ?
+             Placé sous « Payé par » parce que les deux sont liés : une dépense
+             perso appartient à celui qui l'a payée, elle ne peut donc pas être
+             partagée. `perimetre.js` refuse la combinaison, et les règles
+             Firebase la refusent aussi — côté serveur, où c'est vrai. -->
+        <div class="form-group form-group-toggle">
+          <label for="variableChargePerso">Dépense perso</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargePerso" data-on-change="toggleVariableChargePerso"
+                   aria-describedby="variableChargePersoAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="variableChargePersoAide" class="form-aide">Elle n'entre pas dans le solde du couple : personne ne doit rien à personne dessus.</p>
+
+        <!-- Reconduite d'un mois sur l'autre, sans son montant.
+             Décochée par défaut, et il le faut : une charge variable est par
+             définition d'un montant qui change. La recopier avec son chiffre
+             inventerait de l'argent dans une application dont tout l'objet est
+             un solde exact — la ligne repart donc à zéro, prête à recevoir le
+             montant du mois. -->
+        <div class="form-group form-group-toggle">
+          <label for="variableChargeRecurring">Reconduire chaque mois</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargeRecurring"
+                   aria-describedby="variableChargeRecurringAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="variableChargeRecurringAide" class="form-aide">La ligne réapparaît chaque mois, sans montant : à vous d'y mettre celui du mois.</p>
+
+        <div class="form-group form-group-toggle">
+          <label for="variableChargeSplitToggle">Répartition spéciale</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="variableChargeSplitToggle" data-on-change="toggleVariableChargeSplit">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="variableChargeSplitOptions" class="split-override-options" style="display:none;">
+          <div class="split-override-row">
+            <label for="variableChargeSplitMode" class="sr-only">Mode de partage de cette charge</label>
+            <select id="variableChargeSplitMode" data-on-change="toggleVariableChargeSplitMode">
+              <option value="50-50">50 / 50</option>
+              <option value="custom">Personnalisé</option>
+            </select>
+          </div>
+          <div id="variableChargeSplitCustom" class="split-custom-row" style="display:none;">
+            <div class="split-custom-input">
+              <label for="variableChargeSplitVous">Vous (%)</label>
+              <input type="number" id="variableChargeSplitVous" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+            <div class="split-custom-input">
+              <label for="variableChargeSplitConjointe">Conjointe (%)</label>
+              <input type="number" id="variableChargeSplitConjointe" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalAddVariableCharge">Annuler</button>
+          <button type="button" class="btn btn-primary" id="saveVariableCharge">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Fixed Charge (Refactored for module) -->
+  <div id="modalAddFixedCharge" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddFixedChargeTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalAddFixedChargeTitle">Ajouter Charge Fixe</h2>
+      <form id="fixedChargeForm">
+        <input type="hidden" id="fixedChargeId" value="" />
+
+        <div class="form-group">
+          <label for="fixedChargeDescription">Description</label>
+          <input type="text" id="fixedChargeDescription" placeholder="Ex: Loyer, EDF, Internet..." maxlength="100" required />
+        </div>
+
+        <div class="form-group">
+          <label for="fixedChargeAmount">Montant (€)</label>
+          <input type="text" id="fixedChargeAmount" placeholder="Ex: 800" inputmode="decimal" maxlength="10" required />
+        </div>
+
+        <div class="form-group">
+          <label for="fixedChargeDate">Date de la dépense</label>
+          <input type="date" id="fixedChargeDate" />
+        </div>
+
+        <div class="form-group">
+          <label for="fixedChargeCategory">Catégorie</label>
+          <select id="fixedChargeCategory" required>
+            <option value="">-- Sélectionner --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="fixedChargePaidBy">Payé par</label>
+          <select id="fixedChargePaidBy" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="vous" data-member="vous">Vous</option>
+            <option value="conjointe" data-member="conjointe">Conjointe</option>
+            <option value="partage">Partagé</option>
+          </select>
+        </div>
+
+        <!-- Périmètre : la dépense pèse-t-elle sur le solde ?
+             Placé sous « Payé par » parce que les deux sont liés : une dépense
+             perso appartient à celui qui l'a payée, elle ne peut donc pas être
+             partagée. `perimetre.js` refuse la combinaison, et les règles
+             Firebase la refusent aussi — côté serveur, où c'est vrai. -->
+        <div class="form-group form-group-toggle">
+          <label for="fixedChargePerso">Dépense perso</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="fixedChargePerso" data-on-change="toggleFixedChargePerso"
+                   aria-describedby="fixedChargePersoAide">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p id="fixedChargePersoAide" class="form-aide">Elle n'entre pas dans le solde du couple : personne ne doit rien à personne dessus.</p>
+
+        <div class="form-group">
+          <label for="fixedChargeDestination">Destination virement</label>
+          <select id="fixedChargeDestination">
+            <option value="">-- Aucune --</option>
+          </select>
+        </div>
+
+        <!-- Une mensualité de chèques vacances est une charge fixe qui
+             appartient à l'enveloppe Vacances : les deux formulaires portent
+             donc le même champ. -->
+        <div class="form-group">
+          <label for="fixedChargeEnvelope">Enveloppe (facultatif)</label>
+          <select id="fixedChargeEnvelope">
+            <option value="">-- Aucune --</option>
+          </select>
+        </div>
+
+        <div class="form-group form-group-toggle">
+          <label for="fixedChargeRecurring">Récurrente (reconduction auto)</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="fixedChargeRecurring" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="form-group form-group-toggle">
+          <label for="fixedChargeSplitToggle">Répartition spéciale</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="fixedChargeSplitToggle" data-on-change="toggleFixedChargeSplit">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="fixedChargeSplitOptions" class="split-override-options" style="display:none;">
+          <div class="split-override-row">
+            <label for="fixedChargeSplitMode" class="sr-only">Mode de partage de cette charge</label>
+            <select id="fixedChargeSplitMode" data-on-change="toggleFixedChargeSplitMode">
+              <option value="50-50">50 / 50</option>
+              <option value="custom">Personnalisé</option>
+            </select>
+          </div>
+          <div id="fixedChargeSplitCustom" class="split-custom-row" style="display:none;">
+            <div class="split-custom-input">
+              <label for="fixedChargeSplitVous">Vous (%)</label>
+              <input type="number" id="fixedChargeSplitVous" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+            <div class="split-custom-input">
+              <label for="fixedChargeSplitConjointe">Conjointe (%)</label>
+              <input type="number" id="fixedChargeSplitConjointe" value="50" min="0" max="100" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalAddFixedCharge">Annuler</button>
+          <button type="button" class="btn btn-primary" id="saveFixedCharge">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Reimbursement (Refactored for module) -->
+  <div id="modalAddReimbursement" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAddReimbursementTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalAddReimbursementTitle">Ajouter Remboursement</h2>
+      <form id="reimbursementForm">
+        <!-- Un remboursement ne pouvait ni être daté, ni être rouvert : une
+             erreur de montant ou de sens obligeait à supprimer puis resaisir. -->
+        <input type="hidden" id="reimbursementId" value="" />
+
+        <div class="form-group">
+          <label for="reimbursementDirection">Direction</label>
+          <select id="reimbursementDirection" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="vous-to-conjointe" data-direction="vers-conjointe">Vous → Conjointe</option>
+            <option value="conjointe-to-vous" data-direction="vers-vous">Conjointe → Vous</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reimbursementAmount">Montant (€)</label>
+          <input type="text" id="reimbursementAmount" placeholder="Ex: 50" inputmode="decimal" maxlength="10" required />
+        </div>
+        <div class="form-group">
+          <label for="reimbursementDate">Date du remboursement</label>
+          <input type="date" id="reimbursementDate" />
+        </div>
+
+        <div class="form-group">
+          <label for="reimbursementNote">Note (optionnel)</label>
+          <input type="text" id="reimbursementNote" placeholder="Ex: Remboursement courses" maxlength="200" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalAddReimbursement">Annuler</button>
+          <button type="button" class="btn btn-primary" id="saveReimbursement">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Quick Add (Saisie Express) -->
+  <div id="modalQuickAdd" class="modal-overlay quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="modalQuickAddTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalQuickAddTitle"><span aria-hidden="true">⚡</span> Saisie Rapide</h2>
+      <!-- Ouverte par le raccourci, la modale paraît avant que Firebase ait
+           répondu : le montant se tape pendant l'authentification au lieu de
+           la suivre. Cette ligne dit pourquoi les enveloppes manquent et
+           pourquoi les catégories sont celles par défaut — sans elle, la
+           modale mentirait par omission le temps de la connexion. -->
+      <p class="quick-add-attente" id="quickAddAttente" role="status" aria-live="polite" hidden></p>
+
+      <!-- Le montant vient en premier, et ce n'est pas un détail de mise en
+           page : c'est la seule chose qu'on connaisse toujours en saisissant
+           une dépense. La catégorie se devine — le lieu la pré-sélectionne
+           souvent tout seul — et se corrige après coup ; le montant, non.
+           Il arrivait après huit tuiles, alors que le champ recevait le focus
+           à l'ouverture : le clavier s'ouvrait pour un champ qu'il fallait
+           d'abord aller chercher. -->
+      <div class="amount-input-large">
+        <label for="quickAddAmount" class="sr-only">Montant en euros</label>
+        <input
+          type="text"
+          id="quickAddAmount"
+          placeholder="Montant"
+          inputmode="decimal"
+        />
+        <span class="currency-symbol">€</span>
+      </div>
+
+      <!--
+        Ce qui sera enregistré, dit en une phrase — et chaque partie ouvre son
+        choix. Les quatre blocs empilés qui la remplacent obligeaient à
+        reconstituer de tête l'état de quatre contrôles, et reléguaient le
+        payeur sous neuf tuiles de catégories. Or c'est lui qui décide qui doit
+        combien : atteint par défilement, il n'était pas vérifié.
+        Remplie par js/modules/quick-add.js à chaque changement.
+      -->
+      <div class="quick-add-phrase" id="quickAddPhrase" role="group" aria-label="Ce qui sera enregistré"></div>
+
+      <!-- Les quatre panneaux. Chacun porte le contrôle qu'il portait avant,
+           inchangé : rien n'est retiré, tout devient atteignable en un geste au
+           lieu d'un défilement.
+
+           Ils ne sont **pas** repliés dans le balisage, et c'est délibéré.
+           `quick-add.js` les replie à l'ouverture de la modale, avant qu'elle
+           ne s'affiche. Les pré-replier ici rendrait le formulaire inutilisable
+           le jour où ce script manque ou tarde — nouveau balisage servi avec un
+           ancien script encore en cache, module refusé, erreur en amont : plus
+           de catégorie, plus de payeur, plus de répartition, et aucune phrase
+           pour les atteindre. Constaté en production, à six minutes d'un
+           déploiement.
+
+           Ainsi, le pire des cas rend l'écran d'avant : long, mais entier. -->
+      <div class="quick-add-panneau" id="quickAddPanneauPayeur">
+        <div class="quick-add-header"><strong>Payé par</strong></div>
+        <!-- data-member : members.js y reporte les prénoms du foyer, comme sur
+             les listes de payeur du formulaire complet. -->
+        <div class="payer-toggle" id="quickAddPayer">
+          <button type="button" data-payer="vous" data-member="vous" class="selected" aria-pressed="true">Vous</button>
+          <button type="button" data-payer="conjointe" data-member="conjointe" aria-pressed="false">Conjointe</button>
+          <button type="button" data-payer="partage" aria-pressed="false"><span aria-hidden="true">🤝</span> Partagé</button>
+        </div>
+      </div>
+
+      <div class="quick-add-panneau" id="quickAddPanneauRepartition">
+        <div class="quick-add-header"><strong>Répartition</strong></div>
+        <div class="payer-toggle">
+          <button type="button" id="quickSplitProrata" class="selected" aria-pressed="true"><span aria-hidden="true">📊</span> Prorata</button>
+          <button type="button" id="quickSplit5050" aria-pressed="false"><span aria-hidden="true">⚖️</span> 50-50</button>
+          <!-- « Perso » est une troisième réponse à « comment ça se partage ? » :
+               pas du tout. Sa place est donc ici, et non dans un cinquième
+               segment qui encombrerait la phrase de tout le monde. -->
+          <button type="button" id="quickSplitPerso" aria-pressed="false"><span aria-hidden="true">👤</span> Perso</button>
+        </div>
+        <p class="quick-add-aide">Une dépense perso n'entre pas dans le solde du couple.</p>
+      </div>
+
+      <div class="quick-add-panneau" id="quickAddPanneauCategorie">
+        <!-- Les six catégories que ce foyer emploie le plus, comptées sur ses
+             propres charges, puis une tuile qui déplie le reste. Remplie par
+             quick-add.js : la liste du foyer compte dix-neuf catégories, et les
+             montrer toutes rendrait la saisie rapide plus lente qu'un
+             formulaire complet. -->
+        <div class="category-grid" id="categoryGrid">
+          <!-- Categories will be populated by JavaScript -->
+        </div>
+
+        <!-- Le témoin du lieu vit ICI, sous les catégories, et non plus en tête
+             de la fenêtre. Ce qu'il annonce n'a de sens qu'à côté d'elles : il
+             dit POURQUOI une catégorie s'est pré-sélectionnée toute seule.
+             « ✓ Intermarché · "Courses" proposée d'après le lieu » à côté de la
+             tuile allumée s'explique ; la même phrase huit tuiles plus haut,
+             avant même qu'un montant soit tapé, ne parlait que du GPS à
+             quelqu'un venu taper un chiffre. C'est le traitement que la mémoire
+             des libellés applique déjà à son propre indice : une catégorie qui
+             se pose sans un mot se lit comme un bogue. -->
+        <div class="quick-add-location" id="quickAddLocation" aria-live="polite" aria-atomic="true">
+          <!-- Rempli par quick-add.js. Volontairement PAS `hidden` dans le
+               balisage servi : `direLeLieu('')` le replie sur les trois chemins
+               d'ouverture, et un ancien script encore en cache — qui n'écrit
+               que `textContent` — le laisserait sinon invisible pour toujours,
+               y compris « Sans lieu » après détachement. Même raisonnement que
+               les panneaux, pour la même raison, constatée en production. -->
+        </div>
+
+        <!-- La position détectée est celle du téléphone au moment de la saisie,
+             pas celle de la dépense. Régulariser le lendemain épinglait donc le
+             domicile sur la carte, et nommait la charge d'après lui. Ce bouton
+             détache le lieu ; il n'apparaît que lorsqu'il y a quelque chose à
+             détacher. -->
+        <button type="button" id="quickAddLocationDetach" class="quick-add-location-detach" hidden>
+          <span aria-hidden="true">✕</span> Ce n'est pas ici
+        </button>
+      </div>
+
+      <!-- Préremplis au jour et à l'heure courants : la saisie rapide doit
+           rester rapide, et le montant garde le focus. Servent à régulariser
+           une dépense d'hier sans passer par le formulaire complet. L'heure est
+           effaçable — une dépense qu'on ne sait pas situer dans la journée ne
+           doit pas s'en voir attribuer une. -->
+      <div class="quick-add-panneau" id="quickAddPanneauDate">
+        <div class="quick-add-date">
+          <label for="quickAddDate">Date de la dépense</label>
+          <input type="date" id="quickAddDate" />
+        </div>
+        <div class="quick-add-date">
+          <label for="quickAddHeure">Heure</label>
+          <input type="time" id="quickAddHeure" />
+        </div>
+      </div>
+
+      <!-- Le rattachement à une enveloppe. Les deux formulaires complets le
+           proposaient, la saisie rapide non — c'est-à-dire pas au moment où
+           l'on en a le plus besoin : en vacances, en trois gestes.
+           Le segment de la phrase ne paraît que si le foyer a des enveloppes ;
+           ce panneau reste donc inatteignable tant qu'il n'y en a aucune. -->
+      <div class="quick-add-panneau" id="quickAddPanneauEnveloppe">
+        <div class="quick-add-date">
+          <label for="quickAddEnvelope">Enveloppe</label>
+          <select id="quickAddEnvelope"></select>
+        </div>
+      </div>
+
+      <!-- Facultatif : sans saisie, la description reste déduite du lieu ou de
+           la catégorie, comme avant. Avec, elle prime — « Burger King » vaut
+           mieux que le nom du lieu où l'on se trouvait en saisissant. -->
+      <label for="quickAddDescription" class="sr-only">Description de la dépense</label>
+      <input
+        type="text"
+        id="quickAddDescription"
+        class="quick-add-description"
+        placeholder="Description (facultatif)"
+        maxlength="100"
+        autocomplete="off"
+      />
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeQuickAddModal">Annuler</button>
+        <!-- Ce bouton était désactivé tant que catégorie et montant n'étaient
+             pas tous deux renseignés. Un bouton désactivé n'émet aucun
+             événement au toucher : on tapait dessus et il ne se passait rien,
+             sans que rien ne dise ce qui manquait. Or `handleQuickAddSubmit`
+             sait déjà le nommer — l'attribut l'empêchait simplement de parler.
+             Il reste donc actif, et c'est la soumission qui explique. -->
+        <button type="button" class="btn btn-primary" id="btnQuickAdd" data-action="handleQuickAddSubmit">✓ Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmation générique -->
+  <div id="modalConfirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalConfirmTitle">
+    <div class="modal modal-confirm">
+      <h2 class="modal-header" id="modalConfirmTitle">Confirmation</h2>
+      <p id="modalConfirmMessage" class="modal-confirm-message"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modalConfirmCancel">Annuler</button>
+        <button type="button" class="btn btn-danger" id="modalConfirmOk">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Corbeille — les suppressions sont douces, rien n'est jamais effacé.
+       Cette modale expose ce que la base conservait déjà sans le montrer. -->
+  <div id="modalTrash" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTrashTitle">
+    <div class="modal">
+      <!-- « du mois » était faux : `trash.js` balaie toutes les périodes. Le
+           titre disait donc à qui cherchait une charge supprimée en juin
+           qu'elle ne pouvait pas s'y trouver. -->
+      <h2 class="modal-header" id="modalTrashTitle">Corbeille — tous les mois</h2>
+      <p class="modal-hint">Tout ce qui a été supprimé, quel que soit le mois. Ces éléments ne sont plus comptés dans les bilans et restent récupérables.</p>
+      <div id="trashList" class="trash-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalTrash">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sauvegarde — l'export CSV ne couvre qu'un mois et perd la structure.
+       Ce fichier contient tout et sait revenir. -->
+  <div id="modalBackup" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalBackupTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalBackupTitle">Sauvegarde</h2>
+
+      <p class="modal-hint">
+        Un fichier unique contenant tous vos mois, salaires, charges et réglages.
+        Conservez-le hors de l'application.
+      </p>
+      <button type="button" class="btn btn-primary btn-block" data-action="downloadBackup">
+        <span aria-hidden="true">💾</span> Télécharger une sauvegarde
+      </button>
+
+      <hr class="modal-separator" />
+
+      <p class="modal-hint modal-hint-warning">
+        Restaurer <strong>remplace l'intégralité</strong> de vos données par le contenu du
+        fichier. Une copie de l'état actuel sera téléchargée avant le remplacement.
+      </p>
+      <button type="button" class="btn btn-secondary btn-block" data-action="pickBackupFile">
+        <span aria-hidden="true">↩️</span> Restaurer depuis un fichier
+      </button>
+      <!-- Le champ natif n'est pas stylable de façon fiable : le bouton
+           ci-dessus le déclenche. -->
+      <input type="file" id="backupFileInput" accept="application/json,.json" hidden />
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalBackup">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Éditeur de budgets par catégorie -->
+  <div id="modalBudgets" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalBudgetsTitle">
+    <div class="modal">
+      <h2 class="modal-header" id="modalBudgetsTitle">Budgets par catégorie</h2>
+      <p class="modal-hint">
+        Un budget vaut pour tous les mois tant que vous ne le changez pas.
+        Laissez vide pour ne pas en fixer.
+      </p>
+      <div id="budgetEditorList" class="budget-editor-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalBudgets">Annuler</button>
+        <button type="button" class="btn btn-primary" data-action="saveCategoryBudgets">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button type="button" class="fab" data-action="showQuickAddModal" title="Saisie rapide" aria-label="Saisie rapide de charge">
+    <span aria-hidden="true">➕</span>
+  </button>
+
+
+  <!-- Firebase SDK -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" integrity="sha384-g5H2aNdtgRBYOBLsuOAuHvUXWnw4bswmU+tYjmGc1G3JfKxl79uWwV4sQarJsLwu" crossorigin="anonymous"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
+  <!-- App Check : atteste que la requête vient de cette application, ce que les
+       règles de sécurité ne savent pas vérifier. Inerte tant que
+       APP_CHECK_SITE_KEY est vide dans js/config.js. -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js" integrity="sha384-Tsd7RAB2e2isM7pHHNFd4hZbrHBtszy6x4HCQqkLDM7PTHvRAjrMZKBOP2ntQDqc" crossorigin="anonymous"></script>
+
+  <!-- FairSplit JS Modules -->
+  <script type="module" src="js/app.js"></script>
+
+  <!-- FairSplit Init: event delegation, UI toggles, SW registration -->
+  <script defer src="js/init.js"></script>
+</body>
+</html>

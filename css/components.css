@@ -1,0 +1,1437 @@
+/* ===== PERIOD ARCHIVED LABEL ===== */
+.period-archived-label {
+  color: var(--text-secondary);
+}
+
+/* ===== SEARCH BAR ===== */
+.search-bar-container {
+  margin-bottom: var(--space-md);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--card-bg);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.search-bar:focus-within {
+  border-color: var(--primary-color);
+}
+
+.search-bar-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--text-primary);
+}
+
+.search-bar input:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.search-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: var(--space-xs);
+  border-radius: var(--radius-full);
+  transition: color var(--duration) var(--ease);
+  display: none;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+}
+
+.search-clear-btn.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-results-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: var(--space-xs) var(--space-md) 0;
+  display: none;
+}
+
+.search-results-info.visible {
+  display: block;
+}
+
+/* ===== LA PORTÉE DE LA RECHERCHE ===== */
+/*
+   La recherche ne voyait que le mois affiché — et pour cause : elle masquait
+   des lignes déjà rendues, et les autres mois ne sont pas dans la page.
+
+   La case reste décochée : le mois courant est le cas ordinaire, et une
+   lecture de tout l'historique ne doit pas se déclencher sans qu'on l'ait
+   demandée.
+*/
+.search-portee {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md) 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.search-portee input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+/* ===== LES RÉSULTATS DES AUTRES MOIS ===== */
+/*
+   Ils ont leur propre panneau, et il le faut : le filtrage des listes ne peut
+   pas les montrer, ils n'y sont pas.
+*/
+.search-historique {
+  margin-top: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-sm);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.search-historique-attente {
+  margin: var(--space-sm) 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.search-mois {
+  margin-bottom: var(--space-sm);
+}
+
+/*
+   L'en-tête emmène au mois : trouver « Machine à laver, juin 2026 » sans
+   pouvoir s'y rendre laisserait le travail à moitié fait.
+*/
+.search-mois-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.search-mois-entete:hover,
+.search-mois-entete:focus-visible {
+  background: var(--primary-soft);
+}
+
+.search-mois-nom {
+  text-transform: capitalize;
+}
+
+.search-mois-compte {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.search-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-ligne:last-child {
+  border-bottom: none;
+}
+
+.search-ligne-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.search-ligne-titre {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-ligne-detail {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.search-ligne-montant {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ===== PERIOD NAVIGATION ===== */
+.period-navigation {
+  background: var(--card-bg);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+}
+
+.period-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.period-arrow {
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration) var(--ease);
+}
+
+.period-arrow:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.period-arrow:active {
+  transform: scale(0.95);
+}
+
+.period-dropdown {
+  flex: 1;
+  max-width: 200px;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font);
+  text-align: center;
+  cursor: pointer;
+}
+
+.period-info {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: var(--space-sm);
+}
+
+.current-period-badge {
+  display: inline-block;
+  background: var(--success-color);
+  color: var(--on-success);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: var(--space-sm);
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-color);
+  transition: all var(--duration) var(--ease);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  letter-spacing: -0.02em;
+}
+
+/* ===== SALARIES ===== */
+.salaries-grid {
+  display: grid;
+  /*
+     `1fr` vaut `minmax(auto, 1fr)` : la piste ne peut pas devenir plus étroite
+     que le contenu intrinsèque de son élément. Un <input> revendique environ
+     vingt caractères, si bien que les deux colonnes débordaient de la carte.
+     Le défaut est resté invisible tant que la carte occupait toute la largeur ;
+     le passage en deux colonnes l'a réduite de moitié et l'a révélé.
+  */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.salary-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  /* Même raison : sans cela, l'élément de grille impose sa largeur minimale. */
+  min-width: 0;
+}
+
+.salary-input-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.salary-input-group input {
+  /* L'élément remplit sa colonne au lieu de la dicter. */
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.salary-input-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* ===== SAVE INDICATOR ===== */
+.save-indicator {
+  text-align: center;
+  margin-top: var(--space-sm);
+  font-size: 12px;
+  min-height: 18px;
+}
+
+.save-indicator .saving {
+  color: var(--warning-ink);
+  display: none;
+}
+
+.save-indicator .saved {
+  color: var(--success-ink);
+  display: none;
+}
+
+.save-indicator.is-saving .saving {
+  display: inline;
+}
+
+.save-indicator.is-saved .saved {
+  display: inline;
+  animation: fadeIn 0.2s var(--ease);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===== CHARGES ===== */
+.charge-item {
+  background: var(--elevated-bg);
+  padding: 12px var(--space-md);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-sm);
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-sm);
+  align-items: center;
+  border: 1px solid transparent;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.charge-item:hover {
+  border-color: var(--border-strong);
+}
+
+.charge-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Le JS rend `charge-description` et `charge-payer` : ces deux règles
+   visaient `charge-name` et `charge-payeur`, noms d'un balisage antérieur.
+   Elles ne s'appliquaient donc à rien, et la ligne « Payé par… » s'affichait
+   sans style au milieu d'une liste qui, elle, en avait un. */
+.charge-description {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.charge-amount {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+/* Qui a avancé l'argent décide du sens du solde : c'est l'information la plus
+   chargée de la ligne, et elle était la moins lisible de l'écran —
+   `--warning-color` mesure 2,78:1 sur `--elevated-bg`, en 11 px.
+   L'ambre était doublement fautif : sémantiquement, payer n'est pas un
+   avertissement ; les deux payeurs portaient d'ailleurs la même teinte, elle
+   ne distinguait donc personne. Le palier secondaire, en 12 px, dit la même
+   chose à 5,54:1. */
+.charge-payer {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.charge-location {
+  font-size: 11px;
+  color: var(--primary-ink);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.charge-location i {
+  font-size: 9px;
+}
+
+/* La date de la dépense, en tête de la ligne « Payé par ». Aucune vue n'en
+   affichait : une charge était située dans son mois, jamais dans son jour.
+   Chiffres à chasse fixe pour que la colonne s'aligne d'une ligne à l'autre. */
+/*
+   La date sur sa ligne, le payeur sur la sienne.
+
+   Les deux vivent dans le même `<span>` — « 14 août 2026 à 18:40 Payé par
+   Vous » — et se lisaient d'un trait tant que la colonne était large. Depuis
+   que le montant a rejoint la ligne du libellé, elle ne l'est plus : la phrase
+   se coupait au hasard, « Payé par » restant en fin de ligne et « Conjointe »
+   passant seule à la suivante. Deux blocs valent mieux qu'un retour arbitraire
+   au milieu d'une locution.
+
+   La marge droite n'a plus d'objet une fois les deux séparés.
+*/
+.charge-date {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* L'étiquette d'enveloppe, sur une charge fixe comme sur une charge variable.
+   Elle se distingue du payeur et du lieu : ces trois lignes se suivent, et
+   trois gris identiques n'auraient formé qu'un bloc. */
+.charge-enveloppe {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.charge-split {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.btn-icon {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: all var(--duration) var(--ease);
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:not(.btn-delete):hover {
+  background: var(--primary-glow);
+  border-color: var(--primary-color);
+  color: var(--primary-ink);
+}
+
+.btn-delete {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: all var(--duration) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-delete:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger-color);
+  color: var(--danger-ink);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: var(--on-danger);
+  border: 1px solid var(--danger-color);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--duration) var(--ease);
+}
+
+.btn-danger:hover {
+  background: var(--danger-dark);
+  border-color: var(--danger-dark);
+}
+
+.charge-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ===== FORMS ===== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Date et heure côte à côte : elles décrivent le même instant, et les empiler
+   ferait descendre d'autant le bouton d'enregistrement. La date reçoit deux
+   fois la largeur de l'heure — « 25/08/2026 » est plus long que « 08:30 ». */
+.form-group--datetime {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-md);
+}
+
+.form-group--datetime > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  /* `min-width: 0` : sans lui, la largeur intrinsèque des sélecteurs de date
+     déborde de la carte au lieu de se laisser réduire. */
+  min-width: 0;
+}
+
+.form-group--datetime > div:first-child { flex: 2; }
+.form-group--datetime > div:last-child { flex: 1; }
+
+.form-group--datetime input {
+  width: 100%;
+}
+
+/* ===== TOGGLE SWITCH ===== */
+.form-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--elevated-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  transition: all var(--duration) var(--ease);
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  transition: all var(--duration) var(--ease);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background-color: white;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  letter-spacing: -0.01em;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.btn-secondary:hover {
+  background: var(--hover-bg);
+  border-color: var(--text-muted);
+}
+
+.btn:disabled,
+.btn:disabled:hover,
+.btn:disabled:active {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===== SUMMARY ===== */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: var(--space-md);
+}
+
+/* ===== REIMBURSEMENT ===== */
+.reimbursement-item {
+  background: var(--elevated-bg);
+  padding: 12px var(--space-md);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 3px solid var(--success-color);
+}
+
+.reimbursement-info {
+  flex: 1;
+}
+
+.reimbursement-direction {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.reimbursement-amount {
+  font-size: 17px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--success-ink);
+}
+
+/* ===== MODES DE PARTAGE ===== */
+.share-mode-selector {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+}
+
+.share-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.share-mode-options {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: 12px;
+}
+
+.share-mode-option {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.share-mode-option:hover {
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.share-mode-option.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+  /* Mesuré à 3,90:1 avec `--primary-light` : c'est le libellé du mode de
+     partage RETENU — la règle qui décide qui paie quoi —, et c'était le texte
+     le moins lisible du panneau. La teinte pleine passe à 5,49:1 ; la
+     bordure et le lavis continuent de porter la sélection. */
+  color: var(--primary-ink);
+}
+
+.custom-percentages {
+  display: none;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.custom-percentages.active {
+  display: flex;
+}
+
+.custom-percentage-group {
+  flex: 1;
+  /* Un élément flex ne rétrécit pas sous la largeur intrinsèque de son
+     contenu sans cela — même débordement que la grille des salaires. */
+  min-width: 0;
+}
+
+.custom-percentage-group label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.custom-percentage-group input {
+  width: 100%;
+  padding: 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.custom-percentage-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.share-mode-validation {
+  margin-top: var(--space-sm);
+  font-size: 12px;
+  text-align: center;
+}
+
+.share-mode-validation.valid {
+  color: var(--success-ink);
+}
+
+.share-mode-validation.invalid {
+  color: var(--danger-ink);
+}
+
+/* `.export-actions` rangeait les dix boutons d'outils sur une seule ligne.
+   Ils se sont répartis entre `.acces-rapides` — les trois lectures du mois,
+   restées au bilan — et `.outils-rangee`, groupés par usage dans l'onglet
+   Réglages. Les deux règles vivent dans `onglets.css`, avec le découpage
+   qui les a fait naître. */
+
+/* ===== TOAST NOTIFICATIONS ===== */
+/*
+   Le positionnement appartient au conteneur, pas au message.
+
+   `.toast` portait `position: fixed; bottom: 20px; right: 20px`, alors que
+   `toast.js` crée un conteneur empilable — précisément pour que deux messages
+   se suivent. Chaque message sortait donc du flux de ce conteneur et atterrissait
+   au même point : deux messages simultanés formaient un tas illisible. Mesuré,
+   et non supposé : les deux se posaient à trois pixels l'un de l'autre.
+
+   Le cas n'est pas rare — ouvrir la carte sans réseau et créer une enveloppe
+   dans la foulée suffit à le produire.
+*/
+.toast {
+  position: relative;
+  /* Le conteneur ne capte pas le doigt, pour ne pas voler un appui destiné à
+     ce qu'il recouvre ; le message, lui, doit rester touchable — il porte le
+     bouton « Annuler ». */
+  pointer-events: auto;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 10000;
+  animation: slideIn 0.25s var(--ease);
+  border-left: 3px solid var(--primary-color);
+  font-size: 14px;
+  max-width: 380px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast.success {
+  border-left-color: var(--success-color);
+}
+
+.toast.error {
+  border-left-color: var(--danger-color);
+}
+
+/* ===== LOADING SPINNER ===== *
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  text-align: center;
+  /* --text-muted (#94A3B8) donne 2,56:1 sur blanc, sous le seuil AA de 4,5.
+     Ce texte n'est pas décoratif : c'est le seul contenu de la carte quand
+     elle est vide. --text-secondary atteint 4,76:1. */
+  color: var(--text-secondary);
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/*
+   Ce qu'une section vide explique d'elle-même.
+
+   Un état vide est le seul moment où l'application a l'attention entière de
+   quelqu'un qui ne sait rien. L'onglet Charges en montrait trois d'affilée —
+   « Variables », « Fixes », « Remboursements » —, identiques à 0,00 €, sans un
+   mot sur ce qui les distingue. Or cette distinction structure tout le reste :
+   la reconduction, le coût annuel, le prévisionnel. On la découvrait par
+   essais.
+
+   `display: block` sur un `<small>` : la phrase prend sa ligne sous le
+   constat, au lieu de le prolonger.
+*/
+.empty-state small {
+  display: block;
+  max-width: 42ch;
+  margin: var(--space-sm) auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+@keyframes emptyBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* ===== FLOATING ACTION BUTTON (FAB) ===== */
+/* `.container` réserve déjà 100 px en bas pour que la fin de la page ne passe
+   pas dessous. Ce qu'il manquait : la garde du bas d'écran, sans laquelle le
+   bouton se pose sur la barre de navigation d'un téléphone récent.
+
+   Qu'il recouvre le contenu au milieu du défilement est, lui, inhérent à un
+   bouton flottant — et c'est le prix de l'avoir toujours sous le pouce. */
+.fab {
+  position: fixed;
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  right: var(--space-lg);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--primary-color);
+  color: white;
+  font-size: 24px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px var(--primary-glow);
+  z-index: 9998;
+  transition: all var(--duration) var(--ease);
+}
+
+.fab:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 6px 24px var(--primary-glow);
+  transform: translateY(-2px);
+}
+
+.fab:active {
+  transform: scale(0.95) translateY(0);
+}
+
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 4px 16px var(--primary-glow); }
+  50% { box-shadow: 0 4px 24px var(--primary-glow), 0 0 0 8px var(--primary-soft); }
+}
+
+/*
+   Le bouton pulsait sans fin : `fabPulse … infinite`. Dans une application de
+   finances de couple, dont tout le dessin cherche le calme, un élément qui
+   bouge en permanence tire l'œil sans jamais rien annoncer de nouveau. Trois
+   battements suffisent à signaler le raccourci à qui ne l'a pas vu, puis il se
+   tient tranquille.
+*/
+.fab {
+  animation: fabPulse 3s ease-in-out 2s 3;
+}
+
+/* ===== REVENUS COMPLÉMENTAIRES ===== */
+/*
+   Repliés par défaut : la plupart des foyers n'ont que des salaires, et deux
+   champs de plus en permanence alourdiraient un écran déjà dense.
+*/
+.extra-income-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: var(--space-sm) 0;
+  border: none;
+  background: none;
+  color: var(--primary-ink);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.extra-income-hint {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.extra-income-toggle[aria-expanded="true"] {
+  margin-bottom: var(--space-xs);
+}
+
+#extraIncomeFields {
+  margin-bottom: var(--space-sm);
+}
+
+/* ===== TOTAL D'UNE LISTE ===== */
+/*
+   Les trois listes calculaient déjà leur total et cherchaient où l'écrire :
+   #variableChargesTotal, #fixedChargesTotal et #reimbursementsTotal n'ont
+   jamais existé dans le HTML. Le chiffre était produit puis jeté.
+*/
+.list-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.list-total strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ===== ACTION EN LIGNE ===== */
+.btn-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary-ink);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ===== PANNEAU DE DIAGNOSTIC ===== */
+/*
+   Deux pannes signalées sur téléphone n'ont jamais pu être reproduites
+   ailleurs. Ce panneau donne accès, depuis l'appareil concerné, à ce que la
+   console aurait montré si on avait pu l'ouvrir. Il ne s'affiche que sur
+   demande explicite, par « ?diag=1 » : rien ici n'apparaît pendant un usage
+   normal.
+*/
+#diagPanel {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.diag-titre {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#diagText {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  font-family: var(--font-mono);
+  /* Assez petit pour qu'une ligne d'horodatage tienne sur un écran de
+     téléphone sans repli, ce qui rend le journal illisible. */
+  font-size: 11px;
+  line-height: 1.45;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  /* Le rapport contient des lignes longues : elles défilent plutôt que de
+     déborder de la fenêtre. */
+  white-space: pre;
+  overflow: auto;
+}
+
+.diag-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.diag-actions .btn {
+  flex: 1;
+}
+
+/* ===== ÉLÉMENTS RENDUS PAR LE JS, LONGTEMPS SANS STYLE =====
+
+   Ces classes sont produites par les modules de rendu depuis toujours, mais
+   aucune règle ne les visait : les listes de charges affichaient leurs
+   en-têtes de catégorie en balise brute, le total des remboursements ne
+   portait aucune couleur malgré les classes sémantiques que le JS lui pose,
+   et le surlignage des résultats de recherche ne surlignait rien.
+*/
+
+/* Regroupement par catégorie dans les listes de charges */
+.charge-category {
+  margin-bottom: var(--space-md);
+}
+
+.category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Un montant, et non un ornement : `--text-muted` mesure 2,42:1 sur
+   `--elevated-bg`, et le dépôt a délibérément gardé ce palier sous le seuil
+   (tests/contraste.test.js). La décision porte sur la MISE EN FORME ; un
+   chiffre d'argent n'en relève pas. `--text-secondary` mesure 5,54:1 au pire,
+   et la taille comme la fonte monospace suffisent à le tenir au second plan. */
+.category-total {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.charges-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Total des remboursements : le JS y pose la classe qui dit le sens */
+.reimbursements-total {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.reimbursements-total.you-owe strong {
+  color: var(--warning-ink);
+}
+
+.reimbursements-total.partner-owes strong {
+  color: var(--success-ink);
+}
+
+.reimbursements-total.balanced {
+  color: var(--text-muted);
+}
+
+.reimbursement-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.reimbursement-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Résultat de recherche : sans cette règle, filtrer masquait les autres
+   lignes sans jamais désigner celles qui correspondent. */
+.search-match {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Disparition d'un toast — `removeToast` déclenchait une animation qui
+   n'existait nulle part, et la notification disparaissait d'un coup après
+   avoir attendu ses 300 ms. */
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+/* ===== PROPOSITION DES CATÉGORIES QUE LE GPS RECONNAÎT =====
+   Dans la gestion des catégories, sous la liste. Ton d'information : rien ne
+   manque à l'application, c'est une possibilité qu'on signale. Elle disparaît
+   dès qu'elle a servi. */
+.manage-proposition {
+  margin: var(--space-md) 0;
+  padding: var(--space-md);
+  border: 1px solid var(--info-edge);
+  border-radius: var(--radius);
+  background: var(--info-soft);
+}
+
+.manage-proposition-texte {
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.manage-proposition-texte strong {
+  color: var(--text-primary);
+}
+
+/*
+   La phrase qui explique une bascule de formulaire.
+
+   « Dépense perso » ne dit pas ce qu'elle fait au solde, et c'est justement
+   tout son effet. Une ligne sous l'interrupteur coûte moins qu'un solde
+   inexpliqué.
+*/
+.form-aide {
+  margin: calc(-1 * var(--space-xs)) 0 var(--space-sm);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/*
+   Une catégorie du panneau des budgets ouvre le détail de ses dépenses
+
+   Même raison que `.summary-row--ouvrable` : un bouton pour que la commande
+   soit atteignable au clavier, dépouillé de l'apparence que le navigateur lui
+   donne.
+*/
+.budget-row--ouvrable {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.budget-row--ouvrable:hover,
+.budget-row--ouvrable:focus-visible {
+  background: var(--primary-soft);
+}
+
+/*
+   Ce que l'application a proposé, et sur quoi elle se fonde
+
+   Une catégorie qui se pose toute seule sans un mot se lit comme un bogue.
+   « Proposée d'après vos 4 saisies » se corrige d'un geste, parce qu'on sait
+   d'où elle vient.
+*/
+.form-hint--proposee {
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  color: var(--primary-ink);
+}
+
+/*
+   Ce que les charges fixes coûtent à l'année
+
+   Un loyer se lit par mois — c'est ainsi qu'il se paie. Un abonnement, non :
+   9,99 € ne se remarquent jamais, 119,88 € se discutent. La ligne reste sous
+   le total mensuel, discrète : elle éclaire, elle ne réclame pas.
+*/
+.list-annuel {
+  margin: var(--space-xs) 0 0;
+  padding: 0 var(--space-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ===== SÉLECTION MULTIPLE DE CHARGES ===== */
+
+/* Deux boutons dans l'en-tête là où il n'y en avait qu'un. `flex-wrap` plutôt
+   qu'une largeur figée : « Sélectionner » et « + Ajouter » côte à côte tiennent
+   sur un téléphone, « Terminer » et « + Ajouter » aussi, mais un prénom long
+   dans le titre pousse le tout — mieux vaut passer à la ligne que déborder. */
+.card-header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.selection-barre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-edge);
+}
+
+.selection-compte {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.selection-gestes {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Les deux listes prennent la place qui reste, à parts égales, et les deux
+   boutons gardent la leur. `min-width: 0` sans quoi un libellé d'enveloppe long
+   impose sa largeur au flex et pousse « Supprimer » hors de l'écran. */
+.selection-gestes select {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* Un geste sans lot n'a rien à faire : le dire d'avance vaut mieux qu'un refus
+   après coup. */
+.selection-gestes select:disabled,
+.selection-gestes .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* La case prend la première colonne ; l'info et le montant gardent les leurs.
+   Sans cette règle, la case entrerait dans la grille à trois colonnes de
+   `.charge-item` et le montant en sortirait. */
+.charge-item--choisissable {
+  grid-template-columns: auto 1fr auto;
+  cursor: pointer;
+}
+
+.charge-item--choisie {
+  border-color: var(--primary-color);
+  background: var(--primary-soft);
+}
+
+/* 20 px, et non la taille native : la cible tactile de 44 px est portée par la
+   ligne entière, qui fait plus que cela en hauteur — mais la case doit rester
+   visible sans devenir le sujet de la ligne. */
+.charge-choix {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}

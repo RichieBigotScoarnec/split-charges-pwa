@@ -1,0 +1,450 @@
+/* ===== PRINT CSS (for PDF export) ===== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* Hide interactive elements (high specificity instead of !important) */
+  /* Les deux rangées d'outils remplacent `.export-actions`, dissoute par le
+     découpage en onglets. Leurs intitulés partent avec elles : un titre
+     « Vos listes » sans ses boutons n'annoncerait plus rien. */
+  body .fab, body .btn, body button, body .modal-overlay,
+  body .acces-rapides, body .outils-rangee, body .outils-titre,
+  body .period-navigation, body .card-header button,
+  body .btn-delete, body .save-indicator {
+    display: none;
+  }
+
+  /* Hide unnecessary sections */
+  body .share-mode-selector {
+    display: none;
+  }
+
+  /* Optimize spacing */
+  .card {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+
+  .card-header {
+    background: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+    page-break-after: avoid;
+  }
+
+  /* Make sure charts and tables fit */
+  .category-chart-container {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure readability */
+  .charge-item, .reimbursement-item {
+    border: 1px solid #eee;
+    page-break-inside: avoid;
+  }
+
+  /* Add page header */
+  @page {
+    margin: 2cm;
+  }
+
+  header {
+    text-align: center;
+    border-bottom: 2px solid black;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  header::before {
+    display: none;
+  }
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 600px) {
+  .container {
+    padding: var(--space-sm);
+  }
+
+  header {
+    padding: var(--space-lg) var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  header h1 {
+    font-size: 22px;
+  }
+
+  .salaries-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /*
+     Le montant reste sur la ligne du libellé.
+
+     `grid-template-columns: 1fr` empilait `.charge-actions` — donc le montant
+     et les deux boutons — sous `.charge-info` : chaque charge occupait deux
+     étages, et une liste de douze charges deux écrans et demi. Or la liste des
+     charges est un objet de balayage : on y cherche une ligne pour la
+     corriger, et chaque pixel de hauteur superflu est du défilement.
+
+     La disposition à deux colonnes est celle que l'application montre déjà
+     au-delà de 600 px, et qui se lit comme un relevé bancaire : le libellé à
+     gauche, ce qu'il coûte à droite. Elle tient à 320 px — mesuré — parce que
+     `.charge-info` peut se rétrécir : sans `min-width: 0`, une longue
+     description imposerait sa largeur intrinsèque et repousserait les boutons
+     hors de l'écran.
+  */
+  .charge-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-sm);
+  }
+
+  .charge-item > .charge-info {
+    min-width: 0;
+  }
+
+  .charge-item .charge-description {
+    overflow-wrap: anywhere;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  .fab {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    bottom: 88px;
+    right: var(--space-md);
+  }
+
+  .category-btn .category-icon {
+    font-size: 22px;
+  }
+
+  .category-btn {
+    aspect-ratio: auto;
+    gap: 2px;
+    font-size: 11px;
+    padding: var(--space-sm);
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+  }
+
+  .modal-header {
+    font-size: 16px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .quick-add-location {
+    margin-bottom: var(--space-xs);
+    min-height: 14px;
+    font-size: 11px;
+  }
+
+  .quick-add-header {
+    margin-bottom: var(--space-sm);
+  }
+
+  .amount-input-large {
+    margin-bottom: var(--space-sm);
+  }
+
+  .amount-input-large input {
+    padding: 10px 36px 10px 10px;
+    font-size: 20px;
+  }
+
+  .payer-toggle {
+    margin-bottom: var(--space-sm);
+  }
+
+  .modal-actions {
+    margin-top: var(--space-sm);
+  }
+
+  .category-chart-container {
+    justify-content: center;
+  }
+
+  .category-legend {
+    min-width: 100%;
+  }
+}
+
+/* ===== REDUCED MOTION (Accessibility) ===== */
+@media (prefers-reduced-motion: reduce) {
+  html *,
+  html *::before,
+  html *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}
+
+/* ===== DEUX COLONNES SUR GRAND ÉCRAN ===== */
+/*
+   Jusqu'ici le conteneur était plafonné à 720 px quelle que soit la largeur :
+   sur un écran de 1280, la mise en page mobile était simplement centrée, et
+   tout s'empilait. Il n'existait qu'un seul point de rupture, à 600 px.
+
+   Au-delà de 900 px, deux colonnes : le bilan et les salaires à gauche — ce
+   qu'on consulte —, les listes de charges à droite — ce qu'on alimente.
+   En-tête, navigation de période et solde restent pleine largeur.
+*/
+/* Le cas particulier de #mainApp est désormais couvert par la règle globale
+   `[hidden]` de base.css, qui traite la même faiblesse pour tout l'écran. */
+
+@media (min-width: 900px) {
+  .container {
+    max-width: 1120px;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    column-gap: var(--space-lg);
+    align-items: start;
+  }
+
+  /* Le sélecteur de mois et le solde vivent désormais dans `.bandeau-colle`,
+     qui s'efface ici en `display: contents` (voir onglets.css) : ils
+     redeviennent enfants de la grille, mais ne sont plus enfants directs du
+     conteneur au sens des sélecteurs. D'où le chemin par le bandeau. */
+  .container > header,
+  .bandeau-colle > nav,
+  .bandeau-colle > #balanceBar {
+    grid-column: 1 / -1;
+  }
+
+  .col-bilan,
+  .col-reglages {
+    grid-column: 1;
+  }
+
+  .col-listes {
+    /* Le bilan et les réglages s'empilent dans la colonne de gauche : les
+       listes doivent couvrir les deux rangées correspondantes. La rangée de
+       départ est laissée au placement automatique — la fixer entrerait en
+       collision avec l'en-tête, qui occupe toute la largeur. */
+    grid-column: 2;
+    grid-row: span 2;
+  }
+}
+
+/* ===== TROIS COLONNES AU-DELÀ DE 1600 PX ===== */
+/*
+   Mesuré sur un écran de 3440 px : le contenu restait plafonné à 1120 px, soit
+   1160 px de marge vide de chaque côté — et la page mesurait 1920 px de haut
+   pour une fenêtre de 1440. L'application imposait donc de faire défiler tout
+   en laissant les deux tiers de la largeur inutilisés.
+
+   Les réglages — salaires, revenus, prénoms, mode de partage, report — se
+   consultent rarement et se modifient encore moins. Ils prennent leur propre
+   colonne plutôt que d'allonger celle du bilan.
+*/
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1560px;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr);
+  }
+
+  /* Chacune sa colonne : plus besoin de couvrir deux rangées. */
+  .col-bilan { grid-column: 1; }
+  .col-listes { grid-column: 2; grid-row: auto; }
+  .col-reglages { grid-column: 3; }
+}
+
+/* ===== LE PLAFOND CÈDE AU-DELÀ DE 2000 PX ===== */
+/*
+   Le palier précédent a été calé sur le seuil qui le déclenche, pas sur les
+   écrans qui le franchissent : il porte le contenu de 1120 à 1560 px, et s'y
+   arrête. Mesuré à nouveau, cette fois dans la fenêtre plutôt que sur la dalle
+   — 2491 px de large à zoom 100 % —, il restait 931 px inutilisés, 465 de
+   chaque côté. Le vide avait rétréci ; il n'avait pas disparu.
+
+   D'où un plafond fluide plutôt qu'un nouveau nombre fixe : la fenêtre garde
+   10 % d'elle-même, qui deviennent les marges, jusqu'à 2240 px où la largeur se
+   fige. S'étirer au-delà allongerait les rangées de charges sans rien rendre
+   plus lisible — le regard ferait le trajet, pas l'information.
+
+   Les seuils restent croissants : 1800 px à 2000, puis 2240 px à partir de
+   2489. Appliquer ce `min()` au palier précédent l'aurait au contraire fait
+   reculer, 90 % de 1700 px valant moins que les 1560 px déjà acquis.
+*/
+@media (min-width: 2000px) {
+  .container {
+    max-width: min(2240px, 90vw);
+  }
+}
+
+/* ===== BARRE DE SOLDE ===== */
+/*
+   L'application répond à une question : qui doit combien à qui. Elle exigeait
+   de faire défiler jusqu'au bilan. Cette barre garde la réponse à l'écran.
+*/
+.balance-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/*
+   Repliée tant que le bilan dit déjà la même chose, juste en dessous.
+
+   Au repos, la barre se posait au-dessus du « Résumé du Mois », qui énonce le
+   même solde en plus gros et avec son explication. Sur un écran de 448 px, le
+   premier écran était presque entièrement consacré à dire une chose deux fois.
+   `js/utils/barre-solde.js` retire cette classe dès que le solde du bilan sort
+   de l'écran : la barre gagne sa place quand elle sert, et ne répète jamais.
+
+   `display: none` et non `visibility` : une barre invisible mais collante
+   réserverait sa hauteur en haut de page, et l'espace gagné serait perdu.
+*/
+.balance-bar--redondante {
+  display: none;
+}
+
+.balance-bar strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+   Régler le solde est l'aboutissement du mois, pas une opération courante :
+   le bouton reste discret à côté du montant plutôt que de lui disputer
+   l'attention. Il ne s'affiche que lorsqu'il y a effectivement à régler.
+*/
+/*
+   Le bouton a quitté la barre pour le bilan, où le solde se lit en entier.
+   Il n'est donc plus un appoint serré dans une ligne : il se pose sous le
+   montant et son explication, avec la place qu'un geste engageant mérite —
+   et la cible tactile de 44 px que toute action de cette application respecte.
+*/
+.btn-settle {
+  display: inline-block;
+  margin-top: var(--space-sm);
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary-ink);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-settle:hover,
+.btn-settle:focus-visible {
+  background: var(--primary-color);
+  color: #FFFFFF;
+}
+
+.balance-bar.balance-positive strong { color: var(--success-ink); }
+.balance-bar.balance-negative strong { color: var(--danger-ink); }
+.balance-bar.balance-zero { color: var(--text-secondary); }
+
+/* ===== CIBLES TACTILES ===== */
+/*
+   Sur un écran tactile, une commande de moins de 44 px se rate au doigt —
+   seuil des WCAG 2.5.5, et règle que ce dépôt s'est donnée dans CLAUDE.md.
+
+   `pointer: coarse` vise le doigt et laisse la souris intacte : agrandir
+   partout alourdirait l'écran de bureau sans bénéfice.
+
+   ─────────────────────────────────────────────────────────────────────
+   CE BLOC ÉNUMÉRAIT, IL QUALIFIE DÉSORMAIS.
+
+   Il portait une liste de treize sélecteurs, puis de trois de plus, tenue à
+   la main au fil des vérifications. Elle ne couvrait donc que ce dont
+   quelqu'un s'était souvenu : `tests/e2e/cible-tactile.spec.js` a relevé
+   DIX-NEUF commandes encore sous le seuil, dont quatre `<select>` à 19 px
+   dans la modale des enveloppes qu'aucune de ces lignes ne visait.
+
+   C'est la cause exacte du défaut d'encre du 31 août — une règle appliquée
+   là où on l'a regardée. Une liste ne se dégrade pas d'un coup : elle se
+   dégrade au champ suivant que personne n'y ajoute.
+
+   La liste est donc remplacée par ce qu'elle essayait d'exprimer : TOUTE
+   commande. Le contrôle mesure la page rendue et tombe si une seule y
+   échappe — y compris celle qu'on ajoutera demain sans penser à ce fichier.
+   ─────────────────────────────────────────────────────────────────────
+*/
+@media (pointer: coarse) {
+  button,
+  select,
+  textarea,
+  [role="button"],
+  /* Les cases à cocher et les boutons radio gardent leur taille : la zone
+     visée est leur label, que la règle suivante porte à 44 px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  a.btn {
+    min-height: 44px;
+  }
+
+  /* Un label qui enveloppe une case à cocher EST la cible : c'est lui qu'on
+     touche, et c'est lui que le contrôle mesure. */
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Une commande carrée doit l'être dans les deux sens : sans cela un bouton
+     d'icône reste un trait de 44 px de haut et de 30 de large. */
+  .btn-icon,
+  .period-arrow,
+  .manage-emoji-btn {
+    min-width: 44px;
+  }
+
+  /* Les en-têtes dépliables et les lignes ouvrables restent alignés une fois
+     agrandis — sans quoi leur contenu se colle en haut de la boîte. */
+  .trends-header,
+  .reminders-header,
+  .extra-income-toggle,
+  .budget-row--ouvrable,
+  .summary-row--ouvrable {
+    display: flex;
+    align-items: center;
+  }
+}
