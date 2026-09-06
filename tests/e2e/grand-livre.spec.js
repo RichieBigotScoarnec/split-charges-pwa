@@ -55,8 +55,22 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 test.use({ viewport: { width: 320, height: 720 } });
 
-/** Exactement 30 caractères — la limite que `#prenomVous` laisse saisir. */
-const PRENOM_LONG = 'Bartholomew-Maximilien Leonard';
+/**
+ * Deux prénoms de 30 caractères — la limite que `#prenomVous` laisse saisir.
+ *
+ * Le second n'est pas une variante décorative. Le premier porte un trait
+ * d'union et une espace : il s'enroule de lui-même dès qu'on lui en laisse la
+ * possibilité. Un correctif qui rend le premier vert peut donc laisser le
+ * second rouge, et paraître complet — c'est la forme exacte du défaut que ce
+ * dépôt appelle « une règle appliquée là où on l'a regardée ».
+ *
+ * Rien n'oblige un prénom à porter une coupure. Le champ accepte 30 caractères
+ * insécables ; le contrôle doit en accepter autant.
+ */
+const PRENOMS = [
+  { nom: 'sécable', valeur: 'Bartholomew-Maximilien Leonard' },
+  { nom: 'insécable', valeur: 'Bartholomewmaximilienleonardxy' }
+];
 
 /** Salaires, deux charges, et un prénom : de quoi rendre le grand-livre. */
 async function semer(page, prenom) {
@@ -102,11 +116,12 @@ async function deplierLeGrandLivre(page) {
   await page.waitForTimeout(400);
 }
 
-test('le grand-livre ne fait pas défiler la page en travers', async ({ page }) => {
+for (const prenom of PRENOMS) {
+test(`le grand-livre ne fait pas défiler la page en travers — prénom ${prenom.nom}`, async ({ page }) => {
   test.setTimeout(120000);
   await setupFirebaseMock(page);
   await waitForApp(page);
-  await semer(page, PRENOM_LONG);
+  await semer(page, prenom.valeur);
   await deplierLeGrandLivre(page);
 
   /**
@@ -126,12 +141,12 @@ test('le grand-livre ne fait pas défiler la page en travers', async ({ page }) 
   await expect(
     page.locator('.summary-details'),
     'prémisse : le prénom long doit être rendu DANS le grand-livre'
-  ).toContainText(PRENOM_LONG);
+  ).toContainText(prenom.valeur);
 
   expect(
     await page.locator('#prenomVous').inputValue(),
     'prémisse : le prénom saisi n\'a pas été tronqué par maxlength'
-  ).toBe(PRENOM_LONG);
+  ).toBe(prenom.valeur);
 
   const mesure = await page.evaluate(() => ({
     page: document.documentElement.scrollWidth,
@@ -143,3 +158,4 @@ test('le grand-livre ne fait pas défiler la page en travers', async ({ page }) 
     `la page défile en travers : ${mesure.page} px de contenu pour ${mesure.fenetre} px d'écran`
   ).toBeLessThanOrEqual(mesure.fenetre);
 });
+}
