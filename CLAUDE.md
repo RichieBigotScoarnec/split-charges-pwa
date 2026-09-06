@@ -414,6 +414,53 @@ fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoi
 **positif** exigeant que les données mesurées soient non dégénérées. Un contrôle
 dont le titre est une égalité doit tomber si l'égalité cesse.
 
+> **Le mutant qui ne tombe pas interroge le CONTRÔLE avant d'interroger le
+> code.** Un contrôle peut être vert parce que le défaut a **changé de forme**,
+> pas parce qu'il a disparu — et le réflexe naturel est le mauvais : on conclut
+> que le code est bon.
+>
+> Mesuré le 2026-09-06 sur le grand-livre du bilan. Le contrôle mesurait
+> `documentElement.scrollWidth <= innerWidth` — la page ne défile pas en
+> travers — et il attrapait bien le défaut : un libellé en `flex-shrink: 0`
+> faisait **grandir sa boîte**, la boîte poussait la page, 424 px pour 320.
+> Le correctif contraint la boîte. Le débordement, lui, ne disparaît pas : il
+> **change de forme**, le texte sort de sa propre boîte et se pose sur la
+> colonne des montants — 197 px de texte dans 149 px de boîte, jusqu'à 248 dans
+> 148. La page, elle, ne défile plus. **Le contrôle est vert sur un grand-livre
+> dont les libellés recouvrent les chiffres.**
+>
+> **Un contrôle qui cesse de mesurer dès que le défaut change de forme n'est pas
+> un contrôle, c'est le souvenir d'un défaut.** Il tient la trace du symptôme
+> qu'on a vu, pas la propriété qu'on voulait.
+>
+> Le geste est de poser au mutant vert la question qu'on pose au contrôle vert :
+> *qu'est-ce que ce contrôle mesure, au juste ?* Ici la réponse a demandé une
+> seconde propriété — aucun libellé ne déborde sa boîte — qui tombe sur ce
+> mutant, et sur lui seul.
+
+> **Un jeu d'essai qui ne porte que le cas coupable-mais-indulgent laisse passer
+> un correctif partiel.** Corollaire du précédent, et il vise l'entrée du
+> contrôle plutôt que sa sortie.
+>
+> Même chantier, même jour. Le témoin employait « Bartholomew-Maximilien
+> Leonard » : 30 caractères, la limite que `#prenomVous` laisse saisir — mais un
+> trait d'union et une espace, donc **deux occasions de s'enrouler**. Il était
+> bien rouge avant le correctif. Il devenait vert avec un correctif incomplet :
+> le prénom s'enroulait tout seul dès qu'on lui laissait la place, sans
+> `overflow-wrap`.
+>
+> Le second cas — « Bartholomewmaximilienleonardxy », 30 caractères insécables —
+> a été ajouté **par principe, avant qu'on sache qu'il servirait** : rien
+> n'oblige un prénom à porter une coupure, et le champ en accepte autant
+> d'insécables. C'est lui, et lui seul, qui a rendu le mutant lisible. Sans lui
+> le correctif paraissait complet.
+>
+> **Le cas indulgent est celui qu'on écrit naturellement** : on prend un exemple
+> plausible, et un exemple plausible porte les coupures que la langue met
+> partout. Le cas qui mesure est celui qui n'en porte aucune. Quand une entrée a
+> une borne — `maxlength`, un plafond, une longueur —, le jeu d'essai doit
+> porter la borne **et** sa forme la plus hostile, pas la borne seule.
+
 **Corollaire, payé deux fois.** Un bouchon qui rend une valeur neutre ne mesure
 pas le câblage, il le **masque** : `'' + ''` se lit comme `''`, et une étiquette
 rendue deux fois y devient invisible. Quand ce qu'on tient est un rendu, le
