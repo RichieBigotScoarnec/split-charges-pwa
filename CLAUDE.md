@@ -657,6 +657,19 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   celle de `mobile.spec.js` « la page ne défile pas latéralement », qui ne tourne
   que sur des profils d'appareil (Pixel 5, 393 px) et avec les prénoms par
   défaut. C'est donc un contrôle **juste, qui ne visite pas le cas**.
+  **Cause établie par mutation le 2026-09-06, et la question a changé.** Les
+  8 px sont la moitié droite du débord délibéré de `.summary-row`
+  (`margin: 0 calc(-1 * var(--space-sm))`, soit ±8 px, qui fait passer la ligne
+  à 234 pour un conteneur de 218). Retirer cette marge ramène l'écart à **0** —
+  mesuré, pas déduit. Le même écart se lit sur `#resumePanneauDuo`, aux mêmes
+  chiffres : c'est un seul débord, vu à deux niveaux.
+  Ce n'est donc pas un défaut de mise en page mais un **débord voulu** — c'est
+  lui qui laisse le fond de survol dépasser le rembourrage de la carte. **Le
+  constat reste ouvert**, mais il ne demande plus « d'où viennent ces 8 px » :
+  il demande si un débord délibéré doit être rogné, et le prix est le fond de
+  survol. Ne pas « corriger » la marge négative sans avoir répondu à ça.
+  Le correctif du grand-livre (`1fr auto`, 2026-09-06) **n'y a rien changé** :
+  mesuré à 226/218 avant comme après.
 
 ### Le banc d'essai
 
