@@ -369,12 +369,37 @@ requête média sous 600 px** — les ruptures existantes sont 600, 900, 1600, 2
 et `pointer: coarse`. Les adaptations en exigent une **sixième**, autour de
 360 px : viser 320 seul ne se déclencherait pas à 350.
 
-**Le lot comprend les trois, explicitement** :
+#### ⚠️ Le lot 3 ne s'ouvre pas sur 360. Il s'ouvre sur une mesure.
 
-1. la requête média neuve, avec sa justification écrite dans `responsive.css`
-   (pourquoi 360 et non 320) ;
-2. les adaptations 1, 3 et 5 ;
-3. **la ligne de `CLAUDE.md` qui énumère les ruptures** — section *Conventions
+**360 est un nombre rond, pas un résultat.** Il a été proposé ici avant d'avoir
+été mesuré, et c'est exactement la forme d'erreur que la journée du 2026-09-06 a
+payée trois fois : un chiffre écrit au même endroit et avec la même assurance
+qu'un chiffre mesuré. Ouvrir un lot dont le premier geste est une requête média
+« autour de 360 px » serait recommencer.
+
+**Le premier geste du lot est donc un relevé**, pas une déclaration : à quelle
+largeur **chacune** des cinq adaptations devient-elle nécessaire ?
+
+| Adaptation | Ce qu'on mesure | Largeur de bascule |
+| ---: | --- | --- |
+| 1 | à partir de quelle largeur « 66,94 € » en mono 40 px ne tient plus avec ses marges | à mesurer |
+| 2 | *(sans rupture — livrée au lot 2)* | — |
+| 3 | à partir de quelle largeur une demi-colonne ne loge plus « 2 888,43 € » en mono 21 px | à mesurer |
+| 4 | à partir de quelle largeur un segment ne loge plus « 🤝 À deux » | à mesurer *(dépend du lot 5)* |
+| 5 | à partir de quelle largeur la pastille « ＋ Dépense » prend la moitié de la ligne | à mesurer |
+
+**La rupture est le MAXIMUM de ces largeurs**, arrondi vers le haut au dizaine
+près, et écrite dans `responsive.css` **avec les quatre mesures à côté**. Si
+elles se dispersent trop pour qu'un seul point les serve, c'est un résultat
+aussi : il faudra le dire plutôt que de choisir le plus commode.
+
+**Le lot comprend les quatre, explicitement** :
+
+1. **le relevé des largeurs de bascule** — le tableau ci-dessus, rempli ;
+2. la requête média neuve, à la valeur que le relevé donne, avec les mesures
+   écrites en commentaire ;
+3. les adaptations 1, 3 et 5 ;
+4. **la ligne de `CLAUDE.md` qui énumère les ruptures** — section *Conventions
    › CSS*.
 
 Le point 3 n'est pas du ménage : laissé pour plus tard, le référentiel redevient
@@ -611,9 +636,9 @@ l'écran.
    30 px. Tâche du lot 5, point 2.
 2. **`cible-tactile` ne tourne qu'à 390 px.** Le lot 5 lui doit une passe à 320
    ou une raison écrite.
-3. **La sixième rupture n'est pas encore choisie** : 360 est une proposition, pas
-   une mesure. Le lot 3 doit la fonder sur la largeur où une adaptation devient
-   nécessaire, pas sur un nombre rond.
+3. **La sixième rupture n'est pas encore choisie** — traité : le lot 3 s'ouvre
+   désormais sur le relevé des cinq largeurs de bascule, et la rupture est leur
+   maximum. Voir le lot 3, premier point.
 4. **`onglets:314`** — « l'indication de période s'efface au défilement, et
    revient » — dépend de la place de `#periodInfo`, que le point 2 du lot 5
    déplace. Les deux se relisent ensemble.
