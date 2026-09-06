@@ -495,7 +495,7 @@ courait le plus ne disait pas qu'une saisie était refusée.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
-**5 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
+**6 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
 port, un `--reporter=basic` qui n'existe pas, un `| tail -45` qui coupe le
 rapport — et un `--reporter=line` prescrit par cette règle même, qui n'existe pas
 davantage sous Vitest. **Aucune n'est la même commande, et deux n'impliquent
@@ -548,6 +548,26 @@ ressemble pas à ce qu'on vient de faire est un fait, pas une bizarrerie.**
    ne disent pas sur quel arbre ils ont tourné. En cas de doute :
    `gh api repos/<dépôt>/commits/<sha>/check-runs` — un commit sans aucun check
    n'a jamais été éprouvé.
+
+   > **La même forme, rencontrée dans l'autre sens — 2026-09-06, PR #161.**
+   > Le head n'était pas périmé parce qu'un `push` s'était perdu : **la PR a été
+   > fusionnée depuis l'interface pendant que deux commits étaient poussés**.
+   > L'objet PR se fige alors au head fusionné, et il ne se resynchronise plus.
+   >
+   > Le symptôme est déroutant : `gh api .../git/ref/heads/<branche>` rend le
+   > commit récent, `git push` répond `Everything up-to-date`, et
+   > `gh api .../pulls/<n> -q .head.sha` rend obstinément l'ancien. Trois
+   > tentatives de resynchronisation ont échoué — re-`push`, attente,
+   > `close`/`reopen` — la dernière en donnant enfin la réponse :
+   > *« can't be closed because it was already merged »*.
+   >
+   > **Une PR qui refuse de se resynchroniser est peut-être déjà fusionnée.**
+   > Le remède ne change pas — comparer les deux chaînes — et c'est lui qui a
+   > arrêté le geste avant qu'une conclusion fausse en sorte. Ce qui change est
+   > la lecture : le décalage ne signale pas toujours un `push` manqué, il peut
+   > signaler que l'objet a cessé de suivre la branche. Vérifier
+   > `gh api .../pulls/<n> -q .merged` **avant** de chercher à réparer, et
+   > rouvrir une PR pour les commits restés en dehors.
 5. Filtrer ensuite, sur la sortie déjà conservée, si besoin.
 
 ```bash
