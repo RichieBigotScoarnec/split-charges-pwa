@@ -448,7 +448,7 @@ courait le plus ne disait pas qu'une saisie était refusée.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
-**4 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
+**5 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
 port, un `--reporter=basic` qui n'existe pas, un `| tail -45` qui coupe le
 rapport — et un `--reporter=line` prescrit par cette règle même, qui n'existe pas
 davantage sous Vitest. **Aucune n'est la même commande, et deux n'impliquent
@@ -456,11 +456,27 @@ aucun tuyau** : nommer la règle par son déguisement le plus récent, c'est se
 préparer à ne pas reconnaître la suivante. La quatrième est arrivée le jour où
 la règle a été écrite, dans le texte de la règle.
 
+**Et la cinquième n'est même pas une commande.** Le 2026-09-06, une PR a été
+mergée sur un head **périmé** : ses deux derniers commits étaient bien poussés,
+la branche distante les portait, rien n'était cassé — mais GitHub avait
+enregistré le head d'avant, et c'est lui qui a été fusionné. Les checks verts
+que j'ai lus portaient donc sur un arbre **sans** le travail qu'ils étaient
+censés valider ; vérifié après coup, le commit instrumenté n'avait **aucun check
+run**. Ni tuyau, ni rapporteur, ni filtre : **le décalage était entre l'objet
+TESTÉ et l'objet MERGÉ**, et le verdict était vert en portant sur autre chose.
+
 **Ce qui la reconnaît** — le symptôme n'est **jamais un test rouge**. C'est une
 suite qui ne tourne pas, ou qui tourne et dont on ne lit pas le verdict. Le
 chiffre qu'on s'apprête à consigner est alors *supposé*. Un résumé qui ressemble
 à un résultat suffit à le cacher — y compris le résumé d'une exécution
 **précédente** restée dans le tampon.
+
+**Le signal qui l'attrape est l'INVRAISEMBLANCE du résultat**, jamais la
+relecture. Un merge de 33 lignes de Markdown quand on vient d'instrumenter trois
+fichiers ; un `0` sur 32 tests en échec ; un résumé daté d'avant la commande
+qu'on a lancée. C'est exactement le signal de la règle 5 — la sonde qui répond
+`false` pour 🔁 *et* pour 🏠 se dénonce elle-même. **Un chiffre qui ne
+ressemble pas à ce qu'on vient de faire est un fait, pas une bizarrerie.**
 
 **Ce qu'elle exige, dans cet ordre :**
 
@@ -473,7 +489,19 @@ chiffre qu'on s'apprête à consigner est alors *supposé*. Un résumé qui ress
 2. Lire le **code de sortie** — `; echo EXIT=$?` — **avant** le résumé, qui n'en
    est pas un synonyme.
 3. Relever les **artefacts** d'une défaillance **avant** toute relance.
-4. Filtrer ensuite, sur la sortie déjà conservée, si besoin.
+4. **Avant tout merge, comparer le head de la PR au commit testé** — deux
+   chaînes, lues côte à côte, jamais supposées égales :
+
+   ```bash
+   gh pr view <n> --json headRefOid -q .headRefOid
+   git rev-parse HEAD
+   ```
+
+   Un `push` réussi ne garantit pas que la PR pointe dessus, et des checks verts
+   ne disent pas sur quel arbre ils ont tourné. En cas de doute :
+   `gh api repos/<dépôt>/commits/<sha>/check-runs` — un commit sans aucun check
+   n'a jamais été éprouvé.
+5. Filtrer ensuite, sur la sortie déjà conservée, si besoin.
 
 ```bash
 npx playwright test 2>&1 | tail -45 ; echo $?     # 0 — c'est celui de `tail`
@@ -488,6 +516,12 @@ un tuyau est indispensable dans la même commande, lire `${PIPESTATUS[0]}`.
 message d'erreur non. Le `| tail -45` du 2026-09-05 a emporté la seule
 défaillance qui comptait, et la passe suivante a écrasé `test-results/`. Le
 contrôle est resté ouvert faute de savoir pourquoi il était tombé.
+
+> **Le corollaire, et il couvre les cinq formes : un verdict vert ne dit rien
+> tant qu'on n'a pas vérifié SUR QUOI il a porté.** Le code de sortie, le
+> rapporteur, le tuyau et le head de PR sont quatre façons de perdre cette
+> réponse — le port occupé en est une cinquième, qui la perd avant même qu'elle
+> existe. La question n'est jamais « est-ce vert ? » mais **« vert sur quoi ? »**
 
 ### 4. Une copie ne se dégrade pas d'un coup
 
