@@ -293,6 +293,33 @@ describe('La question posée avant d\'écrire', () => {
       .toContain('le total du mois ne change pas');
   });
 
+  it('et l\'accorde : UNE saisie se dit « La saisie de ce mois passe »', () => {
+    // « Les saisie de ce mois passent » — l'article et le verbe étaient hors du
+    // ternaire, donc au pluriel dans les deux cas. Le cas à une saisie est le
+    // NOMINAL : le détecteur ne se déclenche que sur des libellés saisis une
+    // fois par mois.
+    expect(questionDeConfirmation(plan([NETFLIX]), euros))
+      .toContain('La saisie de ce mois passe en charges fixes');
+  });
+
+  it('et au pluriel quand il y en a plusieurs', () => {
+    // Le témoin de l'accord : sans lui, un correctif pourrait figer le
+    // singulier partout et personne ne le verrait.
+    const periode = {
+      ...PERIODE,
+      variableCharges: {
+        ...PERIODE.variableCharges,
+        v3: {
+          description: 'Netflix', amount: 5, category: 'Loisirs',
+          paidBy: 'vous', date: '2026-08-20', deleted: false
+        }
+      }
+    };
+
+    expect(questionDeConfirmation(plan([NETFLIX], periode), euros))
+      .toContain('Les 2 saisies de ce mois passent en charges fixes');
+  });
+
   it('et se tait là-dessus quand il n\'y en a pas', () => {
     expect(questionDeConfirmation(plan([SPORT]), euros))
       .not.toContain('le total du mois ne change pas');
@@ -303,5 +330,64 @@ describe('La question posée avant d\'écrire', () => {
 
     expect(question).toContain('2 charges fixes');
     expect(question).toContain('43,39 €');
+  });
+});
+
+describe('La répartition héritée est NOMMÉE avant qu\'on l\'accepte', () => {
+  const euros = (montant) => `${montant.toFixed(2).replace('.', ',')} €`;
+
+  /** Un mois où Netflix est saisi en variable, avec la dérogation demandée */
+  const moisAvec = (splitOverride) => ({
+    variableCharges: {
+      v1: {
+        description: 'Netflix', amount: 13.49, category: 'Loisirs',
+        paidBy: 'vous', date: '2026-08-04', splitOverride, deleted: false
+      }
+    }
+  });
+
+  it('« 50/50 » figure dans la question quand la source en portait une', () => {
+    // La charge fixe héritera de cette répartition (`abonnements.js:149`) — et
+    // personne ne l'a choisie POUR UN ABONNEMENT : elle l'a été pour une saisie
+    // ponctuelle. Le comportement ne change pas ; ce qui change, c'est qu'on
+    // sache ce qu'on reconduit au moment de dire oui.
+    const resultat = plan([NETFLIX], moisAvec({ mode: '50-50' }));
+
+    expect(resultat.aEcrire[0].splitOverride).toEqual({ mode: '50-50' });
+    expect(questionDeConfirmation(resultat, euros)).toContain('50/50');
+  });
+
+  it('et « 70/30 » quand elle était chiffrée, dans l\'ordre « vous / conjointe »', () => {
+    // Même grammaire que les quatre autres surfaces, par la même fabrique :
+    // `libelleDeLaRepartition`. Une cinquième écriture serait la neuvième
+    // occurrence du défaut `normalizePair`.
+    const resultat = plan([NETFLIX], moisAvec({ mode: 'custom', vous: 70, conjointe: 30 }));
+
+    expect(questionDeConfirmation(resultat, euros)).toContain('70/30');
+  });
+
+  // LES TÉMOINS — sans eux, « ne rien ajouter » serait satisfait par une
+  // implémentation qui n'ajoute jamais rien, et les deux contrôles ci-dessus
+  // seraient les seuls à mesurer quoi que ce soit.
+
+  it('TÉMOIN — sans dérogation, la question n\'en dit pas un mot', () => {
+    // Le déplacement, lui, est bien annoncé : c'est le cas difficile, celui où
+    // une saisie source EXISTE et n'a simplement rien à signaler.
+    const question = questionDeConfirmation(plan([NETFLIX]), euros);
+
+    expect(question).toContain('le total du mois ne change pas');
+    expect(question).not.toMatch(/épartition/i);
+    expect(question).not.toMatch(/\d+\/\d+/);
+  });
+
+  it('TÉMOIN — « prorata » non plus : le prédicat est celui des quatre autres surfaces', () => {
+    // Les règles admettent ce mode (`database.rules.json:364`) ; il ne nomme
+    // aucune division fixe et ne s'écarte de rien. `libelleDeLaRepartition`
+    // rend '' — une implémentation qui lirait `splitOverride` elle-même
+    // écrirait ici « Répartition prorata », et ce témoin tomberait.
+    const question = questionDeConfirmation(plan([NETFLIX], moisAvec({ mode: 'prorata' })), euros);
+
+    expect(question).not.toMatch(/épartition/i);
+    expect(question).not.toMatch(/\d+\/\d+/);
   });
 });

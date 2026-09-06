@@ -31,6 +31,7 @@
  */
 
 import { estSolo } from './perimetre.js';
+import { libelleDeLaRepartition } from './repartition.js';
 
 /** Les payeurs qu'une charge commune peut porter */
 const PAYEURS = ['vous', 'conjointe', 'partage', 'both'];
@@ -165,6 +166,30 @@ export function planDeclarationFixe({ charges, periode, mois, instant }) {
  * « mettre en charge fixe » n'a de sens que si l'on sait laquelle, pour combien,
  * et que ça reviendra tous les mois sans qu'on le redemande.
  *
+ * ## Et la répartition héritée, parce qu'on ne l'a pas choisie pour ça
+ *
+ * `planDeclarationFixe` reprend le `splitOverride` de la saisie source (`:150`),
+ * et c'est la bonne règle — la charge change de collection, elle ne se réinvente
+ * pas. Mais l'utilisateur avait choisi ce 70/30 pour UNE dépense ponctuelle ; le
+ * reconduire tous les mois est une autre décision, et elle se prenait ici sans
+ * qu'un mot la nomme. Le défaut n'était pas l'héritage : c'était qu'il soit
+ * invisible au moment de l'accepter.
+ *
+ * **La source est `dejaLa[0]`** — la première occurrence saisie du mois, pas la
+ * plus récente ni la répartition dominante. Raison de plus pour la dire.
+ *
+ * ## Pourquoi « la saisie qu'elle remplace » et pas sa date
+ *
+ * La date est disponible (`aEcrire[i].date`), et elle n'est pas toujours celle
+ * de la source : les règles acceptent `date: ""` et n'exigent que `amount`
+ * (`database.rules.json:323`), auquel cas `:147` retombe sur le premier du mois.
+ * Mesuré. Nommer une date fabriquée dans le dialogue même qui demande un
+ * consentement affirmerait ce que la donnée ne dit pas.
+ *
+ * « La saisie qu'elle remplace » tient par invariant : un `splitOverride` non
+ * nul implique une source, donc une occurrence dans `aRetirer` — la phrase du
+ * déplacement est toujours là, juste au-dessus, et sert de référent.
+ *
  * @param {{aEcrire: Array<Object>, aRetirer: Array<Object>, total: number}} plan
  * @param {(montant: number) => string} formatMontant - `formatCurrency`, injecté
  * @returns {string}
@@ -179,10 +204,36 @@ export function questionDeConfirmation(plan, formatMontant) {
 
   // Le déplacement se dit : sans cela, voir une charge quitter la liste des
   // variables ressemblerait à une suppression.
+  //
+  // L'article et le verbe sont DANS le ternaire : ils en étaient sortis, et le
+  // cas à une saisie — le nominal, puisque le détecteur ne se déclenche que sur
+  // des libellés saisis une fois par mois — rendait « Les saisie … passent ».
   const deplace = plan.aRetirer.length > 0
-    ? `\n\nLes ${plan.aRetirer.length === 1 ? 'saisie' : `${plan.aRetirer.length} saisies`} `
-      + 'de ce mois passent en charges fixes : le total du mois ne change pas.'
+    ? (plan.aRetirer.length === 1
+      ? '\n\nLa saisie de ce mois passe'
+      : `\n\nLes ${plan.aRetirer.length} saisies de ce mois passent`)
+      + ' en charges fixes : le total du mois ne change pas.'
     : '';
 
-  return combien + engage + deplace;
+  // Le prédicat est celui des quatre autres surfaces, par la même fabrique :
+  // un libellé non vide. `prorata` n'en produit aucun et ne s'écarte de rien.
+  const derogations = plan.aEcrire
+    .map(charge => ({ nom: charge.description, libelle: libelleDeLaRepartition(charge.splitOverride) }))
+    .filter(derogation => derogation.libelle);
+
+  let reparti = '';
+  if (derogations.length === 1 && plan.aEcrire.length === 1) {
+    // La charge vient d'être nommée à la première ligne : la renommer ici
+    // n'ajouterait rien.
+    reparti = `\n\nRépartition ${derogations[0].libelle}, reprise de la saisie qu'elle remplace.`;
+  } else if (derogations.length > 0) {
+    const detail = derogations.map(d => `« ${d.nom} » en ${d.libelle}`).join(', ');
+    reparti = derogations.length === 1
+      ? `\n\nRépartition reprise de la saisie qu'elle remplace : ${detail}.`
+      : `\n\nRépartitions reprises des saisies qu'elles remplacent : ${detail}.`;
+  }
+
+  // La répartition en dernier : c'est le bloc le plus proche des boutons, et
+  // « la saisie qu'elle remplace » a besoin que le déplacement soit déjà dit.
+  return combien + engage + deplace + reparti;
 }
