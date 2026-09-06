@@ -84,12 +84,51 @@ async function ouvrirLaCategorie(page, categorie) {
   await expect(page.locator('#detailDepensesTitre')).toHaveText(categorie);
 }
 
+/**
+ * ─── INSTRUMENTATION : séparer trois causes qui rendent le même symptôme ───
+ *
+ * `#modalDetailDepenses` est fabriqué en JS. Quand il manque, l'échec est
+ * `element(s) not found` — et trois chemins très différents y mènent, aucun
+ * ne laissant de trace :
+ *
+ *   R1  `window.ouvrirDetailPayeur` pas encore posée : la délégation
+ *       n'appelait rien et n'en disait rien (`init.js` le journalise depuis).
+ *   R2  une exception AVANT `document.body.appendChild` : le geste ne produit
+ *       rien, et rien n'écoutait `pageerror` dans ce fichier.
+ *   R3  le clic atterrit sur un nœud DÉTACHÉ — le bilan repeint entre
+ *       `innerText()` et `click()` —, donc l'événement n'atteint jamais la
+ *       délégation, qui vit sur `document`.
+ *
+ * Les trois sont relevés au moment de l'échec, pas supposés après coup.
+ */
 async function ouvrirLePayeur(page, qui) {
   const ligne = page.locator(`[data-action="ouvrirDetailPayeur"][data-arg="${qui}"]`);
   const attendu = (await ligne.locator('span').innerText()).trim();
 
+  // La référence EXACTE du nœud visé, prise avant le clic : c'est la seule
+  // façon de savoir après coup s'il a été remplacé entre-temps.
+  const noeud = await ligne.elementHandle();
+
   await ligne.click();
-  await expect(page.locator('#modalDetailDepenses')).toBeVisible();
+
+  try {
+    await expect(page.locator('#modalDetailDepenses')).toBeVisible();
+  } catch (echec) {
+    const attache = noeud ? await noeud.evaluate(n => n.isConnected) : null;
+    const ignorees = await page.evaluate(() => window.__actionsIgnorees || []);
+    const posee = await page.evaluate(() => typeof window.ouvrirDetailPayeur);
+    const erreurs = page.__erreursDePage || [];
+
+    throw new Error(
+      `${echec.message}\n\n  ── diagnostic ──\n` +
+      `  R1  typeof window.ouvrirDetailPayeur : ${posee}\n` +
+      `  R1  actions ignorées par init.js     : ${JSON.stringify(ignorees)}\n` +
+      `  R2  exceptions levées par la page    : ${erreurs.length ? erreurs.join(' || ') : 'aucune'}\n` +
+      `  R3  nœud cliqué encore attaché       : ${attache}\n`,
+      { cause: echec }
+    );
+  }
+
   await expect(page.locator('#detailDepensesTitre')).toHaveText(attendu);
 }
 

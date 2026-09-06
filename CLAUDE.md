@@ -369,7 +369,14 @@ interdit :
 
 ### 1. Un contrôle qui ne mesure rien est pire qu'un contrôle absent
 
-**9 sites recensés, 18 récits — détail en archive.** Le plus cher de ce dépôt.
+**9 sites dans l'archive, plus un dixième refermé le 2026-09-06 — 18 récits,
+détail en archive.** Le plus cher de ce dépôt.
+
+Le dixième est le premier trouvé dans le **code applicatif au moment où il
+nuisait** : `init.js` ignorait **en silence, par conception** tout `data-action`
+dont la fonction n'est pas encore posée. Un geste perdu y laissait exactement la
+même trace qu'un clic jamais émis — aucune. Il journalise désormais, et retient
+son compte dans `window.__actionsIgnorees`.
 
 Un contrôle absent se voit. Un contrôle vert qui ne mesure rien **éteint la
 vigilance** sur la surface qu'il prétend tenir : on cesse de la regarder en
@@ -597,20 +604,40 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   (voir *Décisions*) : `true` = on a navigué, `false` = la surface était déjà là,
   et une surface **inatteignable lève**. Ne pas rétablir un `return false`
   silencieux — c'est ce qui faisait mesurer trois fois le même panneau.
-- **`detail-depenses.spec.js` est retombé, et reste OUVERT — 2ᵉ occurrence, la
-  première exploitable.** Le 2026-09-05 en CI (run `33990487535`), sur
-  `:131 une charge partagée dit qu'elle ne compte que pour une part` — **un autre
-  test que la première fois**, mais **le même helper `ouvrirLePayeur:92`**. Le
-  défaut est donc dans le helper, pas dans un cas.
-  Faits relevés, artefacts sauvés **avant** relance : `expect(#modalDetailDepenses)
-  .toBeVisible()` échoue sur `element(s) not found`, pas sur « masqué » — or cet
-  identifiant est **fabriqué en JS** (`detail-depenses.js:28`), il n'est pas dans
-  le balisage. La modale n'a donc jamais été créée ; le `click()` de la ligne,
-  lui, a réussi. `main` était vert 45 minutes plus tôt, la branche ne changeait
-  que du Markdown, et la relance du seul job est passée : **intermittent**.
-  Le fichier **ne fige pas l'horloge** — piste à mesurer, pas à supposer.
-  Ne pas le refermer sur une explication non exécutée : l'hypothèse de la lecture
-  périmée reste réfutée.
+- **`detail-depenses.spec.js` reste OUVERT — mais il est REPRODUIT, et trois de
+  ses causes possibles sont désormais instrumentées.**
+  Deux chutes en CI (`:143` puis `:131`), une troisième reproduite en local
+  (`:104`) : **trois cas différents, un seul point de chute — le helper
+  `ouvrirLePayeur:92`.** Le défaut est dans le helper, démontré et non déduit.
+  *Symptôme* : `element(s) not found`, jamais « masqué ». Or `#modalDetailDepenses`
+  est **fabriqué en JS** (`detail-depenses.js:28`) : la modale n'a jamais été
+  créée, et la rupture est strictement **avant**
+  `document.body.appendChild` — tout ce qui suit est exonéré.
+  *Reproduction* : `--repeat-each=20 --workers=14` sur ce seul fichier, **1 fois
+  sur 200**. Snapshot local identique à celui de la CI.
+  *L'horloge est RÉFUTÉE par la mesure*, pas écartée par raisonnement : le
+  symptôme a été produit avec le mois semé égal au mois affiché, en plein mois ;
+  et un mois vide créerait quand même la modale (« Aucune dépense… »).
+  *R1 est réduit* : `appReady` n'est posé qu'en `auth.js:553`, après l'init et le
+  premier rendu — la fonction ne peut donc manquer que si l'`import()` dynamique
+  a échoué, ce que l'instrumentation nommera.
+  **Restent R1 (import échoué), R2 (exception avant `appendChild`) et R3 (clic sur
+  un nœud détaché).** Le helper les relève tous les trois au moment de l'échec.
+  Ne pas refermer sur une explication non exécutée.
+- **Au-delà de 4 workers, le banc fabrique ses propres échecs — à ne pas
+  confondre avec un défaut.** Mesuré le 2026-09-06 : à `--workers=14`, la
+  reproduction rend 10 à 18 `locator.click: Test timeout` et des
+  `Protocol error … session closed` (le navigateur tombe). **La suite entière au
+  réglage de la CI — `--workers=4` — en rend ZÉRO** sur 548 contrôles passés.
+  Ces échecs-là sont de la contention, pas des défauts ; ils ne se produisent
+  pas en CI, et les compter comme des symptômes ferait chercher une cause qui
+  n'existe pas.
+- **Les exceptions que la page lève sont désormais visibles partout**
+  (`_harness.js`, `surveillerLesErreursDePage`). Quatre specs sur vingt-neuf
+  posaient cet écouteur ; les vingt-cinq autres étaient aveugles, dont celle qui
+  a fait tomber la CI deux fois. Il **parle sans faire échouer** — basculer 500
+  contrôles d'un coup ferait rougir ce qu'on n'a pas mesuré. Mesuré à la pose :
+  **0 exception sur 548 contrôles**, donc aucun bruit de fond à trier.
 - **`share-mode.test.js` fait tomber la suite unitaire une passe sur deux, et
   reste OUVERT.** `EnvironmentTeardownError: [vitest-worker]: Closing rpc while
   "onUserConsoleLog" was pending` — une course au démontage du worker, dans une
@@ -681,6 +708,20 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 Arbitrages déjà pris, qui se reposeraient à l'identique. **Une décision qu'on
 reprend faute de savoir qu'elle a été prise coûte plus cher qu'un gotcha.**
 
+- **Une spec ne fige l'horloge que si son semis dépend du calendrier**
+  (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).
+  Sur 29 specs qui manipulent des dates, **5 figent** — `heure-de-la-depense`,
+  `lecture-unique`, `projection-du-mois`, `tendances`, `tendances-metriques` —
+  et ce sont exactement celles qui dépendent d'un **jour du mois** ou sèment des
+  **mois absolus**. Les 18 qui sèment en **relatif** (`moisCourant()`) sont
+  immunisées, sauf une passe à cheval sur un changement de mois : la clé de
+  période est mensuelle, le jour ne vit que dans le champ `date`, donc une
+  charge semée le 05 est lue tout le mois. Figer partout coûterait 24 réécritures
+  pour un risque nul dans la plupart des cas.
+  **⚠️ L'angle exposé, relevé et non traité** : `data-flow`, `regles-donnees`,
+  `renommage` et `vues` sèment des **mois absolus sans figer l'horloge**. Elles
+  passent aujourd'hui, et c'est le motif qui a fait rougir la CI le 2026-09-01.
+  À reprendre dans son lot, pas en passant.
 - **Le nœud d'agrégats mensuels est écarté** (2026-08-27). Il exposerait un
   chiffre d'argent dérivé à 25 chemins d'écriture, au rejeu hors ligne, à une
   restauration qui écrase la racine et à un workflow de migration — et les règles
