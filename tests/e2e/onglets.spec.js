@@ -24,6 +24,35 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 const TELEPHONE = { width: 390, height: 844 };
 const ORDINATEUR = { width: 1280, height: 900 };
 
+/**
+ * De quoi faire paraître la barre de solde
+ *
+ * Deux salaires et une charge : c'est le minimum pour que `#balanceBar` porte
+ * un montant. Les contrôles de géométrie qui mesurent `.bandeau-colle` en ont
+ * besoin — sans elle, ils mesurent un bandeau que personne ne voit.
+ */
+async function semerUnSolde(page) {
+  await allerAuPanneau(page, 'panneauReglages');
+  await page.locator('#salaireVous').fill('2500');
+  await page.locator('#salaireVous').blur();
+  await page.locator('#salaireConjointe').fill('1800');
+  await page.locator('#salaireConjointe').blur();
+  await page.waitForTimeout(600);
+
+  const periode = await page.locator('#periodSelect').inputValue();
+  await page.evaluate(async ({ periode }) => {
+    const { dbUpdate } = await import('/js/db.js');
+    await dbUpdate(undefined, {
+      [`periods/${periode}/variableCharges/v1`]: {
+        description: 'Courses', amount: 420.5, category: 'Courses',
+        paidBy: 'vous', date: `${periode}-03`, deleted: false
+      }
+    });
+    await window.changePeriod(periode);
+  }, { periode });
+  await page.waitForTimeout(1200);
+}
+
 /** Les identifiants des panneaux réellement visibles */
 async function panneauxVisibles(page) {
   return page.evaluate(() =>
@@ -277,16 +306,10 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
     ).toBeNull();
   });
 
-  test('moins d\'un quart de l\'écran avant le premier contenu', async ({ page }) => {
-    // Mesuré avant correction : 294 px sur 844, soit 35 % — et ce péage se
-    // repaie à chaque changement d'onglet, qui remonte en haut.
-    const { avant, fenetre } = await page.evaluate(() => ({
-      avant: Math.round(document.querySelector('#panneauBilan .card').getBoundingClientRect().top),
-      fenetre: window.innerHeight
-    }));
-    const part = avant / fenetre;
-    expect(part, `${avant} px sur ${fenetre}, soit ${Math.round(part * 100)} %`).toBeLessThan(0.25);
-  });
+  // « moins d'un quart de l'écran avant le premier contenu » a quitté ce
+  // groupe : il ne tournait qu'à 390 px sur le mois courant, soit un cas sur
+  // quatre. Il vit désormais dans son propre bloc, plus bas, aux deux largeurs
+  // et dans les deux états du mois.
 
   test('au défilement, le mois reste épinglé en haut', async ({ page }) => {
     // Le défaut que cela corrige : passé le premier écran, plus rien ne disait
@@ -302,9 +325,37 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
   });
 
   test('le bandeau épinglé reste mince', async ({ page }) => {
+    /**
+     * IL NE SEMAIT AUCUN SALAIRE, ET IL MESURAIT DONC UN AUTRE ÉCRAN.
+     *
+     * `.bandeau-colle` réunit le sélecteur de mois ET la barre de solde. Sans
+     * salaires, `#balanceBar` reste vide : le contrôle mesurait **54 px** là où
+     * un foyer réel en voit **103**. Quarante-neuf pixels de budget qui
+     * n'existaient pas.
+     *
+     * Ce n'est pas une imprécision, c'est un seuil qui valide des agencements
+     * cassés à l'écran. Mesuré sur les agencements du chantier de refonte :
+     * poser le sélecteur de portée DANS le bandeau donne **108 px sans solde**
+     * — vert — et **163 px avec** — rouge, très au-delà des 120. Le contrôle
+     * aurait laissé passer exactement ce qu'il existe pour empêcher.
+     *
+     * Le seuil ne bouge pas : c'est la mise en place qui s'étend, pour qu'il
+     * porte sur l'écran que les gens voient. Mesuré après renforcement :
+     * **103 px**, dix-sept de marge.
+     */
+    await semerUnSolde(page);
+
     await allerAuPanneau(page, 'panneauCharges');
     await page.evaluate(() => window.scrollTo(0, 500));
     await page.waitForTimeout(500);
+
+    // La prémisse, et elle porte tout le renforcement : sans barre de solde
+    // rendue, ce cas remesure l'écran d'avant sans que rien ne le dise.
+    const solde = await page.locator('#balanceBar').boundingBox();
+    expect(solde, 'prémisse : aucune barre de solde rendue — le bandeau mesuré n\'est pas celui du foyer')
+      .not.toBeNull();
+    expect(solde.height, 'prémisse : la barre de solde est là mais sans hauteur')
+      .toBeGreaterThan(0);
 
     const bandeau = await page.locator('.bandeau-colle').boundingBox();
     expect(bandeau.height, `le bandeau épinglé mesure ${Math.round(bandeau.height)} px`)
@@ -363,6 +414,94 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
     }
   });
 });
+
+/**
+ * Ce que le chrome coûte avant le premier contenu — AUX DEUX LARGEURS, ET DANS
+ * LES DEUX ÉTATS DU MOIS.
+ *
+ * Le cas d'origine vivait dans « L'en-tête, et ce qu'il coûte », et il ne
+ * tournait qu'à **390 px sur le mois courant** : un cas sur quatre, et le plus
+ * confortable des quatre. Mesuré sur les quatre :
+ *
+ *        mois courant    mois archivé
+ *   390     157 px 19 %     176 px 21 %
+ *   320     157 px 22 %     176 px **24 %**
+ *
+ * L'écran le plus serré n'est pas celui qu'il visitait. À 320 px sur un mois
+ * archivé — où `#periodInfo` porte « Mois archivé » et pousse tout de 19 px —
+ * il ne reste que **quatre pixels** avant le seuil.
+ *
+ * Le seuil ne bouge pas. C'est la couverture qui s'étend, et la mesure qui
+ * l'étend est écrite ci-dessus. Ce que ça change : l'agencement retenu pour le
+ * sélecteur de portée mesure **23 % à 320 sur le mois courant** — vert — et
+ * **27 % sur un mois archivé** — rouge. Sans ce bloc, le lot suivant aurait pu
+ * livrer un écran qui déborde sans qu'aucun contrôle ne le dise.
+ */
+for (const { nom, viewport } of [
+  { nom: '390', viewport: TELEPHONE },
+  { nom: '320', viewport: { width: 320, height: 720 } }
+]) {
+  test.describe(`Le premier écran — ${nom} px`, () => {
+    test.use({ viewport });
+
+    test.beforeEach(async ({ page }) => {
+      await setupFirebaseMock(page);
+      await waitForApp(page);
+    });
+
+    /**
+     * Le haut de la première carte du bilan, en part de fenêtre.
+     *
+     * La prémisse n'est pas décorative : mesuré depuis un autre panneau,
+     * `#panneauBilan .card` est en `display: none` et rend un `top` de **0** —
+     * et `0 < 0.25` est vrai. Un contrôle qui se satisfait d'un panneau non
+     * rendu mesure le pire cas comme le meilleur. Éprouvé en écrivant ce bloc :
+     * la première version de la sonde a rendu « 0 px = 0 % » depuis Réglages.
+     */
+    async function partAvantLeContenu(page) {
+      await expect(
+        page.locator('#panneauBilan'),
+        'prémisse : le bilan doit être le panneau rendu — sinon sa carte mesure 0'
+      ).toHaveClass(/panneau--actif/);
+
+      const mesure = await page.evaluate(() => {
+        const carte = document.querySelector('#panneauBilan .card');
+        if (!carte) return null;
+        const r = carte.getBoundingClientRect();
+        return { avant: Math.round(r.top), hauteur: Math.round(r.height), fenetre: window.innerHeight };
+      });
+
+      expect(mesure, 'prémisse : aucune carte dans le bilan').not.toBeNull();
+      expect(mesure.hauteur, 'prémisse : la carte du bilan n\'a aucune hauteur').toBeGreaterThan(0);
+      return mesure;
+    }
+
+    test('moins d\'un quart de l\'écran avant le premier contenu — mois courant', async ({ page }) => {
+      // Mesuré avant le découpage en onglets : 294 px sur 844, soit 35 % — et ce
+      // péage se repaie à chaque changement d'onglet, qui remonte en haut.
+      const { avant, fenetre } = await partAvantLeContenu(page);
+      const part = avant / fenetre;
+      expect(part, `${avant} px sur ${fenetre}, soit ${Math.round(part * 100)} %`).toBeLessThan(0.25);
+    });
+
+    test('moins d\'un quart de l\'écran avant le premier contenu — mois archivé', async ({ page }) => {
+      // Sur un mois passé, `#periodInfo` porte « 📁 Mois archivé » et pousse
+      // tout le contenu vers le bas. C'est l'état le plus serré des quatre, et
+      // c'est celui que le contrôle ne visitait pas.
+      await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
+      await page.waitForTimeout(900);
+
+      await expect(
+        page.locator('#periodInfo'),
+        'prémisse : sans l\'indication « archivé », ce cas remesure le mois courant'
+      ).toContainText('archivé');
+
+      const { avant, fenetre } = await partAvantLeContenu(page);
+      const part = avant / fenetre;
+      expect(part, `${avant} px sur ${fenetre}, soit ${Math.round(part * 100)} %`).toBeLessThan(0.25);
+    });
+  });
+}
 
 test.describe('Sur grand écran — la barre s\'efface', () => {
   test.use({ viewport: ORDINATEUR });
