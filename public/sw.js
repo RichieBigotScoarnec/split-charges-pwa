@@ -89,6 +89,7 @@ const STATIC_ASSETS = [
   './js/utils/perimetre.js',
   './js/utils/periodes.js',
   './js/utils/phrase-saisie.js',
+  './js/utils/portee.js',
   './js/utils/previsionnel.js',
   './js/utils/provisions.js',
   './js/utils/raccourci.js',
