@@ -414,6 +414,53 @@ fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoi
 **positif** exigeant que les données mesurées soient non dégénérées. Un contrôle
 dont le titre est une égalité doit tomber si l'égalité cesse.
 
+> **Le mutant qui ne tombe pas interroge le CONTRÔLE avant d'interroger le
+> code.** Un contrôle peut être vert parce que le défaut a **changé de forme**,
+> pas parce qu'il a disparu — et le réflexe naturel est le mauvais : on conclut
+> que le code est bon.
+>
+> Mesuré le 2026-09-06 sur le grand-livre du bilan. Le contrôle mesurait
+> `documentElement.scrollWidth <= innerWidth` — la page ne défile pas en
+> travers — et il attrapait bien le défaut : un libellé en `flex-shrink: 0`
+> faisait **grandir sa boîte**, la boîte poussait la page, 424 px pour 320.
+> Le correctif contraint la boîte. Le débordement, lui, ne disparaît pas : il
+> **change de forme**, le texte sort de sa propre boîte et se pose sur la
+> colonne des montants — 197 px de texte dans 149 px de boîte, jusqu'à 248 dans
+> 148. La page, elle, ne défile plus. **Le contrôle est vert sur un grand-livre
+> dont les libellés recouvrent les chiffres.**
+>
+> **Un contrôle qui cesse de mesurer dès que le défaut change de forme n'est pas
+> un contrôle, c'est le souvenir d'un défaut.** Il tient la trace du symptôme
+> qu'on a vu, pas la propriété qu'on voulait.
+>
+> Le geste est de poser au mutant vert la question qu'on pose au contrôle vert :
+> *qu'est-ce que ce contrôle mesure, au juste ?* Ici la réponse a demandé une
+> seconde propriété — aucun libellé ne déborde sa boîte — qui tombe sur ce
+> mutant, et sur lui seul.
+
+> **Un jeu d'essai qui ne porte que le cas coupable-mais-indulgent laisse passer
+> un correctif partiel.** Corollaire du précédent, et il vise l'entrée du
+> contrôle plutôt que sa sortie.
+>
+> Même chantier, même jour. Le témoin employait « Bartholomew-Maximilien
+> Leonard » : 30 caractères, la limite que `#prenomVous` laisse saisir — mais un
+> trait d'union et une espace, donc **deux occasions de s'enrouler**. Il était
+> bien rouge avant le correctif. Il devenait vert avec un correctif incomplet :
+> le prénom s'enroulait tout seul dès qu'on lui laissait la place, sans
+> `overflow-wrap`.
+>
+> Le second cas — « Bartholomewmaximilienleonardxy », 30 caractères insécables —
+> a été ajouté **par principe, avant qu'on sache qu'il servirait** : rien
+> n'oblige un prénom à porter une coupure, et le champ en accepte autant
+> d'insécables. C'est lui, et lui seul, qui a rendu le mutant lisible. Sans lui
+> le correctif paraissait complet.
+>
+> **Le cas indulgent est celui qu'on écrit naturellement** : on prend un exemple
+> plausible, et un exemple plausible porte les coupures que la langue met
+> partout. Le cas qui mesure est celui qui n'en porte aucune. Quand une entrée a
+> une borne — `maxlength`, un plafond, une longueur —, le jeu d'essai doit
+> porter la borne **et** sa forme la plus hostile, pas la borne seule.
+
 **Corollaire, payé deux fois.** Un bouchon qui rend une valeur neutre ne mesure
 pas le câblage, il le **masque** : `'' + ''` se lit comme `''`, et une étiquette
 rendue deux fois y devient invisible. Quand ce qu'on tient est un rendu, le
@@ -633,6 +680,43 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 - **`formatCurrency` produit une espace fine insécable** (U+202F). Tout test qui
   lit un montant doit l'échapper (` `, ` `, ` `) : l'écrire en
   clair a fait rougir la CI deux fois.
+
+- **Le grand-livre du bilan déborde son conteneur de 8 px à 320 px, et aucun
+  contrôle ne le dit.** `.summary-details` (`summary.js:873`) mesure
+  `scrollWidth` 226 pour une boîte de 218, avec un prénom **court**. Avec un
+  prénom de 25 caractères — `#prenomVous` accepte `maxlength="30"` — il monte à
+  **344**, et `documentElement.scrollWidth > innerWidth` devient vrai : la page
+  défile latéralement. Mesuré le 2026-09-06.
+  **Le contrôle existant ne peut pas être étendu à ce défaut, et c'est
+  structurel.** `coherence-visuelle:249` « aucun texte n'est coupé » mesure un
+  **rognage dans une boîte** — `scrollWidth > width` sur les FEUILLES. Ici la
+  boîte **grandit** : `.summary-row span { flex-shrink: 0 }` la porte à
+  `max-content`, et c'est le parent qui déborde. Deux propriétés différentes,
+  pas un seuil à ajuster. Trois portes fermées d'un coup : les lignes qui
+  portent un prénom contiennent un `.summary-percent` imbriqué, donc ne sont pas
+  des feuilles ; les feuilles ne débordent pas d'elles-mêmes, relevé nul sur les
+  cinq lignes ; `.summary-row` a des enfants, donc `continue`.
+  `coherence-visuelle:223` « aucune commande ne dépasse de l'écran » est aveugle
+  aussi, bien que les deux lignes `.summary-row--ouvrable` soient des
+  `<button>` : leur boîte s'arrête à x = 278 sur 320, c'est leur **contenu** qui
+  les déborde.
+  La propriété qui l'attrape est `documentElement.scrollWidth <= innerWidth` —
+  celle de `mobile.spec.js` « la page ne défile pas latéralement », qui ne tourne
+  que sur des profils d'appareil (Pixel 5, 393 px) et avec les prénoms par
+  défaut. C'est donc un contrôle **juste, qui ne visite pas le cas**.
+  **Cause établie par mutation le 2026-09-06, et la question a changé.** Les
+  8 px sont la moitié droite du débord délibéré de `.summary-row`
+  (`margin: 0 calc(-1 * var(--space-sm))`, soit ±8 px, qui fait passer la ligne
+  à 234 pour un conteneur de 218). Retirer cette marge ramène l'écart à **0** —
+  mesuré, pas déduit. Le même écart se lit sur `#resumePanneauDuo`, aux mêmes
+  chiffres : c'est un seul débord, vu à deux niveaux.
+  Ce n'est donc pas un défaut de mise en page mais un **débord voulu** — c'est
+  lui qui laisse le fond de survol dépasser le rembourrage de la carte. **Le
+  constat reste ouvert**, mais il ne demande plus « d'où viennent ces 8 px » :
+  il demande si un débord délibéré doit être rogné, et le prix est le fond de
+  survol. Ne pas « corriger » la marge négative sans avoir répondu à ça.
+  Le correctif du grand-livre (`1fr auto`, 2026-09-06) **n'y a rien changé** :
+  mesuré à 226/218 avant comme après.
 
 ### Le banc d'essai
 
