@@ -501,6 +501,14 @@ async function initializeAppData() {
   // avec ses cases à cocher, et une sélection qui ne désigne plus rien.
   await runStep('sélection multiple', () => initSelectionCharges(), failures);
 
+  // Le sélecteur de portée, avant les listes : il est le premier élément des
+  // panneaux Bilan et Charges, et le poser après leur rendu le ferait
+  // apparaître en deux temps sur une connexion lente.
+  await runStep('portée', async () => {
+    const { initSelecteurPortee } = await import('./selecteur-portee.js');
+    initSelecteurPortee();
+  }, failures);
+
   await runStep('charges variables', async () => {
     initVariableCharges();
     if (!periodeChargee)

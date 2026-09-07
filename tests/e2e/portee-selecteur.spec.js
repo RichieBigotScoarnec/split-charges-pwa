@@ -67,6 +67,16 @@ const segmentsRendus = (page) => page.evaluate(() =>
       panneau: el.closest('.panneau')?.id || null
     })));
 
+/**
+ * Le segment de l'écran, et non celui du panneau d'à côté
+ *
+ * Les deux panneaux portent un sélecteur ; sous 900 px un seul est rendu, mais
+ * les deux existent dans le document. Viser `.panneau--actif` est aussi ce que
+ * fait la personne : elle touche le segment qu'elle voit.
+ */
+const segment = (page, portee) =>
+  page.locator(`.panneau--actif [data-portee="${portee}"]`);
+
 /** Ce que l'état retient */
 const porteeDeLEtat = (page) => page.evaluate(async () => {
   const { getState } = await import('/js/state.js');
@@ -156,7 +166,7 @@ test.describe('Une seule source : porteeCourante', () => {
     expect(await porteeDeLEtat(page), 'prémisse : l\'application ouvre « à deux »')
       .toBe('deux');
 
-    await page.locator('[data-portee="solo"]').click();
+    await segment(page, 'solo').click();
     await page.waitForTimeout(400);
 
     expect(await porteeDeLEtat(page)).toBe('solo');
@@ -167,7 +177,7 @@ test.describe('Une seule source : porteeCourante', () => {
     // segment peint depuis un clic, et un état écrit à côté, finissent par se
     // contredire. On lit les deux, et on exige qu'ils disent la même chose.
     for (const portee of PORTEES) {
-      await page.locator(`[data-portee="${portee}"]`).click();
+      await segment(page, portee).click();
       await page.waitForTimeout(400);
 
       const segments = await segmentsRendus(page);
@@ -184,7 +194,7 @@ test.describe('Une seule source : porteeCourante', () => {
     // Une portée par panneau serait une seconde source déguisée : le bilan
     // montrerait le solo pendant que les charges montrent le commun, et le
     // total ne correspondrait plus à la liste.
-    await page.locator('[data-portee="solo"]').click();
+    await segment(page, 'solo').click();
     await page.waitForTimeout(400);
 
     await allerAuPanneau(page, 'panneauCharges');
@@ -198,7 +208,7 @@ test.describe('Une seule source : porteeCourante', () => {
     // La décision est écrite dans `utils/portee.js`
     // (`porteeApresChangementDeMois`) : elle PERSISTE, parce que comparer son
     // solo d'un mois à l'autre est un seul geste. Ce cas la rend observable.
-    await page.locator('[data-portee="solo"]').click();
+    await segment(page, 'solo').click();
     await page.waitForTimeout(400);
 
     await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
@@ -234,9 +244,9 @@ test.describe('La portée est un filtre, pas une destination', () => {
     const avant = await page.evaluate(() => history.length);
 
     for (let i = 0; i < 5; i++) {
-      await page.locator('[data-portee="solo"]').click();
+      await segment(page, 'solo').click();
       await page.waitForTimeout(150);
-      await page.locator('[data-portee="deux"]').click();
+      await segment(page, 'deux').click();
       await page.waitForTimeout(150);
     }
 
@@ -269,13 +279,15 @@ test.describe('La portée est un filtre, pas une destination', () => {
  * Trois segments dans 270 px utiles font 99 px chacun d'après la simulation.
  * C'est mesuré ici plutôt que cru.
  */
-for (const largeur of [320, 390]) {
-  test.describe(`Les trois segments au doigt — ${largeur} px`, () => {
-    test.use({
-      viewport: { width: largeur, height: 720 },
-      hasTouch: true,
-      isMobile: true
-    });
+for (const { nom, viewport } of [
+  { nom: '320', viewport: { width: 320, height: 720 } },
+  // 390 x 844, et non 390 x 720 : c'est le profil de téléphone du dépôt,
+  // celui de `cible-tactile` et d'`onglets`. Une hauteur inventée changerait
+  // le seuil du quart d'écran sans changer aucun appareil réel.
+  { nom: '390', viewport: { width: 390, height: 844 } }
+]) {
+  test.describe(`Les trois segments au doigt — ${nom} px`, () => {
+    test.use({ viewport, hasTouch: true, isMobile: true });
 
     test('ils tiennent la cible, sans rogner leur libellé ni pousser la page', async ({ page }) => {
       await ouvrir(page);
@@ -289,7 +301,8 @@ for (const largeur of [320, 390]) {
         'le contexte doit être tactile').toBe(true);
 
       const m = await page.evaluate(() => {
-        const segments = [...document.querySelectorAll('[data-portee]')];
+        // Le panneau RENDU : les deux en portent un, le document en compte six.
+        const segments = [...document.querySelectorAll('.panneau--actif [data-portee]')];
         return {
           nombre: segments.length,
           boites: segments.map((el) => {

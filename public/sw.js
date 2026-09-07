@@ -147,6 +147,7 @@ const STATIC_ASSETS = [
   './js/modules/resume-prive.js',
   './js/modules/reimbursements.js',
   './js/modules/search.js',
+  './js/modules/selecteur-portee.js',
   './js/modules/selection-charges.js',
   './js/modules/share-mode.js',
   './js/modules/summary.js',
