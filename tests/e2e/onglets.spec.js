@@ -362,31 +362,54 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
       .toBeLessThan(120);
   });
 
-  test('l\'indication de période s\'efface au défilement, et revient', async ({ page }) => {
-    // Elle répond à une question qu'on se pose en arrivant, pas à la douzième
-    // charge — mais elle doit revenir quand on remonte.
-    //
-    // Sur le mois COURANT, `#periodInfo` est désormais vide : le sélecteur
-    // affiche déjà « août 2026 » et l'appareil sait quel mois on est ; un badge
-    // « ✓ Période actuelle » en dessous ne disait rien de plus et coûtait une
-    // ligne du premier écran. Ce qui reste — et qui, lui, est une information —
-    // c'est « 📁 Mois archivé ». On se place donc sur un mois passé, où
-    // l'indication a quelque chose à dire.
-    await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
-    await page.waitForTimeout(800);
+  test('le bandeau du mois se compacte au défilement, et se rétablit', async ({ page }) => {
+    /**
+     * CE CAS A CHANGÉ DE SUJET, ET L'ARGUMENT EST ÉCRIT ICI.
+     *
+     * Il mesurait « l'indication de période s'efface au défilement, et
+     * revient » : `#periodInfo` portait « 📁 Mois archivé — modifiable », et une
+     * règle l'effaçait sous `body[data-defile="true"]`.
+     *
+     * Cette rangée n'existe plus. Elle coûtait 28 px de premier écran à chaque
+     * visite d'un mois passé, et elle confondait deux informations : l'ÉTAT est
+     * passé dans le libellé du mois, la LEVÉE DE MALENTENDU dans un toast à
+     * l'arrivée (cf. `mois-archive.spec.js`, qui tient les deux).
+     *
+     * Le laisser tel quel l'aurait rendu rouge sur un sélecteur absent — un
+     * échec qui n'aurait rien appris. Le supprimer aurait laissé la compaction
+     * du bandeau sans aucun contrôle, alors qu'elle existe toujours et qu'elle
+     * est ce qui garde le mois sous les yeux sans manger l'écran.
+     *
+     * Ce qui est mesuré est donc la propriété qui SURVIT : le bandeau se
+     * resserre quand on descend, et reprend sa taille quand on remonte. C'est
+     * une géométrie, pas la présence d'un texte — elle ne dépend d'aucun libellé
+     * et survivra au prochain déplacement.
+     */
     await allerAuPanneau(page, 'panneauCharges');
-    await expect(page.locator('#periodInfo')).toBeVisible();
-    await expect(page.locator('#periodInfo')).toContainText('archivé');
+
+    const hauteurDuBandeau = () => page.evaluate(() => {
+      const el = document.querySelector('.period-navigation');
+      return el ? Math.round(el.getBoundingClientRect().height) : null;
+    });
+
+    const auRepos = await hauteurDuBandeau();
+    expect(auRepos, 'aucun bandeau de période rendu').not.toBeNull();
 
     await page.evaluate(() => window.scrollTo(0, 500));
     await page.waitForTimeout(500);
-    await expect(page.locator('#periodInfo')).toBeHidden();
+    const compact = await hauteurDuBandeau();
+
     expect(await page.evaluate(() => document.body.dataset.defile)).toBe('true');
+    expect(compact, `au repos ${auRepos} px, au défilement ${compact} px — le bandeau ne se compacte pas`)
+      .toBeLessThan(auRepos);
+    // Il se resserre, il ne disparaît pas : c'est ce qui garde le mois lisible.
+    await expect(page.locator('#periodSelect')).toBeInViewport();
 
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(500);
-    await expect(page.locator('#periodInfo')).toBeVisible();
     expect(await page.evaluate(() => document.body.dataset.defile)).toBeUndefined();
+    expect(await hauteurDuBandeau(), 'le bandeau ne reprend pas sa taille en remontant')
+      .toBe(auRepos);
   });
 
   test('le solde s\'empile sous le mois, sans le recouvrir', async ({ page }) => {
@@ -428,8 +451,13 @@ test.describe('L\'en-tête, et ce qu\'il coûte', () => {
  *   320     157 px 22 %     176 px **24 %**
  *
  * L'écran le plus serré n'est pas celui qu'il visitait. À 320 px sur un mois
- * archivé — où `#periodInfo` porte « Mois archivé » et pousse tout de 19 px —
- * il ne reste que **quatre pixels** avant le seuil.
+ * archivé — où une rangée portait « Mois archivé » et poussait tout de 19 px —
+ * il ne restait que **quatre pixels** avant le seuil.
+ *
+ * Ces 19 px sont partis depuis : l'état du mois vit dans son libellé, la levée
+ * de malentendu dans un toast (`mois-archive.spec.js`). Les chiffres ci-dessus
+ * sont donc l'état du 2026-09-06, gardés parce qu'ils expliquent pourquoi ce
+ * bloc existe — pas parce qu'ils décrivent l'écran d'aujourd'hui.
  *
  * Le seuil ne bouge pas. C'est la couverture qui s'étend, et la mesure qui
  * l'étend est écrite ci-dessus. Ce que ça change : l'agencement retenu pour le
@@ -485,16 +513,25 @@ for (const { nom, viewport } of [
     });
 
     test('moins d\'un quart de l\'écran avant le premier contenu — mois archivé', async ({ page }) => {
-      // Sur un mois passé, `#periodInfo` porte « 📁 Mois archivé » et pousse
-      // tout le contenu vers le bas. C'est l'état le plus serré des quatre, et
-      // c'est celui que le contrôle ne visitait pas.
+      // C'était l'état le plus serré des quatre, et celui que le contrôle ne
+      // visitait pas : la rangée « 📁 Mois archivé » y poussait tout le contenu
+      // de 19 px.
+      //
+      // Cette rangée n'existe plus, et l'écart avec le mois courant est tombé à
+      // ZÉRO — c'est `mois-archive.spec.js` qui tient cette égalité. Le cas
+      // reste ici quand même : il mesure le budget d'un mois passé, et rien ne
+      // garantit qu'un lot futur ne lui rendra pas un coût propre.
       await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
       await page.waitForTimeout(900);
 
+      // La prémisse porte désormais sur le LIBELLÉ, où l'état a déménagé. Sans
+      // elle, une flèche qui ne répond plus ferait remesurer le mois courant
+      // sous le titre « mois archivé » — le contrôle resterait vert en ayant
+      // visité deux fois la même surface.
       await expect(
-        page.locator('#periodInfo'),
-        'prémisse : sans l\'indication « archivé », ce cas remesure le mois courant'
-      ).toContainText('archivé');
+        page.locator('#periodSelect'),
+        'prémisse : sans marqueur de mois révolu, ce cas remesure le mois courant'
+      ).toContainText('📁');
 
       const { avant, fenetre } = await partAvantLeContenu(page);
       const part = avant / fenetre;

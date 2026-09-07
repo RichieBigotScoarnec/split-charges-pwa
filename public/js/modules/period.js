@@ -17,6 +17,9 @@ import { log, warn, error as logError } from '../utils/debug.js';
 import { exigerElement } from '../utils/diagnostics.js';
 import { parseMontant } from '../utils/montant.js';
 import { listePeriodes } from '../utils/periodes.js';
+import {
+  libelleMarque, doitLeverLeMalentendu, LEVEE_DU_MALENTENDU
+} from '../utils/mois-revolu.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { activerOnglet } from '../utils/onglets.js';
 import { apprendre } from '../utils/memoire-libelle.js';
@@ -50,15 +53,22 @@ function populatePeriodDropdown() {
 
   select.replaceChildren();
 
+  // Le mois réel est lu UNE fois : la liste se peint en un seul rendu, et deux
+  // lectures du calendrier au milieu d'une boucle pourraient tomber de part et
+  // d'autre d'un changement de mois.
+  const moisReel = getCurrentPeriod();
+
   for (const periodStr of periodes) {
     const option = document.createElement('option');
     option.value = periodStr;
-    option.textContent = formatPeriod(periodStr);
+    // Le marqueur va sur TOUTES les options révolues, pas sur la seule
+    // sélectionnée : la liste ouverte dit alors où s'arrête le passé, et le
+    // sélecteur fermé — le seul qui coûte de l'écran — porte exactement le
+    // marqueur du mois affiché. Une seule règle, appliquée partout.
+    option.textContent = libelleMarque(formatPeriod(periodStr), periodStr, moisReel);
     if (periodStr === currentPeriod) option.selected = true;
     select.appendChild(option);
   }
-
-  updatePeriodInfo();
 }
 
 /**
@@ -112,30 +122,30 @@ export async function chargerLesPeriodesConnues(instantane) {
 }
 
 /**
- * Update period info badge (current vs archived)
+ * Lève le malentendu, une fois par excursion dans le passé
+ *
+ * Ce qui vivait ici avant : une rangée sous le sélecteur, portant en permanence
+ * « 📁 Mois archivé — modifiable ». Elle confondait deux informations et coûtait
+ * **28 px de premier écran** — 20 px de ligne plus 8 px de marge, mesuré à
+ * 320 px, sur l'écran le plus serré de l'application.
+ *
+ * L'état — « archivé » — est passé dans le LIBELLÉ du mois, où il ne coûte rien
+ * et reste constatable à tout moment. La levée de malentendu — « modifiable » —
+ * se dit ici, à l'arrivée, parce qu'on la lit une fois et pas pendant qu'on
+ * travaille.
+ *
+ * Et elle se disait FAUX sur un mois à venir : la comparaison écrite ici
+ * annonçait « archivé » dès que le mois affiché différait du mois réel, donc
+ * aussi sur octobre. `utils/mois-revolu.js` passe par `etatDuMois`, la fabrique
+ * que le bilan et le rapport lisaient déjà.
+ *
+ * @param {string|null} precedent - Le mois quitté, `null` au premier rendu
+ * @returns {void}
  */
-function updatePeriodInfo() {
-  const info = document.getElementById('periodInfo');
-  if (!info) return;
-
-  const currentPeriod = getState('currentPeriod');
-  const actualCurrentPeriod = getCurrentPeriod();
-
-  if (currentPeriod === actualCurrentPeriod) {
-    // Rien. Le sélecteur affiche déjà « août 2026 », et l'appareil sait quel
-    // mois on est : un badge « ✓ Période actuelle » sous ce sélecteur ne dit
-    // rien de plus, et il occupe une ligne du premier écran — la ressource la
-    // plus rare de l'application, où le solde doit tenir sans défiler.
-    //
-    // Le cas contraire, lui, est une information : rien à l'écran ne dirait
-    // qu'on lit un mois qui n'est pas celui d'aujourd'hui.
-    info.innerHTML = '';
-  } else {
-    // « lecture seule » était faux : rien n'empêche de modifier un mois passé,
-    // et c'est voulu — corriger une charge oubliée est un besoin normal, et
-    // l'instantané de salaires par période rend la correction sûre.
-    info.innerHTML = '<span class="period-archived-label">📁 Mois archivé — modifiable</span>';
-  }
+function leverLeMalentenduSiBesoin(precedent) {
+  const affiche = getState('currentPeriod');
+  if (!doitLeverLeMalentendu(precedent, affiche, getCurrentPeriod())) return;
+  toast.info(LEVEE_DU_MALENTENDU);
 }
 
 /**
@@ -145,10 +155,14 @@ export function changePeriod() {
   const select = document.getElementById('periodSelect');
   if (!select) return;
 
+  // Le mois QUITTÉ, lu avant d'écrire : c'est lui qui distingue « on entre
+  // dans le passé » de « on s'y promène ». Sans lui, reculer de trois mois
+  // empilerait trois fois le même message.
+  const precedent = getState('currentPeriod');
   const newPeriod = select.value;
   setState('currentPeriod', newPeriod);
 
-  updatePeriodInfo();
+  leverLeMalentenduSiBesoin(precedent);
   loadPeriodData();
 }
 

@@ -363,16 +363,17 @@
   }
 
   /*
-     Le badge « ✓ Période actuelle » s'efface au défilement. Il répond à une
-     question qu'on se pose en arrivant — « suis-je bien sur le bon mois ? » —
-     pas à une question qu'on se pose en lisant la douzième charge.
+     Il y avait ici une règle qui effaçait `.period-info` au défilement — le
+     badge « 📁 Mois archivé » ne répondant qu'à une question qu'on se pose en
+     arrivant.
 
-     `display: none` et non une hauteur nulle : l'élément quitte aussi l'arbre
-     d'accessibilité, au lieu d'être annoncé sans être visible.
+     Elle est partie AVEC son élément : la rangée n'existe plus, l'état vit
+     dans le libellé du mois et la levée de malentendu dans un toast. Une règle
+     qui désigne un sélecteur absent ne fait rien et ne le dit pas — c'est
+     exactement la « règle morte » que ce fichier a déjà payée sur
+     `.period-navigation`, et la laisser ici aurait fait croire à un
+     comportement qui n'existe plus.
   */
-  body[data-defile="true"] .period-info {
-    display: none;
-  }
 
   /*
      La transition porte sur le rembourrage seul. Animer la hauteur d'un

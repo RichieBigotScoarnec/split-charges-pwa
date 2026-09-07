@@ -84,6 +84,7 @@ const STATIC_ASSETS = [
   './js/utils/members.js',
   './js/utils/memoire-libelle.js',
   './js/utils/miroir.js',
+  './js/utils/mois-revolu.js',
   './js/utils/montant.js',
   './js/utils/onglets.js',
   './js/utils/perimetre.js',
