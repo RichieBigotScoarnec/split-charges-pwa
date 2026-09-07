@@ -421,7 +421,29 @@
   }
 
   /* Un label qui enveloppe une case à cocher EST la cible : c'est lui qu'on
-     touche, et c'est lui que le contrôle mesure. */
+     touche, et c'est lui que le contrôle mesure.
+
+     ⚠️ CE `display: flex` EST LE MÊME PIÈGE QUE CELUI DU GRAND-LIVRE, EN
+     ATTENTE D'UNE OCCASION.
+
+     Il écrase le `display` d'auteur du label, quel qu'il soit. Aujourd'hui
+     c'est sans effet : mesuré le 2026-09-07, l'application ne rend qu'UNE
+     instance — `.reminder-toggle`, dans Réglages — et son display d'auteur est
+     `block`, que `flex` remplace sans rien casser.
+
+     Le jour où un label de case s'appuiera sur une grille — deux colonnes,
+     l'intitulé et l'état — cette règle la détruira EXACTEMENT comme elle a
+     détruit `grid-template-columns: minmax(0, 1fr) auto` sur
+     `.summary-row--ouvrable` : la déclaration survit dans le style calculé et
+     ne fait plus rien, et le défaut ne paraît QUE sur un appareil tactile.
+
+     Le remède est écrit trente lignes plus bas, sur `.summary-row--ouvrable` :
+     sortir la classe de cette liste et lui rendre son `display`, en gardant
+     `align-items: center` — qui, lui, sert vraiment dès que la boîte de 44 px
+     n'est pas remplie.
+
+     Et le contrôle qui le verrait n'existe pas encore : `cible-tactile` mesure
+     que la cible fait 44 px, jamais ce que la règle coûte à la mise en page. */
   label:has(> input[type="checkbox"]),
   label:has(> input[type="radio"]) {
     min-height: 44px;

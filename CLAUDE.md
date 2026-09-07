@@ -434,6 +434,40 @@ rouge ?* Trois réponses le condamnent :
 > contradiction avec la deuxième réponse ci-dessus : là on demande si le
 > contrôle a tourné, ici on demande **sur quoi il a porté**.
 
+> **Une géométrie RENDUE est fractionnaire. Comparer une longueur calculée à une
+> valeur exacte fabrique un contrôle qui rougit au hasard — sur des PR qui n'y
+> sont pour rien.**
+>
+> Et c'est le pire des rouges : il n'accuse personne, il se reproduit ailleurs,
+> et il finit **désactivé**. Un contrôle désactivé coûte plus cher qu'un contrôle
+> absent — l'absent se voit, le désactivé laisse croire à une couverture.
+>
+> **Trois occurrences en deux jours**, toutes sur des contrôles justes dont
+> seule la COMPARAISON était trop exacte :
+>
+> - `mois-archive` — `Math.round` des deux côtés, sur une valeur qui vaut
+>   **121,5** : l'arrondi bascule au hasard entre 121 et 122, 2 échecs sur 8 ;
+> - le témoin de la carte du mois — il attendait `--space-md` et le navigateur
+>   rendait **24 px**, `.card` écrasant la règle du composant. Attrapé en local
+>   avant de livrer ;
+> - la carte du mois en CI — `toBe` sur la chaîne `'8px'`, et le moteur rendait
+>   **7,87571px**, une transition en vol. Verte cent fois en local.
+>
+> **Ce qu'il faut écrire à la place** — dans cet ordre de préférence :
+>
+> 1. **borner** plutôt qu'égaler : `> --space-sm`, `< 0.25`, `<= innerWidth`.
+>    C'est la forme qui dit la propriété, et elle ne connaît pas le demi-pixel ;
+> 2. comparer des **nombres avec une tolérance sous le pixel**
+>    (`toBeCloseTo(x, 0)`), jamais des chaînes de longueur ;
+> 3. **attendre que la valeur se pose** quand la propriété est en transition.
+>
+> Recensé le 2026-09-07 sur toute la suite : 277 `toBe`/`toEqual` en E2E, dont
+> **20 touchant un identifiant de géométrie et 4 réellement en cause**. Deux
+> étaient des faux positifs — `el.style.width` rend la chaîne `'70%'` écrite par
+> l'application, pas une longueur rendue. Les deux vrais (`vues:485` et `:500`)
+> sont bornés depuis. **Aucun contrôle unitaire n'est concerné** : jsdom ne fait
+> pas de mise en page.
+
 **Ce qu'elle exige** — tout contrôle neuf porte son **témoin** : un mutant qui le
 fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoin
 **positif** exigeant que les données mesurées soient non dégénérées. Un contrôle
@@ -485,6 +519,26 @@ dont le titre est une égalité doit tomber si l'égalité cesse.
 > partout. Le cas qui mesure est celui qui n'en porte aucune. Quand une entrée a
 > une borne — `maxlength`, un plafond, une longueur —, le jeu d'essai doit
 > porter la borne **et** sa forme la plus hostile, pas la borne seule.
+
+> **Un jeu d'essai qui ne porte qu'UN RÉGIME ment dans les deux sens.**
+> Le miroir exact du cas précédent, et il s'est payé le 2026-09-07.
+>
+> Là, le cas **indulgent** — un prénom qui porte des coupures — laissait passer
+> un correctif partiel. Ici, c'est le cas **sévère** qui a failli masquer une
+> différence réelle : sur un prénom long, le grand-livre fait 82 px et
+> `align-items: baseline` et `center` rendent tous deux 5/5. **Indiscernables.**
+>
+> C'est sur un prénom **court**, où la boîte de 44 px n'est pas remplie, que les
+> deux se séparent : `center` rend 10/10, `baseline` rend **5/15** — le contenu
+> collé en haut. Sans ce cas, on sortait la classe de la règle en croyant ne
+> rien perdre, et on rendait un alignement cassé sur tous les écrans où le
+> libellé est court, c'est-à-dire presque tous.
+>
+> **Le cas où la contrainte MORD ne dit rien de ce qui se passe quand elle ne
+> mord pas.** Une contrainte saturée masque la règle qui la gouverne : quand
+> tout déborde, toutes les stratégies d'alignement se ressemblent. Un jeu
+> d'essai doit donc porter **les deux régimes** — celui où la borne est atteinte
+> et celui où elle ne l'est pas — et pas seulement le pire des deux.
 
 **Corollaire, payé deux fois.** Un bouchon qui rend une valeur neutre ne mesure
 pas le câblage, il le **masque** : `'' + ''` se lit comme `''`, et une étiquette
@@ -780,18 +834,41 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   **Ce que les groupes 2 et 3 coûtent — mesuré le 2026-09-07, consigné, NON
   corrigé :**
   - **groupe 3, `min-width: 44px` sur `.period-arrow`** : les flèches passent de
-    36 à 44 px, et **la ligne du mois déborde de 8 px à 320 px** — `scrollWidth`
-    278 pour un `clientWidth` de 270. Le sélecteur de mois reste à 182 px et le
-    mois le plus large y tient (137 px de texte), donc le dégât visible est
-    borné ; la page ne défile pas. Mais **aucun contrôle ne voit ce débord** :
-    « aucune commande ne dépasse de l'écran » (`coherence-visuelle:223`) tourne
-    à la souris ;
+    36 à 44 px, et la ligne du mois rend `scrollWidth` 278 pour un `clientWidth`
+    de 270.
+    **Ce n'était pas un défaut, et la mesure fine l'a redimensionné.** Relevé
+    enfant par enfant : les deux flèches débordent de 8 px **symétriquement**,
+    l'une à gauche l'autre à droite, et atterrissent dans le REMBOURRAGE de la
+    carte — 17 px et 303 px sur un écran de 320, donc à l'intérieur de l'écran
+    comme de la carte. Le mois n'est pas rogné, la page ne défile pas, rien
+    n'est perdu. Les arrondis autour des flèches sont simplement plus serrés au
+    doigt.
+    Consigné quand même : c'est le seul endroit connu où le groupe 3 déplace une
+    géométrie, et un signalement qu'on a su ramener à sa taille vaut mieux qu'un
+    signalement retiré ;
   - **groupe 2, les labels de case à cocher** : **une seule instance rendue**
     dans toute l'application — `.reminder-toggle`, dans Réglages. Elle passe de
     `display: block` à `flex` et de 22 à 44 px de haut. Inoffensif ici parce que
     son display d'auteur est `block` ; **le jour où un label s'appuiera sur une
     grille, il cassera exactement comme le grand-livre**. Et une seule instance
     fait une couverture mince pour `cible-tactile`.
+
+  **Ce que l'en-tête coûte au doigt, et ce qui le rendrait — mesuré le
+  2026-09-07, CONSIGNÉ, non appliqué.** L'en-tête est en `flex` avec
+  `align-items: center` : sa hauteur est celle de son plus haut enfant, et cet
+  enfant est `#userInfoBar` à 44 px, tenu par le `min-height` du bouton de
+  déconnexion.
+
+  | Forme de la déconnexion | En-tête | Premier contenu à 320 | Gain |
+  |---|---:|---:|---:|
+  | bouton texte *(actuel)* | 54 px | 140 px | — |
+  | **bouton d'icône 44 × 44** | **54 px** | **140 px** | **0 px** |
+  | hors de l'en-tête | 36 px | 122 px | **18 px** |
+
+  **Le bouton d'icône ne rend RIEN**, et il fallait le mesurer plutôt que le
+  supposer : une icône reste un `button`, donc reste à 44 px de haut. Ce qui
+  coûte n'est pas sa largeur, c'est sa présence. Masquer l'avatar en plus ne
+  change rien — il n'est pas la contrainte.
 
   > **`hasTouch: true` suffit à déclencher `pointer: coarse` ; `isMobile` non.**
   > Mesuré sur les quatre combinaisons. `hasTouch` bascule aussi
@@ -894,6 +971,20 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 
 ### Le banc d'essai
 
+- **Une longueur RENDUE ne se compare pas à une chaîne, et surtout pas au texte
+  d'un jeton.** Corollaire du piège ci-dessous, et il a fait rougir la CI le
+  2026-09-07 sur un contrôle vert cent fois en local :
+  `rembourrage haut 7.87571px pour 8px attendu`.
+  7,875 px n'est pas un rembourrage, c'est une **transition en vol** —
+  `onglets.css` anime `padding` sur `.period-navigation`. Deux remèdes, et le
+  second vaut autant que le premier : **attendre que la valeur soit stable sur
+  deux images**, et **comparer des nombres avec une tolérance sous le pixel**.
+  Une longueur rendue est fractionnaire par nature ; exiger « 8px » au caractère
+  près, c'est mesurer le formatage du moteur.
+  **Troisième occurrence du même motif en deux jours** : `Math.round` sur une
+  frontière de demi-pixel (121,5), `toBe` sur une chaîne de longueur, et la
+  lecture pendant une transition. À chaque fois le contrôle était juste et la
+  COMPARAISON trop exacte pour ce qu'elle mesurait.
 - **`getComputedStyle` lu juste après un changement de style rend la valeur
   D'AVANT, si la propriété est en transition.** `onglets.css:361` déclare
   `.period-navigation { transition: padding … }`. Une sonde qui injecte une règle
