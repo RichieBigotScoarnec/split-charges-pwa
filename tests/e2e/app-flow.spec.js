@@ -1,5 +1,6 @@
 import { test, expect } from './_couverture.js';
 
+import { allerAuPanneau } from './_harness.js';
 import { ALLOWED_EMAILS } from '../../public/js/config.js';
 
 // L'application refuse tout compte hors liste blanche (js/modules/auth.js).
@@ -387,5 +388,56 @@ test.describe('Déconnexion', () => {
 
     const mainApp = page.locator('#mainApp');
     await expect(mainApp).toBeHidden();
+  });
+
+  test('l\'application offre un moyen de se déconnecter, et il fonctionne', async ({ page }) => {
+    /**
+     * LA PROPRIÉTÉ, ET PAS L'ENDROIT.
+     *
+     * Le cas voisin appelle `window.signOut()` : il éprouve la mécanique, et il
+     * resterait vert si plus aucune commande ne la déclenchait. Celui-ci
+     * éprouve qu'on peut s'en servir — il cherche, il touche, il vérifie.
+     *
+     * Il ne nomme ni l'en-tête, ni un identifiant, ni un panneau : il parcourt
+     * les trois destinations et demande qu'un moyen de se déconnecter soit
+     * ATTEIGNABLE. Le déplacer d'un écran à l'autre ne le fait pas tomber ; le
+     * supprimer, si.
+     *
+     * Ce qu'il n'exige PAS : que la commande soit visible depuis les trois
+     * panneaux. Ranger un geste rare derrière un onglet est un choix légitime,
+     * et l'exiger partout interdirait ce choix au lieu de le mesurer.
+     *
+     * Et il n'en exige pas une SEULE : le bandeau hors ligne porte lui aussi un
+     * `signOut`, sous le libellé « Se reconnecter ». Compter les commandes
+     * ferait tomber ce cas sur une fonctionnalité qui n'a rien à voir.
+     */
+    const commandes = page.locator('[data-action="signOut"]');
+
+    let trouvee = null;
+    for (const id of ['panneauBilan', 'panneauCharges', 'panneauReglages']) {
+      await allerAuPanneau(page, id);
+      const n = await commandes.count();
+      for (let i = 0; i < n; i++) {
+        if (await commandes.nth(i).isVisible()) { trouvee = commandes.nth(i); break; }
+      }
+      if (trouvee) break;
+    }
+
+    expect(
+      trouvee,
+      'aucun moyen de se déconnecter n\'est atteignable depuis les trois destinations'
+    ).not.toBeNull();
+
+    // La prémisse : une commande qui n'annonce rien ne se trouve pas. Ce que
+    // le doigt vise doit porter un intitulé, pas seulement un attribut.
+    expect(
+      (await trouvee.innerText()).trim(),
+      'la commande de déconnexion ne porte aucun intitulé'
+    ).not.toBe('');
+
+    await trouvee.click();
+
+    await expect(page.locator('#authOverlay')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#mainApp')).toBeHidden();
   });
 });

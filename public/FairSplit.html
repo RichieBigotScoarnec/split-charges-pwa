@@ -223,7 +223,18 @@
       <div class="user-info-bar" id="userInfoBar">
         <img class="user-avatar" id="userAvatar" src="" alt="Avatar" width="32" height="32" loading="lazy" />
         <span class="user-name" id="userName"></span>
-        <button type="button" class="btn-logout" data-action="signOut">Déconnexion</button>
+        <!-- La déconnexion vivait ici. Elle a déménagé dans Réglages, rangée
+             « Votre compte ».
+
+             Elle coûtait 18 px de premier écran À CHAQUE OUVERTURE — mesuré au
+             doigt : l'en-tête est en `flex` avec `align-items: center`, sa
+             hauteur est celle de son plus haut enfant, et c'était ce bouton,
+             porté à 44 px par `pointer: coarse`. Un bouton d'icône n'y aurait
+             rien changé : ce qui coûte n'est pas sa largeur, c'est sa présence.
+
+             Se déconnecter d'une application de couple, sur son propre
+             téléphone, est un geste rare ; il se payait sur l'écran où le solde
+             doit tenir sans défiler. -->
       </div>
     </header>
 
@@ -686,6 +697,17 @@
         </button>
         <button type="button" class="btn btn-secondary" data-action="exportToPDF" title="Imprimer ou sauvegarder en PDF">
           <span aria-hidden="true">📄</span> Imprimer PDF
+        </button>
+      </div>
+
+      <!-- Quatrième rangée, et le même motif que les trois autres : un intitulé
+           qui entre dans l'arbre d'accessibilité, puis les commandes. Créer une
+           carte entière pour un seul bouton aurait été plus de structure pour
+           moins de contenu. -->
+      <h3 class="outils-titre">Votre compte</h3>
+      <div class="outils-rangee">
+        <button type="button" class="btn btn-secondary" data-action="signOut" title="Fermer la session sur cet appareil">
+          <span aria-hidden="true">🚪</span> Déconnexion
         </button>
       </div>
     </div>
