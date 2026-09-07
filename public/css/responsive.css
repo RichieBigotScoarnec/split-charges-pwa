@@ -442,9 +442,45 @@
   .trends-header,
   .reminders-header,
   .extra-income-toggle,
-  .budget-row--ouvrable,
-  .summary-row--ouvrable {
+  .budget-row--ouvrable {
     display: flex;
+    align-items: center;
+  }
+
+  /*
+     ─────────────────────────────────────────────────────────────────────
+     LA LIGNE DU GRAND-LIVRE GARDE SA GRILLE, ET C'EST UN CORRECTIF.
+
+     `.summary-row--ouvrable` figurait dans la liste ci-dessus. Le
+     `display: flex` y écrasait le `display: grid` de `.summary-row`
+     (`summary.css:58`) et, avec lui, `grid-template-columns: minmax(0, 1fr)
+     auto` — le correctif du grand-livre. La déclaration survivait dans le
+     style calculé et ne faisait plus rien.
+
+     Conséquence mesurée le 2026-09-07, à 320 px, prénom insécable :
+
+                   display   largeur de ligne   scrollWidth de la page
+       souris      grid      234 px             320   vert
+       DOIGT       flex      335 px             379   ROUGE
+
+     Soit 59 px de débord latéral SUR TOUT APPAREIL TACTILE, c'est-à-dire
+     partout où l'application est réellement utilisée. Le correctif du
+     grand-livre était vert aux quatre largeurs et ne s'appliquait sur aucun
+     téléphone, faute d'un contrôle qui émule le doigt.
+
+     `align-items: center` est CONSERVÉ, et il n'est pas décoratif : mesuré
+     sur un prénom court, où la boîte de 44 px n'est pas remplie —
+
+       flex (avant)        contenu à 10 px du haut, 10 du bas   centré
+       grid + center       10 / 10                              centré
+       grid + baseline      5 / 15                              collé en haut
+
+     La règle voisine est donc laissée MOT POUR MOT aux quatre autres classes :
+     ce qu'elle leur donne n'a pas été mesuré, et rien n'oblige à le changer
+     pour réparer celle-ci.
+     ───────────────────────────────────────────────────────────────────── */
+  .summary-row--ouvrable {
+    display: grid;
     align-items: center;
   }
 }

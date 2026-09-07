@@ -469,8 +469,12 @@ for (const { nom, viewport } of [
   { nom: '390', viewport: TELEPHONE },
   { nom: '320', viewport: { width: 320, height: 720 } }
 ]) {
-  test.describe(`Le premier écran — ${nom} px`, () => {
-    test.use({ viewport });
+  for (const { pointeur, tactile } of [
+    { pointeur: 'souris', tactile: false },
+    { pointeur: 'doigt', tactile: true }
+  ]) {
+  test.describe(`Le premier écran — ${nom} px, au ${pointeur}`, () => {
+    test.use({ viewport, hasTouch: tactile });
 
     test.beforeEach(async ({ page }) => {
       await setupFirebaseMock(page);
@@ -537,7 +541,21 @@ for (const { nom, viewport } of [
       const part = avant / fenetre;
       expect(part, `${avant} px sur ${fenetre}, soit ${Math.round(part * 100)} %`).toBeLessThan(0.25);
     });
+
+    test('la prémisse du pointeur : le contexte est bien celui annoncé', async ({ page }) => {
+      // Sans elle, la moitié tactile de ce bloc pourrait cesser d'émuler le
+      // doigt — un `hasTouch` perdu dans un remaniement — et redevenir un
+      // doublon de la moitié souris, en restant verte. C'est l'ancrage que
+      // `cible-tactile.spec.js` s'est déjà donné, et il vaut ici pour la
+      // raison inverse : là il empêche le contrôle de devenir plus sévère,
+      // ici il l'empêche de redevenir plus indulgent.
+      expect(
+        await page.evaluate(() => matchMedia('(pointer: coarse)').matches),
+        `le contexte « ${pointeur} » ne correspond pas à ce qu'il annonce`
+      ).toBe(tactile);
+    });
   });
+  }
 }
 
 test.describe('Sur grand écran — la barre s\'efface', () => {

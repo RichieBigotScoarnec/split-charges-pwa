@@ -53,7 +53,27 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
  * ne se refermera pas sur le vert de ce fichier.
  */
 
-test.use({ viewport: { width: 320, height: 720 } });
+/**
+ * 320 px AU DOIGT, et le doigt n'est pas un détail de contexte.
+ *
+ * Ce fichier a été écrit à la souris, et il rendait vert un correctif qui ne
+ * s'applique sur AUCUN téléphone. `responsive.css` déclare, sous
+ * `pointer: coarse`, `.summary-row--ouvrable { display: flex }` — ce qui écrase
+ * le `display: grid` de `.summary-row` sur lequel repose tout ce contrôle.
+ * `grid-template-columns: minmax(0, 1fr) auto` survit dans le style calculé et
+ * ne fait plus rien.
+ *
+ * Mesuré le 2026-09-07, prénom insécable, 320 px :
+ *
+ *              display   largeur de ligne   scrollWidth de la page
+ *   souris     grid      234 px             320   vert
+ *   DOIGT      flex      335 px             379   ROUGE
+ *
+ * `hasTouch` est donc ajouté aux deux cas existants plutôt que doublé en deux
+ * cas de plus : c'est le MÊME défaut, vu sur le bon appareil. Le mesurer à la
+ * souris n'était pas un cas de moins, c'était le mauvais.
+ */
+test.use({ viewport: { width: 320, height: 720 }, hasTouch: true });
 
 /**
  * Deux prénoms de 30 caractères — la limite que `#prenomVous` laisse saisir.
