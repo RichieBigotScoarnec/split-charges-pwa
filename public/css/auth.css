@@ -276,21 +276,3 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
-
-.btn-logout {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-strong);
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: all var(--duration) var(--ease);
-}
-
-.btn-logout:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
-}
