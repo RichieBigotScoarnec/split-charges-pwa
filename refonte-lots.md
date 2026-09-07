@@ -395,6 +395,66 @@ exactement à 179 — vert de zéro pixel, ce qui n'est pas une marge. **L'arbit
 sur la phrase « 📁 Mois archivé — modifiable » n'est pas levé par la quatrième
 voie ; il est seulement moins cher qu'il ne l'était.**
 
+### La cinquième voie — le badge doit-il être PERMANENT ?
+
+La question n'était pas « faut-il garder la phrase » — c'était réglé — mais
+**combien de temps faut-il l'afficher**. Elle dit « ce mois est archivé, tu peux
+quand même le modifier » : on la lit une fois en arrivant, pas pendant qu'on
+travaille.
+
+Quatre variantes, mesurées à 320 px sur mois archivé, correctif #166 et
+compaction d'en-tête appliqués, sélecteur à 8/0 — départ **189 px**, cible 179 :
+
+| Variante | `avant` | Part | Verdict | Ce qu'elle rend |
+| --- | ---: | ---: | --- | ---: |
+| référence — badge permanent | 189 | 26,3 % | rouge | — |
+| **(a)** effacé au défilement | **189** | 26,3 % | **rouge** | **0 px** |
+| **(b)** effacé après N secondes | 189 à t=0 | 26,3 % | **rouge** | **0 px** |
+| **(c)** rangée ôtée, message en toast | **166** | 23,1 % | **vert, 13 px** | **23 px** |
+| **(d)** = (c) + marqueur dans le libellé du mois | **166** | 23,1 % | **vert, 13 px** | **23 px** |
+
+**(a) rend zéro, et pour une raison qui vaut d'être écrite : elle existe déjà.**
+`onglets.css` déclare `body[data-defile="true"] .period-info { display: none }`.
+Vérifié en basculant l'attribut : `block` au repos, `none` au défilement, `block`
+en remontant. C'est exactement la variante (a), livrée depuis des mois — et le
+contrôle `280` mesure **à défilement zéro**, donc il ne la voit pas et ne la
+verra jamais. Ce n'est pas un échec de la variante : c'est que le budget du
+premier écran se paie **avant** le premier geste.
+
+**(b) rend zéro aussi, et se disqualifie deux fois.** Mesuré : l'application est
+prête après **1 485 ms**, et `280` mesure aussitôt. À t=0 le contrôle lit 189 ;
+à t=3,4 s il lirait 166. Pour qu'il voie l'état compact, il faudrait donc un
+délai **inférieur à ~1,5 s** — c'est-à-dire un message qui disparaît avant qu'on
+ait fini d'arriver. Et la couleur du contrôle dépendrait d'une course entre un
+minuteur et un chargement de page : le dépôt a déjà une règle contre les
+contrôles qui dépendent de l'horloge. S'y ajoute que du contenu qui s'efface
+seul, sans geste, relève de WCAG 2.2.1.
+
+**(c) tient, et le message garde ses mots.** Mesuré sur le vrai système de
+toast : `toast.info('📁 Mois archivé — modifiable')` rend le texte **exact**,
+dans un conteneur `role="status"` `aria-live="polite"` — donc annoncé —, 231 × 49 px
+à 320 px, sur deux lignes, **sans rognage, sans recouvrir la barre d'onglets,
+sans débord de page**.
+
+**(d) tient aussi, et rend un marqueur permanent pour zéro pixel.** La rangée
+part comme en (c), et le libellé du mois porte le dossier : « 📁 août 2026 ».
+Mesuré : **aucun rognage** du sélecteur, aucun débord — le mois le plus large,
+« septembre 2026 », fait 118 px de texte pour 174 px disponibles, et l'emoji en
+ajoute ~22.
+
+> **Ce que (d) sépare, et que le badge confondait.** « Archivé » est un **état**,
+> qu'on doit pouvoir constater à tout moment — il reste, dans le libellé du mois,
+> à coût nul. « Modifiable » est une **levée de malentendu**, qu'on lit une fois
+> en arrivant — elle part dans le toast. Le badge permanent payait 28 px de
+> premier écran pour tenir les deux ensemble, en permanence.
+>
+> Ce que (d) coûte, et qu'il faut dire : après le toast, plus rien à l'écran ne
+> dit qu'un mois passé se modifie. Quelqu'un qui arrive sur août par le sélecteur
+> plutôt que par la flèche, ou qui revient une heure plus tard, ne verra que
+> « 📁 ». C'est le prix, et il est réel — mais il ne rouvre pas le malentendu que
+> `period.js:135` a fermé : il le referme **une fois par visite** au lieu de
+> **tout le temps**.
+
 ### A5, le geste de la maquette
 
 Les planches 4 et 5 n'ont **aucun `#mainApp > header`** : barre d'état, mois,
