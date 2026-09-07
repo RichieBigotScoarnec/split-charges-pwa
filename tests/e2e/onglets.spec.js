@@ -692,3 +692,146 @@ test.describe('La carte du mois compactée — TÉMOIN au-delà de 900 px', () =
     ).toBeGreaterThan(mesure.sm);
   });
 });
+
+/**
+ * L'en-tête compacté, et la ligne du mois en plancher
+ *
+ * Le lot 5 ajoute un sélecteur de portée sous le bandeau. Il coûte 44 à 52 px,
+ * et le budget avant le premier contenu est de 179 px à 320 px — le seuil de
+ * `onglets:280`, strict. Mesuré après l'étape 2 : 141 px, donc 38 px de marge.
+ * Cette compaction rend les 15 px qui manquent.
+ *
+ * CE QUI EST TENU EST LA PROPRIÉTÉ, PAS LA VALEUR.
+ *
+ * Écrire « l'en-tête mesure 40 px » figerait un pixel que la première police
+ * changée ferait mentir, et le correctif serait alors d'ajuster le nombre —
+ * c'est-à-dire de ne plus rien mesurer. Ce qui est verrouillé, c'est que la
+ * compaction est **appliquée** sous 900 px et **bornée** au-delà : les jetons
+ * d'espacement sont lus à l'exécution, jamais recopiés.
+ *
+ * ET LA LARGEUR AUTANT QUE LA HAUTEUR.
+ *
+ * Une compaction qui tient en hauteur peut casser en largeur, et une sonde qui
+ * ne mesure que la hauteur ne le voit pas — ce chantier l'a payé trois fois.
+ * Le cas hostile ci-dessous porte un nom de compte long : c'est lui, et lui
+ * seul, qui peut faire déborder l'en-tête.
+ */
+for (const largeur of [320, 390]) {
+  test.describe(`L'en-tête compacté — ${largeur} px`, () => {
+    test.use({ viewport: { width: largeur, height: 720 } });
+
+    test.beforeEach(async ({ page }) => {
+      await setupFirebaseMock(page);
+      await waitForApp(page);
+    });
+
+    test('son rembourrage et sa marge valent le plus petit des jetons', async ({ page }) => {
+      const mesure = await page.evaluate(() => {
+        const el = document.querySelector('#mainApp > header');
+        if (!el) return null;
+        const s = getComputedStyle(el);
+        return {
+          haut: s.paddingTop,
+          bas: s.paddingBottom,
+          marge: s.marginBottom,
+          attendu: getComputedStyle(document.documentElement)
+            .getPropertyValue('--space-xs').trim()
+        };
+      });
+
+      expect(mesure, 'aucun en-tête rendu : il n\'y a rien à mesurer').not.toBeNull();
+      expect(mesure.haut, `rembourrage haut ${mesure.haut}`).toBe(mesure.attendu);
+      expect(mesure.bas, `rembourrage bas ${mesure.bas}`).toBe(mesure.attendu);
+      expect(mesure.marge, `marge basse ${mesure.marge}`).toBe(mesure.attendu);
+    });
+
+    test('un nom de compte très long ne fait déborder ni l\'en-tête ni la page', async ({ page }) => {
+      // ── LE CAS HOSTILE, ET SON TÉMOIN POSITIF ──
+      //
+      // Un nom court ne peut rien faire déborder : le mesurer donnerait un vert
+      // qui ne tient rien. Ce cas exige donc que le nom soit RÉELLEMENT rogné —
+      // sans quoi il ne prouve pas que la dégradation prévue s'applique, il
+      // prouve seulement qu'on a choisi un nom qui tenait.
+      //
+      // La dégradation voulue est écrite dans `onglets.css` : « le nom du compte
+      // cède la place avant le bouton de déconnexion ». Le titre, lui, ne se
+      // coupe pas — la marque et « FairSplit » restent ensemble.
+      await page.evaluate(() => {
+        document.getElementById('userName').textContent =
+          'Bartholomew-Maximilien Leonard de la Tour du Pin';
+      });
+      await page.waitForTimeout(200);
+
+      const m = await page.evaluate(() => {
+        const entete = document.querySelector('#mainApp > header');
+        const titre = entete.querySelector('h1');
+        const nom = document.getElementById('userName');
+        const rogne = (el) => el.scrollWidth > el.clientWidth + 1;
+        return {
+          nomRogne: rogne(nom),
+          titreRogne: rogne(titre),
+          enteteDeborde: rogne(entete),
+          pageDeborde: document.documentElement.scrollWidth > window.innerWidth,
+          ecartPage: document.documentElement.scrollWidth - window.innerWidth
+        };
+      });
+
+      expect(m.nomRogne, 'témoin : le nom tient encore, ce cas ne mesure donc rien')
+        .toBe(true);
+      expect(m.titreRogne, 'le titre est coupé — la marque et le nom du produit se séparent')
+        .toBe(false);
+      expect(m.enteteDeborde, 'l\'en-tête déborde sa propre boîte').toBe(false);
+      expect(m.pageDeborde, `la page défile latéralement de ${m.ecartPage} px`).toBe(false);
+    });
+
+    test('la ligne du mois garde un plancher de cible tactile', async ({ page }) => {
+      // Un PLANCHER, pas un plafond : la ligne peut grandir si son contenu le
+      // demande, elle ne peut pas descendre sous la hauteur d'une cible que le
+      // doigt vise. C'est ce qui distingue une compaction d'une amputation, et
+      // c'est la seule des trois valeurs d'A6 qui protège quelqu'un.
+      const m = await page.evaluate(() => {
+        const ligne = document.querySelector('.period-selector');
+        if (!ligne) return null;
+        return {
+          hauteur: Math.round(ligne.getBoundingClientRect().height),
+          plancher: parseFloat(getComputedStyle(ligne).minHeight) || 0
+        };
+      });
+
+      expect(m, 'aucune ligne de mois rendue').not.toBeNull();
+      expect(m.plancher, `plancher déclaré ${m.plancher} px`).toBeGreaterThanOrEqual(44);
+      expect(m.hauteur, `la ligne mesure ${m.hauteur} px`)
+        .toBeGreaterThanOrEqual(m.plancher);
+    });
+  });
+}
+
+test.describe('L\'en-tête compacté — TÉMOIN au-delà de 900 px', () => {
+  test.use({ viewport: ORDINATEUR });
+
+  /**
+   * Sans lui, « le rembourrage vaut `--space-xs` » serait satisfait par un CSS
+   * qui compacte l'en-tête PARTOUT — y compris sur un écran qui a la place, et
+   * où l'en-tête n'est pas un péage. La compaction doit rester bornée.
+   *
+   * Il ne fige aucune valeur, pour la raison mesurée sur la carte du mois :
+   * `.card` et les règles de composant s'écrasent l'une l'autre à spécificité
+   * égale, et figer le résultat enregistrerait l'écrasement comme une intention.
+   */
+  test('l\'en-tête reprend de l\'air, la place ne manquant plus', async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    const m = await page.evaluate(() => {
+      const s = getComputedStyle(document.querySelector('#mainApp > header'));
+      const r = getComputedStyle(document.documentElement);
+      return {
+        haut: parseFloat(s.paddingTop),
+        xs: parseFloat(r.getPropertyValue('--space-xs'))
+      };
+    });
+
+    expect(m.haut, `rembourrage ${m.haut} px — la compaction mobile déborde sur le grand écran`)
+      .toBeGreaterThan(m.xs);
+  });
+});

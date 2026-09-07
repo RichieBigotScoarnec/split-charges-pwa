@@ -206,9 +206,24 @@ test.describe('Ce que la rangée du badge coûtait', () => {
     // consulter un mois passé ne coûte plus rien de plus que le mois en cours.
     await ouvrir(page);
 
+    // ── LA MESURE N'EST PAS ARRONDIE, ET C'EST MESURÉ ──
+    //
+    // Première rédaction : `Math.round` des deux côtés, puis `toBe`. Elle a
+    // échoué **2 fois sur 8** en la rejouant — « mois en cours 121 px, mois
+    // révolu 122 px ».
+    //
+    // Le relevé au millième dit pourquoi : le haut de la carte vaut **121,5 px
+    // dans les deux cas**. La géométrie est identique ; c'est l'arrondi qui,
+    // posé exactement sur une frontière de demi-pixel, transformait une gigue
+    // sous-pixel en un pixel d'écart. Le contrôle aurait rougi en CI sans
+    // qu'aucun défaut existe — et on aurait cherché la cause dans le code.
+    //
+    // La tolérance est donc **sous le pixel**, et elle ne relâche rien : la
+    // rangée supprimée coûtait 19 px, et la plus serrée des rangées de texte
+    // mesurables en coûte 14. Tout retour de ce coût reste attrapé.
     const hautDeLaCarte = () => page.evaluate(() => {
       const c = document.querySelector('#panneauBilan .card');
-      return c ? Math.round(c.getBoundingClientRect().top) : null;
+      return c ? c.getBoundingClientRect().top : null;
     });
 
     const enCours = await hautDeLaCarte(page);
@@ -217,7 +232,9 @@ test.describe('Ce que la rangée du badge coûtait', () => {
     await reculerDUnMois(page);
     const revolu = await hautDeLaCarte(page);
 
-    expect(revolu, `mois en cours ${enCours} px, mois révolu ${revolu} px`)
-      .toBe(enCours);
+    expect(
+      Math.abs(revolu - enCours),
+      `mois en cours ${enCours} px, mois révolu ${revolu} px — le mois passé coûte une rangée de plus`
+    ).toBeLessThan(1);
   });
 });

@@ -275,19 +275,37 @@
      informations qu'on ne lit plus — elles doivent tenir le moins de place
      possible sans disparaître.
   */
+  /*
+     Le rembourrage descend au plus petit jeton, et la marque avec lui.
+
+     Le lot 5 ajoute un sélecteur de portée sous le bandeau — 44 à 52 px — et
+     le budget avant le premier contenu est de 179 px à 320 px. Mesuré : cette
+     compaction rend 15 px, l'en-tête passant de 55 à 40 px marge comprise.
+
+     Elle ne touche QUE le vertical. Le rembourrage horizontal reste
+     `--space-md` : c'est lui qui aligne la marque sur le contenu des cartes,
+     et le resserrer ne rendrait rien du budget, qui se compte en hauteur.
+
+     La largeur a été mesurée, pas supposée : avec un nom de compte de 48
+     caractères à 320 px, le nom se rogne — la dégradation prévue — le titre
+     reste entier, l'en-tête ne déborde pas sa boîte et la page ne défile pas
+     en travers. C'est `onglets.spec.js`, « un nom de compte très long ».
+  */
   #mainApp > header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-sm);
     text-align: left;
-    padding: var(--space-sm) var(--space-md);
-    margin-bottom: var(--space-sm);
+    padding: var(--space-xs) var(--space-md);
+    margin-bottom: var(--space-xs);
   }
 
   #mainApp > header h1 {
     margin-bottom: 0;
-    font-size: 19px;
+    /* 17 px et non 19 : la marque reste lisible, et deux pixels de moins sur
+       la ligne la plus haute de l'en-tête en retirent autant à sa boîte. */
+    font-size: 17px;
     /* La ligne ne se coupe pas : « FairSplit » et la marque restent ensemble. */
     white-space: nowrap;
   }
@@ -342,8 +360,23 @@
     margin-bottom: var(--space-sm);
   }
 
+  /*
+     La ligne du mois : 48 px en PLANCHER, et non en plafond.
+
+     Elle mesurait 44 px de contenu plus 4 px de marge basse — 48 px en tout,
+     mais 48 px que rien ne garantissait. Le même total est désormais porté par
+     la RANGÉE elle-même : la marge part, le plancher la remplace.
+
+     Ce n'est donc pas une compaction, ça ne rend aucun pixel, et c'est voulu.
+     Ce que ça change est une garantie : la ligne peut grandir si son contenu
+     le demande, elle ne peut plus descendre sous la hauteur d'une cible que le
+     doigt vise — les deux flèches et le sélecteur de mois vivent dedans.
+     Un plafond aurait fait l'inverse, et c'est le piège que la maquette
+     tendait en écrivant « 48 px » sans dire dans quel sens.
+  */
   .period-selector {
-    margin-bottom: var(--space-xs);
+    min-height: 48px;
+    margin-bottom: 0;
   }
 
   /*
@@ -358,9 +391,16 @@
     box-shadow: var(--shadow);
   }
 
-  body[data-defile="true"] .period-selector {
-    margin-bottom: 0;
-  }
+  /*
+     Il y avait ici `body[data-defile="true"] .period-selector { margin-bottom:
+     0 }`, qui retirait au défilement la marge basse de la ligne du mois.
+
+     Cette marge n'existe plus : elle est devenue le plancher de la rangée,
+     juste au-dessus. La règle serait donc restée à ne rien faire, sans le
+     dire — la « règle morte » que ce fichier a déjà payée deux fois. Ce qui
+     compacte le bandeau au défilement est le rembourrage de la carte, qui lui
+     est bien toujours là.
+  */
 
   /*
      Il y avait ici une règle qui effaçait `.period-info` au défilement — le

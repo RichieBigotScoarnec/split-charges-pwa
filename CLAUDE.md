@@ -407,7 +407,32 @@ rouge ?* Trois réponses le condamnent :
   le sélecteur ne correspond plus, le jeu d'essai ne porte pas le cas ;
 - « il lit la source, pas l'effet » — une garde qui vérifie qu'un fichier
   *contient* un nom survit à la suppression du bloc qui s'en sert, et ne survit
-  pas à son renommage.
+  pas à son renommage ;
+- **« il interroge la SURFACE où la chose vit, pas la propriété »** — et
+  celui-là se périme **au premier déplacement, EN VERT**.
+
+> **La quatrième réponse, et elle est la plus discrète : un contrôle qui nomme
+> une surface se périme quand la chose déménage — sans rougir.**
+>
+> Trois fois en deux jours, sur trois surfaces différentes :
+>
+> - le contrôle du grand-livre mesurait `documentElement.scrollWidth` — la
+>   page ; le débordement a changé de forme et est passé dans les boîtes ;
+> - `service-worker-installation` mesurait le socle — 8 fichiers ; un module
+>   neuf hors du précache le laissait vert ;
+> - le 2026-09-07, un cas neuf cherchait « 📁 » dans le **libellé du mois**,
+>   pour tenir qu'un mois à venir n'est pas annoncé archivé. Le badge vivait
+>   dans `#periodInfo`. Le cas **passait au vert avant le correctif** : il
+>   interrogeait la surface où le marqueur allait vivre, pas la propriété qu'il
+>   prétendait tenir. Réécrit sur le bandeau entier — `.period-navigation` ne
+>   contient nulle part `/archiv/i` sur un mois à venir — il est devenu rouge,
+>   et il survivra au prochain déplacement.
+>
+> **Le geste : nommer la propriété, puis chercher la plus PETITE surface qui la
+> contienne encore après un déménagement.** « Le libellé ne dit pas archivé »
+> se périme ; « l'écran ne dit nulle part archivé » tient. Et il n'y a pas de
+> contradiction avec la deuxième réponse ci-dessus : là on demande si le
+> contrôle a tourné, ici on demande **sur quoi il a porté**.
 
 **Ce qu'elle exige** — tout contrôle neuf porte son **témoin** : un mutant qui le
 fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoin
