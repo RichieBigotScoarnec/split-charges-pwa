@@ -486,6 +486,26 @@ dont le titre est une égalité doit tomber si l'égalité cesse.
 > une borne — `maxlength`, un plafond, une longueur —, le jeu d'essai doit
 > porter la borne **et** sa forme la plus hostile, pas la borne seule.
 
+> **Un jeu d'essai qui ne porte qu'UN RÉGIME ment dans les deux sens.**
+> Le miroir exact du cas précédent, et il s'est payé le 2026-09-07.
+>
+> Là, le cas **indulgent** — un prénom qui porte des coupures — laissait passer
+> un correctif partiel. Ici, c'est le cas **sévère** qui a failli masquer une
+> différence réelle : sur un prénom long, le grand-livre fait 82 px et
+> `align-items: baseline` et `center` rendent tous deux 5/5. **Indiscernables.**
+>
+> C'est sur un prénom **court**, où la boîte de 44 px n'est pas remplie, que les
+> deux se séparent : `center` rend 10/10, `baseline` rend **5/15** — le contenu
+> collé en haut. Sans ce cas, on sortait la classe de la règle en croyant ne
+> rien perdre, et on rendait un alignement cassé sur tous les écrans où le
+> libellé est court, c'est-à-dire presque tous.
+>
+> **Le cas où la contrainte MORD ne dit rien de ce qui se passe quand elle ne
+> mord pas.** Une contrainte saturée masque la règle qui la gouverne : quand
+> tout déborde, toutes les stratégies d'alignement se ressemblent. Un jeu
+> d'essai doit donc porter **les deux régimes** — celui où la borne est atteinte
+> et celui où elle ne l'est pas — et pas seulement le pire des deux.
+
 **Corollaire, payé deux fois.** Un bouchon qui rend une valeur neutre ne mesure
 pas le câblage, il le **masque** : `'' + ''` se lit comme `''`, et une étiquette
 rendue deux fois y devient invisible. Quand ce qu'on tient est un rendu, le
@@ -780,18 +800,41 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   **Ce que les groupes 2 et 3 coûtent — mesuré le 2026-09-07, consigné, NON
   corrigé :**
   - **groupe 3, `min-width: 44px` sur `.period-arrow`** : les flèches passent de
-    36 à 44 px, et **la ligne du mois déborde de 8 px à 320 px** — `scrollWidth`
-    278 pour un `clientWidth` de 270. Le sélecteur de mois reste à 182 px et le
-    mois le plus large y tient (137 px de texte), donc le dégât visible est
-    borné ; la page ne défile pas. Mais **aucun contrôle ne voit ce débord** :
-    « aucune commande ne dépasse de l'écran » (`coherence-visuelle:223`) tourne
-    à la souris ;
+    36 à 44 px, et la ligne du mois rend `scrollWidth` 278 pour un `clientWidth`
+    de 270.
+    **Ce n'était pas un défaut, et la mesure fine l'a redimensionné.** Relevé
+    enfant par enfant : les deux flèches débordent de 8 px **symétriquement**,
+    l'une à gauche l'autre à droite, et atterrissent dans le REMBOURRAGE de la
+    carte — 17 px et 303 px sur un écran de 320, donc à l'intérieur de l'écran
+    comme de la carte. Le mois n'est pas rogné, la page ne défile pas, rien
+    n'est perdu. Les arrondis autour des flèches sont simplement plus serrés au
+    doigt.
+    Consigné quand même : c'est le seul endroit connu où le groupe 3 déplace une
+    géométrie, et un signalement qu'on a su ramener à sa taille vaut mieux qu'un
+    signalement retiré ;
   - **groupe 2, les labels de case à cocher** : **une seule instance rendue**
     dans toute l'application — `.reminder-toggle`, dans Réglages. Elle passe de
     `display: block` à `flex` et de 22 à 44 px de haut. Inoffensif ici parce que
     son display d'auteur est `block` ; **le jour où un label s'appuiera sur une
     grille, il cassera exactement comme le grand-livre**. Et une seule instance
     fait une couverture mince pour `cible-tactile`.
+
+  **Ce que l'en-tête coûte au doigt, et ce qui le rendrait — mesuré le
+  2026-09-07, CONSIGNÉ, non appliqué.** L'en-tête est en `flex` avec
+  `align-items: center` : sa hauteur est celle de son plus haut enfant, et cet
+  enfant est `#userInfoBar` à 44 px, tenu par le `min-height` du bouton de
+  déconnexion.
+
+  | Forme de la déconnexion | En-tête | Premier contenu à 320 | Gain |
+  |---|---:|---:|---:|
+  | bouton texte *(actuel)* | 54 px | 140 px | — |
+  | **bouton d'icône 44 × 44** | **54 px** | **140 px** | **0 px** |
+  | hors de l'en-tête | 36 px | 122 px | **18 px** |
+
+  **Le bouton d'icône ne rend RIEN**, et il fallait le mesurer plutôt que le
+  supposer : une icône reste un `button`, donc reste à 44 px de haut. Ce qui
+  coûte n'est pas sa largeur, c'est sa présence. Masquer l'avatar en plus ne
+  change rien — il n'est pas la contrainte.
 
   > **`hasTouch: true` suffit à déclencher `pointer: coarse` ; `isMobile` non.**
   > Mesuré sur les quatre combinaisons. `hasTouch` bascule aussi
