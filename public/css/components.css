@@ -1,8 +1,3 @@
-/* ===== PERIOD ARCHIVED LABEL ===== */
-.period-archived-label {
-  color: var(--text-secondary);
-}
-
 /* ===== SEARCH BAR ===== */
 .search-bar-container {
   margin-bottom: var(--space-md);
@@ -265,13 +260,6 @@
   font-family: var(--font);
   text-align: center;
   cursor: pointer;
-}
-
-.period-info {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-top: var(--space-sm);
 }
 
 .current-period-badge {

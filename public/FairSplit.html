@@ -252,9 +252,15 @@
         </select>
         <button type="button" class="period-arrow" data-action="navigatePeriod" data-arg="1" title="Mois suivant" aria-label="Mois suivant">▶</button>
       </div>
-      <div class="period-info" id="periodInfo">
-        <!-- Populated dynamically -->
-      </div>
+      <!-- La rangée « 📁 Mois archivé — modifiable » vivait ici, et elle
+           coûtait 28 px de premier écran à chaque visite d'un mois passé —
+           20 px de ligne plus 8 px de marge, mesuré à 320 px.
+
+           Elle tenait deux informations de nature différente. L'ÉTAT est passé
+           dans le libellé du mois, juste au-dessus, où il ne coûte rien et
+           reste constatable ; la LEVÉE DE MALENTENDU — « modifiable » — se dit
+           en un toast à l'arrivée, parce qu'on la lit une fois et pas pendant
+           qu'on travaille. Cf. `utils/mois-revolu.js`. -->
     </div>
     </nav>
 
