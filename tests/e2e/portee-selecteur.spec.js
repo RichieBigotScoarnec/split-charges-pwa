@@ -287,7 +287,14 @@ for (const { nom, viewport } of [
   { nom: '390', viewport: { width: 390, height: 844 } }
 ]) {
   test.describe(`Les trois segments au doigt — ${nom} px`, () => {
-    test.use({ viewport, hasTouch: true, isMobile: true });
+    // `hasTouch` SEUL, comme le renfort d'`onglets:280`. Mesuré le 2026-09-07 :
+    // `hasTouch` suffit à déclencher `pointer: coarse`, `isMobile` non — et
+    // `isMobile` change en plus la gestion du meta viewport, donc il élargit le
+    // contexte sans rien apporter à ce qu'on mesure.
+    //
+    // Vérifié avant de le retirer, plutôt que supposé : les quatre profils
+    // rendent le même premier contenu au dixième de pixel près, avec et sans.
+    test.use({ viewport, hasTouch: true });
 
     test('ils tiennent la cible, sans rogner leur libellé ni pousser la page', async ({ page }) => {
       await ouvrir(page);
