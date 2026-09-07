@@ -375,7 +375,12 @@
      tendait en écrivant « 48 px » sans dire dans quel sens.
   */
   .period-selector {
-    min-height: 48px;
+    /* 44 et non 48. Le 48 venait d'une simulation de maquette ; le seuil que
+       ce dépôt s'est donné est 44 (WCAG 2.5.5), et c'est exactement la
+       hauteur que `pointer: coarse` donne aux flèches et au sélecteur de mois
+       qui vivent dans cette rangée. Quatre pixels de premier écran rendus
+       sans rien promettre de moins. */
+    min-height: 44px;
     margin-bottom: 0;
   }
 
@@ -478,4 +483,81 @@
 .acces-rapides .btn {
   flex: 1;
   min-width: 140px;
+}
+
+/* ===== LE SÉLECTEUR DE PORTÉE =====
+   ---------------------------------------------------------------------------
+   Trois segments qui disent sur quel argent l'écran porte. Ils vivent en tête
+   de `panneauBilan` et `panneauCharges`, jamais sur Réglages.
+
+   IL N'EST PAS COLLANT, ET C'EST MESURÉ.
+
+   La maquette le voulait « premier enfant collant » du panneau. Le rendre
+   `sticky` demanderait un `top` égal à la hauteur du bandeau — une valeur qui
+   change selon que celui-ci est compact ou non, et qu'un nombre écrit en dur
+   ferait mentir dans un cas sur deux. C'est exactement le problème que
+   `.bandeau-colle` a résolu en réunissant le mois et le solde dans un seul
+   conteneur : deux collants indépendants ne s'empilent pas tout seuls.
+
+   Le sélecteur défile donc avec le panneau. Ce qu'on garde sous les yeux au
+   défilement est le mois et le solde ; la portée, elle, se choisit en arrivant.
+
+   LA MARGE HAUTE EST GRATUITE, LA BASSE NE L'EST PAS.
+
+   Mesuré le 2026-09-07 : la marge du haut fusionne avec la marge basse du
+   bandeau — 8/0, 4/0 et 0/0 donnent tous le même premier contenu. Celle du bas
+   se paie au pixel près. On garde donc les 8 px de séparation visuelle, qui ne
+   coûtent rien, et zéro dessous, que la carte fournit déjà.
+   --------------------------------------------------------------------------- */
+.portee {
+  display: flex;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 0;
+}
+
+.portee-segment {
+  flex: 1;
+  /* `min-width: 0` : sans lui, un `<button>` refuse de descendre sous la
+     largeur de son texte, et trois segments feraient déborder la rangée à
+     320 px au lieu de se partager la place. */
+  min-width: 0;
+  /* 44 px de cible tactile — WCAG 2.5.5, le seuil que ce dépôt s'est donné.
+     En PLANCHER : le segment peut grandir si son libellé se traduit plus long. */
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  /* Le libellé ne se coupe pas : « À deux » sur deux lignes ferait grandir la
+     rangée sans rien gagner. Les trois tiennent à 320 px — mesuré. */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.portee-segment:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/*
+   Le segment actif se marque par la couleur ET par `aria-checked` : la couleur
+   seule ne suffit pas — WCAG 1.4.1 interdit d'en faire le seul véhicule d'une
+   information. C'est l'attribut qu'on stylise, exactement comme `aria-current`
+   sur la barre d'onglets : impossible de peindre un segment actif sans
+   l'annoncer.
+*/
+.portee-segment[aria-checked="true"] {
+  background: var(--primary-soft);
+  border-color: var(--primary-color);
+  color: var(--primary-ink);
+}
+
+.portee-segment:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
