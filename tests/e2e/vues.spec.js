@@ -482,7 +482,12 @@ test.describe('Mise en page sur grand écran', () => {
         // s'applique. Le palier d'avant s'arrêtait à 1560 — les seuils restent
         // donc croissants, ce qu'un `min()` posé sur le palier précédent aurait
         // au contraire fait reculer.
-        expect(largeur).toBe(1800);
+        // Une largeur RENDUE est fractionnaire par nature : `toBe` sur un
+        // entier tient tant que les deux côtés le sont, et flanche au premier
+        // demi-pixel — un contrôle qui rougit au hasard sur des PR qui n'y
+        // sont pour rien. La borne dit la même chose sans ce risque.
+        expect(largeur, `la carte mesure ${largeur} px pour 1800 attendus`)
+          .toBeCloseTo(1800, 0);
       });
     });
 
@@ -497,7 +502,12 @@ test.describe('Mise en page sur grand écran', () => {
         // 90vw vaudrait 2304 : c'est le plafond fixe qui prend la main.
         // S'étirer au-delà allongerait les rangées de charges sans rien rendre
         // plus lisible — le regard ferait le trajet, pas l'information.
-        expect(largeur).toBe(2240);
+        // Une largeur RENDUE est fractionnaire par nature : `toBe` sur un
+        // entier tient tant que les deux côtés le sont, et flanche au premier
+        // demi-pixel — un contrôle qui rougit au hasard sur des PR qui n'y
+        // sont pour rien. La borne dit la même chose sans ce risque.
+        expect(largeur, `la carte mesure ${largeur} px pour 2240 attendus`)
+          .toBeCloseTo(2240, 0);
       });
     });
   });

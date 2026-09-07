@@ -434,6 +434,40 @@ rouge ?* Trois réponses le condamnent :
 > contradiction avec la deuxième réponse ci-dessus : là on demande si le
 > contrôle a tourné, ici on demande **sur quoi il a porté**.
 
+> **Une géométrie RENDUE est fractionnaire. Comparer une longueur calculée à une
+> valeur exacte fabrique un contrôle qui rougit au hasard — sur des PR qui n'y
+> sont pour rien.**
+>
+> Et c'est le pire des rouges : il n'accuse personne, il se reproduit ailleurs,
+> et il finit **désactivé**. Un contrôle désactivé coûte plus cher qu'un contrôle
+> absent — l'absent se voit, le désactivé laisse croire à une couverture.
+>
+> **Trois occurrences en deux jours**, toutes sur des contrôles justes dont
+> seule la COMPARAISON était trop exacte :
+>
+> - `mois-archive` — `Math.round` des deux côtés, sur une valeur qui vaut
+>   **121,5** : l'arrondi bascule au hasard entre 121 et 122, 2 échecs sur 8 ;
+> - le témoin de la carte du mois — il attendait `--space-md` et le navigateur
+>   rendait **24 px**, `.card` écrasant la règle du composant. Attrapé en local
+>   avant de livrer ;
+> - la carte du mois en CI — `toBe` sur la chaîne `'8px'`, et le moteur rendait
+>   **7,87571px**, une transition en vol. Verte cent fois en local.
+>
+> **Ce qu'il faut écrire à la place** — dans cet ordre de préférence :
+>
+> 1. **borner** plutôt qu'égaler : `> --space-sm`, `< 0.25`, `<= innerWidth`.
+>    C'est la forme qui dit la propriété, et elle ne connaît pas le demi-pixel ;
+> 2. comparer des **nombres avec une tolérance sous le pixel**
+>    (`toBeCloseTo(x, 0)`), jamais des chaînes de longueur ;
+> 3. **attendre que la valeur se pose** quand la propriété est en transition.
+>
+> Recensé le 2026-09-07 sur toute la suite : 277 `toBe`/`toEqual` en E2E, dont
+> **20 touchant un identifiant de géométrie et 4 réellement en cause**. Deux
+> étaient des faux positifs — `el.style.width` rend la chaîne `'70%'` écrite par
+> l'application, pas une longueur rendue. Les deux vrais (`vues:485` et `:500`)
+> sont bornés depuis. **Aucun contrôle unitaire n'est concerné** : jsdom ne fait
+> pas de mise en page.
+
 **Ce qu'elle exige** — tout contrôle neuf porte son **témoin** : un mutant qui le
 fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoin
 **positif** exigeant que les données mesurées soient non dégénérées. Un contrôle
