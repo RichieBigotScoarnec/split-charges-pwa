@@ -768,8 +768,43 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   certaines positions de défilement. Ce qui l'attraperait est
   `elementFromPoint()` au centre de la cible, comparé à la cible elle-même.
 
+- **La compaction mobile de la carte du mois est MORTE sous 600 px, là où elle a
+  été écrite.** `onglets.css:315` déclare
+  `.period-navigation { padding: var(--space-sm) var(--space-md) }` sous 900 px,
+  avec son commentaire — « le sélecteur au repos : resserré, pas amputé ».
+  `responsive.css` déclare `@media (max-width: 600px) { .card { padding: var(--space-md) } }`,
+  **charge après** `onglets.css`, et gagne **à spécificité égale** (0,1,0) sur un
+  élément qui porte `class="card period-navigation"`.
+  Conséquence mesurée le 2026-09-07 : rembourrage vertical **16 px au lieu de 8**
+  à 320 et à 390 px, soit **16 px de premier écran perdus sur tout téléphone**.
+  La règle fonctionne entre 601 et 899 px — une tablette — et nulle part ailleurs.
+  Le correctif tient en une spécificité : `.card.period-navigation`, sans
+  `!important`. **Non appliqué** — il appartient au lot 5 (cf. `refonte-lots.md`,
+  §3 étape 3).
+  > **Ce que ce cas apprend au-delà de lui.** Une classe utilitaire (`.card`)
+  > redéclarée dans une media query d'un fichier chargé plus tard écrase
+  > silencieusement toute règle de composant de même spécificité. Rien ne le
+  > signale : la règle est là, lisible, commentée, et sans effet. Chercher
+  > `.card` dans `responsive.css` avant de croire qu'une règle de composant
+  > s'applique en mobile.
+
 ### Le banc d'essai
 
+- **`getComputedStyle` lu juste après un changement de style rend la valeur
+  D'AVANT, si la propriété est en transition.** `onglets.css:361` déclare
+  `.period-navigation { transition: padding … }`. Une sonde qui injecte une règle
+  puis mesure dans la foulée lit donc l'ancien rembourrage — et conclut que sa
+  règle « n'a pas pris ». Mesuré le 2026-09-07 : même avec `!important` et une
+  valeur en dur, la sonde rendait obstinément `16px`.
+  Neutraliser les transitions (`* { transition: none !important }`) **avant** de
+  mesurer une géométrie, ou attendre. Le symptôme trompe : il ressemble à un
+  problème de cascade, et on va chercher une spécificité qui n'est pas en cause.
+- **Une sonde de mise en page mobile relève la LARGEUR autant que la hauteur.**
+  Mesuré deux fois le 2026-09-07, sur le même chantier : un instrument qui ne
+  mesurait que la hauteur a rendu « 153 px » pour des variantes qui débordent la
+  rangée de 6 à 62 px — une rangée qui déborde ne coûte aucune hauteur. Relever
+  `scrollWidth > clientWidth` sur la rangée **et**
+  `documentElement.scrollWidth > innerWidth` sur la page.
 - **`toBeVisible()` ne voit pas `content-visibility: hidden`.** Un contenu de
   `<details>` fermé garde sa géométrie et passe donc pour visible.
   `checkVisibility()` dit la vérité — 6 specs l'utilisent, **une trentaine sont

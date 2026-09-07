@@ -257,6 +257,60 @@ passant :
 Aucune n'est engagée ici. Ce qui est acquis, c'est que la première piste ne
 l'était pas.
 
+### Étape 3 — les deux autres composants d'A6, remesurés sur le vrai CSS
+
+Même méthode, même jour. Les deux composants restants d'A6 rendent **plus** que
+la simulation ne disait — et A6 reste rouge quand même, un peu **plus** que
+prévu. Mesures à 320 px, mois archivé, transitions coupées, seuil strict
+`< 25 %` soit **179 px** :
+
+| Variante | `avant` | Part | Gain | Verdict |
+| --- | ---: | ---: | ---: | --- |
+| V0 référence | 176 | 24,4 % | — | vert |
+| V1 carte du mois reprise | 160 | 22,2 % | **16 px** | vert |
+| V2 en-tête compacté seul | 161 | 22,4 % | **15 px** | vert |
+| V3 les deux gestes | 145 | 20,1 % | **31 px** | vert |
+| **V4 = A6 complet** (V3 + sélecteur 58 px) | **195** | **27,1 %** | — | **ROUGE** |
+| V5 sélecteur sans les gestes | 226 | 31,4 % | — | rouge |
+
+**Aucune variante ne casse en largeur** — la question posée au badge est posée
+ici aussi, et la réponse est non : pas de débord de page, ni de rognage du nom
+de compte, du titre, ou des trois segments, à 320 comme à 390.
+
+**Il manque 16 px**, pas 12. A6 mesure 195 px là où la simulation annonçait 192,
+et la cible stricte est 179. Le contrôle `280` est `toBeLessThan(0.25)` : 180 px
+est déjà rouge.
+
+**Ce que la rangée du badge peut encore rendre, avec les trois mesures réunies :**
+
+| A6 + | `avant` | Part | Verdict |
+| --- | ---: | ---: | --- |
+| rien | 195 | 27,1 % | rouge |
+| badge resserré au plancher (−10) | 185 | 25,7 % | **rouge** |
+| badge resserré + marge du sélecteur 10 → 4 (−16) | 179 | 24,9 % | vert **d'un pixel** |
+| rangée du badge supprimée (−23) | 172 | 23,9 % | vert, 7 px de marge |
+
+Un vert à un pixel n'est pas une marge, c'est une coïncidence : la première
+police qui change, le premier prénom plus long, et il repasse rouge sans que
+personne n'ait rien décidé.
+
+**L'arbitrage est donc rouvert, avec trois mesures réelles au lieu d'une
+simulation** — c'était le pari de l'option 1, et il a payé sur un point
+inattendu : V1 n'est pas un geste de conception, c'est un **défaut** (voir
+ci-dessous). Les 16 px qu'il rend ne coûtent rien à personne.
+
+> **V1 n'est pas une compaction à décider : c'est une règle morte à réveiller.**
+> `onglets.css:315` compacte le rembourrage de la carte du mois sous 900 px, avec
+> son commentaire — « le sélecteur au repos : resserré, pas amputé ». Elle **ne
+> s'applique pas** en dessous de 600 px : `responsive.css` déclare
+> `@media (max-width: 600px) { .card { padding: var(--space-md) } }`, charge
+> après `onglets.css`, et gagne à spécificité égale (0,1,0) sur un élément qui
+> porte `class="card period-navigation"`.
+>
+> Elle fonctionne donc entre 601 et 899 px — une tablette — et pas sur un
+> téléphone, c'est-à-dire exactement là où elle a été écrite. 16 px perdus sur
+> chaque écran, depuis qu'elle existe. Le gotcha est dans `CLAUDE.md`.
+
 ### A5, le geste de la maquette
 
 Les planches 4 et 5 n'ont **aucun `#mainApp > header`** : barre d'état, mois,
