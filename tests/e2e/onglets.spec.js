@@ -547,3 +547,111 @@ test.describe('À l\'impression, tout se montre', () => {
     await expect(page.locator('#onglets')).toBeHidden();
   });
 });
+
+/**
+ * La carte du mois est compactée sous 900 px — et elle ne l'était pas
+ *
+ * `onglets.css:315` déclare, sous 900 px :
+ *
+ *     .period-navigation { padding: var(--space-sm) var(--space-md); }
+ *
+ * avec son intention écrite à côté — « le sélecteur au repos : resserré, pas
+ * amputé ». Elle n'a jamais rien fait sur un téléphone.
+ *
+ * `responsive.css` déclare `@media (max-width: 600px) { .card { padding:
+ * var(--space-md) } }`. Le fichier charge **après** `onglets.css`, la
+ * spécificité est la même — (0,1,0) contre (0,1,0) — et l'élément porte
+ * `class="card period-navigation"`. C'est donc la dernière déclarée qui gagne,
+ * et elle rend le rembourrage de carte pleine taille.
+ *
+ * Résultat mesuré le 2026-09-07 : **16 px de rembourrage vertical au lieu de
+ * 8**, à 320 comme à 390 px, soit **16 px de premier écran perdus sur tout
+ * téléphone**. La règle fonctionne entre 601 et 899 px — une tablette — et
+ * nulle part ailleurs.
+ *
+ * Ce que ce bloc verrouille est la PROPRIÉTÉ, pas la règle : « la carte du mois
+ * est compactée partout sous 900 px ». Un contrôle qui vérifierait la présence
+ * du sélecteur `.card.period-navigation` dans une feuille survivrait à sa
+ * suppression par une future refonte du CSS ; celui-ci mesure ce que le
+ * navigateur applique.
+ *
+ * Les trois largeurs ne sont pas décoratives : 320 et 390 sont les deux qui
+ * étaient cassées, 700 est celle qui marchait déjà. Sans elle, un correctif qui
+ * casserait la tablette pour réparer le téléphone passerait au vert.
+ */
+for (const largeur of [320, 390, 700]) {
+  test.describe(`La carte du mois compactée — ${largeur} px`, () => {
+    test.use({ viewport: { width: largeur, height: 720 } });
+
+    test.beforeEach(async ({ page }) => {
+      await setupFirebaseMock(page);
+      await waitForApp(page);
+    });
+
+    test('son rembourrage vertical vaut --space-sm, pas celui d\'une carte pleine', async ({ page }) => {
+      const mesure = await page.evaluate(() => {
+        const el = document.querySelector('.period-navigation');
+        if (!el) return null;
+        const s = getComputedStyle(el);
+        return {
+          haut: s.paddingTop,
+          bas: s.paddingBottom,
+          attendu: getComputedStyle(document.documentElement)
+            .getPropertyValue('--space-sm').trim()
+        };
+      });
+
+      // La prémisse : sans la carte, il n'y a rien à mesurer — et `null` ne se
+      // compare pas en silence.
+      expect(mesure, 'aucune carte de période rendue').not.toBeNull();
+
+      expect(mesure.haut, `rembourrage haut ${mesure.haut} pour ${mesure.attendu} attendu`)
+        .toBe(mesure.attendu);
+      expect(mesure.bas, `rembourrage bas ${mesure.bas} pour ${mesure.attendu} attendu`)
+        .toBe(mesure.attendu);
+    });
+  });
+}
+
+test.describe('La carte du mois compactée — TÉMOIN au-delà de 900 px', () => {
+  test.use({ viewport: ORDINATEUR });
+
+  /**
+   * Le témoin positif du bloc ci-dessus.
+   *
+   * Sans lui, « le rembourrage vaut 8 px » pourrait être satisfait par un CSS
+   * qui compacte la carte du mois PARTOUT — ce qui n'est pas la propriété
+   * voulue, et retirerait de l'air à un écran qui en a. Ce cas exige que la
+   * compaction reste bornée aux petites largeurs.
+   *
+   * IL N'EXIGE PAS UNE VALEUR PRÉCISE, et c'est mesuré plutôt que supposé.
+   * Une première rédaction attendait `--space-md`, parce que
+   * `components.css:214` déclare `.period-navigation { padding: var(--space-md) }`.
+   * Le navigateur rend **24 px**, soit `--space-lg` : `.card` (ligne 289) est
+   * déclarée APRÈS, à spécificité égale, et l'emporte — exactement le même
+   * mécanisme que le défaut corrigé ici, mais dans le sens qui aère.
+   *
+   * Figer 24 px enregistrerait cet écrasement comme une intention. Ce qu'on
+   * tient est la borne : la compaction ne franchit pas 900 px.
+   */
+  test('elle reprend un rembourrage plein, la place ne manquant plus', async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+
+    const mesure = await page.evaluate(() => {
+      const el = document.querySelector('.period-navigation');
+      const s = getComputedStyle(el);
+      const racine = getComputedStyle(document.documentElement);
+      return {
+        haut: parseFloat(s.paddingTop),
+        sm: parseFloat(racine.getPropertyValue('--space-sm'))
+      };
+    });
+
+    expect(
+      mesure.haut,
+      `rembourrage ${mesure.haut} px pour ${mesure.sm} px de compaction — `
+      + 'la compaction mobile déborde sur le grand écran'
+    ).toBeGreaterThan(mesure.sm);
+  });
+});
