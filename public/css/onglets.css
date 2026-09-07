@@ -311,8 +311,33 @@
      Les flèches gardent leurs 44 px de cible tactile et le badge « période
      actuelle » reste — c'est le rembourrage de la carte qui cède, pas ce
      qu'elle contient.
+
+     ─────────────────────────────────────────────────────────────────────
+     LA DOUBLE CLASSE EST OBLIGATOIRE. NE PAS LA « SIMPLIFIER ».
+
+     Écrite `.period-navigation`, cette règle n'a jamais rien fait sur un
+     téléphone. `responsive.css` déclare :
+
+         @media (max-width: 600px) { .card { padding: var(--space-md) } }
+
+     Ce fichier charge APRÈS celui-ci, la spécificité est la même — (0,1,0)
+     contre (0,1,0) — et l'élément porte `class="card period-navigation"`.
+     C'est donc la dernière déclarée qui gagnait, avec le rembourrage d'une
+     carte pleine.
+
+     Conséquence mesurée le 2026-09-07 : 16 px de rembourrage vertical au lieu
+     de 8, à 320 comme à 390 px, soit 16 px de premier écran perdus sur tout
+     téléphone. La règle fonctionnait entre 601 et 899 px — une tablette — et
+     nulle part ailleurs, c'est-à-dire partout sauf là où elle a été écrite.
+
+     `.card.period-navigation` porte (0,2,0) et reprend la main sans
+     `!important` : le correctif reste une règle ordinaire, que la suivante
+     pourra battre en le disant.
+
+     Ce que ça tient : `onglets.spec.js`, « La carte du mois compactée », aux
+     trois largeurs 320 / 390 / 700, plus son témoin au-delà de 900 px.
   */
-  .period-navigation {
+  .card.period-navigation {
     padding: var(--space-sm) var(--space-md);
     margin-bottom: var(--space-sm);
   }
