@@ -239,14 +239,28 @@ Trois contraintes de forme tiennent sur tous :
   chantier** — `encre-sur-surface` (14, statique), `encre-rendue` (4 × 2 thèmes),
   `cible-tactile` (3).
 
-> Deux réserves de lecture, valables aux six lots.
-> **`share-mode.test.js` fait tomber la suite unitaire une passe sur deux**, sans
-> explication : « vert à la sortie » se lit avec `echo EXIT=$?` **avant** le
-> résumé, et une seconde passe.
-> **`detail-depenses.spec.js` est ouvert**, reproductible 1 fois sur 200, et son
-> point de chute est un helper de liste de charges que les lots 2, 5 et 6
-> touchent tous. S'il tombe, lire le relevé du helper — il nomme R1, R2 et R3 —
-> avant de l'imputer au lot.
+> Trois réserves de lecture, valables aux six lots. Réécrites le 2026-09-07 :
+> les deux précédentes disaient ce qu'on croyait, pas ce qui est.
+>
+> **`share-mode.test.js` a sa cause** — `saveShareMode()` appelé sans `await`
+> (`share-mode.js:42` et `:104`), donc un `import()` après démontage de
+> l'environnement. La fuite est **inconditionnelle** (6 passes sur 6, y compris
+> le fichier joué seul) ; seul le `EXIT=1` est une course. Une passe verte ne
+> prouve donc rien : lire `echo EXIT=$?` **avant** le résumé, et lire la sortie
+> d'erreur, pas seulement le code.
+>
+> **`detail-depenses.spec.js` porte DEUX défauts, pas un.** Celui du 2026-09-01
+> est un **recouvrement par barre collante à 390 px** — pas un contrôle
+> instable, un défaut de mise en page toujours présent, sur la liste que les
+> lots 2, 5 et 6 touchent tous. Celui du 2026-09-02 reste ouvert (R2, R3). Les
+> artefacts des deux sont dans `docs/artefacts/detail-depenses/` : **les lire
+> avant d'imputer une chute au lot.**
+>
+> **Un clic qui expire sur cette liste n'est pas forcément votre lot.** Les deux
+> barres flottantes — `.onglets` en `fixed; bottom: 0; z-index: 60`,
+> `.balance-bar` en `sticky; top: 0; z-index: 50` — peuvent recouvrir la cible
+> après `scrollIntoView`. Vérifier `elementFromPoint()` au centre de la cible
+> avant de chercher ailleurs.
 
 ---
 

@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
-> **Version** : 4.0.0 | **Mise à jour** : 2026-09-04 | **Branche unique** : main
+> **Version** : 4.0.0 | **Mise à jour** : 2026-09-07 | **Branche unique** : main
 
 ## Stack
 
@@ -738,6 +738,36 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   Le correctif du grand-livre (`1fr auto`, 2026-09-06) **n'y a rien changé** :
   mesuré à 226/218 avant comme après.
 
+- **Une barre collante mange le clic sur le grand-livre, à 390 px — DÉFAUT
+  IDENTIFIÉ, NON CORRIGÉ, et aucun contrôle ne le tient.** Sous 900 px l'écran
+  porte deux surfaces flottantes qui encadrent le contenu défilant :
+
+  | Surface | Règle | Fichier |
+  |---|---|---|
+  | Barre d'onglets, en bas | `position: fixed; bottom: 0; z-index: 60` | `onglets.css:38` |
+  | Barre de solde, en haut | `position: sticky; top: 0; z-index: 50` | `responsive.css:307` |
+
+  Une ligne du grand-livre amenée dans la vue par `scrollIntoView` peut atterrir
+  **sous l'une des deux**. Playwright la juge alors « visible, enabled and
+  stable » — la géométrie est bonne — et le test de touche échoue sur un autre
+  nœud. Le geste réel a le même sort : un doigt qui vise cette ligne touche la
+  barre.
+  **Mesuré, non déduit** — CI du 2026-09-01, artefact conservé dans
+  `docs/artefacts/detail-depenses/` : `locator.click` expire à 30 s après
+  **25 interceptions**, `#balanceBar` 11 fois, `.onglet` 7, `.summary-divider` 5,
+  `<details open class="summary-details">` 2. La capture montre une page
+  entièrement chargée, défilée de sorte que la ligne du payeur passe sous le
+  bandeau collant.
+  **Les deux règles sont toujours en place**, et la surface touchée est la liste
+  que les lots 5 et 6 modifient. Le remède plausible — `scroll-margin-top` et
+  `scroll-padding-bottom` à la hauteur des deux barres — n'est pas appliqué :
+  il se décide dans son lot, pas en passant.
+  ⚠️ **Aucun contrôle ne mesure cette propriété.** `coherence-visuelle` tient
+  le rognage et le débordement, jamais l'atteignabilité au pointeur ; et un test
+  qui clique sans expirer ne prouve rien, puisque le défaut ne se manifeste qu'à
+  certaines positions de défilement. Ce qui l'attraperait est
+  `elementFromPoint()` au centre de la cible, comparé à la cible elle-même.
+
 ### Le banc d'essai
 
 - **`toBeVisible()` ne voit pas `content-visibility: hidden`.** Un contenu de
@@ -756,25 +786,37 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   (voir *Décisions*) : `true` = on a navigué, `false` = la surface était déjà là,
   et une surface **inatteignable lève**. Ne pas rétablir un `return false`
   silencieux — c'est ce qui faisait mesurer trois fois le même panneau.
-- **`detail-depenses.spec.js` reste OUVERT — mais il est REPRODUIT, et trois de
-  ses causes possibles sont désormais instrumentées.**
-  Deux chutes en CI (`:143` puis `:131`), une troisième reproduite en local
-  (`:104`) : **trois cas différents, un seul point de chute — le helper
-  `ouvrirLePayeur:92`.** Le défaut est dans le helper, démontré et non déduit.
-  *Symptôme* : `element(s) not found`, jamais « masqué ». Or `#modalDetailDepenses`
-  est **fabriqué en JS** (`detail-depenses.js:28`) : la modale n'a jamais été
-  créée, et la rupture est strictement **avant**
-  `document.body.appendChild` — tout ce qui suit est exonéré.
+- **`detail-depenses.spec.js` : DEUX défauts, pas un — et l'affirmation « un
+  seul point de chute » est réfutée par les artefacts (2026-09-07).**
+  Elle a tenu deux jours. Les deux artefacts CI ont été **téléchargés et
+  conservés** dans `docs/artefacts/detail-depenses/` ; ils se lisent avant toute
+  reprise de ce constat, et le `error-context.md` du 2026-09-01 porte le code
+  source figé qui tranche : à cette date, le test `:86:7` **cliquait en ligne**,
+  le helper ne l'enveloppait pas encore.
+  **Occurrence du 2026-09-01 — le clic n'atterrit jamais.** Ce n'est PAS
+  « la modale n'a pas été créée » : c'est un recouvrement par barre collante à
+  390 px. `locator.click` expire à 30 s, l'élément est « visible, enabled and
+  stable », et le test de touche tombe sur autre chose 25 fois. Sortie du
+  banc d'essai, mais **cause applicative** : voir le gotcha « Une barre collante
+  mange le clic » dans *État et rendu*. Ce n'est plus un contrôle ouvert.
+  **Occurrence du 2026-09-02 — le clic passe, la modale n'existe pas.**
+  `element(s) not found` en 5 s. Or `#modalDetailDepenses` est **fabriqué en JS**
+  (`detail-depenses.js:28`) : la rupture est strictement **avant**
+  `document.body.appendChild`.
   *Reproduction* : `--repeat-each=20 --workers=14` sur ce seul fichier, **1 fois
-  sur 200**. Snapshot local identique à celui de la CI.
+  sur 200**.
   *L'horloge est RÉFUTÉE par la mesure*, pas écartée par raisonnement : le
   symptôme a été produit avec le mois semé égal au mois affiché, en plein mois ;
   et un mois vide créerait quand même la modale (« Aucune dépense… »).
-  *R1 est réduit* : `appReady` n'est posé qu'en `auth.js:553`, après l'init et le
-  premier rendu — la fonction ne peut donc manquer que si l'`import()` dynamique
-  a échoué, ce que l'instrumentation nommera.
-  **Restent R1 (import échoué), R2 (exception avant `appendChild`) et R3 (clic sur
-  un nœud détaché).** Le helper les relève tous les trois au moment de l'échec.
+  ***R1 est très affaibli par l'instantané ARIA***, et c'est l'artefact qui le
+  dit : « Budgets par catégorie », « Tendances sur 6 mois », « Enveloppes » et
+  « Privé » sont tous rendus, donc tout ce qui suit `initDetailDepenses`
+  (`auth.js:464`) dans la chaîne `runStep` a tourné — `initCategoryBudgets` est
+  en `auth.js:535`. Aucun toast « Chargement partiel ». Et `ouvrirDetailPayeur`
+  (`detail-depenses.js:69`) ne peut pas sortir tôt : sa seule garde est
+  `qui !== 'vous' && qui !== 'conjointe'`.
+  **Restent R2 (exception avant `appendChild`) et R3 (clic sur un nœud
+  détaché).** Le helper les relève au moment de l'échec.
   Ne pas refermer sur une explication non exécutée.
   **⚠️ Et la sonde peut avoir supprimé R3 en le mesurant.** Depuis la pose de
   l'instrumentation, **600 tirages n'ont rien déclenché** — quand le défaut
@@ -804,25 +846,67 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   a fait tomber la CI deux fois. Il **parle sans faire échouer** — basculer 500
   contrôles d'un coup ferait rougir ce qu'on n'a pas mesuré. Mesuré à la pose :
   **0 exception sur 548 contrôles**, donc aucun bruit de fond à trier.
-- **`share-mode.test.js` fait tomber la suite unitaire une passe sur deux, et
-  reste OUVERT.** `EnvironmentTeardownError: [vitest-worker]: Closing rpc while
-  "onUserConsoleLog" was pending` — une course au démontage du worker, dans une
-  suite qui journalise beaucoup pendant sa fermeture.
-  **Le résumé et le code de sortie se contredisent** : `3014 passed` affiché,
-  `EXIT=1` rendu. Jouée seule, la suite passe (19 contrôles) ; deuxième passe
-  complète verte. Rien n'est expliqué, et c'est pour cela que l'entrée existe.
-  **La règle 3 a fonctionné** : cette contradiction est exactement ce qu'elle dit
-  de chercher, et sans `echo EXIT=$?` avant le résumé, la passe serait passée
-  pour verte. Vitest prévient lui-même qu'une erreur non gérée « might cause
-  false positive tests ».
+- **`share-mode.test.js` laisse tourner une chaîne asynchrone APRÈS la fin du
+  fichier — CAUSE ÉTABLIE le 2026-09-07.** `selectShareMode` appelle
+  `saveShareMode()` **sans `await`** (`share-mode.js:42` et `:104`) ;
+  `saveShareMode` (`:130`) fait `await import('../db.js')` en `:139` ; `db.js:25`
+  importe `utils/miroir.js`. Le test rend la main, le fichier finit,
+  l'environnement est démonté — **puis** la chaîne reprend et réclame un module :
 
-> **Deux contrôles ouverts et inexpliqués : c'est un état correct, pas une
-> dette.** Aucun des deux n'est refermé sur une hypothèse, et la règle 5 dit
-> pourquoi — refermer sur une explication fausse est pire que laisser ouvert, on
-> cesse de surveiller en croyant avoir compris. Le jour où l'un des deux
-> retombe, on aura sa sortie complète et ses artefacts : la règle 3 est
-> appliquée, et la 2ᵉ occurrence de `detail-depenses` vient de le prouver — la
-> première n'avait rien laissé, celle-ci a livré le helper fautif.
+  ```text
+  EnvironmentTeardownError: Cannot load '/public/js/utils/miroir.js'
+  imported from public/js/db.js after the environment was torn down
+  - /public/js/utils/miroir.js
+  - public/js/db.js
+  - public/js/modules/share-mode.js
+  - tests/modules/share-mode.test.js
+  ```
+
+  La levée est rattrapée en `share-mode.js:146` et journalisée par `debug.error`
+  → `console.error`. Or `onUserConsoleLog` est **exactement** le RPC par lequel
+  Vitest remonte la console d'un worker : un `console.error` émis pendant la
+  fermeture du RPC donne `Closing rpc while "onUserConsoleLog" was pending`.
+  C'est le même événement, un cran plus tard. Seconde variante, même fichier,
+  même motif : `recalculerApresChangementDeMode:68` → `await import('./carry-over.js')`.
+  **Ce que l'entrée précédente affirmait, et qui était faux.** Elle a tenu deux
+  jours et envoyait chercher au mauvais endroit :
+  - « *une suite qui journalise beaucoup pendant sa fermeture* » — le fichier
+    contient **zéro** `console.*`. La journalisation vient du code applicatif
+    qu'il a laissé tourner, pas de lui ;
+  - « *jouée seule, la suite passe* » — vrai, et ce n'est pas une exonération.
+    Jouée seule, **6 fois sur 6**, elle fuit à l'identique : 21, 21, 21, 21, 21
+    puis 5 erreurs post-démontage. La fuite est **inconditionnelle** ; seule sa
+    conséquence visible est une course.
+
+  Mesuré sur 6 passes complètes : **73 erreurs post-démontage, 73 remontant à
+  `share-mode.test.js`**, aucune à un autre fichier de test — et `EXIT=0` six
+  fois. Le drapeau rouge est donc rare, la fuite permanente. **Ne pas conclure
+  d'une passe verte que le défaut a disparu** : c'est la règle 1 appliquée à un
+  symptôme intermittent.
+  **La règle 3 avait fonctionné** sur la contradiction d'origine — `3014 passed`
+  affiché, `EXIT=1` rendu — et sans `echo EXIT=$?` avant le résumé la passe
+  serait passée pour verte. Elle reste la bonne garde ; ce qui manquait, c'est
+  d'avoir lu **la sortie d'erreur** plutôt que le seul code de sortie.
+
+> **Il reste UN contrôle ouvert, et c'est un état correct, pas une dette.** Les
+> deux autres ont été nommés le 2026-09-07 : `share-mode` a sa cause, et
+> l'occurrence du 2026-09-01 de `detail-depenses` est un défaut de mise en page,
+> pas un contrôle instable. Ce qui reste ouvert est l'occurrence du 2026-09-02,
+> et elle n'est refermée sur aucune hypothèse — la règle 5 dit pourquoi.
+>
+> **Et la phrase que ce bloc portait était fausse.** Il affirmait que la
+> première occurrence « n'avait rien laissé ». Les deux artefacts étaient
+> encore téléchargeables au moment où on l'écrivait, et une commande le
+> vérifiait :
+>
+> ```bash
+> gh api repos/<dépôt>/actions/runs/<id>/artifacts --jq '.artifacts[] | [.name,.expired] | @tsv'
+> ```
+>
+> C'est la règle 3 dans sa cinquième forme — *vert sur quoi ?* — appliquée à un
+> constat plutôt qu'à un test : on a raconté ce qu'un échec avait laissé sans
+> aller le chercher. **Le geste est de télécharger l'artefact AVANT d'écrire ce
+> qu'il contient** ; `retention-days: 7` ne laisse pas de seconde chance.
 
 ### Livraison et commandes
 
