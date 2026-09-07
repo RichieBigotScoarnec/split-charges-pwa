@@ -690,6 +690,13 @@ ressemble pas à ce qu'on vient de faire est un fait, pas une bizarrerie.**
    > La troisième ligne est celle qui a rattrapé les deux fois : une fusion
    > **annoncée** n'est pas une fusion **constatée**, et la seule façon de
    > trancher est de demander à git si le commit est là.
+   >
+   > **Et elle rattrape les DEUX causes opposées.** Quatre divergences le
+   > 2026-09-07 : trois venaient d'un merge tombé **sous** des commits en vol,
+   > la quatrième d'un merge qui **n'avait pas eu lieu** — deux accidents
+   > inverses, un seul remède. `merge-base --is-ancestor` ne demande pas
+   > *pourquoi* le commit manque, seulement *s'il est là*, et c'est ce qui le
+   > rend indifférent à la cause.
 5. Filtrer ensuite, sur la sortie déjà conservée, si besoin.
 
 ```bash
