@@ -574,13 +574,19 @@ courait le plus ne disait pas qu'une saisie était refusée.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
-**6 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
+**7 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
 port, un `--reporter=basic` qui n'existe pas, un `| tail -45` qui coupe le
 rapport — et un `--reporter=line` prescrit par cette règle même, qui n'existe pas
 davantage sous Vitest. **Aucune n'est la même commande, et deux n'impliquent
 aucun tuyau** : nommer la règle par son déguisement le plus récent, c'est se
 préparer à ne pas reconnaître la suivante. La quatrième est arrivée le jour où
 la règle a été écrite, dans le texte de la règle.
+
+**Et la septième n'est pas une mesure du tout : c'est une PR verte prise pour
+une PR finie.** Le vert des checks dit que l'arbre poussé tient, jamais que le
+travail est terminé — et fusionner sur ce signal-là fait tomber le merge sous
+les commits en vol. Deux fois en deux jours, même geste. Le détail est au
+point 4.
 
 **Et la cinquième n'est même pas une commande.** Le 2026-09-06, une PR a été
 mergée sur un head **périmé** : ses deux derniers commits étaient bien poussés,
@@ -647,6 +653,50 @@ ressemble pas à ce qu'on vient de faire est un fait, pas une bizarrerie.**
    > signaler que l'objet a cessé de suivre la branche. Vérifier
    > `gh api .../pulls/<n> -q .merged` **avant** de chercher à réparer, et
    > rouvrir une PR pour les commits restés en dehors.
+
+   > **ET LA MOITIÉ QUI MANQUAIT : UNE PR VERTE N'EST PAS UNE PR FINIE.**
+   >
+   > Tout ce qui précède protège **celui qui merge** d'un head périmé : compare
+   > les deux chaînes, tu ne fusionneras pas un arbre que personne n'a éprouvé.
+   > Rien n'y protégeait **celui qui pousse** d'un merge tombé sous ses commits
+   > en vol — et c'est l'autre moitié du même accident.
+   >
+   > **Deux occurrences en deux jours, même geste** — PR #161 le 2026-09-06,
+   > PR #171 le 2026-09-07. Dans les deux cas la branche bougeait encore, dans
+   > les deux cas l'objet PR s'est figé au head d'avant, et dans les deux cas un
+   > commit est resté dehors sans que rien ne le dise : `deploy` s'exécute sur
+   > `main`, il est vert, et il valide un arbre amputé.
+   >
+   > La cause n'est pas technique. Un job vert **dit que l'arbre poussé tient**,
+   > jamais que le travail est terminé : les checks se déclenchent au premier
+   > `push`, et une branche en cours en produit autant qu'elle a de commits.
+   > Prendre ce vert pour un feu de départ, c'est confondre « ce qui est là
+   > passe » avec « il n'y a plus rien à venir ».
+   >
+   > **Le signal de fin est ÉNONCÉ, jamais déduit.** Il est explicite dans ce
+   > dépôt — « je m'arrête là », « la PR attend », « rien n'est fusionné ». Un
+   > agent qui pousse le dit ; c'est CE signal qu'on attend pour fusionner, pas
+   > la pastille verte.
+   >
+   > Et le remède du pousseur est le même que celui du mergeur, dans l'autre
+   > sens : **après avoir poussé, relire ce que la PR porte vraiment.**
+   >
+   > ```bash
+   > gh pr view <n> --json state,headRefOid -q '[.state,.headRefOid]|@tsv'
+   > git rev-parse HEAD                       # les deux chaînes, côte à côte
+   > git merge-base --is-ancestor <sha> origin/main   # après une fusion annoncée
+   > ```
+   >
+   > La troisième ligne est celle qui a rattrapé les deux fois : une fusion
+   > **annoncée** n'est pas une fusion **constatée**, et la seule façon de
+   > trancher est de demander à git si le commit est là.
+   >
+   > **Et elle rattrape les DEUX causes opposées.** Quatre divergences le
+   > 2026-09-07 : trois venaient d'un merge tombé **sous** des commits en vol,
+   > la quatrième d'un merge qui **n'avait pas eu lieu** — deux accidents
+   > inverses, un seul remède. `merge-base --is-ancestor` ne demande pas
+   > *pourquoi* le commit manque, seulement *s'il est là*, et c'est ce qui le
+   > rend indifférent à la cause.
 5. Filtrer ensuite, sur la sortie déjà conservée, si besoin.
 
 ```bash
