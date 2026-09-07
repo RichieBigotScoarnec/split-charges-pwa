@@ -310,6 +310,90 @@ ci-dessous). Les 16 px qu'il rend ne coûtent rien à personne.
 > Elle fonctionne donc entre 601 et 899 px — une tablette — et pas sur un
 > téléphone, c'est-à-dire exactement là où elle a été écrite. 16 px perdus sur
 > chaque écran, depuis qu'elle existe. Le gotcha est dans `CLAUDE.md`.
+>
+> **V1 est SORTI du lot 5** et corrigé pour lui-même — un défaut ne se négocie
+> pas dans un arbitrage de conception. Ses 16 px vont à tout le monde,
+> indépendamment d'A6.
+
+### La quatrième voie — les marges du sélecteur, et l'endroit où il vit
+
+Deux questions que ni le plan ni les étapes précédentes n'avaient posées. Le
+sélecteur des planches vaut 58 px : trois segments de 44 px, plus 14 px de
+marges. Mesuré à 320 px sur mois archivé, **le correctif V1 et la compaction
+d'en-tête déjà appliqués** — donc départ à 145 px, cible stricte 179 px.
+
+#### (a) Les marges : 14 px nominaux, **6 px réels**
+
+| Marges haut / bas | `avant` | Part | Verdict |
+| --- | ---: | ---: | --- |
+| 10 / 4 *(maquette)* | 195 | 27,1 % | rouge |
+| 10 / 0 | 191 | 26,5 % | rouge |
+| 8 / 4 | 193 | 26,8 % | rouge |
+| **8 / 0** | **189** | 26,3 % | rouge |
+| 4 / 0 | 189 | 26,3 % | rouge |
+| 0 / 0 | 189 | 26,3 % | rouge |
+
+**Les marges s'effondrent, et pas symétriquement.** La marge du **haut** est
+gratuite jusqu'à 8 px — elle fusionne avec la marge basse du bandeau, et 8/0,
+4/0 et 0/0 rendent tous 189. La marge du **bas** coûte au pixel près : 10/4 →
+10/0 rend 4 px.
+
+Conséquence de conception, agréable : **garder 8 px de séparation visuelle
+au-dessus du sélecteur ne coûte rien.** Ce qui se paie est l'espace sous lui, et
+la carte en fournit déjà.
+
+Serrer les marges rend donc **6 px**, pas 14. Aucun rognage : les trois segments
+gardent 44 px de haut et 99 px de large à 320 px. Il manque encore **10 px**.
+
+#### (b) Le placement : le contrôle passe au vert, l'écran empire
+
+| Placement, marges 10/4 | `avant` (ce que `280` mesure) | `#summarySection` (ce que la personne atteint) |
+| --- | ---: | ---: |
+| référence, sans sélecteur | 145 | 162 |
+| **avant** la carte | **195** — rouge | **212** |
+| **dans** la carte | **145** — vert, 34 px de marge | **220** |
+
+La question était juste : « le contrôle ne mesure pas le chrome, il mesure ce
+qui précède le premier contenu ». **La mesure y répond non**, et sans ambiguïté.
+
+Placé dans la carte, le sélecteur se pose **sous le rembourrage de la carte**,
+qui s'ajoute au-dessus de lui. Le premier contenu réel passe donc à 220 px —
+**8 px plus bas** que dans le placement que le contrôle refuse. Le contrôle
+passerait de rouge (195) à vert (145) pendant que la propriété qu'il existe pour
+tenir se dégrade.
+
+C'est la règle 1 dans sa forme la plus coûteuse : **un contrôle rendu vert en
+abîmant ce qu'il mesure.** Le déplacement ne rend pas le sélecteur moins cher,
+il le rend invisible au contrôle.
+
+> Le principe — « où la chose vit, pas combien elle pèse » — reste valable ; il
+> a d'ailleurs tranché le cas du badge. Ce que la mesure dit ici, c'est que
+> **ce placement-ci ne l'honore pas** : le sélecteur ne devient pas du contenu
+> en changeant de parent, il devient seulement plus loin du haut.
+
+#### Les combinaisons, avec les quatre mesures réunies
+
+| Combinaison (V1 + en-tête compacté +…) | `avant` | Part | Marge au seuil |
+| --- | ---: | ---: | ---: |
+| sélecteur 10/4 | 195 | 27,1 % | **−16 px** |
+| sélecteur 8/0 | 189 | 26,3 % | **−10 px** |
+| sélecteur 8/0 + badge resserré | 179 | 24,9 % | **0 px** |
+| sélecteur 10/4 + badge ôté | 172 | 23,9 % | +7 px |
+| **sélecteur 8/0 + badge ôté** | **166** | **23,1 %** | **+13 px** |
+
+**Les quatre leviers mesurés, et ce qu'ils rendent réellement :**
+
+| Levier | Rend | Statut |
+| --- | ---: | --- |
+| rembourrage de la carte du mois | **16 px** | **sorti du lot** — défaut, corrigé pour lui-même |
+| compaction de l'en-tête | **15 px** | geste d'A6, sans casse en largeur |
+| marges du sélecteur | **6 px** | gratuit, 8 px de séparation conservés |
+| rangée du badge | **10** (resserrée) / **23** (ôtée) | l'arbitrage, toujours ouvert |
+
+Sans toucher au badge, A6 reste rouge de **10 px**. Le resserrer amène
+exactement à 179 — vert de zéro pixel, ce qui n'est pas une marge. **L'arbitrage
+sur la phrase « 📁 Mois archivé — modifiable » n'est pas levé par la quatrième
+voie ; il est seulement moins cher qu'il ne l'était.**
 
 ### A5, le geste de la maquette
 
