@@ -311,7 +311,7 @@ ci-dessous). Les 16 px qu'il rend ne coûtent rien à personne.
 > téléphone, c'est-à-dire exactement là où elle a été écrite. 16 px perdus sur
 > chaque écran, depuis qu'elle existe. Le gotcha est dans `CLAUDE.md`.
 >
-> **V1 est SORTI du lot 5** et corrigé pour lui-même — un défaut ne se négocie
+> **V1 est SORTI du lot 5** et corrigé pour lui-même (#166) — un défaut ne se négocie
 > pas dans un arbitrage de conception. Ses 16 px vont à tout le monde,
 > indépendamment d'A6.
 

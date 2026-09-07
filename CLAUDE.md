@@ -768,25 +768,34 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   certaines positions de défilement. Ce qui l'attraperait est
   `elementFromPoint()` au centre de la cible, comparé à la cible elle-même.
 
-- **La compaction mobile de la carte du mois est MORTE sous 600 px, là où elle a
-  été écrite.** `onglets.css:315` déclare
-  `.period-navigation { padding: var(--space-sm) var(--space-md) }` sous 900 px,
-  avec son commentaire — « le sélecteur au repos : resserré, pas amputé ».
+- **Une classe utilitaire redéclarée dans une feuille chargée plus tard écrase
+  silencieusement la règle du composant.** ✅ Corrigé sur la carte du mois le
+  2026-09-07 (#166) ; **le motif, lui, reste vivant.**
+  Le cas : `onglets.css` déclarait sous 900 px
+  `.period-navigation { padding: var(--space-sm) var(--space-md) }`, avec son
+  commentaire — « le sélecteur au repos : resserré, pas amputé ».
   `responsive.css` déclare `@media (max-width: 600px) { .card { padding: var(--space-md) } }`,
-  **charge après** `onglets.css`, et gagne **à spécificité égale** (0,1,0) sur un
-  élément qui porte `class="card period-navigation"`.
-  Conséquence mesurée le 2026-09-07 : rembourrage vertical **16 px au lieu de 8**
-  à 320 et à 390 px, soit **16 px de premier écran perdus sur tout téléphone**.
-  La règle fonctionne entre 601 et 899 px — une tablette — et nulle part ailleurs.
-  Le correctif tient en une spécificité : `.card.period-navigation`, sans
-  `!important`. **Non appliqué** — il appartient au lot 5 (cf. `refonte-lots.md`,
-  §3 étape 3).
-  > **Ce que ce cas apprend au-delà de lui.** Une classe utilitaire (`.card`)
-  > redéclarée dans une media query d'un fichier chargé plus tard écrase
-  > silencieusement toute règle de composant de même spécificité. Rien ne le
-  > signale : la règle est là, lisible, commentée, et sans effet. Chercher
-  > `.card` dans `responsive.css` avant de croire qu'une règle de composant
-  > s'applique en mobile.
+  **charge après**, et gagnait **à spécificité égale** (0,1,0) sur un élément qui
+  porte `class="card period-navigation"`.
+  Mesuré : rembourrage vertical **16 px au lieu de 8** à 320 et à 390 px, soit
+  **16 px de premier écran perdus sur tout téléphone** — la règle fonctionnait
+  entre 601 et 899 px, une tablette, c'est-à-dire partout sauf là où elle avait
+  été écrite. Correctif : `.card.period-navigation`, (0,2,0), sans `!important`.
+  Tenu par `onglets.spec.js`, « La carte du mois compactée », aux trois largeurs
+  320 / 390 / 700, plus son témoin au-delà de 900 px.
+  > **Rien ne signale ce motif : la règle est là, lisible, commentée, et sans
+  > effet.** Chercher `.card` — et les autres utilitaires — dans
+  > `responsive.css` avant de croire qu'une règle de composant s'applique en
+  > mobile. `onglets.css` porte déjà deux autres parades au même défaut, écrites
+  > avant celle-ci : `body .container` et `body .fab`, toutes deux commentées
+  > par la même raison. **Trois occurrences, une seule famille.**
+  >
+  > Et le même écrasement joue **au-dessus de 900 px**, dans le sens qui aère :
+  > `components.css` déclare `.period-navigation { padding: var(--space-md) }`
+  > ligne 214 et `.card { padding: var(--space-lg) }` ligne 289 — le navigateur
+  > rend 24 px. Ce n'est pas un défaut, et c'est pour ça que le témoin **borne**
+  > la compaction au lieu de figer 24 px : figer la valeur enregistrerait
+  > l'écrasement comme une intention.
 
 ### Le banc d'essai
 
