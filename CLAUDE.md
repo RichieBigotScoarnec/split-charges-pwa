@@ -937,6 +937,20 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 
 ### Le banc d'essai
 
+- **Une longueur RENDUE ne se compare pas à une chaîne, et surtout pas au texte
+  d'un jeton.** Corollaire du piège ci-dessous, et il a fait rougir la CI le
+  2026-09-07 sur un contrôle vert cent fois en local :
+  `rembourrage haut 7.87571px pour 8px attendu`.
+  7,875 px n'est pas un rembourrage, c'est une **transition en vol** —
+  `onglets.css` anime `padding` sur `.period-navigation`. Deux remèdes, et le
+  second vaut autant que le premier : **attendre que la valeur soit stable sur
+  deux images**, et **comparer des nombres avec une tolérance sous le pixel**.
+  Une longueur rendue est fractionnaire par nature ; exiger « 8px » au caractère
+  près, c'est mesurer le formatage du moteur.
+  **Troisième occurrence du même motif en deux jours** : `Math.round` sur une
+  frontière de demi-pixel (121,5), `toBe` sur une chaîne de longueur, et la
+  lecture pendant une transition. À chaque fois le contrôle était juste et la
+  COMPARAISON trop exacte pour ce qu'elle mesurait.
 - **`getComputedStyle` lu juste après un changement de style rend la valeur
   D'AVANT, si la propriété est en transition.** `onglets.css:361` déclare
   `.period-navigation { transition: padding … }`. Une sonde qui injecte une règle

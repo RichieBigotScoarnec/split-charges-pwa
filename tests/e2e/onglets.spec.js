@@ -644,26 +644,61 @@ for (const largeur of [320, 390, 700]) {
     });
 
     test('son rembourrage vertical vaut --space-sm, pas celui d\'une carte pleine', async ({ page }) => {
-      const mesure = await page.evaluate(() => {
+      /**
+       * LA MESURE ATTEND QUE LA VALEUR SE POSE, ET NE COMPARE PAS DES CHAÎNES.
+       *
+       * Première rédaction : `getComputedStyle(el).paddingTop` comparé par
+       * `toBe` à la chaîne du jeton, `'8px'`. Verte en local, elle a fait tomber
+       * la CI sur « rembourrage haut 7.87571px pour 8px attendu ».
+       *
+       * 7,875 px n'est pas un rembourrage : c'est une TRANSITION EN VOL.
+       * `onglets.css` anime `padding` sur `.period-navigation` — l'état compact
+       * du défilement se pose et se retire —, et une lecture prise pendant
+       * l'animation rend une valeur intermédiaire. Le piège est consigné dans
+       * `CLAUDE.md` ; ce cas y est tombé quand même.
+       *
+       * Deux corrections, et la seconde compte autant que la première :
+       *   1. attendre que la valeur soit STABLE sur deux images ;
+       *   2. comparer des NOMBRES avec une tolérance sous le pixel, jamais des
+       *      chaînes. Une longueur rendue est fractionnaire par nature ; exiger
+       *      « 8px » au caractère près, c'est mesurer le formatage du moteur.
+       *
+       * La tolérance ne relâche rien : ce que ce cas sépare, c'est 8 de 16.
+       */
+      const mesure = await page.evaluate(async () => {
         const el = document.querySelector('.period-navigation');
         if (!el) return null;
-        const s = getComputedStyle(el);
-        return {
-          haut: s.paddingTop,
-          bas: s.paddingBottom,
-          attendu: getComputedStyle(document.documentElement)
-            .getPropertyValue('--space-sm').trim()
+        const image = () => new Promise((r) => requestAnimationFrame(r));
+        const lire = () => {
+          const s = getComputedStyle(el);
+          return [parseFloat(s.paddingTop), parseFloat(s.paddingBottom)];
         };
+        let avant = lire();
+        for (let i = 0; i < 60; i++) {
+          await image();
+          const maintenant = lire();
+          if (maintenant[0] === avant[0] && maintenant[1] === avant[1]) {
+            return {
+              haut: maintenant[0],
+              bas: maintenant[1],
+              attendu: parseFloat(getComputedStyle(document.documentElement)
+                .getPropertyValue('--space-sm'))
+            };
+          }
+          avant = maintenant;
+        }
+        return null;
       });
 
-      // La prémisse : sans la carte, il n'y a rien à mesurer — et `null` ne se
-      // compare pas en silence.
-      expect(mesure, 'aucune carte de période rendue').not.toBeNull();
+      // La prémisse : sans carte rendue — ou sans valeur qui se pose — il n'y a
+      // rien à mesurer, et `null` ne se compare pas en silence.
+      expect(mesure, 'aucune carte de période rendue, ou rembourrage jamais stable')
+        .not.toBeNull();
 
-      expect(mesure.haut, `rembourrage haut ${mesure.haut} pour ${mesure.attendu} attendu`)
-        .toBe(mesure.attendu);
-      expect(mesure.bas, `rembourrage bas ${mesure.bas} pour ${mesure.attendu} attendu`)
-        .toBe(mesure.attendu);
+      expect(mesure.haut, `rembourrage haut ${mesure.haut} px pour ${mesure.attendu} attendu`)
+        .toBeCloseTo(mesure.attendu, 0);
+      expect(mesure.bas, `rembourrage bas ${mesure.bas} px pour ${mesure.attendu} attendu`)
+        .toBeCloseTo(mesure.attendu, 0);
     });
   });
 }
