@@ -763,6 +763,46 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   Le correctif du grand-livre (`1fr auto`, 2026-09-06) **n'y a rien changé** :
   mesuré à 226/218 avant comme après.
 
+- **`pointer: coarse` change la GÉOMÉTRIE, et presque rien ne l'éprouve.**
+  `responsive.css:411` porte quatre groupes de règles, tous géométriques :
+  `min-height: 44px` sur **toute** commande ; `min-height` + `display: flex` sur
+  les labels de case à cocher ; `min-width: 44px` sur trois classes d'icône ; et
+  **`display: flex` sur cinq classes de lignes ouvrables**, dont
+  `.summary-row--ouvrable`.
+  **Un seul contrôle du dépôt tourne au doigt** — `cible-tactile.spec.js`, à
+  390 px — et il vérifie que ces règles *s'appliquent*, jamais **ce qu'elles
+  coûtent ailleurs**. Tous les contrôles de budget et de géométrie mesuraient
+  donc un écran que personne n'affiche.
+  Chiffré le 2026-09-07 : `#mainApp > header` mesure **54 px au doigt contre
+  35,5 à la souris** — 18,5 px d'écart, parce que `.btn-logout` est porté à
+  44 px. C'est la famille d'`onglets:304` avant son renforcement, appliquée à
+  quatre contrôles au lieu d'un. `onglets:280` est étendu au doigt depuis.
+  > **`hasTouch: true` suffit à déclencher `pointer: coarse` ; `isMobile` non.**
+  > Mesuré sur les quatre combinaisons. `hasTouch` bascule aussi
+  > `hover: hover` à faux — sans effet sur la géométrie, mais à savoir avant
+  > d'imputer une couleur au tactile.
+
+- **⚠️ Le correctif `1fr auto` du grand-livre est NEUTRALISÉ sur tout appareil
+  tactile — DÉFAUT IDENTIFIÉ, NON CORRIGÉ.**
+  `responsive.css` déclare, sous `pointer: coarse`,
+  `.summary-row--ouvrable { display: flex; align-items: center }`. Cette règle
+  charge après `summary.css` et **écrase le `display: grid`** sur lequel repose
+  le correctif du lot 2. La déclaration `grid-template-columns` survit dans le
+  style calculé, et **ne fait plus rien**.
+  Mesuré à 320 px, prénom insécable de 30 caractères :
+
+  | Pointeur | `display` | Largeur de ligne | `documentElement.scrollWidth` |
+  |---|---|---:|---:|
+  | souris | `grid` — `147,6px 62,4px` | 234 px | 320 ✅ |
+  | **doigt** | **`flex`** | **335 px** | **379** ❌ |
+
+  Soit **59 px de débord latéral sur un vrai téléphone**, là où le contrôle
+  `grand-livre:120` rend vert à la souris. C'est le seul contrôle du dépôt que
+  le tactile fait tomber — relevé sur la suite entière rejouée au doigt.
+  **Ne pas corriger en changeant le `display` de la règle `coarse`** sans
+  mesurer : elle existe pour aligner le contenu d'une ligne agrandie, et
+  `.summary-row--ouvrable` n'est qu'une des cinq classes qu'elle vise.
+
 - **Une barre collante mange le clic sur le grand-livre, à 390 px — DÉFAUT
   IDENTIFIÉ, NON CORRIGÉ, et aucun contrôle ne le tient.** Sous 900 px l'écran
   porte deux surfaces flottantes qui encadrent le contenu défilant :
@@ -833,6 +873,16 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   Neutraliser les transitions (`* { transition: none !important }`) **avant** de
   mesurer une géométrie, ou attendre. Le symptôme trompe : il ressemble à un
   problème de cascade, et on va chercher une spécificité qui n'est pas en cause.
+- **Importer `playwright.config.js` depuis un `.mjs` rend un objet VIDE, et la
+  suite entière rougit pour rien.** Le fichier est en ESM dans un paquet sans
+  `"type": "module"` : Playwright le transpile, Node non. Un
+  `import base from './playwright.config.js'` rend donc un objet sans `use`,
+  donc **sans `baseURL`** — et chaque `page.goto('/FairSplit.html')` échoue sur
+  « Cannot navigate to invalid URL ».
+  Mesuré le 2026-09-07 : **110 échecs**, tous imputables à la config et aucun au
+  changement qu'on croyait mesurer. Le symptôme trompe — il ressemble à une
+  régression massive. Une config d'appoint s'écrit **autonome**, avec son
+  `baseURL` en clair.
 - **Une sonde de mise en page mobile relève la LARGEUR autant que la hauteur.**
   Mesuré deux fois le 2026-09-07, sur le même chantier : un instrument qui ne
   mesurait que la hauteur a rendu « 153 px » pour des variantes qui débordent la
