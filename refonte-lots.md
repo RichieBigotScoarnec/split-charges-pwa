@@ -196,10 +196,204 @@ s'élargissent.
 
 **A6 ne tient pas le seuil `280` renforcé** : 320 px, mois archivé, **192 px =
 27 %, rouge de 12 px**. Ce n'est pas un blocage, c'est la dernière tâche du
-lot 5, avec sa piste mesurée : le badge « Mois archivé » coûte **30 px** en
-passant sous la ligne du mois (106 px contre 78 px compactés). Le rendre *en
-ligne* dans la ligne du mois rend 30 px, soit 162 px = 22,5 % à 320 — vert avec
-18 px de marge. À mesurer, pas à supposer.
+lot 5.
+
+> **⚠️ LA PISTE ÉCRITE ICI EST RÉFUTÉE — remesurée sur le vrai CSS le
+> 2026-09-07.** Elle disait : « le badge coûte **30 px** ; le rendre *en ligne*
+> dans la ligne du mois rend 30 px, soit 162 px = 22,5 % à 320 — vert avec 18 px
+> de marge ». Elle est fausse sur les trois nombres, et surtout sur la
+> faisabilité. C'est le §6 qui l'annonçait : les mesures de cette section sont
+> des simulations.
+
+**Ce que le badge coûte réellement** : 28 px, pas 30 — 20 px de ligne de texte
+plus 8 px de `margin-top`. Le premier contenu est à **176 px = 24,4 % à 320 px**
+sur un mois archivé, contre 157 px sur le mois courant.
+
+**Le rendre en ligne est IMPOSSIBLE à 320 px**, et ce n'est pas une question de
+réglage. La ligne du mois dispose de **270 px** utiles, et elle les occupe déjà
+tous : `◀` 40 + 8 + sélecteur 174 + 8 + `▶` 40 = 270. Chaque variante mesurée
+fait déborder la ligne :
+
+| Variante en ligne, à 320 px | Débord | Verdict |
+| --- | ---: | --- |
+| « 📁 Mois archivé — modifiable » | +62 px | non |
+| « 📁 Mois archivé » | +22 px | non |
+| « 📁 archivé » | +6 px | non |
+| « 📁 » seul | 0 | tient, mais ne dit plus rien |
+| n'importe laquelle + `min-width: 0` | 0 | **le mois est rogné** — 102 px de sélecteur pour 118 px de texte (« septembre 2026 ») |
+
+**Le plafond du gain sur cette rangée est 23 px, pas 30** — c'est ce que rend sa
+suppression complète (176 → 153 px, soit 21,3 % à 320). Et il n'est pas
+atteignable en la resserrant : la resserrer plafonne à **10 px**.
+
+| Ce qu'on fait de la rangée du badge | `avant` à 320 | Part | Gain |
+| --- | ---: | ---: | ---: |
+| telle quelle (référence) | 176 | 24,4 % | — |
+| `margin-top: 0` | 172 | 23,9 % | 4 px |
+| marge 4 + interligne 1,2 | 168 | 23,3 % | 8 px |
+| marge 0 + police 12 + interligne 1,15 | **166** | 23,1 % | **10 px — le plancher** |
+| rangée supprimée | **153** | 21,3 % | **23 px — le plafond** |
+| marqueur porté par le libellé du mois (« 📁 août 2026 ») | **153** | 21,3 % | **23 px** |
+
+**Les 12 px qu'A6 doit rendre tombent exactement dans le trou entre les deux.**
+Resserrer ne suffit pas (10 px), supprimer suffit largement (23 px) : aucune
+variante n'atterrit entre. Le choix est donc binaire, et il n'est pas
+géométrique — il porte sur **une phrase**.
+
+Cette phrase a une raison écrite dans `period.js:135` : « lecture seule » était
+faux, corriger une charge oubliée sur un mois passé est un besoin normal, et
+c'est le mot **« modifiable »** qui le dit. La supprimer rend les 23 px et
+rouvre exactement le malentendu que ce commentaire a fermé.
+
+**Décision à prendre avant l'étape 3 du lot 5** — et elle ne se tranche pas en
+passant :
+
+1. **garder la phrase** et trouver les 12 px ailleurs dans A6 (l'en-tête à
+   44 px et la ligne du mois à 48 px sont encore devant nous : à remesurer sur
+   le vrai CSS, elles peuvent en rendre plus que la simulation ne dit) ;
+2. **déplacer le marqueur dans le libellé du mois** — « 📁 août 2026 » —,
+   rendre 23 px, et porter « modifiable » ailleurs qu'à l'écran permanent.
+
+Aucune n'est engagée ici. Ce qui est acquis, c'est que la première piste ne
+l'était pas.
+
+### Étape 3 — les deux autres composants d'A6, remesurés sur le vrai CSS
+
+Même méthode, même jour. Les deux composants restants d'A6 rendent **plus** que
+la simulation ne disait — et A6 reste rouge quand même, un peu **plus** que
+prévu. Mesures à 320 px, mois archivé, transitions coupées, seuil strict
+`< 25 %` soit **179 px** :
+
+| Variante | `avant` | Part | Gain | Verdict |
+| --- | ---: | ---: | ---: | --- |
+| V0 référence | 176 | 24,4 % | — | vert |
+| V1 carte du mois reprise | 160 | 22,2 % | **16 px** | vert |
+| V2 en-tête compacté seul | 161 | 22,4 % | **15 px** | vert |
+| V3 les deux gestes | 145 | 20,1 % | **31 px** | vert |
+| **V4 = A6 complet** (V3 + sélecteur 58 px) | **195** | **27,1 %** | — | **ROUGE** |
+| V5 sélecteur sans les gestes | 226 | 31,4 % | — | rouge |
+
+**Aucune variante ne casse en largeur** — la question posée au badge est posée
+ici aussi, et la réponse est non : pas de débord de page, ni de rognage du nom
+de compte, du titre, ou des trois segments, à 320 comme à 390.
+
+**Il manque 16 px**, pas 12. A6 mesure 195 px là où la simulation annonçait 192,
+et la cible stricte est 179. Le contrôle `280` est `toBeLessThan(0.25)` : 180 px
+est déjà rouge.
+
+**Ce que la rangée du badge peut encore rendre, avec les trois mesures réunies :**
+
+| A6 + | `avant` | Part | Verdict |
+| --- | ---: | ---: | --- |
+| rien | 195 | 27,1 % | rouge |
+| badge resserré au plancher (−10) | 185 | 25,7 % | **rouge** |
+| badge resserré + marge du sélecteur 10 → 4 (−16) | 179 | 24,9 % | vert **d'un pixel** |
+| rangée du badge supprimée (−23) | 172 | 23,9 % | vert, 7 px de marge |
+
+Un vert à un pixel n'est pas une marge, c'est une coïncidence : la première
+police qui change, le premier prénom plus long, et il repasse rouge sans que
+personne n'ait rien décidé.
+
+**L'arbitrage est donc rouvert, avec trois mesures réelles au lieu d'une
+simulation** — c'était le pari de l'option 1, et il a payé sur un point
+inattendu : V1 n'est pas un geste de conception, c'est un **défaut** (voir
+ci-dessous). Les 16 px qu'il rend ne coûtent rien à personne.
+
+> **V1 n'est pas une compaction à décider : c'est une règle morte à réveiller.**
+> `onglets.css:315` compacte le rembourrage de la carte du mois sous 900 px, avec
+> son commentaire — « le sélecteur au repos : resserré, pas amputé ». Elle **ne
+> s'applique pas** en dessous de 600 px : `responsive.css` déclare
+> `@media (max-width: 600px) { .card { padding: var(--space-md) } }`, charge
+> après `onglets.css`, et gagne à spécificité égale (0,1,0) sur un élément qui
+> porte `class="card period-navigation"`.
+>
+> Elle fonctionne donc entre 601 et 899 px — une tablette — et pas sur un
+> téléphone, c'est-à-dire exactement là où elle a été écrite. 16 px perdus sur
+> chaque écran, depuis qu'elle existe. Le gotcha est dans `CLAUDE.md`.
+>
+> **V1 est SORTI du lot 5** et corrigé pour lui-même (#166) — un défaut ne se négocie
+> pas dans un arbitrage de conception. Ses 16 px vont à tout le monde,
+> indépendamment d'A6.
+
+### La quatrième voie — les marges du sélecteur, et l'endroit où il vit
+
+Deux questions que ni le plan ni les étapes précédentes n'avaient posées. Le
+sélecteur des planches vaut 58 px : trois segments de 44 px, plus 14 px de
+marges. Mesuré à 320 px sur mois archivé, **le correctif V1 et la compaction
+d'en-tête déjà appliqués** — donc départ à 145 px, cible stricte 179 px.
+
+#### (a) Les marges : 14 px nominaux, **6 px réels**
+
+| Marges haut / bas | `avant` | Part | Verdict |
+| --- | ---: | ---: | --- |
+| 10 / 4 *(maquette)* | 195 | 27,1 % | rouge |
+| 10 / 0 | 191 | 26,5 % | rouge |
+| 8 / 4 | 193 | 26,8 % | rouge |
+| **8 / 0** | **189** | 26,3 % | rouge |
+| 4 / 0 | 189 | 26,3 % | rouge |
+| 0 / 0 | 189 | 26,3 % | rouge |
+
+**Les marges s'effondrent, et pas symétriquement.** La marge du **haut** est
+gratuite jusqu'à 8 px — elle fusionne avec la marge basse du bandeau, et 8/0,
+4/0 et 0/0 rendent tous 189. La marge du **bas** coûte au pixel près : 10/4 →
+10/0 rend 4 px.
+
+Conséquence de conception, agréable : **garder 8 px de séparation visuelle
+au-dessus du sélecteur ne coûte rien.** Ce qui se paie est l'espace sous lui, et
+la carte en fournit déjà.
+
+Serrer les marges rend donc **6 px**, pas 14. Aucun rognage : les trois segments
+gardent 44 px de haut et 99 px de large à 320 px. Il manque encore **10 px**.
+
+#### (b) Le placement : le contrôle passe au vert, l'écran empire
+
+| Placement, marges 10/4 | `avant` (ce que `280` mesure) | `#summarySection` (ce que la personne atteint) |
+| --- | ---: | ---: |
+| référence, sans sélecteur | 145 | 162 |
+| **avant** la carte | **195** — rouge | **212** |
+| **dans** la carte | **145** — vert, 34 px de marge | **220** |
+
+La question était juste : « le contrôle ne mesure pas le chrome, il mesure ce
+qui précède le premier contenu ». **La mesure y répond non**, et sans ambiguïté.
+
+Placé dans la carte, le sélecteur se pose **sous le rembourrage de la carte**,
+qui s'ajoute au-dessus de lui. Le premier contenu réel passe donc à 220 px —
+**8 px plus bas** que dans le placement que le contrôle refuse. Le contrôle
+passerait de rouge (195) à vert (145) pendant que la propriété qu'il existe pour
+tenir se dégrade.
+
+C'est la règle 1 dans sa forme la plus coûteuse : **un contrôle rendu vert en
+abîmant ce qu'il mesure.** Le déplacement ne rend pas le sélecteur moins cher,
+il le rend invisible au contrôle.
+
+> Le principe — « où la chose vit, pas combien elle pèse » — reste valable ; il
+> a d'ailleurs tranché le cas du badge. Ce que la mesure dit ici, c'est que
+> **ce placement-ci ne l'honore pas** : le sélecteur ne devient pas du contenu
+> en changeant de parent, il devient seulement plus loin du haut.
+
+#### Les combinaisons, avec les quatre mesures réunies
+
+| Combinaison (V1 + en-tête compacté +…) | `avant` | Part | Marge au seuil |
+| --- | ---: | ---: | ---: |
+| sélecteur 10/4 | 195 | 27,1 % | **−16 px** |
+| sélecteur 8/0 | 189 | 26,3 % | **−10 px** |
+| sélecteur 8/0 + badge resserré | 179 | 24,9 % | **0 px** |
+| sélecteur 10/4 + badge ôté | 172 | 23,9 % | +7 px |
+| **sélecteur 8/0 + badge ôté** | **166** | **23,1 %** | **+13 px** |
+
+**Les quatre leviers mesurés, et ce qu'ils rendent réellement :**
+
+| Levier | Rend | Statut |
+| --- | ---: | --- |
+| rembourrage de la carte du mois | **16 px** | **sorti du lot** — défaut, corrigé pour lui-même |
+| compaction de l'en-tête | **15 px** | geste d'A6, sans casse en largeur |
+| marges du sélecteur | **6 px** | gratuit, 8 px de séparation conservés |
+| rangée du badge | **10** (resserrée) / **23** (ôtée) | l'arbitrage, toujours ouvert |
+
+Sans toucher au badge, A6 reste rouge de **10 px**. Le resserrer amène
+exactement à 179 — vert de zéro pixel, ce qui n'est pas une marge. **L'arbitrage
+sur la phrase « 📁 Mois archivé — modifiable » n'est pas levé par la quatrième
+voie ; il est seulement moins cher qu'il ne l'était.**
 
 ### A5, le geste de la maquette
 
@@ -491,8 +685,14 @@ destinations. Plus l'adaptation n° 4, reportée du lot 3.
 1. **les deux renforcements de contrôle, commités verts** — `304` sème un solde,
    `280` s'étend à 320 px et au mois archivé. Avec leurs mutants chiffrés en
    commentaire : A1 semé = 163 px, A6 archivé 320 = 27 % ;
-2. le badge « Mois archivé » passe en ligne (**30 px mesurés à rendre**), et on
-   re-mesure `280` renforcé ;
+2. **BLOQUÉ SUR UNE DÉCISION, pas sur une mesure** — le badge ne *peut pas*
+   passer en ligne à 320 px : la ligne du mois y est pleine à 270/270, et toute
+   variante textuelle la fait déborder de 6 à 62 px. Remesuré sur le vrai CSS le
+   2026-09-07 (§3, *Le solde qui reste*). Le plafond du gain sur cette rangée est
+   **23 px** et s'obtient en la supprimant ; la resserrer plafonne à **10 px**,
+   sous les 12 px requis. Trancher entre « garder la phrase et trouver les 12 px
+   dans le point 3 » et « déplacer le marqueur dans le libellé du mois » **avant**
+   d'attaquer le point 3 ;
 3. l'en-tête à 44 px et la ligne du mois à 48 px en plancher ;
 4. le sélecteur.
 
@@ -501,7 +701,7 @@ destinations. Plus l'adaptation n° 4, reportée du lot 3.
 | Contrôle | Ce qui se passe | L'argument |
 | --- | --- | --- |
 | `onglets:304` | Renforcé au point 1, puis vert | A6 mesure 97 px avec solde, contre 103 aujourd'hui : le lot *rend* du budget |
-| `onglets:280` | Renforcé au point 1, rouge au point 3, vert au point 2 | Le sujet du contrôle est « combien d'écran coûte le chrome » ; un sélecteur de portée *est* du chrome et doit être compté |
+| `onglets:280` | Renforcé au point 1, rouge au point 3 — et le point 2 ne le ramène au vert que si l'arbitrage rend 12 px | Le sujet du contrôle est « combien d'écran coûte le chrome » ; un sélecteur de portée *est* du chrome et doit être compté |
 | `onglets:250` | Vert, resserré à 48 px | L'en-tête est conservé : A5 n'est pas nécessaire |
 | `onglets:51` | Vert | Le sélecteur n'est pas un `.panneau` |
 | `coherence-visuelle` × 4 | Le témoin passe de 5 à 8 commandes sur le bilan | Le sélecteur en `sticky` est déjà écarté du contrôle de recouvrement par `flottant()` — à vérifier, pas à supposer |
@@ -666,8 +866,12 @@ l'écran.
    dont un préexistant ne sait plus lequel il a corrigé.
 
 1. **A6 doit encore rendre 12 px** à 320 px sur un mois archivé, pour tenir le
-   seuil `280` renforcé. Piste mesurée : le badge « Mois archivé » en ligne,
-   30 px. Tâche du lot 5, point 2.
+   seuil `280` renforcé. **La piste « badge en ligne, 30 px » est RÉFUTÉE** —
+   remesurée sur le vrai CSS le 2026-09-07 : la ligne du mois est pleine
+   (270/270 à 320 px), le gain réel plafonne à 23 px et s'obtient en supprimant
+   la rangée, la resserrer n'en rend que 10. Le détail chiffré est en §3, *Le
+   solde qui reste*. Ce qui reste ouvert n'est plus une mesure mais **un
+   arbitrage sur la phrase « 📁 Mois archivé — modifiable »**.
 2. **`cible-tactile` ne tourne qu'à 390 px.** Le lot 5 lui doit une passe à 320
    ou une raison écrite.
 3. **La sixième rupture n'est pas encore choisie** — traité : le lot 3 s'ouvre
@@ -694,3 +898,20 @@ Ce qu'elles établissent est donc **l'existence** d'un agencement à 3/3, ses
 ordres de grandeur, et le fait qu'A1 et A7 sont éliminés par un écart de
 37 à 43 px — trop large pour être un artefact de simulation. Elles n'établissent
 pas les pixels finaux, et le lot 5 devra les remesurer sur le vrai CSS.
+
+> **Cette réserve a servi dès la première vérification, et il faut le dire.**
+> Le 2026-09-07, la piste du point 2 du lot 5 — « le badge en ligne rend 30 px »
+> — a été remesurée sur le vrai CSS : elle est fausse sur le montant (23 px de
+> plafond, pas 30) et **impossible à réaliser** à la largeur qui compte, la
+> ligne du mois étant pleine à 270/270 à 320 px.
+>
+> La simulation ne pouvait pas le voir : elle mutait des **hauteurs**, et le
+> défaut est une **largeur**. Le premier instrument écrit pour la remesurer
+> reproduisait d'ailleurs le même angle mort — il rendait « 153 px » pour toutes
+> les variantes, y compris celles qui débordent de 62 px, parce qu'une ligne qui
+> déborde ne coûte aucune hauteur. C'est la règle 1 : la sonde mesurait une
+> propriété que le défaut ne touche pas.
+>
+> **Toute mesure de mise en page mobile doit relever la largeur ET la hauteur**,
+> et l'écrire : `scrollWidth > clientWidth` sur la rangée, et
+> `documentElement.scrollWidth > innerWidth` sur la page.
