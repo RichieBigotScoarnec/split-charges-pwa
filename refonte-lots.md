@@ -196,10 +196,66 @@ s'élargissent.
 
 **A6 ne tient pas le seuil `280` renforcé** : 320 px, mois archivé, **192 px =
 27 %, rouge de 12 px**. Ce n'est pas un blocage, c'est la dernière tâche du
-lot 5, avec sa piste mesurée : le badge « Mois archivé » coûte **30 px** en
-passant sous la ligne du mois (106 px contre 78 px compactés). Le rendre *en
-ligne* dans la ligne du mois rend 30 px, soit 162 px = 22,5 % à 320 — vert avec
-18 px de marge. À mesurer, pas à supposer.
+lot 5.
+
+> **⚠️ LA PISTE ÉCRITE ICI EST RÉFUTÉE — remesurée sur le vrai CSS le
+> 2026-09-07.** Elle disait : « le badge coûte **30 px** ; le rendre *en ligne*
+> dans la ligne du mois rend 30 px, soit 162 px = 22,5 % à 320 — vert avec 18 px
+> de marge ». Elle est fausse sur les trois nombres, et surtout sur la
+> faisabilité. C'est le §6 qui l'annonçait : les mesures de cette section sont
+> des simulations.
+
+**Ce que le badge coûte réellement** : 28 px, pas 30 — 20 px de ligne de texte
+plus 8 px de `margin-top`. Le premier contenu est à **176 px = 24,4 % à 320 px**
+sur un mois archivé, contre 157 px sur le mois courant.
+
+**Le rendre en ligne est IMPOSSIBLE à 320 px**, et ce n'est pas une question de
+réglage. La ligne du mois dispose de **270 px** utiles, et elle les occupe déjà
+tous : `◀` 40 + 8 + sélecteur 174 + 8 + `▶` 40 = 270. Chaque variante mesurée
+fait déborder la ligne :
+
+| Variante en ligne, à 320 px | Débord | Verdict |
+| --- | ---: | --- |
+| « 📁 Mois archivé — modifiable » | +62 px | non |
+| « 📁 Mois archivé » | +22 px | non |
+| « 📁 archivé » | +6 px | non |
+| « 📁 » seul | 0 | tient, mais ne dit plus rien |
+| n'importe laquelle + `min-width: 0` | 0 | **le mois est rogné** — 102 px de sélecteur pour 118 px de texte (« septembre 2026 ») |
+
+**Le plafond du gain sur cette rangée est 23 px, pas 30** — c'est ce que rend sa
+suppression complète (176 → 153 px, soit 21,3 % à 320). Et il n'est pas
+atteignable en la resserrant : la resserrer plafonne à **10 px**.
+
+| Ce qu'on fait de la rangée du badge | `avant` à 320 | Part | Gain |
+| --- | ---: | ---: | ---: |
+| telle quelle (référence) | 176 | 24,4 % | — |
+| `margin-top: 0` | 172 | 23,9 % | 4 px |
+| marge 4 + interligne 1,2 | 168 | 23,3 % | 8 px |
+| marge 0 + police 12 + interligne 1,15 | **166** | 23,1 % | **10 px — le plancher** |
+| rangée supprimée | **153** | 21,3 % | **23 px — le plafond** |
+| marqueur porté par le libellé du mois (« 📁 août 2026 ») | **153** | 21,3 % | **23 px** |
+
+**Les 12 px qu'A6 doit rendre tombent exactement dans le trou entre les deux.**
+Resserrer ne suffit pas (10 px), supprimer suffit largement (23 px) : aucune
+variante n'atterrit entre. Le choix est donc binaire, et il n'est pas
+géométrique — il porte sur **une phrase**.
+
+Cette phrase a une raison écrite dans `period.js:135` : « lecture seule » était
+faux, corriger une charge oubliée sur un mois passé est un besoin normal, et
+c'est le mot **« modifiable »** qui le dit. La supprimer rend les 23 px et
+rouvre exactement le malentendu que ce commentaire a fermé.
+
+**Décision à prendre avant l'étape 3 du lot 5** — et elle ne se tranche pas en
+passant :
+
+1. **garder la phrase** et trouver les 12 px ailleurs dans A6 (l'en-tête à
+   44 px et la ligne du mois à 48 px sont encore devant nous : à remesurer sur
+   le vrai CSS, elles peuvent en rendre plus que la simulation ne dit) ;
+2. **déplacer le marqueur dans le libellé du mois** — « 📁 août 2026 » —,
+   rendre 23 px, et porter « modifiable » ailleurs qu'à l'écran permanent.
+
+Aucune n'est engagée ici. Ce qui est acquis, c'est que la première piste ne
+l'était pas.
 
 ### A5, le geste de la maquette
 
@@ -491,8 +547,14 @@ destinations. Plus l'adaptation n° 4, reportée du lot 3.
 1. **les deux renforcements de contrôle, commités verts** — `304` sème un solde,
    `280` s'étend à 320 px et au mois archivé. Avec leurs mutants chiffrés en
    commentaire : A1 semé = 163 px, A6 archivé 320 = 27 % ;
-2. le badge « Mois archivé » passe en ligne (**30 px mesurés à rendre**), et on
-   re-mesure `280` renforcé ;
+2. **BLOQUÉ SUR UNE DÉCISION, pas sur une mesure** — le badge ne *peut pas*
+   passer en ligne à 320 px : la ligne du mois y est pleine à 270/270, et toute
+   variante textuelle la fait déborder de 6 à 62 px. Remesuré sur le vrai CSS le
+   2026-09-07 (§3, *Le solde qui reste*). Le plafond du gain sur cette rangée est
+   **23 px** et s'obtient en la supprimant ; la resserrer plafonne à **10 px**,
+   sous les 12 px requis. Trancher entre « garder la phrase et trouver les 12 px
+   dans le point 3 » et « déplacer le marqueur dans le libellé du mois » **avant**
+   d'attaquer le point 3 ;
 3. l'en-tête à 44 px et la ligne du mois à 48 px en plancher ;
 4. le sélecteur.
 
@@ -501,7 +563,7 @@ destinations. Plus l'adaptation n° 4, reportée du lot 3.
 | Contrôle | Ce qui se passe | L'argument |
 | --- | --- | --- |
 | `onglets:304` | Renforcé au point 1, puis vert | A6 mesure 97 px avec solde, contre 103 aujourd'hui : le lot *rend* du budget |
-| `onglets:280` | Renforcé au point 1, rouge au point 3, vert au point 2 | Le sujet du contrôle est « combien d'écran coûte le chrome » ; un sélecteur de portée *est* du chrome et doit être compté |
+| `onglets:280` | Renforcé au point 1, rouge au point 3 — et le point 2 ne le ramène au vert que si l'arbitrage rend 12 px | Le sujet du contrôle est « combien d'écran coûte le chrome » ; un sélecteur de portée *est* du chrome et doit être compté |
 | `onglets:250` | Vert, resserré à 48 px | L'en-tête est conservé : A5 n'est pas nécessaire |
 | `onglets:51` | Vert | Le sélecteur n'est pas un `.panneau` |
 | `coherence-visuelle` × 4 | Le témoin passe de 5 à 8 commandes sur le bilan | Le sélecteur en `sticky` est déjà écarté du contrôle de recouvrement par `flottant()` — à vérifier, pas à supposer |
@@ -666,8 +728,12 @@ l'écran.
    dont un préexistant ne sait plus lequel il a corrigé.
 
 1. **A6 doit encore rendre 12 px** à 320 px sur un mois archivé, pour tenir le
-   seuil `280` renforcé. Piste mesurée : le badge « Mois archivé » en ligne,
-   30 px. Tâche du lot 5, point 2.
+   seuil `280` renforcé. **La piste « badge en ligne, 30 px » est RÉFUTÉE** —
+   remesurée sur le vrai CSS le 2026-09-07 : la ligne du mois est pleine
+   (270/270 à 320 px), le gain réel plafonne à 23 px et s'obtient en supprimant
+   la rangée, la resserrer n'en rend que 10. Le détail chiffré est en §3, *Le
+   solde qui reste*. Ce qui reste ouvert n'est plus une mesure mais **un
+   arbitrage sur la phrase « 📁 Mois archivé — modifiable »**.
 2. **`cible-tactile` ne tourne qu'à 390 px.** Le lot 5 lui doit une passe à 320
    ou une raison écrite.
 3. **La sixième rupture n'est pas encore choisie** — traité : le lot 3 s'ouvre
@@ -694,3 +760,20 @@ Ce qu'elles établissent est donc **l'existence** d'un agencement à 3/3, ses
 ordres de grandeur, et le fait qu'A1 et A7 sont éliminés par un écart de
 37 à 43 px — trop large pour être un artefact de simulation. Elles n'établissent
 pas les pixels finaux, et le lot 5 devra les remesurer sur le vrai CSS.
+
+> **Cette réserve a servi dès la première vérification, et il faut le dire.**
+> Le 2026-09-07, la piste du point 2 du lot 5 — « le badge en ligne rend 30 px »
+> — a été remesurée sur le vrai CSS : elle est fausse sur le montant (23 px de
+> plafond, pas 30) et **impossible à réaliser** à la largeur qui compte, la
+> ligne du mois étant pleine à 270/270 à 320 px.
+>
+> La simulation ne pouvait pas le voir : elle mutait des **hauteurs**, et le
+> défaut est une **largeur**. Le premier instrument écrit pour la remesurer
+> reproduisait d'ailleurs le même angle mort — il rendait « 153 px » pour toutes
+> les variantes, y compris celles qui débordent de 62 px, parce qu'une ligne qui
+> déborde ne coûte aucune hauteur. C'est la règle 1 : la sonde mesurait une
+> propriété que le défaut ne touche pas.
+>
+> **Toute mesure de mise en page mobile doit relever la largeur ET la hauteur**,
+> et l'écrire : `scrollWidth > clientWidth` sur la rangée, et
+> `documentElement.scrollWidth > innerWidth` sur la page.
