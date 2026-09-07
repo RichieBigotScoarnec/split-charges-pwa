@@ -201,8 +201,21 @@ test.describe('Ce que chaque onglet porte', () => {
 
     // Groupés, et non alignés à égalité : un intitulé au-dessus de deux
     // boutons se lit d'un coup d'œil, huit boutons en file se lisent un par un.
+    //
+    // « Votre compte » est la quatrième rangée, et elle a été ajoutée en
+    // connaissance de ce cas. La déconnexion vivait dans l'en-tête permanent,
+    // où elle coûtait 18 px de premier écran à chaque ouverture — mesuré au
+    // doigt, où `pointer: coarse` la porte à 44 px et où elle devient le plus
+    // haut enfant d'un en-tête aligné au centre. Se déconnecter d'une
+    // application de couple sur son propre téléphone est un geste rare ; il ne
+    // se paie plus sur l'écran où le solde doit tenir sans défiler.
+    //
+    // La liste reste EXHAUSTIVE plutôt que de devenir un `toContain` : ce
+    // qu'elle tient est qu'aucune rangée ne s'ajoute sans qu'on l'ait voulu.
+    // La relâcher pour laisser passer celle-ci ferait taire le contrôle sur
+    // toutes les suivantes.
     const titres = (await reglages.locator('.outils-titre').allInnerTexts()).map((t) => t.toLowerCase());
-    expect(titres).toEqual(['vos listes', 'vos données', 'sortir les données']);
+    expect(titres).toEqual(['vos listes', 'vos données', 'sortir les données', 'votre compte']);
   });
 
   test('les rappels ont quitté l\'écran d\'accueil', async ({ page }) => {
