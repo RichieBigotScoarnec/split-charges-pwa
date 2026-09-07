@@ -777,13 +777,30 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   35,5 à la souris** — 18,5 px d'écart, parce que `.btn-logout` est porté à
   44 px. C'est la famille d'`onglets:304` avant son renforcement, appliquée à
   quatre contrôles au lieu d'un. `onglets:280` est étendu au doigt depuis.
+  **Ce que les groupes 2 et 3 coûtent — mesuré le 2026-09-07, consigné, NON
+  corrigé :**
+  - **groupe 3, `min-width: 44px` sur `.period-arrow`** : les flèches passent de
+    36 à 44 px, et **la ligne du mois déborde de 8 px à 320 px** — `scrollWidth`
+    278 pour un `clientWidth` de 270. Le sélecteur de mois reste à 182 px et le
+    mois le plus large y tient (137 px de texte), donc le dégât visible est
+    borné ; la page ne défile pas. Mais **aucun contrôle ne voit ce débord** :
+    « aucune commande ne dépasse de l'écran » (`coherence-visuelle:223`) tourne
+    à la souris ;
+  - **groupe 2, les labels de case à cocher** : **une seule instance rendue**
+    dans toute l'application — `.reminder-toggle`, dans Réglages. Elle passe de
+    `display: block` à `flex` et de 22 à 44 px de haut. Inoffensif ici parce que
+    son display d'auteur est `block` ; **le jour où un label s'appuiera sur une
+    grille, il cassera exactement comme le grand-livre**. Et une seule instance
+    fait une couverture mince pour `cible-tactile`.
+
   > **`hasTouch: true` suffit à déclencher `pointer: coarse` ; `isMobile` non.**
   > Mesuré sur les quatre combinaisons. `hasTouch` bascule aussi
   > `hover: hover` à faux — sans effet sur la géométrie, mais à savoir avant
   > d'imputer une couleur au tactile.
 
-- **⚠️ Le correctif `1fr auto` du grand-livre est NEUTRALISÉ sur tout appareil
-  tactile — DÉFAUT IDENTIFIÉ, NON CORRIGÉ.**
+- **Le correctif `1fr auto` du grand-livre était NEUTRALISÉ sur tout appareil
+  tactile.** ✅ Corrigé le 2026-09-07 ; **gardé ici parce que le motif reste
+  vivant** — trois autres classes portent encore la règle qui l'a causé.
   `responsive.css` déclare, sous `pointer: coarse`,
   `.summary-row--ouvrable { display: flex; align-items: center }`. Cette règle
   charge après `summary.css` et **écrase le `display: grid`** sur lequel repose
@@ -799,9 +816,22 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   Soit **59 px de débord latéral sur un vrai téléphone**, là où le contrôle
   `grand-livre:120` rend vert à la souris. C'est le seul contrôle du dépôt que
   le tactile fait tomber — relevé sur la suite entière rejouée au doigt.
-  **Ne pas corriger en changeant le `display` de la règle `coarse`** sans
-  mesurer : elle existe pour aligner le contenu d'une ligne agrandie, et
-  `.summary-row--ouvrable` n'est qu'une des cinq classes qu'elle vise.
+  **Le correctif ne touche qu'une classe** : `.summary-row--ouvrable` sort de la
+  liste et reçoit `display: grid; align-items: center`. Les quatre autres gardent
+  la règle mot pour mot — ce qu'elle leur donne n'a pas été mesuré, et rien
+  n'obligeait à le changer pour réparer celle-ci.
+  `align-items: center` est conservé, et ce n'est pas décoratif. Mesuré sur un
+  prénom COURT, où la boîte de 44 px n'est pas remplie :
+
+  | Variante | Contenu, haut / bas |
+  |---|---|
+  | `flex` (avant) | 10 / 10 — centré |
+  | **`grid` + `center`** | **10 / 10 — centré** |
+  | `grid` + `baseline` | 5 / 15 — **collé en haut** |
+
+  Sans le cas du prénom court, `baseline` aurait paru équivalent : sur un prénom
+  long la ligne fait 82 px et les deux rendent 5/5. C'est le cas où la contrainte
+  MORD qui sépare les deux réponses.
 
 - **Une barre collante mange le clic sur le grand-livre, à 390 px — DÉFAUT
   IDENTIFIÉ, NON CORRIGÉ, et aucun contrôle ne le tient.** Sous 900 px l'écran
