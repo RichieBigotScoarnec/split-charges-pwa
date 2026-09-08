@@ -121,8 +121,19 @@
   <a href="#mainApp" class="skip-link">Aller au contenu principal</a>
 
   <!-- Affiché uniquement en mode bac à sable (?sandbox=1), par js/app.js -->
+  <!-- « isolées de celles du foyer » a été VRAI À MOITIÉ jusqu'au 2026-09-07.
+       Les données du foyer le sont — `household/` contre `sandbox/` — mais le
+       détail privé vit sur trois racines sœurs que les accès absolus
+       ne préfixaient pas : le bac à sable lisait et écrivait le vrai espace
+       privé. Le bandeau promettait donc une isolation que l'application ne
+       tenait pas.
+
+       `db.js` refuse désormais tout accès absolu hors du foyer. Le privé n'est
+       pas « isolé » dans le bac à sable — il y est ABSENT, et la nuance
+       compte : on ne peut pas y essayer une dépense privée, même jetable. La
+       seconde phrase le dit plutôt que de laisser « isolées » le sous-entendre. -->
   <div id="sandboxBanner" class="sandbox-banner" role="status" hidden>
-    <span aria-hidden="true">🧪</span> Bac à sable — données d'essai, isolées de celles du foyer
+    <span aria-hidden="true">🧪</span> Bac à sable — données d'essai, isolées de celles du foyer. L'espace privé n'y est pas accessible.
   </div>
 
   <!--

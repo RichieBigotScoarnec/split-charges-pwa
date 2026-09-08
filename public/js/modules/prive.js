@@ -24,6 +24,7 @@
 // total public », et l'écran le dit.
 
 import { getState } from '../state.js';
+import { priveDisponible } from '../db.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
@@ -167,7 +168,83 @@ async function publierLeTotal(emplacement, periode, depenses) {
  * Ouvre l'écran des dépenses privées
  * @returns {Promise<void>}
  */
+/**
+ * L'écran qui dit pourquoi le privé se tait dans le bac à sable
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * POURQUOI UN REFUS, ET PAS UN ÉCRAN VIDE
+ *
+ * Un privé vide dans le bac à sable est indiscernable d'un privé réel qui n'a
+ * rien ce mois-ci. C'est une absence qui se lit comme une présence sans
+ * contenu — et surtout, elle INVITE À SAISIR : on croit essayer dans un espace
+ * jetable, et la garde de `db.js` refusera l'écriture après coup.
+ *
+ * Le refus arrive donc avant la saisie, et il porte sa raison.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * IL NE PORTE AUCUN CHAMP
+ *
+ * Pas de formulaire, pas de bascule de partage : une explication qui laisse le
+ * formulaire ouvert n'empêche rien, et `prive-bac-a-sable.spec.js` tient les
+ * deux moitiés séparément — la phrase, et l'absence de saisie.
+ *
+ * @returns {void}
+ */
+function rendreLeRefusDuBacASable() {
+  let modal = document.getElementById('modalPrive');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalPrive';
+    modal.className = 'modal-overlay';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'priveTitre');
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div class="modal prive-modal">
+      <h2 class="modal-header" id="priveTitre">🔒 Dépenses privées</h2>
+
+      <p class="empty-state">Le bac à sable ne donne pas accès à l'espace privé : le privé vit hors de l'espace d'essai, et rien n'y est ni lu ni écrit ici.</p>
+
+      <p class="form-aide">Vos dépenses privées réelles sont intactes, et elles le restent — elles vous attendent hors du bac à sable.</p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="priveFermer">Fermer</button>
+      </div>
+    </div>
+  `;
+
+  // La même fermeture que l'écran ordinaire, ligne 490 : la classe part, puis
+  // le display, le temps de la transition. Recopier trois lignes plutôt que
+  // d'appeler `closeModal` garde ce refus indépendant de `components/modal.js`,
+  // qu'il n'a aucune raison d'importer pour un bouton.
+  modal.querySelector('#priveFermer').addEventListener('click', () => {
+    modal.classList.remove('active');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+  });
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('active'));
+}
+
 async function showPrivateExpensesModal() {
+  // Le bac à sable n'a pas d'espace privé, et ne touche pas au vrai.
+  //
+  // La garde dure vit dans `db.js`, sur les quatre accès absolus : c'est elle
+  // qui empêche toute lecture et toute écriture, et aucun appelant ne peut la
+  // contourner. Ce qui suit ne protège rien — il EXPLIQUE.
+  //
+  // Sans ce bloc, la lecture rejetait, `lireLEtat` rendait `null`, et l'écran
+  // annonçait « Espace privé illisible — réessayez ». Deux fois faux : ce n'est
+  // pas illisible, et réessayer ne changera rien. Un refus qui se déguise en
+  // panne fait chercher une cause qui n'existe pas.
+  if (!priveDisponible()) {
+    rendreLeRefusDuBacASable();
+    return;
+  }
+
   const etat = await lireLEtat();
   if (!etat) {
     toast.error('Espace privé illisible — réessayez');

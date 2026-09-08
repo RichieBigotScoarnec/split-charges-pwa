@@ -428,6 +428,20 @@ rouge ?* Trois réponses le condamnent :
 >   contient nulle part `/archiv/i` sur un mois à venir — il est devenu rouge,
 >   et il survivra au prochain déplacement.
 >
+> **Et sa variante, qui trompe autrement : une surface TROP LARGE pour
+> distinguer.** Le 2026-09-07, un cas neuf exigeait que l'écran du bac à sable
+> refuse le privé « en l'expliquant ». Il cherchait « bac à sable » ET « privé »
+> n'importe où dans le texte de la page — et il était **vert avant tout
+> correctif** : le bandeau `#sandboxBanner` porte « Bac à sable — données
+> d'essai… », le bouton d'accès rapide porte « Privé ». Deux éléments sans
+> rapport, réunis par une recherche à l'échelle de la page.
+>
+> Ce n'est pas « il interroge la mauvaise surface » — celle-là contenait bien la
+> propriété. C'est **elle en contient trop pour que la présence des mots prouve
+> quoi que ce soit**. Le remède est le même : la plus petite surface qui
+> contienne encore la propriété — ici, le texte PROPRE d'un seul élément, ce qui
+> exclut le bandeau sans avoir à le nommer, son texte ne contenant pas « privé ».
+>
 > **Le geste : nommer la propriété, puis chercher la plus PETITE surface qui la
 > contienne encore après un déménagement.** « Le libellé ne dit pas archivé »
 > se périme ; « l'écran ne dit nulle part archivé » tient. Et il n'y a pas de
