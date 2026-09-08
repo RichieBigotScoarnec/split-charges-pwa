@@ -189,121 +189,270 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
     await expect(page.locator('#modalPrive')).not.toContainText('Manucure');
   });
 
-  test('le total déclaré n\'est jamais rendu sans sa réserve, sur le même écran', async ({ page }) => {
-    /**
-     * ─────────────────────────────────────────────────────────────────────
-     * CE CAS REMPLACE UN `toContainText('déclaré')` SUR `#modalPrive`
-     *
-     * L'ancien tenait que la réserve est PRÉSENTE. Deux raisons de le refaire :
-     *
-     *   1. il nomme une surface. `#modalPrive` disparaîtra quand Privé
-     *      deviendra une vue, et le réflexe serait de le repointer sur le
-     *      conteneur suivant — même fragilité, un cran plus loin ;
-     *   2. **« présente » n'est pas « co-visible ».** Une modale garantissait
-     *      la co-visibilité PAR SA FORME : elle est courte, tout y tient. Une
-     *      vue défile — le chiffre peut rester en haut pendant que la réserve
-     *      passe sous la ligne de flottaison, ou se replie dans un dépliant.
-     *
-     * C'est le motif vu trois fois cette semaine : une propriété vraie PAR
-     * CONSTRUCTION cesse de l'être quand la construction change, et rien ne le
-     * dit — parce que personne n'avait eu à la tenir.
-     *
-     * ─────────────────────────────────────────────────────────────────────
-     * LA PROPRIÉTÉ
-     *
-     * Le total déclaré de l'autre n'est jamais rendu sans sa réserve, **sur le
-     * même écran et sans geste supplémentaire** : ni défilement, ni dépliant à
-     * ouvrir.
-     *
-     * Les deux éléments sont trouvés PAR LEUR TEXTE — le montant d'un côté, le
-     * mot qui nomme la réserve de l'autre — jamais par une classe ni un
-     * identifiant. Le contrôle survit donc au déplacement qu'il doit protéger.
-     *
-     * Il est VERT aujourd'hui, et c'est son objet : il doit l'être avant le
-     * changement de forme pour pouvoir le garder. Ses mutants font le travail
-     * du rouge.
-     */
-    await page.evaluate(() => {
-      const periode = document.getElementById('periodSelect')?.value;
-      window.__db[`totauxPrives/conjointe/${periode}`] = { montant: 340, nombre: 5 };
+  /**
+   * ─────────────────────────────────────────────────────────────────────
+   * CE CAS A ÉTÉ RÉÉCRIT LE 2026-09-08, ET IL ÉTAIT ROUGE AVANT
+   *
+   * Il a été écrit la veille pour protéger le passage de Privé en vue. Il
+   * mesurait un écran de **1280 × 720** — le viewport par défaut de Playwright,
+   * appliqué en silence à tout fichier sans `test.use`. Il était donc vert sur
+   * un écran que personne n'affiche, et rouge dès qu'on lui donnait un
+   * téléphone : à 320 px il rend « la réserve est hors de la vue », avec son
+   * propre semis.
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * CE QUE LA MESURE A CHANGÉ À LA PROPRIÉTÉ
+   *
+   * L'ancienne formulation — « sur le même écran et sans geste supplémentaire »
+   * — voulait dire « dans la vue À L'OUVERTURE ». **Elle n'est pas tenable, et
+   * ce n'est pas un défaut à corriger.** Cet écran porte mes accords, ma
+   * saisie, ma liste et le côté de l'autre : à 320 px il fait 872 px de contenu
+   * dans une boîte de 574 avec ZÉRO dépense à moi, et 1 149 avec six. Aucun
+   * arrangement ne fait tenir tout cela sans défiler. Exiger l'ouverture
+   * reviendrait à interdire à cet écran d'être long.
+   *
+   * Remonter le bloc en tête le rendrait visible à l'ouverture — mesuré, il
+   * passe de `top: 1007` à `top: 129` — et ce serait le mauvais remède pour
+   * deux raisons : ça ne dit rien des AUTRES positions de défilement, et ça
+   * ferait ouvrir l'écran privé sur le total de quelqu'un d'autre, ce que
+   * `resume-prive.js` a explicitement refusé le 2026-09-02.
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * LA PROPRIÉTÉ TENABLE EST INVARIANTE PAR DÉFILEMENT
+   *
+   *     À AUCUNE position de défilement le montant déclaré n'est lisible
+   *     sans la réserve qui l'accompagne.
+   *
+   * C'est le danger réel, dit exactement : quelqu'un qui lit « 340,00 € » le
+   * prend pour un chiffre vérifié. Peu importe qu'il ait fallu défiler pour y
+   * arriver — ce qui compte est qu'on ne puisse pas le lire seul.
+   *
+   * Et elle était **FAUSSE**, dans 7 configurations sur 8. Le montant et sa
+   * réserve étaient à 4 px l'un de l'autre, dans le même bloc, mais en deux
+   * lignes distinctes : **le bord de la boîte passait entre eux**. Relevé par
+   * balayage complet du défilement, une position tous les 20 px :
+   *
+   *     largeur / dépenses à moi     positions où le montant est SEUL
+   *     320 / 0                      1   (à y = 40)
+   *     320 / 3                      1   (à y = 120)
+   *     320 / 6                      1   (à y = 320)
+   *     320 / 12                     2   (à y = 700, 720)
+   *     390 / 0                      0   ← le seul cas sain
+   *     390 / 6                      2   (à y = 160, 180)
+   *     390 / 12                     1   (à y = 560)
+   *
+   * Le remède n'est pas un arrangement, c'est une INDIVISIBILITÉ : la réserve,
+   * dans sa forme courte, entre dans la même boîte de ligne que le chiffre. Un
+   * bord d'écran ne peut plus passer entre les deux sans couper le chiffre
+   * lui-même. La phrase complète reste dessous, où elle explique.
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * POURQUOI LE SEMIS PORTE SIX DÉPENSES
+   *
+   * Parce que zéro ne sépare rien à 390 px : c'est la seule configuration
+   * saine des huit, et c'est celle que l'ancien cas semait. Un jeu d'essai qui
+   * ne porte que le cas indulgent laisse passer un correctif partiel.
+   */
+  for (const { nom, viewport } of [
+    { nom: '320', viewport: { width: 320, height: 720 } },
+    { nom: '390', viewport: { width: 390, height: 844 } }
+  ]) {
+    test.describe(`au téléphone — ${nom} px`, () => {
+      test.use({ viewport, hasTouch: true });
+
+      test('le montant déclaré n\'est jamais lisible sans sa réserve, à aucun défilement', async ({ page }) => {
+        await page.evaluate(() => {
+          const periode = document.getElementById('periodSelect')?.value;
+          window.__db[`totauxPrives/conjointe/${periode}`] = { montant: 340, nombre: 5 };
+          // Six dépenses à moi : ce qui allonge l'écran, c'est MA liste, et
+          // c'est le régime où les deux largeurs se séparent.
+          for (let i = 0; i < 6; i++) {
+            window.__db[`prive/vous/periods/${periode}/depenses/s${i}`] = {
+              montant: 20 + i, description: `Dépense ${i}`,
+              date: `${periode}-0${(i % 9) + 1}`, deleted: false
+            };
+          }
+        });
+        await ouvrirPrive(page);
+
+        const releve = await page.evaluate(() => {
+          // Le texte PROPRE, sans celui des descendants : sinon la racine porte
+          // tout, et n'importe quel écran satisfait n'importe quoi.
+          const propre = (el) => [...el.childNodes]
+            .filter((n) => n.nodeType === Node.TEXT_NODE)
+            .map((n) => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
+
+          const tous = [...document.querySelectorAll('body *')];
+          // Cherchés par leur TEXTE — le chiffre rendu d'un côté, le mot qui
+          // nomme la réserve de l'autre. Jamais par une classe ni un
+          // identifiant : le contrôle survit au déplacement qu'il protège.
+          const montant = tous.find((el) => /340[,.]00/.test(propre(el)));
+          const reserve = tous.find((el) => /déclar/i.test(propre(el)));
+          if (!montant || !reserve) {
+            return { montantTrouve: Boolean(montant), reserveTrouvee: Boolean(reserve) };
+          }
+
+          const dansUnDepliantFerme = (el) => {
+            for (let n = el; n; n = n.parentElement) {
+              if (n.tagName === 'DETAILS' && !n.open) return true;
+            }
+            return false;
+          };
+          const dansLaVue = (el) => {
+            const r = el.getBoundingClientRect();
+            return r.top < window.innerHeight && r.bottom > 0
+              && r.left < window.innerWidth && r.right > 0;
+          };
+
+          // Le balayage porte sur le défilement INTERNE de la carte : c'est lui
+          // qui déplace le contenu, la page derrière ne bouge pas.
+          const carte = document.querySelector('#modalPrive .modal');
+          const max = Math.max(0, carte.scrollHeight - carte.clientHeight);
+
+          const seul = [];
+          let vuEnsemble = 0;
+          for (let y = 0; y <= max; y += 20) {
+            carte.scrollTop = y;
+            const m = dansLaVue(montant);
+            const r = dansLaVue(reserve);
+            if (m && !r) seul.push(y);
+            if (m && r) vuEnsemble++;
+          }
+          carte.scrollTop = 0;
+
+          return {
+            montantTrouve: true,
+            reserveTrouvee: true,
+            reserveRepliee: dansUnDepliantFerme(reserve),
+            defilementMax: max,
+            positionsSeul: seul,
+            positionsEnsemble: vuEnsemble,
+            texteReserve: propre(reserve).slice(0, 60)
+          };
+        });
+
+        // ── LES PRÉMISSES ──
+        // Sans le chiffre, il n'y a rien à protéger, et le balayage passerait
+        // sur un écran qui ne rend rien.
+        expect(releve.montantTrouve, 'prémisse : le total déclaré n\'est pas rendu')
+          .toBe(true);
+        expect(releve.reserveTrouvee,
+          'le total déclaré est rendu SANS aucune réserve : aucune règle ne peut '
+          + 'vérifier la somme de ce qu\'elle n\'a pas le droit de lire, et le taire '
+          + 'ferait croire à une garantie technique qui n\'existe pas')
+          .toBe(true);
+
+        // La carte doit DÉFILER, sinon le balayage n'a qu'une position et le cas
+        // retombe sur l'ancien — celui qui ne mesurait qu'un grand écran.
+        expect(releve.defilementMax,
+          'prémisse : la carte ne défile pas, le balayage ne sépare rien')
+          .toBeGreaterThan(0);
+
+        // Le témoin positif : il existe au moins une position où les deux sont
+        // là. Sans lui, « jamais seul » serait satisfait par un montant jamais
+        // visible — la propriété vraie pour la pire des raisons.
+        expect(releve.positionsEnsemble,
+          'prémisse : le montant n\'est visible à AUCUNE position, « jamais seul » '
+          + 'ne mesure alors rien')
+          .toBeGreaterThan(0);
+
+        expect(releve.reserveRepliee,
+          `la réserve est repliée dans un dépliant fermé — « ${releve.texteReserve} » : `
+          + 'présente n\'est pas lisible, et l\'ouvrir est un geste de plus')
+          .toBe(false);
+
+        // ── LA PROPRIÉTÉ ──
+        expect(releve.positionsSeul,
+          `le montant déclaré se lit SEUL à ${releve.positionsSeul.length} position(s) `
+          + `de défilement (y = ${releve.positionsSeul.join(', ')}) : le bord de `
+          + 'l\'écran passe entre le chiffre et sa réserve, et le chiffre se lit '
+          + 'alors comme un montant vérifié')
+          .toEqual([]);
+      });
+
+      test('un prénom hostile et un gros montant ne séparent pas le couple', async ({ page }) => {
+        /**
+         * ── LE CAS QUI TIENT LE `nowrap`, ET IL A FALLU LE CHERCHER ──
+         *
+         * Le premier mutant posé sur `white-space: nowrap` n'a PAS fait tomber
+         * le cas précédent : sur un prénom court et un montant à trois
+         * chiffres, « 340,00 € déclaré » tient sur une ligne de toute façon.
+         * Un mutant qui ne tombe pas interroge le contrôle avant le code — et
+         * ici il disait vrai : le jeu d'essai ne portait que le régime
+         * indulgent.
+         *
+         * Ce qui sépare les deux : un prénom de 30 caractères insécables — la
+         * limite que le champ laisse saisir — et un montant à cinq chiffres.
+         * Mesuré à 320 px :
+         *
+         *     avec `nowrap`   le bloc du montant fait 24 px, une seule ligne
+         *     sans            48 px, et « déclaré » descend à 29 px du chiffre
+         *
+         * ── ET LE DÉBORD QUE CE CAS A TROUVÉ EN CHEMIN ──
+         *
+         * Le sous-titre débordait de **106 px** avec ce prénom, AVANT ce lot :
+         * l'intitulé était un nœud de texte nu dans un conteneur flex, donc un
+         * élément anonyme qu'aucune règle ne pouvait faire rétrécir. La réserve
+         * ajoutée à côté du chiffre portait le débord à 153. Enveloppé, il se
+         * tronque ; le montant, lui, ne se tronque jamais.
+         */
+        await page.evaluate(() => {
+          const periode = document.getElementById('periodSelect')?.value;
+          window.__db[`totauxPrives/conjointe/${periode}`] = { montant: 12345.67, nombre: 5 };
+        });
+        await page.evaluate(async () => {
+          const { setState } = await import('/js/state.js');
+          // 30 caractères SANS coupure : un prénom plausible en porte, et la
+          // langue offre alors des occasions de s'enrouler que le cas hostile
+          // ne doit pas donner.
+          setState('members', { vous: 'Moi', conjointe: 'Bartholomewmaximilienleonardxy' });
+        });
+        await ouvrirPrive(page);
+
+        const m = await page.evaluate(() => {
+          // Par le TEXTE, comme le cas voisin : aucune classe, aucun
+          // identifiant. Le montant porte le chiffre en propre, le marqueur
+          // porte le mot — ce sont deux éléments, et c'est ce qui permet de
+          // mesurer l'écart entre eux.
+          const propre = (el) => [...el.childNodes]
+            .filter((n) => n.nodeType === Node.TEXT_NODE)
+            .map((n) => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
+          const tous = [...document.querySelectorAll('body *')];
+          const total = tous.find((el) => /345[,.]67/.test(propre(el)));
+          const marque = tous.find((el) => /^déclaré$/i.test(propre(el)));
+          if (!total || !marque) return { absent: true, total: Boolean(total), marque: Boolean(marque) };
+          const h3 = total.closest('h3');
+          const rt = total.getBoundingClientRect();
+          const rm = marque.getBoundingClientRect();
+
+          return {
+            debordSousTitre: h3.scrollWidth - h3.clientWidth,
+            montantRogne: total.scrollWidth > total.clientWidth + 1,
+            // Même boîte de ligne : les deux partagent leur bord haut.
+            ecartVertical: Math.round(rm.top - rt.top),
+            texte: total.innerText.replace(/\s+/g, ' ').trim()
+          };
+        });
+
+        expect(m.absent, 'prémisse : le total déclaré n\'est pas rendu').toBeFalsy();
+        expect(m.texte, 'prémisse : le gros montant n\'est pas celui qu\'on croit')
+          .toContain('345');
+
+        expect(m.ecartVertical,
+          `« déclaré » est tombé à ${m.ecartVertical} px sous le chiffre : le bord `
+          + 'de l\'écran peut à nouveau passer entre les deux')
+          .toBeLessThan(6);
+
+        expect(m.debordSousTitre,
+          `le sous-titre déborde de ${m.debordSousTitre} px : le prénom pousse le `
+          + 'montant hors de l\'écran au lieu de se tronquer')
+          .toBeLessThanOrEqual(1);
+
+        expect(m.montantRogne, 'le montant lui-même est rogné — un chiffre abrégé est faux')
+          .toBe(false);
+      });
     });
-    await ouvrirPrive(page);
-
-    const releve = await page.evaluate(() => {
-      const visible = (el) => Boolean(el.checkVisibility && el.checkVisibility())
-        && el.getBoundingClientRect().height > 0;
-
-      // Le texte PROPRE, sans celui des descendants : sinon la racine porte
-      // tout, et n'importe quel écran satisfait n'importe quoi.
-      const propre = (el) => [...el.childNodes]
-        .filter((n) => n.nodeType === Node.TEXT_NODE)
-        .map((n) => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
-
-      // TOUS les éléments, visibles ou non. Chercher parmi les seuls visibles
-      // confondrait « absente » et « repliée » — et le message enverrait alors
-      // au mauvais endroit, ce qui coûte plus cher qu'un contrôle muet.
-      const tous = [...document.querySelectorAll('body *')];
-
-      // Le montant déclaré, cherché par sa valeur rendue — pas par sa classe.
-      const montant = tous.filter(visible).find((el) => /340[,.]00/.test(propre(el)));
-      // La réserve, cherchée par le mot qui la nomme dans tout ce dépôt.
-      const reserve = tous.find((el) => /déclar/i.test(propre(el)));
-
-      const dansUnDepliantFerme = (el) => {
-        for (let n = el; n; n = n.parentElement) {
-          if (n.tagName === 'DETAILS' && !n.open) return true;
-        }
-        return false;
-      };
-
-      const dansLaVue = (el) => {
-        const r = el.getBoundingClientRect();
-        return r.top < window.innerHeight && r.bottom > 0
-          && r.left < window.innerWidth && r.right > 0;
-      };
-
-      return {
-        montantTrouve: Boolean(montant),
-        reserveTrouvee: Boolean(reserve),
-        reserveRepliee: reserve ? dansUnDepliantFerme(reserve) : null,
-        reserveVisible: reserve ? visible(reserve) : null,
-        montantDansLaVue: montant ? dansLaVue(montant) : null,
-        reserveDansLaVue: reserve ? dansLaVue(reserve) : null,
-        defilement: window.scrollY,
-        texteReserve: reserve ? propre(reserve).slice(0, 60) : null
-      };
-    });
-
-    // Les prémisses : sans le chiffre, il n'y a rien à protéger — et le cas
-    // passerait sur un écran qui ne rend rien.
-    expect(releve.montantTrouve, 'prémisse : le total déclaré n\'est pas rendu')
-      .toBe(true);
-    expect(releve.montantDansLaVue, 'prémisse : le total n\'est pas dans la vue')
-      .toBe(true);
-
-    expect(releve.reserveTrouvee,
-      'le total déclaré est rendu SANS sa réserve : aucune règle ne peut vérifier '
-      + 'la somme de ce qu\'elle n\'a pas le droit de lire, et le taire ferait '
-      + 'croire à une garantie technique qui n\'existe pas')
-      .toBe(true);
-
-    expect(releve.reserveRepliee,
-      `la réserve est repliée dans un dépliant fermé — « ${releve.texteReserve} » : `
-      + 'présente n\'est pas co-visible, et l\'ouvrir est un geste de plus')
-      .toBe(false);
-
-    expect(releve.reserveVisible,
-      `la réserve est rendue mais pas visible — « ${releve.texteReserve} »`)
-      .toBe(true);
-
-    expect(releve.reserveDansLaVue,
-      'la réserve est hors de la vue : il faut défiler pour la lire, donc le '
-      + 'chiffre se lit seul')
-      .toBe(true);
-
-    // Et sans geste : le relevé est pris au rendu, sans avoir défilé.
-    expect(releve.defilement, 'le relevé a défilé avant de mesurer').toBe(0);
-  });
+  }
 
   test('sans rien publié, l\'écran se tait plutôt que d\'affirmer', async ({ page }) => {
     // « Rien publié » n'est pas « zéro dépense privée ». Afficher 0 € ferait

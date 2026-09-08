@@ -1520,12 +1520,73 @@
   color: var(--text-secondary);
 }
 
+/*
+   L'intitulé rétrécit, le montant jamais.
+
+   Il était un nœud de texte nu dans un conteneur flex — donc un élément
+   ANONYME, auquel aucune règle ne peut s'adresser. Un prénom de 30 caractères
+   insécables, la limite que le champ laisse saisir, faisait déborder le
+   sous-titre de 106 px à 320 px. Nommé, il se tronque plutôt que de pousser le
+   chiffre hors de l'écran.
+*/
+.prive-sous-titre-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prive-total {
   font-size: 16px;
   letter-spacing: 0;
   text-transform: none;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  /* Un montant ne s'enroule pas, et sa réserve reste dans sa ligne. */
+  white-space: nowrap;
+}
+
+/*
+   Le chiffre déclaré et sa réserve, INDIVISIBLES — et ce qui le tient n'est pas
+   ce qu'on croyait.
+
+   La réserve vivait dans le paragraphe d'à côté, à 4 px sous le montant : mesuré
+   par balayage du défilement, le bord de l'écran passait entre les deux dans 7
+   configurations sur 8, à 320 comme à 390 px. Le montant se lisait alors seul,
+   c'est-à-dire comme un chiffre vérifié — ce qu'aucune règle ne peut garantir.
+
+   Ce qui l'a réglé est le MARQUEUR lui-même, `.prive-declare`, posé dans la
+   ligne du chiffre par `prive.js`. Il n'a besoin d'aucune règle ici.
+
+   ── DEUX GARDES SUFFISANTES, AUCUNE NÉCESSAIRE : CE QUE LES MUTANTS ONT
+      D'ABORD FAIT CROIRE ──
+
+   Le couple a d'abord été tenu par DEUX règles : `white-space: nowrap` et
+   `flex-shrink: 0` sur le montant. Retirées une par une, le contrôle restait
+   VERT les deux fois — chacune couvrait l'absence de l'autre. La conclusion
+   naturelle, « aucune des deux ne porte rien », était fausse : retirées
+   ENSEMBLE, « déclaré » descend de 29 px sous le chiffre, à 320 comme à 390.
+
+   Deux gardes redondantes se disculpent mutuellement sous un mutant qui n'en
+   retire qu'une. La bonne lecture n'est pas « aucune n'est porteuse » mais
+   « chacune SUFFIT, aucune n'est NÉCESSAIRE » — et il faut alors en garder
+   une, celle qui dit la propriété.
+
+   C'est `nowrap`, portée par `.prive-total` : elle énonce qu'un montant ne
+   s'enroule pas et que sa réserve reste dans sa ligne. `flex-shrink: 0`
+   produisait le même effet par un détour de mise en page, et n'est pas
+   revenue. Retirer ce `nowrap` fait tomber `depense-privee.spec.js`, « un
+   prénom hostile et un gros montant ne séparent pas le couple » — vérifié,
+   seul.
+*/
+
+/* Plus petit et plus discret que le chiffre : il le qualifie, il ne le
+   concurrence pas. `--text-secondary` est l'encre que le sous-titre porte
+   déjà — `encre-sur-surface.test.js` la mesure sur cette surface. */
+.prive-declare {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .prive-depense {

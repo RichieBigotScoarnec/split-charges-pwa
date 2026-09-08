@@ -390,16 +390,49 @@ function blocMesDepenses(etat) {
 
   return `
     <div class="prive-liste">
-      <h3 class="prive-sous-titre">
-        Ce mois-ci
-        <span class="prive-total">${formatCurrency(resume.montant)}</span>
-      </h3>
+      ${sousTitrePrive('Ce mois-ci',
+        `<span class="prive-total">${formatCurrency(resume.montant)}</span>`)}
       ${lignes}
       <p class="form-aide">${etat.monPartage.actif
         ? `${escapeHtml(prenomDeLAutre())} voit ce détail : vous le lui avez ouvert.`
         : `${escapeHtml(prenomDeLAutre())} ne voit que ce total et le nombre de dépenses. Jamais les libellés.`}</p>
     </div>
   `;
+}
+
+/**
+ * Le sous-titre d'un bloc : un intitulé à gauche, un montant à droite
+ *
+ * ── UNE SEULE FABRIQUE POUR LES TROIS, ET C'EST LA RAISON DE SON EXISTENCE ──
+ *
+ * Trois sous-titres portaient ce gabarit, écrit trois fois : « Ce mois-ci »,
+ * « Côté X » avec accord, « Côté X » sans. Deux d'entre eux portent un PRÉNOM,
+ * et c'est là que la copie coûtait.
+ *
+ * ── POURQUOI L'INTITULÉ EST ENVELOPPÉ ──
+ *
+ * `.prive-sous-titre` est un conteneur flex. L'intitulé y était un nœud de
+ * texte nu, donc un élément de flex ANONYME — auquel aucune règle CSS ne peut
+ * s'adresser. Il ne pouvait ni rétrécir ni se tronquer, et un prénom de
+ * 30 caractères insécables — la limite que `#prenomVous` laisse saisir —
+ * faisait **déborder le sous-titre de 106 px à 320 px**. Défaut antérieur à ce
+ * lot, et mesuré : la réserve ajoutée à côté du chiffre le portait à 153.
+ *
+ * Enveloppé, il devient un élément nommé : il rétrécit, et se tronque par des
+ * points de suspension plutôt que de pousser le chiffre hors de l'écran. Le
+ * montant, lui, ne se tronque jamais — `flex-shrink: 0` : un prénom abrégé
+ * reste lisible, un montant abrégé serait faux.
+ *
+ * @param {string} intitule - Déjà échappé par l'appelant
+ * @param {string} montant - Fragment HTML du montant, déjà construit
+ * @returns {string} Fragment échappé
+ */
+function sousTitrePrive(intitule, montant) {
+  return `
+    <h3 class="prive-sous-titre">
+      <span class="prive-sous-titre-nom">${intitule}</span>
+      ${montant}
+    </h3>`;
 }
 
 /**
@@ -453,10 +486,8 @@ function blocSonCote(etat) {
 
     return `
       <div class="prive-autre">
-        <h3 class="prive-sous-titre">
-          Côté ${escapeHtml(prenom)}
-          <span class="prive-total">${formatCurrency(resume.montant)}</span>
-        </h3>
+        ${sousTitrePrive(`Côté ${escapeHtml(prenom)}`,
+          `<span class="prive-total">${formatCurrency(resume.montant)}</span>`)}
         ${actives.length === 0
           ? `<p class="empty-state">Aucune dépense privée ce mois-ci.</p>`
           : actives.map(depense => ligneDepensePrivee(depense, { modifiable: false })).join('')}
@@ -471,12 +502,31 @@ function blocSonCote(etat) {
 
   const compte = `${etat.sonResume.nombre} dépense${etat.sonResume.nombre > 1 ? 's' : ''}`;
 
+  // ── LA RÉSERVE ENTRE DANS LA LIGNE DU CHIFFRE — 2026-09-08 ──
+  //
+  // Elle vivait dans le seul paragraphe ci-dessous, à 4 px sous le montant,
+  // dans le même bloc. C'était insuffisant, et mesuré insuffisant : **le bord
+  // de l'écran passait entre les deux.** Sur un balayage complet du défilement,
+  // une position tous les 20 px, le montant se lisait SEUL dans 7 des 8
+  // configurations de largeur et de longueur éprouvées — à 320 comme à 390 px.
+  //
+  // Quelqu'un qui lit « 340,00 € » sans sa réserve le prend pour un chiffre
+  // vérifié. Aucune règle ne peut le vérifier : le serveur n'a pas le droit de
+  // lire ce dont il faudrait faire la somme.
+  //
+  // Le remède n'est pas de remonter le bloc — ça ne dirait rien des autres
+  // positions de défilement, et ça ferait ouvrir l'écran privé sur le total de
+  // quelqu'un d'autre. C'est de rendre le couple INDIVISIBLE : le mot entre
+  // dans la même boîte de ligne que le chiffre, en `nowrap`. Un bord d'écran
+  // ne peut plus passer entre les deux sans couper le chiffre lui-même.
+  //
+  // La phrase entière reste dessous : le mot signale, la phrase explique.
+  // Mesuré : à 320 px le sous-titre passe de une à deux lignes (24 → 42 px),
+  // sans rien rogner ; à 390 il tient sur une seule.
   return `
     <div class="prive-autre">
-      <h3 class="prive-sous-titre">
-        Côté ${escapeHtml(prenom)}
-        <span class="prive-total">${formatCurrency(etat.sonResume.montant)}</span>
-      </h3>
+      ${sousTitrePrive(`Côté ${escapeHtml(prenom)}`,
+        `<span class="prive-total">${formatCurrency(etat.sonResume.montant)} <span class="prive-declare">déclaré</span></span>`)}
       <p class="form-aide">${escapeHtml(compte)} ce mois-ci, sans le détail : ${escapeHtml(prenom)} ne l'a pas ouvert, et c'est son droit. Ce chiffre est déclaré par son application — aucune règle ne peut le vérifier sans lire ce qu'elle n'a pas le droit de lire.</p>
     </div>
   `;

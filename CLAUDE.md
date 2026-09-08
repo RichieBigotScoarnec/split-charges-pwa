@@ -573,6 +573,30 @@ dont le titre est une égalité doit tomber si l'égalité cesse.
 > seconde propriété — aucun libellé ne déborde sa boîte — qui tombe sur ce
 > mutant, et sur lui seul.
 
+> **Et la troisième raison qu'a un mutant de rester vert : DEUX GARDES
+> REDONDANTES SE DISCULPENT MUTUELLEMENT.** Celle-là est la plus retorse, parce
+> qu'elle donne une conclusion exactement inverse de la vérité.
+>
+> Mesuré le 2026-09-08 sur la réserve du total déclaré. Le couple chiffre +
+> réserve était tenu par deux règles CSS : `white-space: nowrap` sur le montant
+> et `flex-shrink: 0` sur le même. Retirées **une par une**, le contrôle est
+> resté vert les deux fois. La lecture naturelle — « aucune des deux ne porte
+> rien, elles sont décoratives, je les enlève » — allait supprimer les deux :
+> retirées **ensemble**, « déclaré » descend de 29 px sous le chiffre, à 320
+> comme à 390, et le bord de l'écran repasse entre les deux.
+>
+> **La bonne lecture n'est pas « aucune n'est porteuse » mais « chacune SUFFIT,
+> aucune n'est NÉCESSAIRE ».** Un mutant qui n'enlève qu'un membre d'une paire
+> redondante ne mesure pas ce membre : il mesure la paire, et la paire tient.
+>
+> **Le geste : quand un mutant reste vert sur une ligne qu'on croyait porteuse,
+> chercher qui d'autre produit le même effet — puis retirer les deux.** Si le
+> contrôle tombe alors, il faut en garder UNE : celle qui **énonce la
+> propriété**, pas celle qui la produit par un détour. Ici `nowrap` dit « le
+> chiffre et sa réserve ne se séparent pas » ; `flex-shrink: 0` disait la même
+> chose en parlant de mise en page, et n'est pas revenue. La garde restante est
+> alors éprouvable seule — vérifié.
+
 > **Un mutant qui TOMBE se lit aussi — sa chute confirme la détection, son
 > MESSAGE dit si le contrôle sait nommer ce qu'il a vu.**
 >
@@ -1168,6 +1192,37 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > l'écrasement comme une intention.
 
 ### Le banc d'essai
+
+- **Le viewport par défaut de Playwright est 1280 × 720, et il s'applique en
+  SILENCE à tout fichier sans `test.use`.** Un contrôle de mise en page mobile
+  qui ne déclare pas sa largeur ne mesure pas le mobile — et rien ne le dit :
+  il n'y a ni avertissement, ni valeur visible, ni trace dans le rapport. Le
+  projet `chromium` de `playwright.config.js` ne déclare aucun `viewport`, donc
+  le défaut de Playwright s'applique tel quel.
+  Mesuré le 2026-09-08 sur la co-visibilité de la réserve du privé, écrite **la
+  veille** pour protéger un déplacement à venir : verte à 1280, rouge à 320 avec
+  son propre semis. **Troisième contrôle de la semaine qui mesure un écran que
+  personne n'affiche** — le grand-livre et le budget tactile étaient anciens,
+  celui-ci a été écrit en connaissance du motif.
+  **Ce n'est PAS un défaut de configuration du projet, et c'est recensé :**
+
+  | | |
+  |---|---:|
+  | specs E2E | 57 |
+  | ne fixent aucune largeur (`viewport`, `setViewportSize`, `devices[…]`) | 32 |
+  | parmi elles, qui touchent une géométrie | 3 |
+  | qui font une **affirmation de mise en page** | **1** |
+
+  Les 29 autres ne mesurent aucune géométrie, et 1280 leur convient. Donner un
+  viewport au projet recontextualiserait **32 fichiers d'un coup** pour n'en
+  corriger qu'un — c'est ce que le dépôt s'interdit depuis la pose de l'écouteur
+  d'exceptions. **La largeur se déclare par fichier, dans celui qui la mesure.**
+  > **Et le viewport n'était que la MOITIÉ du camouflage.** Décomposé par
+  > mutation, correctif retiré : à 1280 avec **zéro** dépense semée — la
+  > configuration exacte du contrôle de la veille — il rend **vert** ; à 1280
+  > avec six, **rouge** ; à 320 et 390 avec six, rouge. Le semis cachait autant
+  > que la largeur, et corriger l'un sans l'autre aurait laissé un contrôle
+  > encore aveugle. Un faux vert a rarement une seule cause.
 
 - **`\b` ne s'apparie JAMAIS contre une lettre accentuée, et le prix est un
   faux vert.** En JavaScript, `\b` est défini sur `[A-Za-z0-9_]` : « à », « é »,
