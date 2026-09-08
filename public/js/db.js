@@ -790,12 +790,90 @@ function delaiEcriture() {
 // d'attendre. C'est le bon compromis : la confidentialité vaut mieux qu'une
 // saisie différée.
 
+
+/**
+ * Le bac à sable n'a pas d'espace privé, et ne touche pas au vrai
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * LE DÉFAUT QUE CETTE GARDE FERME
+ *
+ * `?sandbox=1` bascule `DATA_ROOT` de `household` à `sandbox`. Le détail privé,
+ * lui, ne vit pas sous `household` : il occupe trois racines SŒURS — `prive`,
+ * `aval`, `totauxPrives` — et les quatre accès ci-dessous ne préfixent rien,
+ * par construction et à dessein.
+ *
+ * Le bac à sable lisait donc, et ÉCRIVAIT, le vrai espace privé. Mesuré le
+ * 2026-09-07 : les trois écritures d'essai passaient, et une dépense privée
+ * réelle s'affichait à l'écran. Le bandeau promettait pourtant des « données
+ * d'essai, isolées de celles du foyer ».
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * POURQUOI ICI, ET PAS DANS `prive.js`
+ *
+ * Mesuré avant de choisir : les accès absolus comptent **vingt appels, dans
+ * deux modules** — `prive.js` et `resume-prive.js` — et **tous** visent ces
+ * trois racines. Il n'existe aucun accès absolu qui devrait survivre au bac à
+ * sable, donc la garde n'a aucun collatéral légitime.
+ *
+ * Quatre points de passage plutôt que vingt, et surtout : un module futur qui
+ * appellera `dbGetAbsolu` héritera de la garde au lieu d'avoir à y penser.
+ * C'est la leçon que ce dépôt paie en boucle — une liste tenue à la main ne
+ * couvre que ce dont quelqu'un s'est souvenu.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * ELLE LÈVE, ELLE NE REND PAS `null`
+ *
+ * Un refus enfoui est invisible au point d'appel. S'il rendait `null`,
+ * l'appelant lirait « il n'y a rien » — et le défaut reviendrait déplacé d'un
+ * cran : un vide qui se lit comme une présence sans contenu, et un écran qui
+ * invite à saisir dans un espace qu'on croit jetable.
+ *
+ * @throws {Error} En bac à sable, toujours.
+ * @returns {void}
+ */
+/**
+ * L'espace privé est-il celui du foyer ?
+ *
+ * Lue par la garde ci-dessous ET par l'écran qui doit l'expliquer : une seule
+ * rédaction de « sommes-nous dans le bac à sable ? », parce que deux finiraient
+ * par diverger — et divergeraient sur une frontière de confidentialité.
+ *
+ * @returns {boolean}
+ */
+export function priveDisponible() {
+  return getDataRoot() !== 'sandbox';
+}
+
+/**
+ * Refuse tout accès absolu quand l'espace courant est le bac à sable
+ *
+ * @param {string} chemin
+ * @returns {void}
+ */
+function refuserLePriveHorsDuFoyer(chemin) {
+  // `priveDisponible()` et non `IS_SANDBOX`. Mesuré : `resolveDataRoot` bascule
+  // au bac à sable AUSSI pour un compte cantonné (`SANDBOX_ONLY_EMAILS`), sans
+  // `?sandbox=1` dans l'URL. Se fier au drapeau d'URL aurait laissé ce
+  // compte-là lire et écrire le vrai espace privé — un trou plus large que
+  // celui qu'on ferme, et invisible depuis la barre d'adresse.
+  //
+  // La même fabrique sert à l'écran, qui doit EXPLIQUER ce que cette garde
+  // REFUSE : deux rédactions de « sommes-nous dans le bac à sable ? »
+  // finiraient par ne plus dire la même chose.
+  if (priveDisponible()) return;
+  throw new Error(
+    `Espace privé indisponible en bac à sable (${chemin}) : le privé vit hors `
+    + 'de l\'espace d\'essai, et le bac à sable n\'y touche pas.'
+  );
+}
+
 /**
  * Lecture à un chemin absolu, sans préfixe d'espace
  * @param {string} chemin - Chemin depuis la racine de la base
  * @returns {Promise<*>}
  */
 export async function dbGetAbsolu(chemin) {
+  refuserLePriveHorsDuFoyer(chemin);
   if (!database) throw new Error('Database not initialized');
   const snapshot = await withTimeout(
     database.ref(chemin).once('value'), chemin, delaiLecture());
@@ -809,6 +887,7 @@ export async function dbGetAbsolu(chemin) {
  * @returns {Promise<void>}
  */
 export async function dbSetAbsolu(chemin, donnees) {
+  refuserLePriveHorsDuFoyer(chemin);
   if (!database) throw new Error('Database not initialized');
   await withTimeout(database.ref(chemin).set(donnees), chemin, delaiEcriture());
 }
@@ -820,6 +899,7 @@ export async function dbSetAbsolu(chemin, donnees) {
  * @returns {Promise<void>}
  */
 export async function dbUpdateAbsolu(chemin, modifications) {
+  refuserLePriveHorsDuFoyer(chemin);
   if (!database) throw new Error('Database not initialized');
   await withTimeout(database.ref(chemin).update(modifications), chemin, delaiEcriture());
 }
@@ -831,6 +911,7 @@ export async function dbUpdateAbsolu(chemin, modifications) {
  * @returns {Promise<string>} La clé créée
  */
 export async function dbPushAbsolu(chemin, donnees) {
+  refuserLePriveHorsDuFoyer(chemin);
   if (!database) throw new Error('Database not initialized');
   const reference = database.ref(chemin).push();
   await withTimeout(reference.set(donnees), `${chemin}/${reference.key}`, delaiEcriture());

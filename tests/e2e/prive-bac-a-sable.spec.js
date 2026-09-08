@@ -218,4 +218,46 @@ test.describe('Le privé, hors du bac à sable', () => {
     expect(refus.filter((r) => r === 'ACCEPTÉ'),
       'une écriture privée a été acceptée en bac à sable').toEqual([]);
   });
+
+  test('en bac à sable, une LECTURE absolue rejette — elle ne rend pas le vide', async ({ page }) => {
+    /**
+     * ── POURQUOI CE CAS EXISTE, ET POURQUOI IL EST SÉPARÉ ──
+     *
+     * Le refus vit dans `db.js`, aux quatre accès absolus : c'est le seul point
+     * qu'aucun appelant ne peut contourner, et la mesure du collatéral l'a
+     * autorisé — les vingt appels existants visent tous les trois racines
+     * privées, aucun accès absolu ne doit survivre au bac à sable.
+     *
+     * Mais un refus enfoui est INVISIBLE au point d'appel. S'il rendait `null`,
+     * l'appelant lirait « il n'y a rien » — et on retomberait exactement sur le
+     * défaut qu'on corrige, déplacé d'un cran : un vide qui se lit comme une
+     * présence sans contenu, et un écran qui invite à saisir.
+     *
+     * La propriété est donc que la promesse REJETTE. C'est ce qui force
+     * l'appelant à traiter le cas plutôt qu'à l'ignorer, et c'est ce qui rend
+     * la panne lisible depuis un téléphone.
+     */
+    await ouvrir(page, { sandbox: true });
+    expect(await espace(page), 'prémisse').toBe('sandbox');
+    const p = moisCourant();
+
+    const issue = await page.evaluate(async (periode) => {
+      const { dbGetAbsolu } = await import('/js/db.js');
+      try {
+        const valeur = await dbGetAbsolu(`prive/vous/periods/${periode}/depenses`);
+        return { rejete: false, valeur: valeur === null ? 'null' : typeof valeur };
+      } catch (erreur) {
+        return { rejete: true, message: String(erreur?.message || erreur) };
+      }
+    }, p);
+
+    expect(issue.rejete,
+      `la lecture a rendu « ${issue.valeur} » au lieu de rejeter — un appelant y lirait un espace vide`)
+      .toBe(true);
+
+    // L'erreur doit être NOMMÉE : « undefined is not a function » ferait chercher
+    // un défaut de code là où il y a un refus délibéré.
+    expect(issue.message, `l'erreur ne dit pas pourquoi : « ${issue.message} »`)
+      .toMatch(/bac à sable|priv/i);
+  });
 });
