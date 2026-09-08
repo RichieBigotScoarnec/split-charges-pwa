@@ -544,6 +544,37 @@ rouge ?* Trois réponses le condamnent :
 > sont bornés depuis. **Aucun contrôle unitaire n'est concerné** : jsdom ne fait
 > pas de mise en page.
 
+> **UN FAUX VERT A RAREMENT UNE SEULE CAUSE — et s'arrêter à la première en
+> laisse une en place.** C'est la forme générale de ce que les trois entrées
+> ci-dessus décrivent chacune par un exemple, et elle vaut au-delà d'eux.
+>
+> Quand un contrôle s'avère vert pour rien, on trouve une cause, on la corrige,
+> et la satisfaction de l'avoir trouvée arrête la recherche. Or les conditions
+> qui rendent un défaut invisible **se composent** : il suffit qu'une seule
+> subsiste pour que le contrôle reste aveugle — et il sera alors vert *après*
+> correction, ce qui est pire qu'avant, puisqu'on le croira réparé.
+>
+> Mesuré le 2026-09-08 sur la co-visibilité de la réserve du privé, par
+> décomposition, correctif applicatif retiré :
+>
+> | | verdict |
+> |---|---|
+> | 1280 × 720, **zéro** dépense semée — *le contrôle tel qu'il était* | **vert** |
+> | 1280 × 720, six dépenses | rouge |
+> | 320 et 390, six dépenses | rouge |
+>
+> La cause évidente était la largeur — le viewport par défaut de Playwright. La
+> seconde, invisible, était le **semis** : un écran court ne sépare rien. Chacune
+> suffisait à cacher le défaut. Corriger la largeur seule aurait rendu un
+> contrôle qui paraît réparé, dont on aurait cessé de se méfier, et qui serait
+> resté aveugle au premier écran un peu plus long.
+>
+> **Le geste : après avoir trouvé POURQUOI un contrôle était vert pour rien,
+> demander « et qu'est-ce qui le cacherait ENCORE ? » — puis le vérifier par
+> décomposition**, un facteur à la fois, jusqu'à obtenir le rouge sur chacun.
+> C'est le même raisonnement que les deux gardes redondantes ci-dessus, appliqué
+> aux conditions d'un contrôle plutôt qu'aux lignes d'un correctif.
+
 **Ce qu'elle exige** — tout contrôle neuf porte son **témoin** : un mutant qui le
 fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoin
 **positif** exigeant que les données mesurées soient non dégénérées. Un contrôle
