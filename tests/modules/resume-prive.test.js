@@ -89,7 +89,19 @@ describe('Le bloc privé du résumé', () => {
     });
 
     it('renvoie vers l\'écran privé, où la réciprocité est le sujet', () => {
-      expect(document.querySelector('[data-action="showPrivateExpensesModal"]')).not.toBeNull();
+      // ── LE RENVOI A CHANGÉ DE DESTINATION, PAS DE RAISON D'ÊTRE ──
+      //
+      // Il ouvrait une modale — `showPrivateExpensesModal`. L'espace privé est
+      // une PORTÉE depuis le 2026-09-08 : ce bouton pose `porteeCourante`, et
+      // le résumé rend la vue.
+      //
+      // Il n'a pas été supprimé, et une mesure le justifie seule : une fois
+      // défilé jusqu'à ce bloc, le segment « Privé » est 415 px plus haut à
+      // 320 px. Le retirer coûterait ce défilement à chaque fois.
+      const renvoi = document.querySelector('[data-action="allerALaPortee"]');
+      expect(renvoi).not.toBeNull();
+      expect(renvoi.dataset.arg, 'le renvoi mène ailleurs que dans le privé')
+        .toBe('prive');
     });
   });
 

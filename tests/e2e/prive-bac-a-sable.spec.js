@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Le bac à sable ne touche pas au privé — ni en lecture, ni en écriture
@@ -56,6 +56,24 @@ function semenceReelle() {
   };
 }
 
+/**
+ * Va sur l'espace privé — par le SEGMENT, comme la personne
+ *
+ * Ces cas pilotaient `window.showPrivateExpensesModal()`. L'espace privé est
+ * une VUE depuis le 2026-09-08 : la fonction n'existe plus, et le chemin réel
+ * passe par la troisième portée du sélecteur.
+ *
+ * Le changement compte pour ce fichier-ci plus que pour les autres : ce qu'il
+ * mesure est que le refus du bac à sable arrive bien **par le chemin qu'on
+ * emprunte**. Un refus branché sur une fonction que plus rien n'appelle serait
+ * un contrôle qui mesure une porte condamnée.
+ */
+async function allerAuPrive(page) {
+  await allerAuPanneau(page, 'panneauBilan');
+  await page.locator('.panneau--actif [data-portee="prive"]').click();
+  await page.waitForTimeout(700);
+}
+
 /** Les clés effectivement présentes aux trois racines privées */
 const clesPrivees = (page) => page.evaluate(() =>
   Object.keys(window.__db).filter((c) =>
@@ -87,10 +105,10 @@ test.describe('Le privé, hors du bac à sable', () => {
     expect(await espace(page), 'prémisse : ce cas doit tourner hors bac à sable')
       .toBe('household');
 
-    await page.evaluate(() => window.showPrivateExpensesModal());
-    await expect(page.locator('#modalPrive')).toBeVisible();
-    await expect(page.locator('#modalPrive')).toContainText('Cadeau anniversaire');
-    await expect(page.locator('#modalPrive')).toContainText('137,50');
+    await allerAuPrive(page);
+    await expect(page.locator('#resumePanneauPrive')).toBeVisible();
+    await expect(page.locator('#resumePanneauPrive')).toContainText('Cadeau anniversaire');
+    await expect(page.locator('#resumePanneauPrive')).toContainText('137,50');
   });
 
   test('en bac à sable, aucune dépense privée réelle n\'atteint l\'écran', async ({ page }) => {
@@ -98,8 +116,7 @@ test.describe('Le privé, hors du bac à sable', () => {
     expect(await espace(page), 'prémisse : sans bac à sable, ce cas remesure le mode normal')
       .toBe('sandbox');
 
-    await page.evaluate(() => window.showPrivateExpensesModal && window.showPrivateExpensesModal());
-    await page.waitForTimeout(600);
+    await allerAuPrive(page);
 
     // La recherche porte sur TOUT l'écran, pas sur un conteneur : le refus peut
     // vouloir rendre autre chose qu'une modale, et ce cas doit y survivre.
@@ -126,14 +143,35 @@ test.describe('Le privé, hors du bac à sable', () => {
      * l'échelle de la page.
      *
      * Le refus doit donc tenir dans UN SEUL élément : c'est ce qui distingue une
-     * phrase qui explique de deux mots qui se croisent. Et cette exigence exclut
-     * le bandeau sans avoir à le nommer — son texte ne contient pas « privé ».
+     * phrase qui explique de deux mots qui se croisent.
+     *
+     * ── ET IL A RECOMMENCÉ À MESURER LE BANDEAU — 2026-09-08 ──
+     *
+     * L'exigence « un seul élément » excluait le bandeau « parce que son texte
+     * ne contient pas privé ». Elle était juste le jour où elle a été écrite.
+     * Elle a cessé de l'être quand le bandeau a été AMÉLIORÉ, deux lots plus
+     * tard : il dit maintenant « Bac à sable — données d'essai, isolées de
+     * celles du foyer. **L'espace privé n'y est pas accessible.** » Un seul
+     * élément, les deux motifs, et le cas redevenait vrai sans rien savoir de
+     * l'écran privé.
+     *
+     * Mesuré par mutation : garde explicative retirée, le panneau annonce
+     * « Espace privé illisible — revenez dans un instant » — le refus déguisé
+     * en panne que ce lot existe pour empêcher — et le cas restait VERT.
+     *
+     * Un contrôle peut donc devenir vide parce qu'un VOISIN s'est amélioré.
+     * Rien ne le signale : les deux changements sont bons pris séparément.
+     *
+     * Le remède : chercher dans le panneau RENDU — `.panneau--actif`, le
+     * contrat de balisage que ce dépôt tient déjà — et non dans la page. Le
+     * bandeau vit au-dessus des panneaux, il en sort donc sans être nommé. Et
+     * la seconde moitié, ci-dessous, tient ce que le mutant a révélé : un refus
+     * ne se déguise pas en panne.
      */
     await ouvrir(page, { sandbox: true });
     expect(await espace(page), 'prémisse').toBe('sandbox');
 
-    await page.evaluate(() => window.showPrivateExpensesModal && window.showPrivateExpensesModal());
-    await page.waitForTimeout(600);
+    await allerAuPrive(page);
 
     const phrases = await page.evaluate(() => {
       const visible = (el) => el.checkVisibility && el.checkVisibility()
@@ -146,17 +184,44 @@ test.describe('Le privé, hors du bac à sable', () => {
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim();
-      return [...document.querySelectorAll('body *')]
-        .filter(visible)
-        .map(propre)
-        .filter((t) => t.length > 20);
+      const panneau = document.querySelector('.panneau--actif');
+      return {
+        dansLePanneau: panneau
+          ? [...panneau.querySelectorAll('*')].filter(visible).map(propre).filter((t) => t.length > 20)
+          : null,
+        toutLEcran: [...document.querySelectorAll('body *')]
+          .filter(visible).map(propre).filter((t) => t.length > 20)
+      };
     });
 
-    const refus = phrases.filter((t) => /priv/i.test(t)
-      && /bac à sable|espace d'essai|indisponible|pas accessible|n'est pas/i.test(t));
+    expect(phrases.dansLePanneau, 'prémisse : aucun panneau rendu, rien à lire')
+      .not.toBeNull();
 
-    expect(refus, `aucune phrase ne dit pourquoi le privé se tait ici — ${phrases.length} phrases lues`)
+    const explique = (t) => /priv/i.test(t)
+      && /bac à sable|espace d'essai|indisponible|pas accessible|n'est pas/i.test(t);
+
+    const refus = phrases.dansLePanneau.filter(explique);
+
+    expect(refus,
+      'aucune phrase du panneau ne dit pourquoi le privé se tait ici — '
+      + `${phrases.dansLePanneau.length} phrases lues dans le panneau, `
+      + `${phrases.toutLEcran.filter(explique).length} sur l'écran entier (le bandeau en fait partie)`)
       .not.toHaveLength(0);
+
+    // ── ET IL NE SE DÉGUISE PAS EN PANNE ──
+    //
+    // C'est la moitié que le mutant a révélée. Sans la garde, la lecture est
+    // rejetée par `db.js` — la confidentialité tient — mais l'écran annonce
+    // « Espace privé illisible, revenez dans un instant ». Deux fois faux : ce
+    // n'est pas illisible, et revenir ne changera rien. On envoie quelqu'un
+    // attendre une panne qui n'existe pas.
+    const panneEnDeguisement = phrases.dansLePanneau.filter((t) =>
+      /illisible|réessayez|revenez|indisponible pour l'instant/i.test(t));
+
+    expect(panneEnDeguisement,
+      `le refus se donne des airs de panne — « ${panneEnDeguisement[0]} » : `
+      + 'rien n\'est cassé, et rien ne marchera mieux tout à l\'heure')
+      .toHaveLength(0);
   });
 
   test('en bac à sable, aucune saisie de dépense privée n\'est atteignable', async ({ page }) => {
@@ -169,11 +234,10 @@ test.describe('Le privé, hors du bac à sable', () => {
     await ouvrir(page, { sandbox: true });
     expect(await espace(page), 'prémisse').toBe('sandbox');
 
-    await page.evaluate(() => window.showPrivateExpensesModal && window.showPrivateExpensesModal());
-    await page.waitForTimeout(600);
+    await allerAuPrive(page);
 
     const champs = await page.evaluate(() =>
-      [...document.querySelectorAll('#modalPrive input, #modalPrive textarea, #modalPrive select')]
+      [...document.querySelectorAll('#resumePanneauPrive input, #resumePanneauPrive textarea, #resumePanneauPrive select')]
         .filter((el) => el.checkVisibility && el.checkVisibility())
         .map((el) => el.id || el.name || el.type));
 

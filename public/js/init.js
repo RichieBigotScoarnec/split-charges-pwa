@@ -41,7 +41,7 @@
 // `tests/actions-declarees.test.js` la compare au balisage réel et tombe dès
 // qu'un `data-action` la déborde — ou qu'elle garde un nom devenu inutile.
 const ACTIONS_AUTORISEES = new Set([
-  'appliquerCategorieAuLot', 'appliquerEnveloppeAuLot',
+  'allerALaPortee', 'appliquerCategorieAuLot', 'appliquerEnveloppeAuLot',
   'basculerChargeChoisie', 'basculerModeSelection',
   'changePeriod', 'clearSearch', 'closeModal', 'closeQuickAddModal',
   'createAccount', 'creerEnveloppeProposee', 'declarerAbonnementsProposes',
@@ -55,7 +55,7 @@ const ACTIONS_AUTORISEES = new Set([
   'restoreFromTrash', 'saveCategoryBudgets', 'saveMembers',
   'saveReminderSettings', 'selectShareMode', 'settleBalance',
   'showBackup', 'showBudgetEditor', 'showManageCategoriesModal',
-  'showImportModal', 'showManageDestinationsModal', 'showManageEnvelopesModal', 'showPrivateExpensesModal',
+  'showImportModal', 'showManageDestinationsModal', 'showManageEnvelopesModal',
   'showMapModal', 'showQuickAddModal', 'showTrash', 'signInWithEmail',
   'signInWithGoogle', 'signOut', 'supprimerLaSelection',
   'toutSelectionner', 'toggleBudgetInput', 'toggleCarryOver',

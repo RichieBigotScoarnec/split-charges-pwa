@@ -183,12 +183,73 @@ test.describe('Ce que chaque onglet porte', () => {
   });
 
   test('le bilan ne garde que les lectures du mois', async ({ page }) => {
-    // Dix boutons se disputaient cette rangée. N'y restent que les enveloppes
-    // et le privé — la carte s'ajoute quand une dépense est localisée.
+    // Dix boutons se disputaient cette rangée. N'y restent que les enveloppes —
+    // la carte s'ajoute quand une dépense est localisée.
+    //
+    // ── « PRIVÉ » A QUITTÉ LA RANGÉE, ET CE CAS CHANGE DE SUJET AVEC LUI ──
+    //
+    // Il exigeait sa présence. L'espace privé est une PORTÉE depuis le
+    // 2026-09-08 : le segment le gouverne, en tête du panneau. Un bouton qui
+    // double un segment situé plus haut est une seconde surface, et deux
+    // surfaces pour l'espace privé liraient la base séparément.
+    //
+    // Ce que le cas tient n'a pas bougé d'un mot : cette rangée ne porte que
+    // des LECTURES DU MOIS, et rien ne s'y ajoute sans qu'on l'ait voulu. Son
+    // absence est désormais tenue par `prive-en-vue.spec.js`, avec la prémisse
+    // qui va avec — sans elle, « Privé n'y est pas » serait satisfait par une
+    // rangée disparue.
     const boutons = await page.locator('.acces-rapides .btn:visible').allInnerTexts();
-    expect(boutons.length).toBeLessThanOrEqual(3);
+    expect(boutons.length).toBeLessThanOrEqual(2);
     expect(boutons.join(' ')).toContain('Enveloppes');
-    expect(boutons.join(' ')).toContain('Privé');
+  });
+
+  test('un outil de lecture ne se peint pas comme l\'action principale', async ({ page }) => {
+    /**
+     * ── CE QUE LE DÉPART DE « PRIVÉ » A LAISSÉ DERRIÈRE LUI ──
+     *
+     * `.acces-rapides .btn` porte `flex: 1` : les boutons se partagent la
+     * rangée en parts égales. C'était juste à deux ou trois ; à UN, le bouton
+     * restant prend toute la largeur et se lit comme le geste principal de
+     * l'écran — alors que « Enveloppes » est un outil qu'on ouvre rarement.
+     *
+     * Mesuré sur la rangée RÉELLE, et pas sur une simulation par `hidden` — ce
+     * n'est pas le même calcul flex, et ce dépôt l'a déjà payé une fois :
+     *
+     *     largeur      Enveloppes seul     avec Carte
+     *     320          238 px              238 + 238, deux lignes
+     *     390          308 px              150 + 150
+     *     1280         402 px              197 + 197
+     *
+     * LA PROPRIÉTÉ EST SANS SEUIL : la largeur d'un outil ne dépend pas du
+     * nombre de ses voisins. « Pas plus de 70 % de la rangée » aurait demandé
+     * de justifier 70, et se serait périmé au premier changement d'espacement.
+     */
+    const mesure = async () => page.evaluate(() => {
+      const rangee = document.querySelector('.acces-rapides');
+      const enveloppes = [...rangee.querySelectorAll('.btn')]
+        .find((b) => /enveloppes/i.test(b.innerText));
+      return enveloppes ? Math.round(enveloppes.getBoundingClientRect().width) : null;
+    });
+
+    const seul = await mesure();
+    expect(seul, 'prémisse : « Enveloppes » n\'est pas dans la rangée').not.toBeNull();
+
+    // La carte apparaît quand une dépense est localisée : c'est le seul cas où
+    // la rangée en porte deux.
+    await page.evaluate(() => {
+      const b = document.getElementById('mapButton');
+      if (b) b.hidden = false;
+    });
+    await page.waitForTimeout(200);
+
+    const accompagne = await mesure();
+    expect(accompagne, 'prémisse : la carte n\'est pas apparue').not.toBeNull();
+
+    expect(Math.abs(seul - accompagne),
+      `« Enveloppes » mesure ${seul} px seul et ${accompagne} px accompagné : `
+      + 'un outil qui s\'étire sur toute la rangée dès qu\'il est seul se lit '
+      + 'comme l\'action principale de l\'écran')
+      .toBeLessThanOrEqual(1);
   });
 
   test('les huit autres outils sont dans les réglages, groupés', async ({ page }) => {

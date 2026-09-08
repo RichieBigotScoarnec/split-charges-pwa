@@ -23,6 +23,7 @@ import { parseMontantOu } from '../utils/montant.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { PORTEES, porteeRetenue } from '../utils/portee.js';
 import { marquerLeSoldeDu } from './selecteur-portee.js';
+import { remplirLePanneauPrive } from './prive.js';
 
 /**
  * Quelle question le résumé affiche
@@ -45,14 +46,20 @@ import { marquerLeSoldeDu } from './selecteur-portee.js';
  * Le résumé LIT donc `porteeCourante`, et ne l'écrit jamais. `basculerResume`
  * a disparu, y compris de la liste blanche d'`init.js`.
  *
- * ## « PRIVÉ » REND LE PANNEAU DU FOYER, ET C'EST UNE DETTE ÉCRITE
+ * ## LES TROIS VERSANTS — 2026-09-08, la dette est fermée
  *
- * Le test est `!== SOLO`, pas `=== DEUX` : la vue privée n'existe pas encore,
- * et rendre le versant personnel sous une étiquette qui promet le privé
- * mentirait davantage que de laisser le foyer. Le lot suivant la construit.
+ * « Privé » rendait le panneau du foyer, faute de vue. Elle existe : le
+ * troisième versant pose un conteneur que `prive.js` remplit, et le sélecteur
+ * gouverne enfin ses trois segments.
+ *
+ * Le test était `!== SOLO` et jamais `=== DEUX` — c'était la forme prudente de
+ * la dette. Il est maintenant exhaustif, et c'est `porteeRetenue` qui garantit
+ * qu'une valeur inconnue retombe sur le foyer plutôt que d'ouvrir le privé par
+ * accident : le repli n'est jamais « privé », et le raisonnement est dans
+ * `utils/portee.js`.
  */
-function resumeEnDuo() {
-  return porteeRetenue(getState('porteeCourante')) !== PORTEES.SOLO;
+function versantDuResume() {
+  return porteeRetenue(getState('porteeCourante'));
 }
 
 /**
@@ -80,9 +87,11 @@ export function initSummary() {
  * qu'un dépliant vide se remarque moins qu'un panneau vide : personne ne
  * l'avait vu.
  *
- * Les deux autres commandes restent, elles : « Enveloppes » et « Privé »
- * CRÉENT quelque chose. Les masquer empêcherait d'ouvrir une cagnotte avant
- * d'avoir saisi une dépense, ce qui est un ordre parfaitement légitime.
+ * L'autre commande reste, elle : « Enveloppes » CRÉE quelque chose. La masquer
+ * empêcherait d'ouvrir une cagnotte avant d'avoir saisi une dépense, ce qui est
+ * un ordre parfaitement légitime. « Privé » a quitté cette rangée le
+ * 2026-09-08 — c'est une portée — et le même raisonnement vaut pour son
+ * segment : il ne se masque pas sur un écran vide.
  */
 function refreshTrendsVisibility(historique) {
   const section = document.getElementById('trendsSection');
@@ -164,6 +173,30 @@ export function calculateSummary({ historique } = {}) {
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
       updateBalanceBar(null, '');
+
+      // ── L'ESPACE PRIVÉ NE DEMANDE AUCUN SALAIRE, ET NE DOIT PAS EN
+      //    DEMANDER — trouvé le 2026-09-08 en câblant la vue ──
+      //
+      // Ce chemin sortait avant tout rendu de panneau. La portée « Privé »
+      // serait donc restée inatteignable tant que les deux revenus ne sont pas
+      // saisis — alors que le privé n'a rien à voir avec le prorata : c'est
+      // l'argent de chacun, pas la clé de partage.
+      //
+      // C'est exactement le défaut que ce bloc a déjà corrigé une fois, deux
+      // commentaires plus haut : l'application obligeait deux personnes à se
+      // divulguer leurs revenus pour se servir d'un partage à parts égales. Le
+      // faire pour l'espace privé serait la même faute, en pire — demander des
+      // revenus pour accéder à ce qu'on garde pour soi.
+      if (versantDuResume() === PORTEES.PRIVE) {
+        summaryElement.innerHTML =
+          '<div class="summary-card">'
+          + '<div class="resume-panneau" id="resumePanneauPrive">'
+          + '<p class="empty-state">Lecture de votre espace privé…</p>'
+          + '</div></div>';
+        remplirLePanneauPrive();
+        return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
+      }
+
       summaryElement.innerHTML =
         '<div class="empty-state">' +
         '<p>Renseignez vos deux salaires pour obtenir le bilan du mois.</p>' +
@@ -817,7 +850,9 @@ function renderSummary(summary) {
   // détruites avec le panneau, et `blocPriveDuResume` n'écrit jamais qu'un état
   // masqué. Aucun changement de portée ne peut donc laisser un montant privé
   // derrière lui, et il n'y a pas de second chemin à tenir à jour.
-  const enDuo = resumeEnDuo();
+  const versant = versantDuResume();
+  const enDuo = versant === PORTEES.DEUX;
+  const enPrive = versant === PORTEES.PRIVE;
 
   summaryElement.innerHTML = `
     <div class="summary-card">
@@ -883,6 +918,9 @@ function renderSummary(summary) {
              📄 Le mois en un coup d'œil
            </button>`
         : ''}
+      </div>` : enPrive ? `
+      <div class="resume-panneau" id="resumePanneauPrive">
+        <p class="empty-state">Lecture de votre espace privé…</p>
       </div>` : `
       <div class="resume-panneau" id="resumePanneauSolo">
         ${renderPanneauSolo(moisPersonnel, nomConjointe)}
@@ -946,6 +984,16 @@ function renderSummary(summary) {
   // plus. Sans ce rappel, l'observation resterait posée sur un nœud détaché —
   // ce qui ne lève rien, mais fige la barre dans son dernier état.
   suivreLeBilan();
+
+  // L'espace privé demande quatre lectures en base ; ce rendu-ci est synchrone.
+  // Le conteneur est donc posé vide, et rempli quand la base a répondu.
+  //
+  // Sans `await` — et il ne faut pas en mettre un : `calculateSummary` est
+  // appelée par une trentaine de sites qui ne l'attendent pas, et la rendre
+  // asynchrone les obligerait tous. La promesse est laissée à elle-même, et
+  // `remplirLePanneauPrive` relit son conteneur après l'attente précisément
+  // parce qu'un autre rendu a pu passer entre-temps.
+  if (enPrive) remplirLePanneauPrive();
 }
 
 /**

@@ -237,6 +237,102 @@ for (const { nom, viewport } of LARGEURS) {
   });
 }
 
+test.describe('Aucun montant dévoilé ne survit à un changement de portée', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  /**
+   * ─────────────────────────────────────────────────────────────────────
+   * CE QUI ÉTAIT VRAI PAR CONSTRUCTION, ET QUI CHANGE DE CONSTRUCTION
+   *
+   * `summary.js` documentait sa garantie ainsi : « les lignes dévoilées sont
+   * détruites avec le panneau, et `blocPriveDuResume` n'écrit jamais qu'un état
+   * masqué. Aucun changement de portée ne peut donc laisser un montant privé
+   * derrière lui, et il n'y a pas de second chemin à tenir à jour. »
+   *
+   * Elle reposait sur un fait de mise en œuvre : le panneau inactif n'est pas
+   * dans le document. La vue privée ajoute un **second chemin de rendu** —
+   * `remplirLePanneauPrive`, qui réécrit son seul conteneur sans repasser par
+   * `calculateSummary`. La garantie doit donc être MESURÉE, et non plus déduite
+   * de la forme : c'est le motif vu trois fois cette semaine, une propriété
+   * vraie par construction qui cesse de l'être quand la construction change.
+   *
+   * Le montant privé masqué vit dans le versant PERSONNEL, pas dans la vue
+   * privée — celle-ci montre ses chiffres en clair, et c'est son objet : on y
+   * va délibérément. Ce qui est tenu ici, c'est qu'un aller-retour par la vue
+   * ne laisse pas le versant personnel dévoilé derrière lui.
+   */
+  test('dévoilé, puis un aller-retour par la vue privée : il est remasqué', async ({ page }) => {
+    await ouvrir(page);
+    await page.locator('.panneau--actif [data-portee="solo"]').click();
+    await page.waitForTimeout(700);
+
+    const valeur = page.locator('.resume-prive-ligne .resume-prive-valeur');
+    const afficher = page.locator('.resume-prive-ligne .resume-prive-bouton');
+
+    // ── LA PRÉMISSE, ET ELLE EST TOUT LE CAS ──
+    // « Le montant est masqué » est satisfait par un dévoilement qui n'a jamais
+    // marché. Il faut donc VOIR le montant avant d'exiger sa disparition.
+    await afficher.scrollIntoViewIfNeeded();
+    await afficher.click();
+    await page.waitForTimeout(800);
+
+    const devoile = (await valeur.innerText()).trim();
+    expect(devoile,
+      'prémisse : le dévoilement n\'affiche rien, « remasqué » ne mesure alors rien')
+      .not.toBe('');
+    expect(await valeur.getAttribute('class'), 'prémisse : la ligne est restée masquée')
+      .not.toContain('resume-prive-valeur--masque');
+
+    // L'aller-retour par la vue privée, qui a son propre chemin de rendu.
+    await page.locator('.panneau--actif [data-portee="prive"]').click();
+    await page.waitForTimeout(700);
+    await page.locator('.panneau--actif [data-portee="solo"]').click();
+    await page.waitForTimeout(700);
+
+    const apres = page.locator('.resume-prive-ligne .resume-prive-valeur');
+    expect(await apres.innerText(),
+      `le montant privé « ${devoile} » a survécu au passage par la vue privée`)
+      .toBe('');
+    expect(await apres.getAttribute('class'),
+      'la ligne n\'est pas revenue à son état masqué')
+      .toContain('resume-prive-valeur--masque');
+  });
+
+  test('et il ne survit pas non plus à une écriture faite dans la vue', async ({ page }) => {
+    /**
+     * Le second chemin, et celui que le lot a créé : une saisie dans la vue
+     * privée appelle `remplirLePanneauPrive`, qui réécrit son conteneur SANS
+     * repasser par `calculateSummary`. Si ce chemin laissait le versant
+     * personnel intact en mémoire, un montant dévoilé pourrait y réapparaître
+     * au retour.
+     */
+    await ouvrir(page);
+    await page.locator('.panneau--actif [data-portee="solo"]').click();
+    await page.waitForTimeout(700);
+
+    const afficher = page.locator('.resume-prive-ligne .resume-prive-bouton');
+    await afficher.scrollIntoViewIfNeeded();
+    await afficher.click();
+    await page.waitForTimeout(800);
+    expect((await page.locator('.resume-prive-ligne .resume-prive-valeur').innerText()).trim(),
+      'prémisse : rien n\'a été dévoilé').not.toBe('');
+
+    await page.locator('.panneau--actif [data-portee="prive"]').click();
+    await page.waitForTimeout(700);
+    await page.locator('#priveMontant').fill('45');
+    await page.locator('#priveAjouter').click();
+    await page.waitForTimeout(900);
+
+    await page.locator('.panneau--actif [data-portee="solo"]').click();
+    await page.waitForTimeout(700);
+
+    const valeur = page.locator('.resume-prive-ligne .resume-prive-valeur');
+    expect(await valeur.innerText(), 'un montant dévoilé a survécu à une écriture privée')
+      .toBe('');
+    expect(await valeur.getAttribute('class')).toContain('resume-prive-valeur--masque');
+  });
+});
+
 test.describe('Une seule porte vers l\'espace privé', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 

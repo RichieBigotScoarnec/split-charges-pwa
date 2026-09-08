@@ -165,71 +165,55 @@ async function publierLeTotal(emplacement, periode, depenses) {
 }
 
 /**
- * Ouvre l'écran des dépenses privées
- * @returns {Promise<void>}
- */
-/**
- * L'écran qui dit pourquoi le privé se tait dans le bac à sable
+ * L'espace privé, rendu dans le panneau du bilan
  *
  * ─────────────────────────────────────────────────────────────────────
- * POURQUOI UN REFUS, ET PAS UN ÉCRAN VIDE
+ * C'ÉTAIT UNE MODALE, ET ELLE EST PARTIE — 2026-09-08
+ *
+ * `showPrivateExpensesModal` ouvrait une couche par-dessus l'écran. Le
+ * sélecteur de portée offrait par ailleurs un segment « Privé » qui ne
+ * gouvernait rien. Garder les deux aurait donné **deux surfaces pour le même
+ * espace**, et ce n'aurait pas été un simple désaccord d'étiquette comme celui
+ * des deux sélecteurs : la modale et la vue lisent la base séparément, donc un
+ * partage refermé dans l'une serait resté ouvert dans l'autre. Une divergence
+ * sur une frontière de confidentialité coûte plus cher qu'un chiffre affiché
+ * deux fois.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * LE REMPLISSAGE EST ASYNCHRONE, LE PANNEAU NE L'EST PAS
+ *
+ * `calculateSummary` est synchrone et écrit tout son panneau d'un coup ; la
+ * lecture du privé demande quatre appels à la base. Le panneau pose donc un
+ * conteneur vide, et cette fonction le remplit quand elle sait. C'est
+ * exactement ce que fait déjà `resume-prive.js` pour son montant masqué.
+ *
+ * Le conteneur est relu à chaque fois plutôt que retenu : entre deux appels,
+ * `calculateSummary` a pu réécrire le panneau, et un nœud gardé en mémoire
+ * serait détaché — on écrirait dans un fragment que personne ne voit.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE QU'ELLE DIT QUAND LE PRIVÉ N'EST PAS DE CE MONDE-CI
  *
  * Un privé vide dans le bac à sable est indiscernable d'un privé réel qui n'a
  * rien ce mois-ci. C'est une absence qui se lit comme une présence sans
  * contenu — et surtout, elle INVITE À SAISIR : on croit essayer dans un espace
- * jetable, et la garde de `db.js` refusera l'écriture après coup.
+ * jetable, et la garde de `db.js` refusera l'écriture après coup. Le refus
+ * arrive donc avant la saisie, et il porte sa raison.
  *
- * Le refus arrive donc avant la saisie, et il porte sa raison.
+ * Il ne porte AUCUN CHAMP : une explication qui laisse le formulaire ouvert
+ * n'empêche rien, et `prive-bac-a-sable.spec.js` tient les deux moitiés
+ * séparément — la phrase, et l'absence de saisie.
  *
- * ─────────────────────────────────────────────────────────────────────
- * IL NE PORTE AUCUN CHAMP
+ * Et il n'a plus de bouton « Fermer ». Il en portait un quand il était une
+ * modale ; une vue ne se referme pas — on en sort en choisissant une autre
+ * portée, et le sélecteur est juste au-dessus.
  *
- * Pas de formulaire, pas de bascule de partage : une explication qui laisse le
- * formulaire ouvert n'empêche rien, et `prive-bac-a-sable.spec.js` tient les
- * deux moitiés séparément — la phrase, et l'absence de saisie.
- *
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function rendreLeRefusDuBacASable() {
-  let modal = document.getElementById('modalPrive');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'modalPrive';
-    modal.className = 'modal-overlay';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-labelledby', 'priveTitre');
-    document.body.appendChild(modal);
-  }
+export async function remplirLePanneauPrive() {
+  const conteneur = document.getElementById('resumePanneauPrive');
+  if (!conteneur) return;
 
-  modal.innerHTML = `
-    <div class="modal prive-modal">
-      <h2 class="modal-header" id="priveTitre">🔒 Dépenses privées</h2>
-
-      <p class="empty-state">Le bac à sable ne donne pas accès à l'espace privé : le privé vit hors de l'espace d'essai, et rien n'y est ni lu ni écrit ici.</p>
-
-      <p class="form-aide">Vos dépenses privées réelles sont intactes, et elles le restent — elles vous attendent hors du bac à sable.</p>
-
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="priveFermer">Fermer</button>
-      </div>
-    </div>
-  `;
-
-  // La même fermeture que l'écran ordinaire, ligne 490 : la classe part, puis
-  // le display, le temps de la transition. Recopier trois lignes plutôt que
-  // d'appeler `closeModal` garde ce refus indépendant de `components/modal.js`,
-  // qu'il n'a aucune raison d'importer pour un bouton.
-  modal.querySelector('#priveFermer').addEventListener('click', () => {
-    modal.classList.remove('active');
-    setTimeout(() => { modal.style.display = 'none'; }, 300);
-  });
-
-  modal.style.display = 'flex';
-  requestAnimationFrame(() => modal.classList.add('active'));
-}
-
-async function showPrivateExpensesModal() {
   // Le bac à sable n'a pas d'espace privé, et ne touche pas au vrai.
   //
   // La garde dure vit dans `db.js`, sur les quatre accès absolus : c'est elle
@@ -241,46 +225,40 @@ async function showPrivateExpensesModal() {
   // pas illisible, et réessayer ne changera rien. Un refus qui se déguise en
   // panne fait chercher une cause qui n'existe pas.
   if (!priveDisponible()) {
-    rendreLeRefusDuBacASable();
+    // Le littéral est écrit ICI plutôt que dans une constante ou une fonction :
+    // `tools/plafond-innerhtml.mjs` compte un site d'injection dès qu'il ne
+    // peut pas LIRE ce qui est assigné, et le plafond est à 24 avec marge
+    // nulle, à dessein. Ce texte n'interpole rien ; la règle doit pouvoir le
+    // constater elle-même.
+    conteneur.innerHTML = `
+    <p class="empty-state">Le bac à sable ne donne pas accès à l'espace privé : le privé vit hors de l'espace d'essai, et rien n'y est ni lu ni écrit ici.</p>
+
+    <p class="form-aide">Vos dépenses privées réelles sont intactes, et elles le restent — elles vous attendent hors du bac à sable.</p>
+  `;
     return;
   }
 
   const etat = await lireLEtat();
   if (!etat) {
+    conteneur.innerHTML = '<p class="empty-state">Espace privé illisible — revenez dans un instant.</p>';
     toast.error('Espace privé illisible — réessayez');
     return;
   }
 
-  let modal = document.getElementById('modalPrive');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'modalPrive';
-    modal.className = 'modal-overlay';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-labelledby', 'priveTitre');
-    document.body.appendChild(modal);
-  }
+  // Le conteneur est relu ICI, après l'attente : le panneau a pu être réécrit
+  // pendant la lecture — un changement de mois, une charge ajoutée — et le nœud
+  // d'avant serait alors détaché.
+  const cible = document.getElementById('resumePanneauPrive');
+  if (!cible) return;
 
-  modal.innerHTML = `
-    <div class="modal prive-modal">
-      <h2 class="modal-header" id="priveTitre">🔒 Dépenses privées</h2>
-
-      ${blocPartage(etat)}
-      ${blocSaisie(etat)}
-      ${blocMesDepenses(etat)}
-      ${blocSonCote(etat)}
-
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="priveFermer">Fermer</button>
-      </div>
-    </div>
+  cible.innerHTML = `
+    ${blocPartage(etat)}
+    ${blocSaisie(etat)}
+    ${blocMesDepenses(etat)}
+    ${blocSonCote(etat)}
   `;
 
-  brancherLEcran(modal, etat);
-
-  modal.style.display = 'flex';
-  requestAnimationFrame(() => modal.classList.add('active'));
+  brancherLEcran(cible, etat);
 }
 
 /**
@@ -535,18 +513,14 @@ function blocSonCote(etat) {
 /**
  * Branche les commandes de l'écran
  *
- * Le balisage est reconstruit à chaque ouverture : les écouteurs meurent avec
- * lui, il n'y a rien à retirer.
+ * Le balisage est reconstruit à chaque rendu : les écouteurs meurent avec lui,
+ * il n'y a rien à retirer.
  *
- * @param {HTMLElement} modal
+ * @param {HTMLElement} ecran - Le conteneur de la vue
  * @param {Object} etat
  * @returns {void}
  */
 function brancherLEcran(modal, etat) {
-  modal.querySelector('#priveFermer').addEventListener('click', () => {
-    modal.classList.remove('active');
-    setTimeout(() => { modal.style.display = 'none'; }, 300);
-  });
 
   // L'accès qu'on ouvre sur SES PROPRES dépenses. Écrit sous notre propre
   // emplacement : c'est notre espace qu'on ouvre, et la règle serveur exige
@@ -587,7 +561,7 @@ function brancherLEcran(modal, etat) {
       }
 
       toast.success(annonces[voulue](prenomDeLAutre()));
-      await showPrivateExpensesModal();
+      await remplirLePanneauPrive();
     });
   });
 
@@ -628,7 +602,7 @@ function brancherLEcran(modal, etat) {
       }
 
       toast.success('Dépense privée enregistrée');
-      await showPrivateExpensesModal();
+      await remplirLePanneauPrive();
     };
 
     bouton.addEventListener('click', enregistrer);
@@ -659,7 +633,7 @@ function brancherLEcran(modal, etat) {
       }
 
       toast.success('Dépense supprimée');
-      await showPrivateExpensesModal();
+      await remplirLePanneauPrive();
     });
   });
 }
@@ -671,6 +645,3 @@ function brancherLEcran(modal, etat) {
 export function initPrive() {
   log('📦 Module dépenses privées initialisé');
 }
-
-window.showPrivateExpensesModal = showPrivateExpensesModal;
-export { showPrivateExpensesModal };

@@ -357,9 +357,11 @@
         <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
           <span aria-hidden="true">🧳</span> Enveloppes
         </button>
-        <button type="button" class="btn btn-secondary" data-action="showPrivateExpensesModal" title="Vos dépenses privées, et l'accord mutuel qui les autorise">
-          <span aria-hidden="true">🔒</span> Privé
-        </button>
+        <!-- « Privé » a quitté cette rangée le 2026-09-08 : il est devenu une
+             PORTÉE, gouvernée par le segment en tête du panneau. Un bouton qui
+             double un segment situé plus haut est une seconde surface, et deux
+             surfaces pour l'espace privé liraient la base séparément — un
+             partage refermé dans l'une serait resté ouvert dans l'autre. -->
         <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
              la carte se trouvait dans un panneau en display:none, ce qui la
              rendait inatteignable. Elle reste ici, avec les lectures du mois :
