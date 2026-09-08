@@ -511,6 +511,28 @@ dont le titre est une égalité doit tomber si l'égalité cesse.
 > seconde propriété — aucun libellé ne déborde sa boîte — qui tombe sur ce
 > mutant, et sur lui seul.
 
+> **Un mutant qui TOMBE se lit aussi — sa chute confirme la détection, son
+> MESSAGE dit si le contrôle sait nommer ce qu'il a vu.**
+>
+> Le pendant du précédent, et il est plus discret : là on interroge un mutant
+> resté vert, ici un mutant qui tombe bien. On coche, on passe — et on laisse un
+> contrôle qui accuse la mauvaise cause.
+>
+> Mesuré le 2026-09-08 sur la co-visibilité de la réserve du privé. Le mutant
+> « réserve dans un dépliant fermé » faisait bien tomber le contrôle, mais sur
+> le message **« le total déclaré est rendu SANS sa réserve »** — c'est-à-dire
+> sur une ABSENCE, quand il y avait un REPLI. La cause était juste, le rapport
+> envoyait chercher à côté.
+>
+> La raison tenait à la sonde : elle cherchait la réserve parmi les seuls
+> éléments **visibles**, et un contenu de `<details>` fermé n'en est pas un. Elle
+> parcourt désormais tous les éléments et distingue trois issues — absente,
+> repliée, hors de la vue — chacune avec sa phrase.
+>
+> **Le geste : après avoir vu un mutant tomber, LIRE son message et se demander
+> s'il envoie au bon endroit.** Un contrôle qui nomme mal ce qu'il a vu coûte le
+> temps de celui qui le croira.
+
 > **Un jeu d'essai qui ne porte que le cas coupable-mais-indulgent laisse passer
 > un correctif partiel.** Corollaire du précédent, et il vise l'entrée du
 > contrôle plutôt que sa sortie.
@@ -561,7 +583,7 @@ double doit produire du balisage qu'on puisse compter.
 
 ### 2. Deux fabriques d'une même grandeur finissent toujours par diverger
 
-**8 avérées, 2 évitées parce que le motif était nommé — détail en archive.** Dite
+**9 avérées, 2 évitées parce que le motif était nommé — détail en archive.** Dite
 « le défaut `normalizePair` », du nom de la première. Les deux évitées sont la
 meilleure preuve que la règle sert : elle a déjà payé, pas seulement coûté.
 
@@ -585,6 +607,32 @@ que la divergence a vécu si longtemps sans qu'un contrôle bronche.
 **Et la règle vaut hors du monétaire** — la septième occurrence portait sur des
 messages d'erreur : deux fonctions rédigeaient chacune les leurs, et celle qui
 courait le plus ne disait pas qu'une saisie était refusée.
+
+> **Une COMMANDE est une fabrique, elle aussi — et c'est la forme qu'on ne voit
+> pas venir.** La règle se cherche d'ordinaire dans des calculs : deux totaux,
+> deux médianes, deux fenêtres de mois. Le 2026-09-08, la neuvième occurrence
+> était **un bouton**.
+>
+> Le lot 5 a ajouté un sélecteur de portée écrivant `porteeCourante` dans
+> `state.js`. L'application en avait déjà un : la bascule du résumé, « À deux » /
+> « Moi ce mois-ci », qui écrit `ongletDuResume`, une variable de module de
+> `summary.js`. Deux commandes, deux états, une seule grandeur — et la
+> divergence était immédiate, mesurée sur `main` dans les deux sens : segment sur
+> « Moi » pendant que le résumé annonce « À deux », et l'inverse.
+>
+> **Ce qui l'a rendue invisible : on a mesuré ce que le sélecteur COÛTAIT,
+> jamais ce qu'il DOUBLAIT.** Tout un lot de mesures de géométrie — budget,
+> largeur, cible tactile, marges — et pas une question sur l'existant.
+>
+> **Le geste : avant d'ajouter une commande, chercher qui gouverne déjà cette
+> grandeur.** Une grandeur gouvernée à deux endroits diverge exactement comme
+> une grandeur calculée à deux endroits, et elle se voit moins — parce qu'on
+> cherche un doublon dans le code de calcul, pas dans le balisage.
+>
+> ```bash
+> grep -rn "data-action=\"[a-zA-Z]*\"" public/FairSplit.html   # ce qui commande déjà
+> grep -rn "^let \|^const " public/js/modules/<module>.js       # les états de module
+> ```
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
