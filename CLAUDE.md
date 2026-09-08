@@ -486,6 +486,30 @@ rouge ?* Trois réponses le condamnent :
 > que l'instrument reste vérifiable. Ce qui reste légitimement adossé au réel
 > est la **non-vacuité** du relevé — « plus de zéro », jamais « au moins dix ».
 
+> **Une leçon consignée dans un fichier ne se propage pas à ses voisines du
+> MÊME fichier.** C'est ce qui rend la note précédente coûteuse deux fois.
+>
+> `encre-sur-surface.test.js` portait la leçon **écrite en toutes lettres, trois
+> cas au-dessus** de celles qui sont tombées : *« une garde mesure la CAPACITÉ
+> du contrôle, jamais l'état du code qu'il inspecte »*. Elle avait été payée sur
+> la garde d'`opacity`, elle était exacte, et elle a été appliquée **à la seule
+> garde qui avait rougi ce jour-là**. Les deux voisines, écrites dans la même
+> forme et vulnérables au même geste, sont restées telles quelles jusqu'à
+> tomber à leur tour — ensemble, sur une fusion qui ne cassait rien.
+>
+> Ce n'est pas un oubli de rédaction : un correctif se dimensionne naturellement
+> sur le symptôme qui l'a déclenché, et un fichier de 500 lignes se relit
+> rarement en entier pour vérifier qui d'autre partage le défaut qu'on vient de
+> nommer. **La proximité textuelle donne l'illusion que la leçon couvre le
+> voisinage.** Elle ne couvre que la ligne qu'on a modifiée.
+>
+> **Le geste : quand une garde tombe parce que sa prémisse nommait un
+> exemplaire, relire TOUTES les prémisses du fichier — pas seulement celle qui
+> a rougi.** C'est la règle 4 appliquée non pas à du code recopié mais à une
+> FORME recopiée : trois gardes écrites sur le même patron se dégradent au même
+> geste, et la première qui tombe est le seul avertissement qu'on recevra pour
+> les trois.
+
 > **Une géométrie RENDUE est fractionnaire. Comparer une longueur calculée à une
 > valeur exacte fabrique un contrôle qui rougit au hasard — sur des PR qui n'y
 > sont pour rien.**
