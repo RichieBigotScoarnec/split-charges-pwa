@@ -25,7 +25,7 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
  * `utils/onglets.js` a tranché exactement ce cas, et son raisonnement est
  * écrit en tête de fichier : la délégation d'`init.js` « résout un nom de
  * fonction sur `window` depuis un attribut du DOM, surface qu'une liste
- * blanche de 43 actions borne précisément », et un onglet « n'a pas besoin de
+ * blanche borne précisément », et un onglet « n'a pas besoin de
  * cette puissance ». Un segment de portée non plus : il désigne une valeur
  * d'énumération, que `porteeValide` vérifie avant d'agir. Rien à ajouter à la
  * liste blanche, donc rien de plus à atteindre par une injection HTML.

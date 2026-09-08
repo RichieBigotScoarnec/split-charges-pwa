@@ -42,7 +42,7 @@
 // qu'un `data-action` la déborde — ou qu'elle garde un nom devenu inutile.
 const ACTIONS_AUTORISEES = new Set([
   'appliquerCategorieAuLot', 'appliquerEnveloppeAuLot',
-  'basculerChargeChoisie', 'basculerModeSelection', 'basculerResume',
+  'basculerChargeChoisie', 'basculerModeSelection',
   'changePeriod', 'clearSearch', 'closeModal', 'closeQuickAddModal',
   'createAccount', 'creerEnveloppeProposee', 'declarerAbonnementsProposes',
   'deleteFixedCharge', 'deleteReimbursement',

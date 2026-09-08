@@ -21,55 +21,38 @@ import { expliquerLeReport } from '../utils/explication-solde.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
+import { PORTEES, porteeRetenue } from '../utils/portee.js';
+import { marquerLeSoldeDu } from './selecteur-portee.js';
 
 /**
- * L'onglet du résumé affiché, pour cette session seulement
+ * Quelle question le résumé affiche
  *
- * ## Pourquoi deux onglets
+ * ## Pourquoi deux versants
  *
  * L'application répond à DEUX questions, et une seule avait un chiffre :
  * « qui doit combien à qui » (le foyer) et « qu'est-ce que ce mois me coûte »
  * (moi). Les empiler dans une seule carte met deux montants dominants en
  * concurrence et pousse le second sous la ligne de flottaison sur mobile.
  *
- * ## Pourquoi une variable de module, et non l'état persistant
+ * ## LA COMMANDE N'EST PLUS ICI — 2026-09-08
  *
- * Mémoriser l'onglet à travers les rechargements ferait ouvrir l'application
- * sur « Moi ce mois-ci » — donc sur un écran où un solde impayé n'apparaît
- * nulle part. La portée est donc la session : on garde le choix tant qu'on
- * navigue, et chaque ouverture repart du foyer.
+ * Ce module portait sa propre bascule, `ongletDuResume`, et le sélecteur de
+ * portée en portait une seconde. Deux commandes, deux états, une seule
+ * grandeur : l'écran annonçait « À deux » en haut et « Moi » plus bas, pour le
+ * même mois. C'est la règle 2 dans sa forme la moins visible — **une commande
+ * est une fabrique elle aussi.**
  *
- * Le repli ne suffirait pas seul : c'est pourquoi l'onglet « À deux » porte un
- * repère tant qu'un solde reste dû, y compris quand on l'a quitté.
+ * Le résumé LIT donc `porteeCourante`, et ne l'écrit jamais. `basculerResume`
+ * a disparu, y compris de la liste blanche d'`init.js`.
+ *
+ * ## « PRIVÉ » REND LE PANNEAU DU FOYER, ET C'EST UNE DETTE ÉCRITE
+ *
+ * Le test est `!== SOLO`, pas `=== DEUX` : la vue privée n'existe pas encore,
+ * et rendre le versant personnel sous une étiquette qui promet le privé
+ * mentirait davantage que de laisser le foyer. Le lot suivant la construit.
  */
-let ongletDuResume = 'duo';
-
-/**
- * Bascule le résumé d'un onglet à l'autre
- *
- * Passe par la liste blanche de `init.js` : un `data-action` est un
- * gestionnaire inline que la CSP ne voit pas, et seul un nom déclaré est
- * joignable.
- *
- * @param {'duo'|'solo'} onglet
- * @returns {void}
- */
-export function basculerResume(onglet) {
-  const voulu = onglet === 'solo' ? 'solo' : 'duo';
-  if (voulu === ongletDuResume) return;
-
-  ongletDuResume = voulu;
-  // Un rendu complet plutôt qu'un basculement de classes : le panneau inactif
-  // n'est pas dans le document, ce qui garantit qu'aucun chiffre du foyer ne
-  // reste lisible sous l'onglet personnel — et que `.summary-balance` est
-  // absent quand le solde n'est pas à l'écran, ce dont la barre collante se
-  // sert pour reprendre le relais.
-  //
-  // C'est aussi ce qui referme le bloc privé : les lignes dévoilées sont
-  // détruites avec le panneau, et `blocPriveDuResume` n'écrit jamais qu'un état
-  // masqué. Aucune bascule ne peut donc laisser un montant privé derrière elle,
-  // et il n'y a pas de second chemin à tenir à jour.
-  calculateSummary();
+function resumeEnDuo() {
+  return porteeRetenue(getState('porteeCourante')) !== PORTEES.SOLO;
 }
 
 /**
@@ -77,7 +60,6 @@ export function basculerResume(onglet) {
  */
 export function initSummary() {
   log('📦 Initialisation module summary/bilan');
-  window.basculerResume = basculerResume;
   initResumePrive();
   log('✅ Module summary/bilan initialisé');
 }
@@ -622,33 +604,6 @@ function phraseSolde(solde, montant) {
  * @param {Object} summary - Résumé calculé
  */
 /**
- * La bascule entre les deux questions du résumé
- *
- * Le repère sur « À deux » n'est pas décoratif : il est ce qui rend la mémoire
- * de l'onglet acceptable. Sans lui, quitter le foyer pour le suivi personnel
- * ferait disparaître un solde impayé de tout l'écran.
- *
- * @param {boolean} enDuo - L'onglet foyer est-il actif ?
- * @param {number} solde - Solde net du mois, pour le repère
- * @returns {string}
- */
-function renderOnglets(enDuo, solde) {
-  const repere = solde !== 0
-    ? '<span class="resume-onglet-repere" aria-label="solde à régler">•</span>'
-    : '';
-
-  return `
-    <div class="resume-onglets" role="tablist" aria-label="Résumé du mois">
-      <button type="button" id="resumeOngletDuo" class="resume-onglet${enDuo ? ' resume-onglet--actif' : ''}"
-              role="tab" aria-selected="${enDuo}" aria-controls="resumePanneauDuo"
-              data-action="basculerResume" data-arg="duo">À deux${repere}</button>
-      <button type="button" id="resumeOngletSolo" class="resume-onglet${enDuo ? '' : ' resume-onglet--actif'}"
-              role="tab" aria-selected="${!enDuo}" aria-controls="resumePanneauSolo"
-              data-action="basculerResume" data-arg="solo">Moi ce mois-ci</button>
-    </div>`;
-}
-
-/**
  * Le panneau personnel : ce que le mois me coûte, ce qu'il me reste
  *
  * ## Ce qu'il ne contient pas, et pourquoi
@@ -846,18 +801,28 @@ function renderSummary(summary) {
   // chargeur.
   renderCategoryBudgets();
 
+  // Le repère qui dit qu'un solde reste dû vit sur le segment « À deux » du
+  // sélecteur de portée, hors de cette carte. C'est ce qui empêche une dette de
+  // disparaître de tout l'écran quand on passe au versant personnel — et le
+  // calcul reste ici, chez celui qui l'a fait.
+  marquerLeSoldeDu(finalBalance !== 0);
+
   // Seul le panneau actif est écrit dans le document. C'est ce qui garantit
-  // qu'aucun chiffre du foyer ne reste lisible sous l'onglet personnel — et que
-  // `.summary-balance` est absent quand le solde n'est pas à l'écran, ce dont
-  // `barre-solde.js` se sert pour reprendre le relais : sans témoin, la barre
-  // s'affiche, ce qui est exactement le comportement voulu là.
-  const enDuo = ongletDuResume === 'duo';
+  // qu'aucun chiffre du foyer ne reste lisible sous le versant personnel — et
+  // que `.summary-balance` est absent quand le solde n'est pas à l'écran, ce
+  // dont `barre-solde.js` se sert pour reprendre le relais : sans témoin, la
+  // barre s'affiche, ce qui est exactement le comportement voulu là.
+  //
+  // C'est aussi ce qui referme le bloc privé : les lignes dévoilées sont
+  // détruites avec le panneau, et `blocPriveDuResume` n'écrit jamais qu'un état
+  // masqué. Aucun changement de portée ne peut donc laisser un montant privé
+  // derrière lui, et il n'y a pas de second chemin à tenir à jour.
+  const enDuo = resumeEnDuo();
 
   summaryElement.innerHTML = `
     <div class="summary-card">
-      ${renderOnglets(enDuo, finalBalance)}
       ${enDuo ? `
-      <div class="resume-panneau" id="resumePanneauDuo" role="tabpanel" aria-labelledby="resumeOngletDuo">
+      <div class="resume-panneau" id="resumePanneauDuo">
       <div class="summary-balance ${balanceClass}">
         <span class="bilan-tete">${escapeHtml(teteDuBilan)}</span>
         <strong>${formatCurrency(totalCharges)}</strong>
@@ -919,7 +884,7 @@ function renderSummary(summary) {
            </button>`
         : ''}
       </div>` : `
-      <div class="resume-panneau" id="resumePanneauSolo" role="tabpanel" aria-labelledby="resumeOngletSolo">
+      <div class="resume-panneau" id="resumePanneauSolo">
         ${renderPanneauSolo(moisPersonnel, nomConjointe)}
       </div>`}
     </div>

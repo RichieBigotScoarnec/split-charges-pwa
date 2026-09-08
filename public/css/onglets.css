@@ -561,3 +561,29 @@
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
+
+/*
+   Le repère de solde — il vient de la bascule du résumé, qui n'existe plus.
+
+   Ce qu'il tient n'a pas changé d'un mot : tant qu'un solde reste dû, le
+   segment du foyer le dit, même quand on l'a quitté. Sans lui, choisir « Moi ce
+   mois » ferait disparaître une dette de tout l'écran — le panneau du foyer
+   n'est plus rendu, et la barre collante ne parle que de ce qu'elle surplombe.
+
+   Aucune règle ne le repeint sur le segment ACTIF, contrairement à ce que
+   faisait `.resume-onglet[aria-selected="true"] .resume-onglet-repere`. C'est
+   que le fond actif a changé de nature : l'onglet passait en `--primary-color`
+   plein, où le rouge devenait illisible ; le segment prend un lavis
+   `--primary-soft`, sur lequel `--danger-ink` tient. Une exception de moins.
+
+   Pas de `display` déclaré : l'attribut `hidden` que le JS bascule doit garder
+   son effet, et une règle d'affichage la plus anodine le neutraliserait sans
+   rien dire.
+*/
+.portee-repere {
+  margin-left: 4px;
+  color: var(--danger-ink);
+  font-size: 18px;
+  line-height: 0;
+  vertical-align: middle;
+}

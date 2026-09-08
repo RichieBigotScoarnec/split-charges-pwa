@@ -5,7 +5,9 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
  * L'écran ne montre jamais deux portées différentes en même temps
  *
  * ─────────────────────────────────────────────────────────────────────
- * LE DÉFAUT, MESURÉ SUR `main` AVANT TOUTE CORRECTION
+ * LE DÉFAUT, MESURÉ SUR `main` AVANT TOUTE CORRECTION — ✅ corrigé le
+ * 2026-09-08 par la fusion des deux commandes, ce fichier reste pour empêcher
+ * qu'on en recrée une seconde
  *
  * L'application porte DEUX sélecteurs de portée, et ils se contredisent :
  *
@@ -40,6 +42,22 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
  * Conséquence voulue : le jour où il ne reste qu'un sélecteur, il en trouve un
  * seul, ne trouve aucune contradiction, et reste vert. Il aura protégé la
  * fusion sans avoir à la connaître.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE QUI SE PASSE MAINTENANT QUE LA FUSION EST FAITE
+ *
+ * Les quatre cas restent, et aucun n'est devenu un contrôle qui ne mesure
+ * rien :
+ *
+ *   - les deux premiers relèvent une portée annoncée et exigent qu'elle soit
+ *     seule. Leur prémisse — au moins une annonce — les empêche d'être
+ *     satisfaits par un écran muet ;
+ *   - le troisième tient qu'un aller-retour ne laisse pas d'annonce en
+ *     arrière ;
+ *   - le quatrième **parcourt toutes les commandes de portée de l'écran, quelles
+ *     qu'elles soient**, et vérifie l'accord après chacune. C'est lui qui
+ *     retombe si l'on rebranche une seconde source : il n'a pas besoin de
+ *     savoir qu'elle existe pour la trouver.
  */
 
 /**
@@ -117,6 +135,38 @@ const porteesAnnoncees = (page) => page.evaluate((vocabulaire) => {
   return trouvees;
 }, VOCABULAIRE.map((v) => ({ source: v.motif.source, flags: v.motif.flags, portee: v.portee })));
 
+/**
+ * Tout ce qui OFFRE une portée, actif ou non
+ *
+ * Le pendant de `porteesAnnoncees`, qui ne relève que l'annonce en cours. Ici
+ * on cherche les commandes : mêmes attributs d'état, quelle que soit leur
+ * valeur, même vocabulaire.
+ *
+ * L'`index` renvoyé porte sur la liste ENTIÈRE des porteurs d'attribut, panneaux
+ * masqués compris, pour qu'un `.nth(index)` côté Playwright désigne le même
+ * nœud. Seuls les visibles sont rendus — on ne touche pas ce qu'on ne voit pas.
+ */
+const commandesDePortee = (page) => page.evaluate((vocabulaire) => {
+  const visible = (el) => Boolean(el.checkVisibility && el.checkVisibility())
+    && el.getBoundingClientRect().height > 0;
+
+  const trouvees = [];
+  const tous = document.querySelectorAll('[aria-checked], [aria-selected], [aria-current]');
+
+  tous.forEach((el, index) => {
+    if (!visible(el)) return;
+    const texte = (el.innerText || '').replace(/\s+/g, ' ').trim();
+    for (const { source, flags, portee } of vocabulaire) {
+      if (new RegExp(source, flags).test(texte)) {
+        trouvees.push({ index, portee, texte: texte.slice(0, 40) });
+        break;
+      }
+    }
+  });
+
+  return trouvees;
+}, VOCABULAIRE.map((v) => ({ source: v.motif.source, flags: v.motif.flags, portee: v.portee })));
+
 async function ouvrir(page) {
   await setupFirebaseMock(page);
   await page.addInitScript(`window.__db = ${JSON.stringify(semence())};`);
@@ -182,38 +232,45 @@ test.describe('Une seule portée à l\'écran', () => {
       .toHaveLength(1);
   });
 
-  test('et le désaccord tient dans l\'AUTRE sens aussi', async ({ page }) => {
+  test('TOUTE commande de portée laisse l\'écran d\'accord avec lui-même', async ({ page }) => {
     /**
-     * Le retour compte autant que l'aller : une seconde source peut s'accorder
-     * dans un sens et rester en arrière dans l'autre.
+     * ── LE CAS QUI RETOMBE SI L'ON REBRANCHE UNE SECONDE SOURCE ──
      *
-     * L'autre commande est atteinte par son RÔLE et son intitulé — un onglet
-     * nommé « Moi » — jamais par son `data-action`. Le jour où elle disparaîtra,
-     * la recherche ne trouvera rien : le cas le dit alors et se tait, plutôt que
-     * de tomber sur une absence qui est justement le but du lot.
+     * Il ne connaît aucune commande par son nom. Il relève **tout ce qui offre
+     * une portée** — un élément qui porte l'un des trois attributs d'état ARIA,
+     * quelle qu'en soit la valeur, et dont le texte nomme une portée — puis
+     * touche chacun et exige l'accord après chaque geste.
+     *
+     * L'attribut d'état est ce qui sépare une commande de portée d'un bouton
+     * qui parle de la même chose : l'accès rapide « Privé » de la carte du mois
+     * ouvre une modale, il n'annonce pas un état, et il n'a rien à faire ici.
+     *
+     * Le retour compte autant que l'aller — une seconde source peut s'accorder
+     * dans un sens et rester en arrière dans l'autre — et c'est pour cela que
+     * la boucle passe sur toutes les commandes plutôt que sur une seule.
      */
-    const autreCommande = page.getByRole('tab', { name: /moi/i });
+    const commandes = await commandesDePortee(page);
 
-    if (await autreCommande.count() === 0) {
-      test.info().annotations.push({
-        type: 'sans objet',
-        description: 'plus qu\'une seule commande de portée à l\'écran : '
-          + 'il n\'y a plus de second sens à éprouver'
-      });
-      return;
+    // Sans cette prémisse, une page sans aucune commande parcourrait zéro tour
+    // de boucle et rendrait vert. Trois segments aujourd'hui ; le seuil dit
+    // « il y a de quoi éprouver », pas « il y en a exactement trois ».
+    expect(commandes.length, 'aucune commande de portée : ce cas ne mesure rien')
+      .toBeGreaterThan(1);
+
+    for (const { index, texte } of commandes) {
+      await page.locator('[aria-checked], [aria-selected], [aria-current]')
+        .nth(index).click();
+      await page.waitForTimeout(600);
+
+      const annonces = await porteesAnnoncees(page);
+      expect(annonces.length, `après « ${texte} » : aucune portée annoncée`)
+        .toBeGreaterThan(0);
+
+      expect(accord(annonces),
+        `après « ${texte} », l'écran annonce ${accord(annonces).length} portées `
+        + 'à la fois — '
+        + annonces.map((a) => `« ${a.texte} » → ${a.portee}`).join(' | '))
+        .toHaveLength(1);
     }
-
-    await autreCommande.first().click();
-    await page.waitForTimeout(600);
-    await page.locator('.panneau--actif [data-portee="deux"]').click();
-    await page.waitForTimeout(600);
-
-    const annonces = await porteesAnnoncees(page);
-    expect(annonces.length, 'aucune portée annoncée').toBeGreaterThan(0);
-
-    expect(accord(annonces),
-      `l'écran annonce ${accord(annonces).length} portées à la fois — `
-      + annonces.map((a) => `« ${a.texte} » → ${a.portee}`).join(' | '))
-      .toHaveLength(1);
   });
 });
