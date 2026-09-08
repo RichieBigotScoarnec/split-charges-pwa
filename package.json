@@ -22,7 +22,8 @@
     "couverture": "npm run couverture:unitaire && npm run couverture:e2e && npm run couverture:fusion",
     "couverture:unitaire": "vitest run --coverage --coverage.reporter=json --coverage.include=\"public/js/**\"",
     "couverture:e2e": "COUVERTURE=1 npx firebase emulators:exec --only auth,database \"npx playwright test\"",
-    "couverture:fusion": "node tools/fusionner-couverture.mjs"
+    "couverture:fusion": "node tools/fusionner-couverture.mjs",
+    "artefacts": "node tools/garder-artefacts.mjs"
   },
   "repository": {
     "type": "git",

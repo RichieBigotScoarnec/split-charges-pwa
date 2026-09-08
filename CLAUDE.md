@@ -634,7 +634,22 @@ ressemble pas à ce qu'on vient de faire est un fait, pas une bizarrerie.**
    `Failed to load custom Reporter from line`, `EXIT=1`, zéro test exécuté.
 2. Lire le **code de sortie** — `; echo EXIT=$?` — **avant** le résumé, qui n'en
    est pas un synonyme.
-3. Relever les **artefacts** d'une défaillance **avant** toute relance.
+3. **`npm run artefacts` — AVANT toute relance.** Une commande, pas une
+   intention : Playwright écrit un dossier par cas dans `test-results/`, et
+   rejouer ce cas l'écrase. Le réflexe naturel après un échec — le relancer pour
+   voir s'il se reproduit — détruit donc ce qui aurait permis de le comprendre.
+
+   > **Cette étape a été « relever les artefacts avant toute relance » pendant
+   > deux jours, et elle a été manquée TROIS fois** — `cout-annuel:60`,
+   > `firebase-integration:175`, `depense-perso:101`. À chaque fois la leçon a
+   > été réécrite au journal, à chaque fois elle a été refaite. **Une leçon
+   > qu'on réapprend trois fois n'est pas apprise** : ce qui manquait n'était
+   > pas la connaissance, c'était un geste qui coûte moins cher que l'oubli.
+   >
+   > `tools/garder-artefacts.mjs` copie — il ne déplace pas — vers
+   > `artefacts-locaux/<horodatage>/`, ignoré par git. Ceux qui méritent d'être
+   > gardés partent ensuite dans `docs/artefacts/`, à la main et avec leur note
+   > d'origine.
 4. **Avant tout merge, comparer le head de la PR au commit testé** — deux
    chaînes, lues côte à côte, jamais supposées égales :
 
