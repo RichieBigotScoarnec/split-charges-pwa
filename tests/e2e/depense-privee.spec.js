@@ -185,12 +185,124 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
     await ouvrirPrive(page);
 
     await expect(page.locator('#modalPrive')).toContainText('340,00');
-    // La limite honnête du dispositif : aucune règle ne peut vérifier la somme
-    // de ce qu'elle n'a pas le droit de lire. Le taire ferait croire à une
-    // garantie technique qui n'existe pas.
-    await expect(page.locator('#modalPrive')).toContainText('déclaré');
     // Et surtout : aucun libellé.
     await expect(page.locator('#modalPrive')).not.toContainText('Manucure');
+  });
+
+  test('le total déclaré n\'est jamais rendu sans sa réserve, sur le même écran', async ({ page }) => {
+    /**
+     * ─────────────────────────────────────────────────────────────────────
+     * CE CAS REMPLACE UN `toContainText('déclaré')` SUR `#modalPrive`
+     *
+     * L'ancien tenait que la réserve est PRÉSENTE. Deux raisons de le refaire :
+     *
+     *   1. il nomme une surface. `#modalPrive` disparaîtra quand Privé
+     *      deviendra une vue, et le réflexe serait de le repointer sur le
+     *      conteneur suivant — même fragilité, un cran plus loin ;
+     *   2. **« présente » n'est pas « co-visible ».** Une modale garantissait
+     *      la co-visibilité PAR SA FORME : elle est courte, tout y tient. Une
+     *      vue défile — le chiffre peut rester en haut pendant que la réserve
+     *      passe sous la ligne de flottaison, ou se replie dans un dépliant.
+     *
+     * C'est le motif vu trois fois cette semaine : une propriété vraie PAR
+     * CONSTRUCTION cesse de l'être quand la construction change, et rien ne le
+     * dit — parce que personne n'avait eu à la tenir.
+     *
+     * ─────────────────────────────────────────────────────────────────────
+     * LA PROPRIÉTÉ
+     *
+     * Le total déclaré de l'autre n'est jamais rendu sans sa réserve, **sur le
+     * même écran et sans geste supplémentaire** : ni défilement, ni dépliant à
+     * ouvrir.
+     *
+     * Les deux éléments sont trouvés PAR LEUR TEXTE — le montant d'un côté, le
+     * mot qui nomme la réserve de l'autre — jamais par une classe ni un
+     * identifiant. Le contrôle survit donc au déplacement qu'il doit protéger.
+     *
+     * Il est VERT aujourd'hui, et c'est son objet : il doit l'être avant le
+     * changement de forme pour pouvoir le garder. Ses mutants font le travail
+     * du rouge.
+     */
+    await page.evaluate(() => {
+      const periode = document.getElementById('periodSelect')?.value;
+      window.__db[`totauxPrives/conjointe/${periode}`] = { montant: 340, nombre: 5 };
+    });
+    await ouvrirPrive(page);
+
+    const releve = await page.evaluate(() => {
+      const visible = (el) => Boolean(el.checkVisibility && el.checkVisibility())
+        && el.getBoundingClientRect().height > 0;
+
+      // Le texte PROPRE, sans celui des descendants : sinon la racine porte
+      // tout, et n'importe quel écran satisfait n'importe quoi.
+      const propre = (el) => [...el.childNodes]
+        .filter((n) => n.nodeType === Node.TEXT_NODE)
+        .map((n) => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
+
+      // TOUS les éléments, visibles ou non. Chercher parmi les seuls visibles
+      // confondrait « absente » et « repliée » — et le message enverrait alors
+      // au mauvais endroit, ce qui coûte plus cher qu'un contrôle muet.
+      const tous = [...document.querySelectorAll('body *')];
+
+      // Le montant déclaré, cherché par sa valeur rendue — pas par sa classe.
+      const montant = tous.filter(visible).find((el) => /340[,.]00/.test(propre(el)));
+      // La réserve, cherchée par le mot qui la nomme dans tout ce dépôt.
+      const reserve = tous.find((el) => /déclar/i.test(propre(el)));
+
+      const dansUnDepliantFerme = (el) => {
+        for (let n = el; n; n = n.parentElement) {
+          if (n.tagName === 'DETAILS' && !n.open) return true;
+        }
+        return false;
+      };
+
+      const dansLaVue = (el) => {
+        const r = el.getBoundingClientRect();
+        return r.top < window.innerHeight && r.bottom > 0
+          && r.left < window.innerWidth && r.right > 0;
+      };
+
+      return {
+        montantTrouve: Boolean(montant),
+        reserveTrouvee: Boolean(reserve),
+        reserveRepliee: reserve ? dansUnDepliantFerme(reserve) : null,
+        reserveVisible: reserve ? visible(reserve) : null,
+        montantDansLaVue: montant ? dansLaVue(montant) : null,
+        reserveDansLaVue: reserve ? dansLaVue(reserve) : null,
+        defilement: window.scrollY,
+        texteReserve: reserve ? propre(reserve).slice(0, 60) : null
+      };
+    });
+
+    // Les prémisses : sans le chiffre, il n'y a rien à protéger — et le cas
+    // passerait sur un écran qui ne rend rien.
+    expect(releve.montantTrouve, 'prémisse : le total déclaré n\'est pas rendu')
+      .toBe(true);
+    expect(releve.montantDansLaVue, 'prémisse : le total n\'est pas dans la vue')
+      .toBe(true);
+
+    expect(releve.reserveTrouvee,
+      'le total déclaré est rendu SANS sa réserve : aucune règle ne peut vérifier '
+      + 'la somme de ce qu\'elle n\'a pas le droit de lire, et le taire ferait '
+      + 'croire à une garantie technique qui n\'existe pas')
+      .toBe(true);
+
+    expect(releve.reserveRepliee,
+      `la réserve est repliée dans un dépliant fermé — « ${releve.texteReserve} » : `
+      + 'présente n\'est pas co-visible, et l\'ouvrir est un geste de plus')
+      .toBe(false);
+
+    expect(releve.reserveVisible,
+      `la réserve est rendue mais pas visible — « ${releve.texteReserve} »`)
+      .toBe(true);
+
+    expect(releve.reserveDansLaVue,
+      'la réserve est hors de la vue : il faut défiler pour la lire, donc le '
+      + 'chiffre se lit seul')
+      .toBe(true);
+
+    // Et sans geste : le relevé est pris au rendu, sans avoir défilé.
+    expect(releve.defilement, 'le relevé a défilé avant de mesurer').toBe(0);
   });
 
   test('sans rien publié, l\'écran se tait plutôt que d\'affirmer', async ({ page }) => {

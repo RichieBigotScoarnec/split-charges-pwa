@@ -82,6 +82,10 @@ Split-Charge*.html
 
 # Artefacts d'exécution Playwright
 test-results/
+
+# Artefacts d'échec mis à l'abri par `npm run artefacts`, avant une relance.
+# Ceux qui méritent d'être gardés partent dans docs/artefacts/, à la main.
+artefacts-locaux/
 playwright-report/
 
 # Cache local de deploiement Firebase
