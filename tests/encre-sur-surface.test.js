@@ -464,12 +464,23 @@ describe('Le relevé', () => {
   });
 
   it('relève les encres LITTÉRALES, et les mesure sur le fond déclaré', () => {
-    // Le contrôle n'a longtemps lu que `color: var(...)`. Les 14 sites écrits
-    // en clair lui échappaient — dont du blanc sur `--success-color`, qui rend
+    // Le contrôle n'a longtemps lu que `color: var(...)`. Les sites écrits en
+    // clair lui échappaient — dont du blanc sur `--success-color`, qui rend
     // 1,92:1 en thème sombre, le pire du dépôt.
+    //
+    // ── LE COMPTE EXIGÉ EST PARTI, ET C'EST LA MÊME LEÇON QUE TROIS CAS
+    //    PLUS HAUT ──
+    // Cette garde exigeait « au moins 10 », d'après les 14 sites qu'elle avait
+    // trouvés le jour de son écriture. Ils sont 9 depuis le 2026-09-08 : la
+    // bascule du résumé a fusionné avec le sélecteur de portée, et ses deux
+    // `color: #FFFFFF` sont partis avec elle. La garde a donc rougi sur une
+    // suppression saine — exactement ce qu'avait fait la garde d'`opacity`
+    // avant elle. Une garde mesure la CAPACITÉ du contrôle, jamais l'état du
+    // code qu'il inspecte : un relevé vide reste un défaut, un relevé plus
+    // court n'en est pas un.
     const litteraux = SITES.filter((s) => s.litteral);
-    expect(litteraux.length, 'les encres littérales doivent être relevées')
-      .toBeGreaterThanOrEqual(10);
+    expect(litteraux.length, 'les encres littérales ne sont plus relevées du tout')
+      .toBeGreaterThan(0);
 
     const surJeton = litteraux.filter((s) => s.fondJeton);
     expect(surJeton.length, 'et celles posées sur un fond nommé doivent être mesurables')
@@ -477,14 +488,27 @@ describe('Le relevé', () => {
     expect(pireContraste(surJeton[0])).not.toBeNull();
   });
 
-  it('ne mesure PAS une encre littérale dont le fond est hérité', () => {
-    // `summary.css:325` pose `color: #FFFFFF` sans déclarer de fond : le fond
-    // vient de l'ancêtre. Rapporter ce site aux surfaces de base rendrait
-    // 1,05:1 et signalerait un défaut qui n'existe pas. C'est la frontière
-    // avec le contrôle de rendu, qui, lui, voit l'ancêtre.
-    const herite = SITES.find((s) => s.litteral && !s.fondJeton && !s.fondLitteral);
-    expect(herite, 'un tel site doit exister dans ces feuilles').toBeDefined();
-    expect(pireContraste(herite), 'et ne doit pas être mesuré ici').toBeNull();
+  it('ne mesure PAS une encre littérale dont le fond est hérité, sur une entrée synthétique', () => {
+    // Une encre écrite en clair sans fond déclaré dans son bloc tient son fond
+    // de l'ancêtre. La rapporter aux surfaces de base rendrait 1,05:1 et
+    // signalerait un défaut qui n'existe pas. C'est la frontière avec le
+    // contrôle de RENDU, qui, lui, voit l'ancêtre.
+    //
+    // L'entrée est fabriquée, et pas cherchée dans les feuilles. Cette garde
+    // désignait `summary.css:325` — `.resume-onglet[aria-selected="true"]
+    // .resume-onglet-repere` — et elle est tombée le jour où ce sélecteur a
+    // disparu, en annonçant « un tel site doit exister » sur un dépôt sain.
+    // Une capacité ne dépend pas d'un exemplaire.
+    const herite = {
+      jeton: null, litteral: '#FFFFFF',
+      fondJeton: null, fondLitteral: null, opacite: 1
+    };
+    expect(pireContraste(herite), 'un fond hérité ne se mesure pas ici').toBeNull();
+
+    // Le témoin : la même encre, sur un fond nommé, EST mesurée. Sans lui,
+    // `toBeNull()` serait satisfait par une fonction qui ne mesure plus rien.
+    expect(pireContraste({ ...herite, fondJeton: 'primary-color' }),
+      'et le refus ne vient pas d\'une mesure devenue muette').not.toBeNull();
   });
 
   it('mesure une encre littérale sur un fond littéral', () => {
