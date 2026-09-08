@@ -308,75 +308,24 @@
   margin-top: 4px;
 }
 
-/* ===== BASCULE DU RÉSUMÉ =====
+/* ===== LE VERSANT DU RÉSUMÉ =====
    ---------------------------------------------------------------------------
    Deux questions, deux panneaux : « qui doit combien à qui » et « qu'est-ce que
    ce mois me coûte ». Empilées, elles mettent deux montants dominants en
    concurrence et poussent la seconde sous la ligne de flottaison sur mobile.
 
-   À ne pas confondre avec `.onglets` : celle-là est la navigation de
-   l'application, posée en bas de l'écran. Celle-ci vit DANS la carte du bilan
-   et ne choisit pas une destination, mais un point de vue sur le même mois.
+   LA COMMANDE N'EST PLUS ICI — 2026-09-08.
+
+   Cette carte portait ses propres onglets, `.resume-onglets`, pendant que le
+   sélecteur de portée en portait de son côté. Deux commandes pour une seule
+   grandeur : l'écran annonçait « À deux » en haut et « Moi » plus bas, le même
+   mois. Le versant se lit désormais dans `porteeCourante`, et le seul
+   sélecteur est `.portee`, dans `onglets.css`.
+
+   Les cinquante lignes que ce bloc occupait ont été retirées plutôt que
+   laissées « au cas où » : une règle sans balisage se relit comme une règle
+   qui s'applique.
    --------------------------------------------------------------------------- */
-.resume-onglets {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: var(--space-md);
-  background: var(--elevated-bg);
-  border-radius: var(--radius);
-}
-
-.resume-onglet {
-  flex: 1;
-  /* 44 px : le minimum des WCAG 2.5.5, comme toute commande de cette carte. */
-  min-height: 44px;
-  padding: 0 var(--space-sm);
-  border: none;
-  border-radius: calc(var(--radius) - 4px);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
-}
-
-.resume-onglet:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-/* On stylise `aria-selected`, jamais une classe seule : peindre un onglet actif
-   devient alors impossible sans l'annoncer aux lecteurs d'écran. C'est la règle
-   déjà tenue par `.onglet[aria-current]`, et elle vaut ici pour la même raison.
-   Le fond plein double la couleur — WCAG 1.4.1 interdit d'en faire le seul
-   véhicule de l'information. */
-.resume-onglet[aria-selected="true"] {
-  background: var(--primary-color);
-  color: #FFFFFF;
-}
-
-.resume-onglet:focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: -2px;
-}
-
-/* Le repère qui rend la mémoire de l'onglet acceptable : tant qu'un solde reste
-   dû, l'onglet du foyer le dit, même quand on l'a quitté. Sans lui, passer au
-   suivi personnel ferait disparaître une dette de tout l'écran. */
-.resume-onglet-repere {
-  margin-left: 4px;
-  color: var(--danger-ink);
-  font-size: 18px;
-  line-height: 0;
-  vertical-align: middle;
-}
-
-.resume-onglet[aria-selected="true"] .resume-onglet-repere {
-  color: #FFFFFF;
-}
 
 /* --- Panneau personnel --- */
 

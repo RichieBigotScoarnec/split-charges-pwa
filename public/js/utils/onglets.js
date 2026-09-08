@@ -20,7 +20,7 @@
  *
  * Volontairement à l'écart de la délégation de `init.js` : celle-ci résout un
  * nom de fonction sur `window` depuis un attribut du DOM, surface qu'une liste
- * blanche de 43 actions borne précisément. Un onglet n'a pas besoin de cette
+ * blanche borne précisément. Un onglet n'a pas besoin de cette
  * puissance — il désigne un identifiant de panneau, qu'on vérifie être un
  * `.panneau` réel avant d'agir. Rien à ajouter à la liste blanche, donc rien
  * de plus à atteindre par une injection HTML.

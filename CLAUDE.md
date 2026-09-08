@@ -39,8 +39,12 @@ FairSplit/
 │       │                       # première feuille : la page se vide si elle est
 │       │                       # encadrée. Fichier externe, pour se passer
 │       │                       # d'`unsafe-inline` — ne pas l'y remettre
-│       ├── init.js             # Délégation `data-action` — liste blanche de
-│       │                       # 43 actions, tenue au balisage dans les deux sens
+│       ├── init.js             # Délégation `data-action` — liste blanche
+│       │                       # tenue au balisage dans les deux sens. Elle ne
+│       │                       # porte plus de compte écrit : « 43 actions »
+│       │                       # datait du 2026-08-27, il y en avait 60 le
+│       │                       # 2026-09-08, et le chiffre était recopié dans
+│       │                       # trois autres fichiers
 │       ├── config.js           # Firebase config, DATA_ROOT, liste blanche
 │       ├── firebase-init.js    # Init Firebase, providers, émulateurs
 │       ├── db.js               # Abstraction DB (préfixage DATA_ROOT) + les
@@ -163,20 +167,27 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
-| `utils/debug.js` | 35 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 31 | 1 | Critique — état global |
+| `utils/debug.js` | 36 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 32 | 1 | Critique — état global |
 | `utils/format.js` | 27 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
 | `db.js` | 25 | **22** | Critique — abstraction DB |
-| `utils/date.js` | 24 | 0 | Important — date et période d'une charge |
+| `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
 | `utils/members.js` | 17 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 17 | 0 | Important — ce qui pèse sur le solde |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
-| `modules/summary.js` | 13 | 5 | Important — calculs dépendants |
+| `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
 | `modules/auth.js` | 1 | 0 | Critique — **hub** : importe 28 modules et en initialise 26 |
+
+> **Relevé le 2026-09-08 par `node tools/adherences.mjs`, et quatre lignes
+> avaient dérivé** — debug 35 → 36, state 31 → 32, date 24 → 25,
+> summary 13/5 → 14/6. Un seul de ces écarts vient du lot du jour ; les trois
+> autres s'étaient accumulés sur les lots précédents sans que personne ne
+> recompte. C'est le défaut que ce tableau documente déjà pour lui-même :
+> **le rejouer coûte une seconde, le croire coûte une décision.**
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -448,6 +459,33 @@ rouge ?* Trois réponses le condamnent :
 > contradiction avec la deuxième réponse ci-dessus : là on demande si le
 > contrôle a tourné, ici on demande **sur quoi il a porté**.
 
+> **Le jumeau exact, dans l'autre sens : une PRÉMISSE qui exige un exemplaire
+> se périme quand l'exemplaire disparaît — et celle-là ROUGIT, sur un dépôt
+> sain.** Un contrôle qui nomme une surface se périme en vert ; une prémisse
+> qui nomme un exemplaire se périme en rouge, ce qui n'est pas meilleur : elle
+> accuse une suppression saine, et le réflexe est de défaire le nettoyage.
+>
+> **Trois fois dans le MÊME fichier**, `tests/encre-sur-surface.test.js`, qui
+> instrumente les feuilles de style :
+>
+> - « un site à `opacity: 0.8` doit exister » — tombée le jour où
+>   `.charge-location` a été corrigé. Réécrite sur une entrée **synthétique** ;
+> - « au moins 10 encres littérales » — 14 le jour de l'écriture, 9 le
+>   2026-09-08, quand la bascule du résumé a emporté ses deux `color: #FFFFFF` ;
+> - « un site littéral à fond hérité doit exister » — c'était très exactement
+>   l'un de ces deux-là, désigné par son numéro de ligne.
+>
+> Les deux dernières sont tombées **ensemble**, sur une fusion qui ne cassait
+> rien. Le fichier portait déjà la leçon, écrite trois cas plus haut : *« une
+> garde mesure la CAPACITÉ du contrôle, jamais l'état du code qu'il inspecte »*.
+> Elle était juste, et elle n'avait pas été appliquée à ses voisines.
+>
+> **Le geste : une prémisse se nourrit d'une entrée FABRIQUÉE, pas d'un
+> exemplaire trouvé.** Ce qu'on veut prouver est que l'instrument sait mesurer ;
+> le dépôt n'a pas à conserver un cas de test dans son code de production pour
+> que l'instrument reste vérifiable. Ce qui reste légitimement adossé au réel
+> est la **non-vacuité** du relevé — « plus de zéro », jamais « au moins dix ».
+
 > **Une géométrie RENDUE est fractionnaire. Comparer une longueur calculée à une
 > valeur exacte fabrique un contrôle qui rougit au hasard — sur des PR qui n'y
 > sont pour rien.**
@@ -511,6 +549,28 @@ dont le titre est une égalité doit tomber si l'égalité cesse.
 > seconde propriété — aucun libellé ne déborde sa boîte — qui tombe sur ce
 > mutant, et sur lui seul.
 
+> **Un mutant qui TOMBE se lit aussi — sa chute confirme la détection, son
+> MESSAGE dit si le contrôle sait nommer ce qu'il a vu.**
+>
+> Le pendant du précédent, et il est plus discret : là on interroge un mutant
+> resté vert, ici un mutant qui tombe bien. On coche, on passe — et on laisse un
+> contrôle qui accuse la mauvaise cause.
+>
+> Mesuré le 2026-09-08 sur la co-visibilité de la réserve du privé. Le mutant
+> « réserve dans un dépliant fermé » faisait bien tomber le contrôle, mais sur
+> le message **« le total déclaré est rendu SANS sa réserve »** — c'est-à-dire
+> sur une ABSENCE, quand il y avait un REPLI. La cause était juste, le rapport
+> envoyait chercher à côté.
+>
+> La raison tenait à la sonde : elle cherchait la réserve parmi les seuls
+> éléments **visibles**, et un contenu de `<details>` fermé n'en est pas un. Elle
+> parcourt désormais tous les éléments et distingue trois issues — absente,
+> repliée, hors de la vue — chacune avec sa phrase.
+>
+> **Le geste : après avoir vu un mutant tomber, LIRE son message et se demander
+> s'il envoie au bon endroit.** Un contrôle qui nomme mal ce qu'il a vu coûte le
+> temps de celui qui le croira.
+
 > **Un jeu d'essai qui ne porte que le cas coupable-mais-indulgent laisse passer
 > un correctif partiel.** Corollaire du précédent, et il vise l'entrée du
 > contrôle plutôt que sa sortie.
@@ -561,7 +621,7 @@ double doit produire du balisage qu'on puisse compter.
 
 ### 2. Deux fabriques d'une même grandeur finissent toujours par diverger
 
-**8 avérées, 2 évitées parce que le motif était nommé — détail en archive.** Dite
+**9 avérées, 2 évitées parce que le motif était nommé — détail en archive.** Dite
 « le défaut `normalizePair` », du nom de la première. Les deux évitées sont la
 meilleure preuve que la règle sert : elle a déjà payé, pas seulement coûté.
 
@@ -585,6 +645,41 @@ que la divergence a vécu si longtemps sans qu'un contrôle bronche.
 **Et la règle vaut hors du monétaire** — la septième occurrence portait sur des
 messages d'erreur : deux fonctions rédigeaient chacune les leurs, et celle qui
 courait le plus ne disait pas qu'une saisie était refusée.
+
+> **Une COMMANDE est une fabrique, elle aussi — et c'est la forme qu'on ne voit
+> pas venir.** La règle se cherche d'ordinaire dans des calculs : deux totaux,
+> deux médianes, deux fenêtres de mois. Le 2026-09-08, la neuvième occurrence
+> était **un bouton**.
+>
+> Le lot 5 a ajouté un sélecteur de portée écrivant `porteeCourante` dans
+> `state.js`. L'application en avait déjà un : la bascule du résumé, « À deux » /
+> « Moi ce mois-ci », qui écrit `ongletDuResume`, une variable de module de
+> `summary.js`. Deux commandes, deux états, une seule grandeur — et la
+> divergence était immédiate, mesurée sur `main` dans les deux sens : segment sur
+> « Moi » pendant que le résumé annonce « À deux », et l'inverse.
+>
+> **Ce qui l'a rendue invisible : on a mesuré ce que le sélecteur COÛTAIT,
+> jamais ce qu'il DOUBLAIT.** Tout un lot de mesures de géométrie — budget,
+> largeur, cible tactile, marges — et pas une question sur l'existant.
+>
+> **Le geste : avant d'ajouter une commande, chercher qui gouverne déjà cette
+> grandeur.** Une grandeur gouvernée à deux endroits diverge exactement comme
+> une grandeur calculée à deux endroits, et elle se voit moins — parce qu'on
+> cherche un doublon dans le code de calcul, pas dans le balisage.
+>
+> ```bash
+> grep -rn "data-action=\"[a-zA-Z]*\"" public/FairSplit.html   # ce qui commande déjà
+> grep -rn "^let \|^const " public/js/modules/<module>.js       # les états de module
+> ```
+>
+> ✅ **Fusionnée le 2026-09-08** — `ongletDuResume` et `basculerResume` ont
+> disparu, le résumé LIT `porteeCourante`, et le repère de solde a suivi sur le
+> segment « À deux ». Ce qui reste est `tests/e2e/portee-unique.spec.js`, écrit
+> sur la propriété — « l'écran ne montre jamais deux portées différentes en même
+> temps » — et **sans nommer aucune des deux commandes** : son quatrième cas
+> parcourt tout ce qui annonce une portée et exige l'accord après chaque geste.
+> Éprouvé par mutation : une seconde source rebranchée le fait tomber en
+> nommant les deux annonces qu'il a vues.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
@@ -1049,6 +1144,25 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > l'écrasement comme une intention.
 
 ### Le banc d'essai
+
+- **`\b` ne s'apparie JAMAIS contre une lettre accentuée, et le prix est un
+  faux vert.** En JavaScript, `\b` est défini sur `[A-Za-z0-9_]` : « à », « é »,
+  « ç » n'en font pas partie, il n'y a donc aucune frontière de mot à leur
+  contact. `/\bà deux\b/i` et `/\bprivé\b/i` ne correspondent à rien, jamais —
+  et ils se relisent sans alerter, parce qu'ils ont exactement la forme d'un
+  motif correct.
+  Mesuré le 2026-09-08 en écrivant `portee-unique.spec.js`. Le coût n'a pas été
+  une erreur visible mais un **faux vert, sur la propriété même que le contrôle
+  existait pour montrer** : « À deux » n'étant pas reconnu, le cas ne relevait
+  qu'une seule annonce de portée et concluait à l'accord — sur l'écran qui en
+  affichait deux, en désaccord.
+  **Le remède** : contre du français accentué, ne pas borner, ou borner
+  autrement — `(?<![\p{L}])` avec le drapeau `u`, ou un ancrage sur la casse et
+  le contexte réel. Garder `\b` là où le mot est en ASCII et où il sert
+  vraiment : `/\bmoi\b/` évite « mois », et c'est sa raison d'être.
+  **Le signal** : un motif qui ne trouve jamais rien dans un texte où on
+  l'attend. Une sonde neuve se lit d'abord **sur ses cas connus** — c'est la
+  règle 5, appliquée à une expression régulière.
 
 - **Une longueur RENDUE ne se compare pas à une chaîne, et surtout pas au texte
   d'un jeton.** Corollaire du piège ci-dessous, et il a fait rougir la CI le
