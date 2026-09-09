@@ -1105,10 +1105,16 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   les labels de case à cocher ; `min-width: 44px` sur trois classes d'icône ; et
   **`display: flex` sur cinq classes de lignes ouvrables**, dont
   `.summary-row--ouvrable`.
-  **Un seul contrôle du dépôt tourne au doigt** — `cible-tactile.spec.js`, à
+  **Un seul contrôle du dépôt tournait au doigt** — `cible-tactile.spec.js`, à
   390 px — et il vérifie que ces règles *s'appliquent*, jamais **ce qu'elles
   coûtent ailleurs**. Tous les contrôles de budget et de géométrie mesuraient
   donc un écran que personne n'affiche.
+  Ils sont **quatre** depuis : `onglets:280` (2026-09-07), `grand-livre`,
+  `portee-selecteur`, et `coherence-visuelle` — le balayage entier, quatre
+  largeurs × deux pointeurs, renforcé le 2026-09-09. Ce dernier porte ses deux
+  témoins : une commande difforme injectée sous `pointer: coarse` est VUE par la
+  moitié tactile et invisible pour l'autre. Le renfort a d'ailleurs commencé par
+  ne rien démontrer — voir le gotcha suivant.
   Chiffré le 2026-09-07 : `#mainApp > header` mesure **54 px au doigt contre
   35,5 à la souris** — 18,5 px d'écart, parce que `.btn-logout` est porté à
   44 px. C'est la famille d'`onglets:304` avant son renforcement, appliquée à
@@ -1135,22 +1141,33 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
     grille, il cassera exactement comme le grand-livre**. Et une seule instance
     fait une couverture mince pour `cible-tactile`.
 
-  **Ce que l'en-tête coûte au doigt, et ce qui le rendrait — mesuré le
-  2026-09-07, CONSIGNÉ, non appliqué.** L'en-tête est en `flex` avec
-  `align-items: center` : sa hauteur est celle de son plus haut enfant, et cet
-  enfant est `#userInfoBar` à 44 px, tenu par le `min-height` du bouton de
-  déconnexion.
+  **Ce que l'en-tête coûtait au doigt — mesuré le 2026-09-07, ✅ APPLIQUÉ le
+  jour même (#172).** L'en-tête est en `flex` avec `align-items: center` : sa
+  hauteur est celle de son plus haut enfant, et cet enfant était `#userInfoBar`
+  à 44 px, tenu par le `min-height` du bouton de déconnexion.
 
   | Forme de la déconnexion | En-tête | Premier contenu à 320 | Gain |
   |---|---:|---:|---:|
-  | bouton texte *(actuel)* | 54 px | 140 px | — |
-  | **bouton d'icône 44 × 44** | **54 px** | **140 px** | **0 px** |
-  | hors de l'en-tête | 36 px | 122 px | **18 px** |
+  | bouton texte *(l'ancien)* | 54 px | 140 px | — |
+  | bouton d'icône 44 × 44 | 54 px | 140 px | 0 px |
+  | **hors de l'en-tête** *(retenu)* | **36 px** | **122 px** | **18 px** |
 
-  **Le bouton d'icône ne rend RIEN**, et il fallait le mesurer plutôt que le
+  **Le bouton d'icône ne rendait RIEN**, et il fallait le mesurer plutôt que le
   supposer : une icône reste un `button`, donc reste à 44 px de haut. Ce qui
-  coûte n'est pas sa largeur, c'est sa présence. Masquer l'avatar en plus ne
-  change rien — il n'est pas la contrainte.
+  coûtait n'était pas sa largeur, c'était sa présence. Masquer l'avatar en plus
+  n'y changeait rien — il n'était pas la contrainte.
+
+  **La déconnexion vit dans Réglages depuis.** Vérifié le 2026-09-09 : l'en-tête
+  mesure **36 px au doigt** et le premier contenu est à 162 px — les 18 px ont
+  été encaissés. Ce qui reste ici est la MESURE, parce qu'elle dit pourquoi la
+  troisième ligne a été retenue et pourquoi la deuxième ne servait à rien.
+
+  > **Cette entrée a porté « CONSIGNÉ, non appliqué » pendant deux jours après
+  > l'avoir été.** Une note qui se lit comme une dette et n'en est plus une
+  > envoie chercher un travail déjà fait — et, pire, laisse croire que 18 px
+  > restent à gagner là où il n'y en a plus. Le geste : quand une mesure
+  > consignée devient un correctif, **c'est le même jour qu'on retourne changer
+  > le mot**, pas au prochain inventaire.
 
   > **`hasTouch: true` suffit à déclencher `pointer: coarse` ; `isMobile` non.**
   > Mesuré sur les quatre combinaisons. `hasTouch` bascule aussi
@@ -1192,8 +1209,8 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   long la ligne fait 82 px et les deux rendent 5/5. C'est le cas où la contrainte
   MORD qui sépare les deux réponses.
 
-- **Une barre collante mange le clic sur le grand-livre, à 390 px — DÉFAUT
-  IDENTIFIÉ, NON CORRIGÉ, et aucun contrôle ne le tient.** Sous 900 px l'écran
+- **Une barre collante mange le clic sur le grand-livre — ✅ CORRIGÉ le
+  2026-09-09, et le contrôle qui manquait existe.** Sous 900 px l'écran
   porte deux surfaces flottantes qui encadrent le contenu défilant :
 
   | Surface | Règle | Fichier |
@@ -1212,15 +1229,26 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   `<details open class="summary-details">` 2. La capture montre une page
   entièrement chargée, défilée de sorte que la ligne du payeur passe sous le
   bandeau collant.
-  **Les deux règles sont toujours en place**, et la surface touchée est la liste
-  que les lots 5 et 6 modifient. Le remède plausible — `scroll-margin-top` et
-  `scroll-padding-bottom` à la hauteur des deux barres — n'est pas appliqué :
-  il se décide dans son lot, pas en passant.
-  ⚠️ **Aucun contrôle ne mesure cette propriété.** `coherence-visuelle` tient
-  le rognage et le débordement, jamais l'atteignabilité au pointeur ; et un test
-  qui clique sans expirer ne prouve rien, puisque le défaut ne se manifeste qu'à
-  certaines positions de défilement. Ce qui l'attraperait est
-  `elementFromPoint()` au centre de la cible, comparé à la cible elle-même.
+  **Le remède écrit ici depuis le 2026-09-01 n'était pas tout à fait le bon**, et
+  c'est la mesure qui l'a dit. Il annonçait `scroll-margin-top` sur la cible ;
+  c'est `scroll-padding` sur le **conteneur** qui est posé — les deux barres ne
+  sont la propriété d'aucune ligne, et une marge sur les lignes du grand-livre
+  aurait laissé le prochain élément qu'on amène dans la vue retomber dans le
+  même trou. Les deux réserves sont dans `onglets.css`, sous 900 px, aux jetons
+  `--bandeau-colle-h` (103 px) et `--barre-onglets-h` (57 px).
+  **Et il ne corrige pas ce qu'on croyait.** Un balayage complet relève
+  **22 positions de défilement à 320 px** où le centre d'une ligne appartient à
+  une barre — mais un bandeau `sticky` recouvre par construction ce qui défile
+  dessous, et aucune valeur de `scroll-*` n'y change rien. Ce qui n'avait aucun
+  recours, et qui est réparé, c'est le **geste** qui amène quelqu'un sur une
+  ligne pour la toucher : `scrollIntoView()` la garait à `top: 0`, sous le
+  bandeau.
+  Le contrôle qui manquait est `tests/e2e/clic-au-bord.spec.js` —
+  `elementFromPoint()` au centre de chaque ligne, après chacun des deux gestes,
+  aux deux largeurs, au doigt. Éprouvé par mutation : retirer la réserve du haut
+  fait tomber le cas de 320 sur `#periodSelect`, retirer celle du bas fait
+  tomber celui de 390 sur `.onglet`. Deux moitiés indépendantes, aucune ne
+  couvre l'autre.
 
 - **Une classe utilitaire redéclarée dans une feuille chargée plus tard écrase
   silencieusement la règle du composant.** ✅ Corrigé sur la carte du mois le
@@ -1252,6 +1280,37 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > l'écrasement comme une intention.
 
 ### Le banc d'essai
+
+- **`scrollIntoView({ block: 'center' })` amène la cible là où aucune barre ne
+  vit.** Une sonde qui cherche un recouvrement par barre collante et centre sa
+  cible ne visitera jamais le cas : les deux barres sont **aux bords**, et
+  « centre » est très exactement leur complément.
+  Mesuré le 2026-09-09. Je cherchais un défaut que je savais vivant — 25
+  interceptions dans un artefact de CI — et l'instrument a répondu
+  `interceptions: []`. **Le signal n'était pas une relecture du code, c'était
+  l'INVRAISEMBLANCE** : un résultat qui ne ressemble pas à ce qu'on sait déjà.
+  Rejoué par balayage complet du défilement, une position tous les 10 px : 22
+  positions à 320 px, 4 à 390.
+  **Le geste** : une sonde de recouvrement balaie, elle ne se place pas. Et
+  quand elle doit se placer, elle emploie le geste qu'on éprouve —
+  `scrollIntoViewIfNeeded` pour reproduire Playwright, `scrollIntoView()` pour
+  reproduire le code de l'application — jamais un troisième, choisi pour la
+  commodité de la mesure.
+
+- **Un balayage qui filtre sur le viewport ne voit que le premier écran, et il
+  ne défile jamais.** `coherence-visuelle` portait, sur sa propriété
+  HORIZONTALE — « aucune commande ne dépasse de l'écran » —, un filtre
+  VERTICAL : `if (r.bottom <= 0 || r.top >= innerHeight) continue`.
+  Mesuré le 2026-09-09 : un bouton de **900 px de large** sur un écran de 320
+  — `right: 941` — était ignoré parce qu'il vivait à `top: 1257`. Sur un bilan
+  semé à 320 px, la moitié du panneau échappait au contrôle.
+  Le filtre n'achetait rien : les éléments non rendus sont déjà écartés par
+  `r.width === 0`, et une commande qui dépasse à droite est tout aussi
+  inatteignable qu'on ait défilé jusqu'à elle ou non.
+  **Le geste** : vérifier que les filtres d'un balayage portent sur le MÊME AXE
+  que la propriété. Un filtre sur l'autre axe ne borne pas le bruit, il retire
+  de la couverture — et il le fait en silence, puisque ce qu'il écarte n'est
+  jamais compté.
 
 - **Le viewport par défaut de Playwright est 1280 × 720, et il s'applique en
   SILENCE à tout fichier sans `test.use`.** Un contrôle de mise en page mobile

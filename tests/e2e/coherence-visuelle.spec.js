@@ -137,14 +137,57 @@ async function resteSousLaBarre(page, id) {
   return mesure.reste;
 }
 
+/**
+ * ─────────────────────────────────────────────────────────────────────
+ * LE RENFORT TACTILE — 2026-09-09
+ *
+ * Ce fichier mesurait quatre largeurs et un seul pointeur : la souris. Or
+ * `responsive.css:411` déclare, sous `pointer: coarse`, quatre groupes de
+ * règles **géométriques** — `min-height: 44px` sur toute commande, `min-width`
+ * sur trois classes d'icône, `display: flex` sur cinq classes de lignes
+ * ouvrables. Elles ne s'appliquent jamais dans ce fichier.
+ *
+ * Ce n'est pas une hypothèse : ce contexte a DÉJÀ neutralisé un correctif. Le
+ * `1fr auto` du grand-livre, livré au lot 2, était écrasé par le
+ * `display: flex` du groupe 4 — 59 px de débord latéral au doigt là où le
+ * contrôle rendait vert à la souris. Il a fallu rejouer la suite entière au
+ * doigt pour le voir.
+ *
+ * LE SEUIL NE BOUGE PAS, LA COUVERTURE S'ÉTEND. C'est la forme du renfort
+ * d'`onglets:280` : mêmes propriétés, mêmes assertions, une dimension de plus.
+ * Un renfort qui relâcherait le seuil en même temps qu'il élargit la couverture
+ * ne dirait plus lequel des deux a changé le verdict.
+ *
+ * `hasTouch` SEUL, et pas `isMobile` : mesuré le 2026-09-07 sur les quatre
+ * combinaisons, `hasTouch` suffit à déclencher `pointer: coarse`. `isMobile`
+ * change en plus la gestion du méta viewport, donc il élargirait le contexte
+ * sans rien apporter à ce qu'on mesure.
+ *
+ * Les quatre largeurs sont gardées, 1280 comprise : un portable tactile existe,
+ * et les règles de `pointer: coarse` ne connaissent pas la largeur.
+ */
 for (const { nom, viewport } of LARGEURS) {
-  test.describe(`Cohérence visuelle — ${nom} px`, () => {
-    test.use({ viewport });
+  for (const { pointeur, tactile } of [
+    { pointeur: 'souris', tactile: false },
+    { pointeur: 'doigt', tactile: true }
+  ]) {
+  test.describe(`Cohérence visuelle — ${nom} px, au ${pointeur}`, () => {
+    test.use({ viewport, hasTouch: tactile });
 
     test.beforeEach(async ({ page }) => {
       await setupFirebaseMock(page);
       await waitForApp(page);
       await semer(page);
+    });
+
+    test('la prémisse du pointeur : le contexte est bien celui annoncé', async ({ page }) => {
+      // Sans elle, la moitié tactile de ce bloc pourrait cesser d'émuler le
+      // doigt — un `hasTouch` perdu dans un remaniement — et redevenir une
+      // seconde passe à la souris, silencieusement. Le renfort aurait alors
+      // doublé le temps de la suite sans rien mesurer de plus.
+      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches),
+        `le contexte annoncé est « ${pointeur} », le média dit le contraire`)
+        .toBe(tactile);
     });
 
     test('aucune commande du contenu n\'en recouvre une autre', async ({ page }) => {
@@ -233,7 +276,23 @@ for (const { nom, viewport } of LARGEURS) {
             const r = el.getBoundingClientRect();
             const s = getComputedStyle(el);
             if (r.width === 0 || r.height === 0 || s.visibility === 'hidden') continue;
-            if (r.bottom <= 0 || r.top >= window.innerHeight) continue;
+            // ── PAS DE FILTRE VERTICAL ICI, ET C'EST UN CORRECTIF — 2026-09-09
+            //
+            // Cette ligne portait `if (r.bottom <= 0 || r.top >= innerHeight)
+            // continue;` : le balayage n'inspectait que ce qui tenait dans le
+            // PREMIER ÉCRAN, et ne défilait jamais. Sur un bilan semé à 320 px,
+            // c'est une petite moitié du panneau.
+            //
+            // Mesuré : un bouton de 900 px de large posé sous `pointer: coarse`
+            // — `right: 941` sur un écran de 320 — était ignoré parce qu'il
+            // vivait à `top: 1257`. Le contrôle rendait vert sur une commande
+            // dont les deux tiers sortaient de l'écran.
+            //
+            // Le filtre ne buvait rien : la propriété est HORIZONTALE. Une
+            // commande qui dépasse à droite est tout aussi inatteignable qu'on
+            // ait défilé jusqu'à elle ou non — et c'est même pire, puisqu'on y
+            // arrive en la cherchant. Les éléments non rendus sont déjà écartés
+            // par `r.width === 0`.
             if (r.left < -1 || r.right > window.innerWidth + 1) {
               resultats.push(`${el.id || el.className || el.tagName} [${Math.round(r.left)} → ${Math.round(r.right)}]`);
             }
@@ -384,6 +443,7 @@ for (const { nom, viewport } of LARGEURS) {
       ).toBeGreaterThan(9);
     });
   });
+  }
 }
 
 test.describe('La navigation de ce fichier, elle-même', () => {
@@ -505,3 +565,83 @@ test.describe('La navigation de ce fichier, elle-même', () => {
     ).toBeNull();
   });
 });
+
+/**
+ * ─────────────────────────────────────────────────────────────────────
+ * LE RENFORT TACTILE PROUVE SON POUVOIR DE DÉTECTION — 2026-09-09
+ *
+ * Ajouter une dimension à un balayage double son temps. Ce dépôt exige donc
+ * qu'on montre ce qu'elle achète, et la démonstration a échoué deux fois avant
+ * d'aboutir :
+ *
+ *   1. le mutant canonique — le `display: flex` de `pointer: coarse` qui
+ *      neutralise la grille du grand-livre — est bien tombé, mais dans
+ *      `grand-livre.spec.js`, qui tournait DÉJÀ au doigt. Le renfort n'avait
+ *      rien démontré ;
+ *   2. un mutant synthétique posé sous `pointer: coarse` — une commande de
+ *      900 px de large sur un écran de 320 — n'a rien fait tomber non plus.
+ *      C'est là que le vrai défaut est apparu : le balayage ne visitait QUE LE
+ *      PREMIER ÉCRAN. Le bouton était bien à `right: 941`, mais à `top: 1257`.
+ *
+ * Le filtre vertical de la propriété horizontale est parti (voir son
+ * commentaire, plus haut). Le même mutant fait alors tomber la moitié TACTILE
+ * à 320, 390 et 768 px, et laisse la moitié SOURIS verte — ce qui prouve les
+ * deux à la fois : le renfort mesure quelque chose, et il mesure quelque chose
+ * que l'autre moitié ne peut pas voir.
+ *
+ * Ces deux témoins figent la démonstration, pour qu'elle n'ait pas à être
+ * refaite à la main. Ils injectent leur défaut À L'EXÉCUTION : la règle est
+ * synthétique, et le dépôt n'a pas à conserver une commande difforme dans son
+ * code pour que son instrument reste vérifiable.
+ */
+const REGLE_DIFFORME = '@media (pointer: coarse) { .acces-rapides .btn { min-width: 900px } }';
+
+/** La sonde de « aucune commande ne dépasse de l'écran », rejouée telle quelle */
+const commandesHorsEcran = (page) => page.evaluate(() => {
+  const resultats = [];
+  for (const el of document.querySelectorAll('button, a[href], select, input:not([type="hidden"])')) {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    if (r.width === 0 || r.height === 0 || s.visibility === 'hidden') continue;
+    if (r.left < -1 || r.right > window.innerWidth + 1) resultats.push(String(el.className));
+  }
+  return resultats;
+});
+
+for (const { pointeur, tactile, attendu } of [
+  { pointeur: 'doigt', tactile: true, attendu: true },
+  { pointeur: 'souris', tactile: false, attendu: false }
+]) {
+  test.describe(`L'instrument lui-même — au ${pointeur}`, () => {
+    test.use({ viewport: { width: 320, height: 720 }, hasTouch: tactile });
+
+    test(`une commande difforme sous pointer: coarse est ${attendu ? 'VUE' : 'invisible'} d'ici`, async ({ page }) => {
+      await setupFirebaseMock(page);
+      await waitForApp(page);
+      await semer(page);
+      await ouvrir(page, 'panneauBilan');
+
+      const avant = await commandesHorsEcran(page);
+      expect(avant, 'prémisse : une commande dépasse déjà, le témoin ne dirait rien')
+        .toEqual([]);
+
+      await page.addStyleTag({ content: REGLE_DIFFORME });
+      await page.waitForTimeout(200);
+
+      const apres = await commandesHorsEcran(page);
+
+      if (attendu) {
+        expect(apres.length,
+          'la moitié tactile ne voit pas une commande de 900 px sur un écran de '
+          + '320 : soit `hasTouch` ne déclenche plus `pointer: coarse`, soit le '
+          + 'balayage a retrouvé un filtre qui l\'empêche de regarder')
+          .toBeGreaterThan(0);
+      } else {
+        expect(apres,
+          'la moitié souris voit une règle réservée au doigt : le témoin ne '
+          + 'sépare plus les deux contextes, et le renfort ne prouve plus rien')
+          .toEqual([]);
+      }
+    });
+  });
+}
