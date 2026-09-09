@@ -36,6 +36,37 @@
 }
 
 @media (max-width: 899px) {
+  /*
+     ─────────────────────────────────────────────────────────────────────
+     CE QUI EST AMENÉ DANS LA VUE ATTERRIT ENTRE LES DEUX BARRES.
+
+     Deux surfaces flottantes encadrent le contenu : le bandeau du mois en haut
+     (`sticky`, 103 px) et la barre d'onglets en bas (`fixed`, 57 px). Sans ces
+     deux réserves, `scrollIntoView` gare sa cible à `top: 0` — c'est-à-dire
+     SOUS le bandeau — et le clic part dans `#periodSelect`. Mesuré le
+     2026-09-09, et déjà vu en CI le 2026-09-01 : 25 interceptions,
+     `locator.click` expiré à 30 s, sur une page parfaitement chargée.
+
+     `scroll-padding` sur le CONTENEUR, et non `scroll-margin` sur chaque cible :
+     les deux barres ne sont la propriété d'aucune ligne en particulier, et une
+     marge posée sur les lignes du grand-livre laisserait le prochain élément
+     qu'on amènera dans la vue retomber dans le même trou.
+
+     ── CE QUE ÇA NE CORRIGE PAS, ET IL FAUT LE DIRE ──
+
+     Un bandeau collant recouvre par construction ce qui défile dessous. Une
+     personne qui fait défiler à la main peut toujours s'arrêter avec une ligne
+     dessous — 22 positions à 320 px, relevées. Elle défile un peu plus ; c'est
+     le comportement de toute application à en-tête collant.
+
+     Ce qui n'avait aucun recours, et que ces deux lignes réparent, c'est le
+     GESTE qui amène quelqu'un sur une ligne pour la toucher.
+     ───────────────────────────────────────────────────────────────────── */
+  html {
+    scroll-padding-top: var(--bandeau-colle-h);
+    scroll-padding-bottom: var(--barre-onglets-h);
+  }
+
   .onglets {
     position: fixed;
     bottom: 0;

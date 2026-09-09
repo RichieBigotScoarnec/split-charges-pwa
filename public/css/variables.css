@@ -286,6 +286,25 @@
   --space-lg: 24px;
   --space-xl: 32px;
 
+  /* Les deux surfaces flottantes, MESURÉES le 2026-09-09.
+
+     Sous 900 px, deux barres encadrent le contenu défilant : le bandeau du mois
+     — `position: sticky`, en haut — et la barre d'onglets — `position: fixed`,
+     en bas. Une ligne amenée dans la vue par `scrollIntoView` atterrissait
+     dessous, et le clic partait dans la barre : c'est le défaut du 2026-09-01,
+     25 interceptions et 30 s d'expiration dans l'artefact.
+
+     Ces deux hauteurs servent au `scroll-padding` d'`onglets.css`. Elles sont
+     RELEVÉES, pas calculées : le bandeau réunit la carte du mois et la barre de
+     solde, et sa hauteur ne se déduit d'aucun autre jeton. Mesuré 103 px à 320
+     comme à 390, au repos comme après compaction de l'en-tête — le compactage
+     touche `#mainApp > header`, qui n'en fait pas partie.
+
+     Un jeton faux ne se verrait pas à l'œil : c'est `clic-au-bord.spec.js` qui
+     tient la propriété, et il nomme la barre qui recouvre. */
+  --bandeau-colle-h: 103px;
+  --barre-onglets-h: 57px;
+
   /* Transitions */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --duration: 150ms;
