@@ -310,7 +310,31 @@ export function computeSummary({ salaries, fixedCharges, variableCharges, reimbu
     reimbursementAdjustment,
     carryOver,
     ownBalance,
-    balance: finalBalance
+    balance: finalBalance,
+    // Les charges RÉELLEMENT retenues pour les parts — solo écartées, montants
+    // illisibles ramenés à zéro, supprimées filtrées.
+    //
+    // Exposées parce que le dépliant les décompose par règle, et qu'il doit
+    // décomposer EXACTEMENT ce qui a produit `yourShare`. Refaire ce filtrage
+    // dans `summary.js` aurait été une seconde fabrique de l'assiette : elle
+    // aurait tenu le premier jour, puis divergé au correctif suivant — et
+    // l'écran aurait montré une décomposition dont la somme ne fait pas le
+    // total qu'elle explique. C'est le pire des symptômes de `normalizePair`,
+    // parce que c'est le chiffre juste qu'on mettrait en doute.
+    //
+    // ── PROJETÉES, ET PAS RENDUES TELLES QUELLES ──
+    //
+    // Deux champs, ceux dont `calculateChargeShares` a besoin. Rendre les
+    // charges entières a fait tomber `enveloppes.test.js` — « une enveloppe ne
+    // déplace pas un euro » compare deux bilans poste à poste, et un champ
+    // `envelope` traversait la sortie sans qu'aucun euro n'ait bougé. Le
+    // contrôle avait raison : une sortie de calcul ne doit porter que ce qui
+    // participe au calcul, sinon elle change quand des données étrangères
+    // changent.
+    chargesRetenues: allCharges.map(c => ({
+      amount: c.amount,
+      splitOverride: c.splitOverride
+    }))
   };
 }
 

@@ -59,7 +59,10 @@ FairSplit/
 │       │                       # sans y penser), resume-prive (ce que l'autre
 │       │                       # voit d'un espace privé : un total, jamais le
 │       │                       # détail)
-│       └── utils/              # 65 aides pures — dont onglets (quel panneau
+│       └── utils/              # 68 aides pures — dont decomposition (pourquoi
+│                               # ma part vaut ce qu'elle vaut : une ligne par
+│                               # RÈGLE appliquée, jamais par catégorie),
+│                               # onglets (quel panneau
 │                               # l'écran montre, sous 900 px), entete (l'en-tête
 │                               # se compacte une fois sorti de l'écran),
 │                               # provisions (ce qu'il faut mettre de côté chaque
@@ -729,7 +732,7 @@ double doit produire du balisage qu'on puisse compter.
 
 ### 2. Deux fabriques d'une même grandeur finissent toujours par diverger
 
-**9 avérées, 2 évitées parce que le motif était nommé — détail en archive.** Dite
+**9 avérées, 3 évitées parce que le motif était nommé — détail en archive.** Dite
 « le défaut `normalizePair` », du nom de la première. Les deux évitées sont la
 meilleure preuve que la règle sert : elle a déjà payé, pas seulement coûté.
 
@@ -788,6 +791,36 @@ courait le plus ne disait pas qu'une saisie était refusée.
 > parcourt tout ce qui annonce une portée et exige l'accord après chaque geste.
 > Éprouvé par mutation : une seconde source rebranchée le fait tomber en
 > nommant les deux annonces qu'il a vues.
+
+> **LA TROISIÈME ÉVITÉE, ET CE QU'ELLE A COÛTÉ POUR RESTER ÉVITÉE — 2026-09-09.**
+> Le dépliant décompose la part par règle. Pour cela il lui faut l'assiette
+> exacte que `computeSummary` a retenue — solo écartées, supprimées filtrées,
+> montants illisibles ramenés à zéro. La refaire dans `summary.js` aurait tenu
+> le premier jour, puis divergé au correctif suivant, et l'écran aurait montré
+> **une décomposition dont la somme ne fait pas le total qu'elle explique.**
+>
+> `computeSummary` expose donc `chargesRetenues`. Deux enseignements en sont
+> sortis, et aucun n'était prévu :
+>
+> - **exposer les charges ENTIÈRES a fait tomber `enveloppes.test.js`** — « une
+>   enveloppe ne déplace pas un euro » compare deux bilans poste à poste, et un
+>   champ `envelope` traversait la sortie sans qu'aucun euro n'ait bougé. Le
+>   contrôle avait raison : **une sortie de calcul ne doit porter que ce qui
+>   participe au calcul**, sinon elle change quand des données étrangères
+>   changent. Projeté à `{ amount, splitOverride }` ;
+> - **la garde de câblage ne mesurait rien**, et pour la raison exacte que ce
+>   lot venait de nommer ailleurs. Le mutant — nourrir la décomposition de
+>   `variableCharges` au lieu de `chargesRetenues` — restait VERT : sur le semis
+>   du contrôle, toutes les charges étaient variables, communes et actives, donc
+>   **les deux assiettes étaient identiques**. Il a fallu y ajouter une charge
+>   fixe (que l'une manque) et une dépense solo (que l'autre ajoute).
+>
+> **Un jeu d'essai qui ne sépare pas les deux fabriques ne prouve ni l'une ni
+> l'autre** — c'est ce que la règle exige déjà, et il faut se le redemander
+> pour CHAQUE contrôle qu'on écrit, pas seulement pour celui qui a motivé la
+> règle. Ici le même défaut a été rencontré deux fois dans le même lot : sur la
+> maquette qui ne pouvait pas trancher entre deux lectures, puis sur ma propre
+> garde.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 

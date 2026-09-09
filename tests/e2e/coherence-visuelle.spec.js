@@ -58,6 +58,18 @@ async function semer(page) {
     chemins[`periods/${p}/fixedCharges/f1`] = {
       description: 'Loyer', amount: 950, category: 'Maison',
       paidBy: 'vous', date: `${p}-05`, deleted: false };
+    // DEUX dérogations distinctes, et elles ne sont pas décoratives : sans
+    // elles, la décomposition du dépliant ne rend qu'une ligne et SE TAIT —
+    // le balayage ne visiterait jamais les libellés du lot 7, qui sont les
+    // plus longs que ce dépliant porte.
+    chemins[`periods/${p}/variableCharges/d1`] = {
+      description: 'Festival', amount: 45, category: 'Loisirs',
+      paidBy: 'conjointe', date: `${p}-07`, deleted: false,
+      splitOverride: { mode: '50-50' } };
+    chemins[`periods/${p}/variableCharges/d2`] = {
+      description: 'Cadeau', amount: 120, category: 'Loisirs',
+      paidBy: 'vous', date: `${p}-08`, deleted: false,
+      splitOverride: { mode: 'custom', vous: 70, conjointe: 30 } };
     await dbUpdate(undefined, chemins);
     await window.changePeriod(p);
   }, { p });

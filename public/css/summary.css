@@ -121,6 +121,33 @@
   padding: 0 var(--space-sm);
 }
 
+/* ===== POURQUOI VOTRE PART =====
+   ---------------------------------------------------------------------------
+   Une ligne par RÈGLE appliquée. Le raisonnement — et le jeu d'essai qui a
+   écarté la lecture par catégorie — vivent en tête d'`utils/decomposition.js`.
+
+   LE RETRAIT DIT LA SUBORDINATION, ET IL EST PETIT À DESSEIN.
+
+   Ce bloc explique la ligne « Vous 71 % » juste au-dessus ; il ne la
+   concurrence pas. Un retrait de `--space-sm` suffit à dire « ceci détaille
+   cela » — et à 320 px, où le grand-livre dispose de 218 px utiles, chaque
+   pixel de retrait est un pixel de moins pour le libellé. Mesuré : « Au prorata
+   de 70,6 % » tient sur une ligne de 30 px avec ce retrait.
+
+   Pas de bordure ni de fond : la carte du bilan en porte déjà deux niveaux, et
+   un troisième cadre ferait de l'explication un objet, alors que c'est une
+   note.
+   --------------------------------------------------------------------------- */
+.summary-decomposition {
+  padding-left: var(--space-sm);
+}
+
+/* L'encre est plus discrète que celle des lignes qu'elle explique : on lit
+   d'abord le chiffre, la décomposition répond quand on la cherche. */
+.summary-row--decompose {
+  color: var(--text-secondary);
+}
+
 .summary-total-row {
   font-size: 14px;
 }
