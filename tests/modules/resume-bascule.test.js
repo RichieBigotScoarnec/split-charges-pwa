@@ -239,16 +239,34 @@ describe('Le versant du résumé', () => {
     });
   });
 
-  describe('« Privé » n\'invente pas un écran qui n\'existe pas', () => {
-    it('rend le panneau du foyer, et pas le versant personnel', () => {
-      // La dette est écrite plutôt que dissimulée : la vue privée appartient au
-      // lot suivant. Le test est `!== solo`, jamais `=== deux` — montrer mes
-      // chiffres personnels sous une étiquette qui promet le privé mentirait
-      // davantage que de laisser le foyer.
+  describe('« Privé » a son propre panneau', () => {
+    it('ne rend ni le foyer ni le versant personnel', () => {
+      // ── CE CAS DISAIT L'INVERSE, ET C'ÉTAIT UNE DETTE ÉCRITE ──
+      //
+      // « Privé » rendait le panneau du foyer, faute de vue : le test était
+      // `!== solo` et jamais `=== deux`, parce que montrer mes chiffres
+      // personnels sous une étiquette qui promet le privé aurait menti
+      // davantage. La vue existe depuis le 2026-09-08 ; la dette est fermée, et
+      // ce cas passe de l'un à l'autre sans changer de sujet — il dit toujours
+      // ce que « Privé » rend.
       const { duo, solo: panneauSolo } = resumeRendu({ portee: PORTEES.PRIVE });
 
-      expect(duo).not.toBeNull();
-      expect(panneauSolo).toBeNull();
+      expect(duo, 'le foyer est rendu sous une étiquette qui promet le privé')
+        .toBeNull();
+      expect(panneauSolo, 'le versant personnel est rendu sous l\'étiquette du privé')
+        .toBeNull();
+      expect(document.getElementById('resumePanneauPrive'),
+        'aucun panneau privé n\'est posé').not.toBeNull();
+    });
+
+    it('pose un conteneur que la lecture remplira, jamais un écran vide', () => {
+      // Le remplissage est asynchrone — quatre lectures en base — et ce
+      // contrôle-ci tourne sur un double synchrone. Ce qu'il tient est que le
+      // conteneur ne part pas VIDE : un panneau blanc se lit comme une panne,
+      // et c'est le seul état que la personne verrait si la base tardait.
+      resumeRendu({ portee: PORTEES.PRIVE });
+      expect(document.getElementById('resumePanneauPrive').textContent.trim())
+        .not.toBe('');
     });
   });
 

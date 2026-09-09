@@ -459,6 +459,35 @@ rouge ?* Trois réponses le condamnent :
 > contradiction avec la deuxième réponse ci-dessus : là on demande si le
 > contrôle a tourné, ici on demande **sur quoi il a porté**.
 
+> **UN CONTRÔLE PEUT DEVENIR VIDE PARCE QU'UN VOISIN S'EST AMÉLIORÉ — et les
+> deux changements sont bons, pris séparément.** C'est la variante la plus
+> difficile à voir de toutes celles qui précèdent : il n'y a ni déplacement, ni
+> renommage, ni suppression. Personne n'a rien cassé.
+>
+> Mesuré le 2026-09-08 sur le refus du privé en bac à sable. Le contrôle
+> exigeait qu'**un seul élément** porte à la fois « privé » et une raison —
+> « bac à sable », « pas accessible »… — et son commentaire expliquait pourquoi
+> cette forme excluait le bandeau : *« son texte ne contient pas privé »*. C'était
+> vrai le jour de l'écriture.
+>
+> Deux lots plus tard, le bandeau a été amélioré. Il dit maintenant : « Bac à
+> sable — données d'essai, isolées de celles du foyer. **L'espace privé n'y est
+> pas accessible.** » Un seul élément, les deux motifs. Le contrôle était
+> satisfait par le bandeau, et ne savait plus rien de l'écran privé — révélé par
+> mutation : garde retirée, l'écran annonçait « Espace privé illisible, revenez
+> dans un instant », et le cas restait **vert**.
+>
+> **Ce qui la rend invisible : la justification écrite reste lisible et
+> continue de paraître juste.** On relit « cette exigence exclut le bandeau », on
+> acquiesce, on passe. La phrase décrit un état du monde qui a changé sans elle.
+>
+> **Le geste : quand un contrôle cherche dans TOUTE la page, se demander
+> périodiquement qui d'autre a appris à dire la même chose.** Le remède est de
+> réduire la surface à ce que le contrôle prétend mesurer — ici le panneau
+> rendu, `.panneau--actif`, ce qui exclut le bandeau **par construction** au lieu
+> de l'exclure par une propriété de son texte. Une exclusion structurelle ne se
+> périme pas quand un voisin change de vocabulaire.
+
 > **Le jumeau exact, dans l'autre sens : une PRÉMISSE qui exige un exemplaire
 > se périme quand l'exemplaire disparaît — et celle-là ROUGIT, sur un dépôt
 > sain.** Un contrôle qui nomme une surface se périme en vert ; une prémisse

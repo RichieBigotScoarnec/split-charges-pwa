@@ -89,8 +89,17 @@ export function blocPriveDuResume() {
         Le montant se referme en quittant l'onglet ou l'application.
       </p>
 
+      <!--
+        Elle menait à une modale ; elle mène maintenant à la VUE — le segment
+        « Privé » du sélecteur, en tête du panneau.
+
+        Elle reste, et une mesure le justifie seule : une fois défilé jusqu'à ce
+        bloc, le segment est **415 px plus haut à 320 px** (373 à 390), donc
+        hors de l'écran. La retirer coûterait ce défilement à chaque fois. Et
+        elle dit ce que « Privé » seul ne dit pas — « et le partage ».
+      -->
       <button type="button" class="summary-row summary-row--ouvrable"
-              data-action="showPrivateExpensesModal">
+              data-action="allerALaPortee" data-arg="prive">
         <span>Gérer mes dépenses privées et le partage</span>
         <strong>Ouvrir</strong>
       </button>

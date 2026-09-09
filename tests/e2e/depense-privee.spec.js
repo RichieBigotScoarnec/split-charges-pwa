@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Écrire chez soi ne demande rien ; lire chez l'autre demande son accord
@@ -17,10 +17,24 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
  * fonctionner dont chaque écriture serait rejetée en production.
  */
 
-/** Ouvre l'écran des dépenses privées */
+/**
+ * Va sur l'écran des dépenses privées
+ *
+ * ── IL PILOTAIT `showPrivateExpensesModal()`, QUI N'EXISTE PLUS ──
+ *
+ * L'espace privé était une modale ; c'est une VUE depuis le 2026-09-08, la
+ * troisième portée du sélecteur. Ce helper fait donc ce que fait la personne :
+ * il touche le segment.
+ *
+ * L'attente porte sur ce que l'écran MONTRE — les trois crans de partage — et
+ * non sur un conteneur nommé. C'est ce qui a permis à tous les cas de ce
+ * fichier de survivre au déplacement sans être réécrits : ils cherchaient déjà
+ * leur contenu par son texte.
+ */
 async function ouvrirPrive(page) {
-  await page.evaluate(() => window.showPrivateExpensesModal());
-  await expect(page.locator('#modalPrive')).toBeVisible();
+  await allerAuPanneau(page, 'panneauBilan');
+  await page.locator('.panneau--actif [data-portee="prive"]').click();
+  await expect(page.getByText('Total + détail', { exact: true })).toBeVisible();
 }
 
 /**
@@ -48,13 +62,19 @@ test.describe('Les dépenses privées', () => {
     await waitForApp(page);
   });
 
-  test('le bouton « Privé » ouvre l\'écran', async ({ page }) => {
-    // Un bouton visible et inerte se lit comme une panne : `init.js` n'appelle
-    // que les actions de sa liste blanche, et le module doit être initialisé.
-    await page.locator('[data-action="showPrivateExpensesModal"]').click();
-    await expect(page.locator('#modalPrive')).toBeVisible();
-    await expect(page.locator('#priveTitre')).toContainText('privées');
-  });
+  /**
+   * ── « LE BOUTON PRIVÉ OUVRE L'ÉCRAN » A ÉTÉ RETIRÉ D'ICI ──
+   *
+   * Il visait `[data-action="showPrivateExpensesModal"]`, le bouton de la
+   * rangée des lectures du mois. Ce bouton a disparu le 2026-09-08 : l'espace
+   * privé est une portée, et le segment le gouverne.
+   *
+   * Il n'est pas réécrit ici parce qu'il vit ailleurs, et mieux :
+   * `prive-en-vue.spec.js` tient « choisir Privé rend l'espace privé, sans
+   * autre geste » **avec sa prémisse** — un relevé d'avant qui exige que
+   * l'espace ne soit pas déjà à l'écran. Le réécrire ici en serait une seconde
+   * rédaction, plus faible, qu'un correctif ne reporterait pas.
+   */
 
   test('la saisie est disponible d\'emblée, sans accord de personne', async ({ page }) => {
     // Le contrôle qui dit le sujet. Une version antérieure retirait le
@@ -130,7 +150,7 @@ test.describe('Les dépenses privées', () => {
     await choisirLePartage(page, 'detail');
     await choisirLePartage(page, 'total');
 
-    await expect(page.locator('#modalPrive')).toContainText('45,00');
+    await expect(page.locator('#resumePanneauPrive')).toContainText('45,00');
   });
 
   test('l\'écran nomme les deux accords, et pas seulement le sien', async ({ page }) => {
@@ -141,7 +161,7 @@ test.describe('Les dépenses privées', () => {
     // `innerText` rend le texte tel qu'il s'affiche, et la feuille de style met
     // les titres en capitales : comparer en minuscules porte sur le contenu
     // plutôt que sur sa présentation.
-    const texte = (await page.locator('#modalPrive').innerText()).toLowerCase();
+    const texte = (await page.locator('#resumePanneauPrive').innerText()).toLowerCase();
     // « Ce que vous ouvrez » est devenu « ce que vous partagez » : le bloc ne
     // gouverne plus une ouverture mais une échelle a trois crans, dont le plus
     // bas ne publie rien du tout. Ce que ce contrôle garantit n'a pas bougé —
@@ -184,9 +204,9 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
     });
     await ouvrirPrive(page);
 
-    await expect(page.locator('#modalPrive')).toContainText('340,00');
+    await expect(page.locator('#resumePanneauPrive')).toContainText('340,00');
     // Et surtout : aucun libellé.
-    await expect(page.locator('#modalPrive')).not.toContainText('Manucure');
+    await expect(page.locator('#resumePanneauPrive')).not.toContainText('Manucure');
   });
 
   /**
@@ -298,27 +318,47 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
             }
             return false;
           };
-          const dansLaVue = (el) => {
+          // ── « DANS LA VUE » NE SUFFIT PAS : IL FAUT « LISIBLE » ──
+          //
+          // La première rédaction demandait un chevauchement — `top < hauteur
+          // && bottom > 0`. Elle a produit un FAUX POSITIF dès le passage en
+          // vue : à un défilement de 280 px, la boîte du montant commence 4 px
+          // au-dessus du bord bas et le marqueur 1 px en dessous. La sonde
+          // annonçait « montant visible, réserve non » là où personne ne
+          // pouvait lire quoi que ce soit — quatre pixels de boîte vide.
+          //
+          // La propriété parle de LECTURE. Un élément est donc lisible quand sa
+          // boîte tient entièrement dans la vue, pas quand elle l'effleure.
+          const lisible = (el) => {
             const r = el.getBoundingClientRect();
-            return r.top < window.innerHeight && r.bottom > 0
-              && r.left < window.innerWidth && r.right > 0;
+            return r.top >= 0 && r.bottom <= window.innerHeight
+              && r.left >= 0 && r.right <= window.innerWidth;
           };
 
-          // Le balayage porte sur le défilement INTERNE de la carte : c'est lui
-          // qui déplace le contenu, la page derrière ne bouge pas.
-          const carte = document.querySelector('#modalPrive .modal');
-          const max = Math.max(0, carte.scrollHeight - carte.clientHeight);
+          // ── LE BALAYAGE A CHANGÉ DE SUJET AVEC LA SURFACE ──
+          //
+          // Il portait sur le défilement INTERNE d'une carte de modale : une
+          // boîte qui défile dans une boîte. L'espace privé est une vue depuis
+          // le 2026-09-08, et c'est la PAGE qui défile. Un balayage resté sur
+          // `carte.scrollTop` n'aurait trouvé qu'une position — celle du haut —
+          // et la prémisse ci-dessous le dit à voix haute plutôt que de rendre
+          // vert sur un instrument devenu immobile.
+          //
+          // C'est le déplacement même que ce contrôle existait pour protéger.
+          // Il tient la même propriété, sur la surface qui défile vraiment.
+          const max = Math.max(0,
+            document.documentElement.scrollHeight - window.innerHeight);
 
           const seul = [];
           let vuEnsemble = 0;
           for (let y = 0; y <= max; y += 20) {
-            carte.scrollTop = y;
-            const m = dansLaVue(montant);
-            const r = dansLaVue(reserve);
+            window.scrollTo(0, y);
+            const m = lisible(montant);
+            const r = lisible(reserve);
             if (m && !r) seul.push(y);
             if (m && r) vuEnsemble++;
           }
-          carte.scrollTop = 0;
+          window.scrollTo(0, 0);
 
           return {
             montantTrouve: true,
@@ -345,7 +385,7 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
         // La carte doit DÉFILER, sinon le balayage n'a qu'une position et le cas
         // retombe sur l'ancien — celui qui ne mesurait qu'un grand écran.
         expect(releve.defilementMax,
-          'prémisse : la carte ne défile pas, le balayage ne sépare rien')
+          'prémisse : la page ne défile pas, le balayage ne sépare rien')
           .toBeGreaterThan(0);
 
         // Le témoin positif : il existe au moins une position où les deux sont
@@ -458,7 +498,7 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
     // « Rien publié » n'est pas « zéro dépense privée ». Afficher 0 € ferait
     // croire à une information qu'on n'a pas.
     await ouvrirPrive(page);
-    await expect(page.locator('#modalPrive')).toContainText('on n\'en sait rien');
+    await expect(page.locator('#resumePanneauPrive')).toContainText('on n\'en sait rien');
   });
 
   test('avec son accord : le détail, et plus la réserve du chiffre déclaré', async ({ page }) => {
@@ -475,7 +515,7 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
     });
     await ouvrirPrive(page);
 
-    const modale = page.locator('#modalPrive');
+    const modale = page.locator('#resumePanneauPrive');
     await expect(modale).toContainText('Manucure');
     await expect(modale).toContainText('Livre');
     await expect(modale).toContainText('85,00');
@@ -511,7 +551,7 @@ test.describe('Ce qu\'on voit de l\'autre', () => {
     await ouvrirPrive(page);
     await choisirLePartage(page, 'detail');
 
-    await expect(page.locator('#modalPrive')).not.toContainText('Manucure');
+    await expect(page.locator('#resumePanneauPrive')).not.toContainText('Manucure');
   });
 });
 
@@ -536,8 +576,12 @@ test.describe('Le solde du couple', () => {
     await page.locator('#priveMontant').fill('45');
     await page.locator('#priveAjouter').click();
     await page.waitForTimeout(700);
-    await page.locator('#priveFermer').click();
-    await page.waitForTimeout(500);
+
+    // On revient au foyer par le SEGMENT : l'espace privé était une modale
+    // qu'on refermait par `#priveFermer`, c'est une vue dont on sort en
+    // choisissant une autre portée. Une vue ne se referme pas.
+    await page.locator('.panneau--actif [data-portee="deux"]').click();
+    await page.waitForTimeout(600);
 
     expect(await page.locator('#summarySection').innerText()).toBe(avant);
   });

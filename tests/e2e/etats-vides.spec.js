@@ -34,7 +34,11 @@ test.describe('Une application encore vide', () => {
     // parfaitement légitime : ces deux-là ne se masquent pas.
     await allerAuPanneau(page, 'panneauBilan');
     await expect(page.locator('[data-action="showManageEnvelopesModal"]')).toBeVisible();
-    await expect(page.locator('[data-action="showPrivateExpensesModal"]')).toBeVisible();
+    // « Privé » a quitté cette rangée le 2026-09-08 : c'est une PORTÉE, et son
+    // segment vit en tête du panneau. Le cas garde son sujet — ce qui CRÉE
+    // quelque chose ne se masque pas sur un écran vide — et il le vérifie là où
+    // la commande se trouve maintenant.
+    await expect(page.locator('.panneau--actif [data-portee="prive"]')).toBeVisible();
   });
 
   test('explique ce que chaque section attend', async ({ page }) => {

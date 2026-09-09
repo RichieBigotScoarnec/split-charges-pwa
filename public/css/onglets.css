@@ -480,8 +480,27 @@
   flex-wrap: wrap;
 }
 
+/*
+   Un outil garde sa taille, seul ou accompagné.
+
+   `flex: 1` faisait partager la rangée en parts égales. C'était juste tant
+   qu'ils étaient deux ou trois ; « Privé » est parti le 2026-09-08 — il est
+   devenu une portée — et « Enveloppes » restait seul à s'étirer sur toute la
+   largeur : 308 px à 390, 402 px à 1280. Un outil qu'on ouvre rarement se
+   peignait alors comme le geste principal de l'écran.
+
+   `flex-grow: 0` le laisse à sa largeur de contenu, plancher à 140 px. Le
+   `flex-basis: auto` implicite garde le comportement à plusieurs : ils se
+   posent côte à côte et passent à la ligne quand la place manque, exactement
+   comme avant.
+
+   La propriété est tenue sans seuil par `onglets.spec.js` — « un outil de
+   lecture ne se peint pas comme l'action principale » : sa largeur ne dépend
+   pas du nombre de ses voisins. Un seuil en pourcentage aurait demandé de
+   justifier le pourcentage.
+*/
 .acces-rapides .btn {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 140px;
 }
 

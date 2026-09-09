@@ -250,6 +250,23 @@ function choisirLaPortee(demandee) {
  * @returns {void}
  */
 export function initSelecteurPortee() {
+  // ── LA SEULE ACTION QUE CE MODULE DÉCLARE, ET POURQUOI IL EN FAUT UNE ──
+  //
+  // Les segments n'en ont pas besoin : ils portent `data-portee`, et l'écouteur
+  // est posé sur leur groupe. Mais une commande VIT AILLEURS — la rangée
+  // « Gérer mes dépenses privées et le partage », dans le bloc privé du versant
+  // personnel — et elle ne peut pas être atteinte par cet écouteur-là.
+  //
+  // Elle ne pouvait pas non plus disparaître : mesuré, le segment est 415 px
+  // plus haut à 320 px une fois qu'on a défilé jusqu'à ce bloc. Elle change
+  // donc de destination, et il lui faut un nom déclaré.
+  //
+  // Élargir l'écouteur à tout `[data-portee]` du document aurait évité la liste
+  // blanche, et c'est précisément ce qu'on ne veut pas : n'importe quel balisage
+  // injecté porterait alors une commande. Un nom, une entrée, `porteeValide`
+  // qui tranche — la surface reste bornée.
+  window.allerALaPortee = choisirLaPortee;
+
   let poses = 0;
 
   for (const id of PANNEAUX) {
