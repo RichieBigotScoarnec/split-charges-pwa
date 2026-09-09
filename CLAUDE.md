@@ -791,7 +791,7 @@ courait le plus ne disait pas qu'une saisie était refusée.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
-**7 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
+**8 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
 port, un `--reporter=basic` qui n'existe pas, un `| tail -45` qui coupe le
 rapport — et un `--reporter=line` prescrit par cette règle même, qui n'existe pas
 davantage sous Vitest. **Aucune n'est la même commande, et deux n'impliquent
@@ -804,6 +804,35 @@ une PR finie.** Le vert des checks dit que l'arbre poussé tient, jamais que le
 travail est terminé — et fusionner sur ce signal-là fait tomber le merge sous
 les commits en vol. Deux fois en deux jours, même geste. Le détail est au
 point 4.
+
+**Et la huitième est ROUGE, pas verte — « rouge sur quoi ? » est la même
+question.** Le 2026-09-09, la CI d'une PR annonçait « Lint et tests unitaires :
+failure » et « Tests end-to-end : **skipped** ». La lecture immédiate — celle
+que j'ai failli faire — est « mon lot casse quelque chose ». Les deux moitiés
+étaient fausses :
+
+- l'échec venait de `npm audit --audit-level=high`, sur un avis publié le matin
+  même contre une dépendance transitive de développement. **Rien à voir avec le
+  lot** ;
+- et l'E2E n'avait pas « rien à signaler » : **il n'avait jamais tourné.** Un job
+  qui s'arrête à une étape précoce fait passer les suivantes en `skipped`, et un
+  `skipped` se lit comme un silence rassurant.
+
+**Un rouge accepté sans savoir ce qui a tourné coûte autant qu'un vert.** On
+allait fusionner sur des checks qui n'avaient pas porté sur le travail — la
+cinquième forme, à l'envers.
+
+**Le geste, en deux temps :**
+
+1. **lire CE QUI a tourné**, pas seulement le verdict — `gh run view <id>
+   --log-failed`, et repérer les étapes `skipped` qui suivent l'échec ;
+2. **demander si `main` est rouge pour la même raison** — un héritage n'est pas
+   une régression, et le remède n'est pas dans le lot.
+
+```bash
+gh run list --branch main --limit 3 --json databaseId,conclusion -q '.[]|[.databaseId,.conclusion]|@tsv'
+gh run view <id> --log-failed
+```
 
 **Et la cinquième n'est même pas une commande.** Le 2026-09-06, une PR a été
 mergée sur un head **périmé** : ses deux derniers commits étaient bien poussés,
@@ -1541,6 +1570,25 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   n'existe qu'en 3.5.0. Dépendance de développement, seuil CI à
   `--audit-level=high` : rien n'est bloqué. Dependabot le proposera quand l'amont
   élargira sa plage — rien à surveiller à la main.
+
+- **Les `overrides` s'accumulent, personne ne les relit, et AUCUN des quatre
+  n'est porteur.** Question posée le 2026-09-09 : y a-t-il une échéance à
+  laquelle on les relit ? **Non.** Il n'y a ni commentaire, ni note, ni
+  entrée de journal — ils s'ajoutent, et c'est tout.
+  **Mesuré, et le résultat surprend** : les quatre retirés d'un coup, suivis d'un
+  `npm update` des paquets concernés, `npm audit --audit-level=high` rend **0** —
+  12 modérées, zéro haute. Ils font descendre le compte des **modérées** de 12 à
+  5 ; ils ne tiennent pas la porte que la CI applique.
+  **Le réflexe à éviter** : le quatrième a failli être ajouté par mimétisme —
+  « il y en a déjà trois ». Vérification faite, `firebase-tools` déclare
+  `js-yaml@^4`, qui **admettait déjà** la version corrigée : le verrou était
+  simplement resté en arrière. `npm update <paquet> --package-lock-only` a suffi,
+  trois lignes, et rien qui s'accumule.
+  **Avant d'ajouter un override, demander si la plage du parent admet déjà le
+  correctif.** Un override sert quand elle ne l'admet PAS ; sinon c'est une
+  ligne permanente pour un problème de verrou.
+  Retirer les trois existants n'est pas décidé : ils achètent de l'hygiène au
+  niveau modéré, et la décision ne se prend pas en passant.
 
 ## Décisions de conception
 
