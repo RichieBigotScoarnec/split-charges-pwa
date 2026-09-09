@@ -122,6 +122,82 @@ test('le total de tête est celui que le dépliant détaille', async ({ page }) 
   expect(dansLeDetail).toBeCloseTo(enTete, 2);
 });
 
+test('la décomposition somme à la part qu\'elle explique', async ({ page }) => {
+  /**
+   * ── LA GARDE DE CÂBLAGE, ET ELLE NE DOUBLE PAS L'UNITAIRE ──
+   *
+   * `tests/utils/decomposition.test.js` tient l'arithmétique : sur son jeu
+   * séparateur, la somme des lignes vaut la part totale. Il ne peut PAS voir
+   * une erreur de branchement — une décomposition nourrie d'une autre assiette
+   * que celle qui a produit la part affichée sommerait juste, et à un autre
+   * chiffre que celui d'à côté.
+   *
+   * C'est la propriété qui rend la décomposition croyable : un dépliant dont
+   * les lignes ne somment pas au chiffre qu'elles expliquent invite à douter
+   * du chiffre — et c'est le chiffre juste qu'on mettrait en doute.
+   */
+  test.setTimeout(180000);
+  await setupFirebaseMock(page);
+  await waitForApp(page);
+  await semerLeMois(page);
+
+  /**
+   * ── LE SEMIS DOIT SÉPARER LES DEUX ASSIETTES ──
+   *
+   * Première rédaction : une seule dérogation variable, en plus des deux
+   * charges de `semerLeMois`. Le mutant — nourrir la décomposition de
+   * `variableCharges` au lieu des charges retenues par le calcul — passait au
+   * VERT : sur ce semis les deux ensembles étaient identiques, toutes les
+   * charges étant variables, communes et actives.
+   *
+   * C'est la leçon de la maquette du lot, appliquée à ce contrôle-ci : un jeu
+   * d'essai qui ne sépare pas les hypothèses n'en prouve aucune. Trois charges
+   * suffisent à les séparer, et chacune est là pour une raison :
+   *
+   *   - une DÉROGATION, sans quoi la décomposition ne rend qu'une ligne et se
+   *     tait ;
+   *   - une charge FIXE, que `variableCharges` seul manquerait — la somme
+   *     serait trop basse ;
+   *   - une dépense SOLO, que `variableCharges` seul ajouterait — trop haute.
+   *     C'est `chargesCommunes` qui l'écarte, et rien d'autre.
+   */
+  await page.evaluate(async () => {
+    const { dbUpdate } = await import('/js/db.js');
+    const now = new Date();
+    const mois = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    await dbUpdate(undefined, {
+      [`periods/${mois}/variableCharges/d1`]: {
+        description: 'Festival', amount: 300, category: 'Loisirs',
+        paidBy: 'conjointe', deleted: false, splitOverride: { mode: '50-50' }
+      },
+      [`periods/${mois}/fixedCharges/f1`]: {
+        description: 'Loyer', amount: 500, category: 'Maison',
+        paidBy: 'vous', deleted: false
+      },
+      [`periods/${mois}/variableCharges/s1`]: {
+        description: 'Salle de sport', amount: 40, category: 'Perso',
+        paidBy: 'vous', deleted: false, perimetre: 'solo'
+      }
+    });
+    await window.changePeriod(mois);
+  });
+  await page.waitForTimeout(2000);
+
+  await page.locator('.summary-details > summary').click();
+
+  const lignes = await page.locator('.summary-row--decompose strong').allInnerTexts();
+  expect(lignes.length,
+    'prémisse : la décomposition ne rend pas plusieurs lignes, elle ne mesure rien ici')
+    .toBeGreaterThan(1);
+
+  const somme = lignes.reduce((s, t) => s + nombre(t), 0);
+  const maPart = nombre(await page.locator('.summary-section-label:text-is("Répartition à payer") + .summary-row strong').innerText());
+
+  expect(somme,
+    `les ${lignes.length} lignes somment à ${somme} pour une part affichée de ${maPart}`)
+    .toBeCloseTo(maPart, 2);
+});
+
 test('un mois révolu est nommé, jamais appelé « ce mois »', async ({ page }) => {
   test.setTimeout(180000);
   await setupFirebaseMock(page);

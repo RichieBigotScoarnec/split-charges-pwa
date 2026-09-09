@@ -68,6 +68,7 @@ const STATIC_ASSETS = [
   './js/utils/correction-retroactive.js',
   './js/utils/cout-annuel.js',
   './js/utils/date.js',
+  './js/utils/decomposition.js',
   './js/utils/echelle.js',
   './js/utils/detail.js',
   './js/utils/rapport-mensuel.js',

@@ -21,6 +21,7 @@ import { expliquerLeReport } from '../utils/explication-solde.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
+import { decomposerParRegle } from '../utils/decomposition.js';
 import { PORTEES, porteeRetenue } from '../utils/portee.js';
 import { marquerLeSoldeDu } from './selecteur-portee.js';
 import { remplirLePanneauPrive } from './prive.js';
@@ -265,7 +266,15 @@ export function calculateSummary({ historique } = {}) {
     carryOver: summary.carryOver,
     ownBalance: summary.ownBalance,
     finalBalance: summary.balance,
-    virementsByDestination
+    virementsByDestination,
+    // La décomposition porte sur les charges QUE `computeSummary` a retenues,
+    // et elle les reçoit de lui : refaire ici le filtrage des solo, des
+    // supprimées et des montants illisibles aurait été une seconde fabrique de
+    // l'assiette — et l'écran aurait montré une décomposition dont la somme ne
+    // fait pas le total qu'elle explique.
+    decomposition: decomposerParRegle(summary.chargesRetenues, {
+      shareMode, salaries: incomeBase, totalSalaries, customPercents
+    })
   });
 
   return {
@@ -637,6 +646,44 @@ function phraseSolde(solde, montant) {
  * @param {Object} summary - Résumé calculé
  */
 /**
+ * Pourquoi ma part vaut ce qu'elle vaut
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * LE SEUL ENDROIT DU CHANTIER QUI AJOUTE DE L'INFORMATION
+ *
+ * Le dépliant disait « qui a payé quoi ». Il ne disait pas pourquoi ma part
+ * vaut ce chiffre-là. Une ligne par RÈGLE appliquée le dit — et pas une ligne
+ * par catégorie : une catégorie qui mêle 50/50 et 70/30 ne peut porter aucun
+ * pourcentage, donc elle n'explique rien. Le raisonnement complet, avec le jeu
+ * d'essai qui l'a tranché, est en tête d'`utils/decomposition.js`.
+ *
+ * ── UNE SEULE LIGNE NE S'AFFICHE PAS ──
+ *
+ * Quand tout le mois suit la règle du foyer, la décomposition rend une ligne
+ * unique qui répète le montant juste au-dessus. Elle n'apprend rien et coûte
+ * 30 px sur l'écran le plus contraint : le bloc entier se tait.
+ *
+ * @param {Array<Object>} lignes - Sortie de `decomposerParRegle`
+ * @returns {string} Fragment échappé
+ */
+function renderDecomposition(lignes) {
+  if (lignes.length < 2) return '';
+
+  return `
+        <div class="summary-decomposition">
+          <div class="summary-section-label">Pourquoi votre part</div>
+          ${lignes.map(ligne => `
+          <div class="summary-row summary-row--decompose">
+            <span>${ligne.pastille
+              ? `<span class="charge-split-tag">${escapeHtml(ligne.pastille)}</span>`
+              : escapeHtml(ligne.libelle)}</span>
+            <strong>${formatCurrency(ligne.mien)}</strong>
+          </div>`).join('')}
+        </div>
+`;
+}
+
+/**
  * Le panneau personnel : ce que le mois me coûte, ce qu'il me reste
  *
  * ## Ce qu'il ne contient pas, et pourquoi
@@ -724,7 +771,8 @@ function renderSummary(summary) {
     carryOver,
     ownBalance,
     finalBalance,
-    virementsByDestination
+    virementsByDestination,
+    decomposition
   } = summary;
 
   // Calculer les pourcentages de répartition
@@ -889,7 +937,7 @@ function renderSummary(summary) {
           <span>${escapeHtml(nomConjointe)} <span class="summary-percent">${partnerPercent}%</span></span>
           <strong>${formatCurrency(partnerTheoricalShare)}</strong>
         </div>
-
+${renderDecomposition(decomposition)}
         <div class="summary-divider"></div>
 
         <div class="summary-section-label">Paiements réels</div>

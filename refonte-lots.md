@@ -842,6 +842,33 @@ qu'il est le seul à toucher une frontière de confidentialité.
 
 ### Lot 7 — La décomposition du grand-livre, par règle de répartition
 
+> ## ✅ FAIT le 2026-09-09 — et le prérequis a été tranché par la mesure
+>
+> **Par règle.** Le jeu d'essai séparateur vit dans
+> `tests/utils/decomposition.test.js` : huit charges, cinq catégories, quatre
+> règles, avec les deux croisements que la maquette n'avait pas — une catégorie
+> à plusieurs règles (Loisirs : 50/50 et 70/30), une règle sur plusieurs
+> catégories (le prorata).
+>
+> **Ce qu'il a dit va plus loin que l'avis posé le 2026-09-06.** L'avis disait
+> « une catégorie n'explique pas pourquoi » ; la mesure dit qu'une ligne
+> « Loisirs » **ne peut porter AUCUNE règle** — aucun pourcentage ne s'y
+> attache. Ce n'est donc pas un arbitrage entre deux formes : c'en est une qui
+> répond à la question du dépliant et une qui en est **structurellement
+> incapable**. Pour rendre la seconde capable, il faudrait la scinder par
+> règle, c'est-à-dire produire la première avec plus de lignes.
+>
+> Le troisième argument s'est renforcé lui aussi : « une seconde liste de
+> charges, à un onglet de distance » est en réalité **dans le même panneau** —
+> « Budgets par catégorie » rend déjà `catégorie → montant`, quelques centaines
+> de pixels sous le dépliant. Deux ventilations par catégorie sur un écran, avec
+> des nombres différents.
+>
+> Et un quatrième, mesuré : à 320 px au doigt, les libellés par règle tiennent
+> sur une ligne (30 px) là où ceux par catégorie s'enroulent (49 px) — **120 px
+> contre 207** pour la même information.
+
+
 Scindé du lot 2 le 2026-09-06. Le seul lot du chantier qui **ajoute de
 l'information à l'écran** plutôt que de déplacer celle qui y est.
 
