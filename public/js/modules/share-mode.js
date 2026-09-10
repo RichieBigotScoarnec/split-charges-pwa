@@ -9,6 +9,9 @@ import { calculateSummary } from './summary.js';
 import { log, error as logError } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+// Statique, et ce n'est pas un détail de style : voir
+// `recalculerApresChangementDeMode` ci-dessous.
+import { refreshCarryOver } from './carry-over.js';
 
 /**
  * Select and apply share mode
@@ -39,10 +42,14 @@ export function selectShareMode(mode) {
     validateCustomPercents();
   }
 
-  saveShareMode();
+  // `void` : personne n'attend, et c'est voulu. `selectShareMode` est un
+  // gestionnaire de clic — trois `data-action` et l'alias `window.` — il n'a
+  // nulle part où attendre. Le `void` dit que la promesse est délibérément
+  // abandonnée, là où un appel nu laissait croire à un oubli.
+  void saveShareMode();
 
   // Le report AVANT le bilan : il dépend du mode, lui aussi.
-  recalculerApresChangementDeMode();
+  void recalculerApresChangementDeMode();
 
   log(`💰 Mode de partage : ${mode}`);
 }
@@ -63,11 +70,34 @@ export function selectShareMode(mode) {
  * L'ordre compte : le report d'abord, le bilan ensuite. L'inverse afficherait
  * brièvement le solde faux avant de le corriger.
  *
+ * ## Pourquoi `carry-over.js` est importé STATIQUEMENT
+ *
+ * Cette fonction est appelée sans `await` — elle ne peut pas l'être autrement,
+ * ses deux appelants sont des gestionnaires d'événement. Sa chaîne survit donc
+ * à la fin du fichier de test qui l'a déclenchée, et un `await import()` posé
+ * ici demandait un module APRÈS le démontage de l'environnement Vitest :
+ * `EnvironmentTeardownError`, rattrapée juste en dessous, journalisée, et
+ * remontée par le RPC `onUserConsoleLog` en cours de fermeture — d'où
+ * `Closing rpc while "onUserConsoleLog" was pending` et un `EXIT=1` sur une
+ * passe entièrement verte.
+ *
+ * Mesuré le 2026-09-10 : **21 levées, une par appel**, les 21 enracinées dans
+ * `tests/modules/share-mode.test.js`, sur les 168 fichiers de la suite.
+ *
+ * L'import statique résout `carry-over.js` et tout son sous-arbre — il n'est
+ * que d'imports statiques lui aussi — **au chargement du module**, donc pendant
+ * la phase d'import du fichier de test. Il ne reste plus rien à charger quand
+ * la chaîne reprend. La promesse continue de flotter, et c'est correct : un
+ * clic n'a nulle part où attendre. Ce qui fuyait n'était pas l'asynchronie,
+ * c'était le **chargement de module** qu'elle traînait derrière elle.
+ *
+ * Tenu par `tests/fuite-post-demontage.test.js`. Remettre un `import()`
+ * dynamique ici le fait tomber — vérifié par mutation.
+ *
  * @returns {Promise<void>}
  */
 async function recalculerApresChangementDeMode() {
   try {
-    const { refreshCarryOver } = await import('./carry-over.js');
     await refreshCarryOver();
   } catch (error) {
     // Un report indisponible ne doit pas priver du bilan : `refreshCarryOver`
@@ -101,11 +131,14 @@ export function validateCustomPercents() {
       conjointe: partnerPercent
     });
 
-    saveShareMode();
+    // Même raison qu'au-dessus pour le `void` : `validateCustomPercents` est
+    // posée en écouteur `input` sur les deux champs, et un écouteur laisse
+    // tomber la promesse qu'on lui rend.
+    void saveShareMode();
 
     // Même raison qu'au-dessus : les pourcentages entrent dans le calcul du
     // report exactement comme le mode.
-    recalculerApresChangementDeMode();
+    void recalculerApresChangementDeMode();
   } else {
     validationEl.textContent = `Total: ${total}% (doit être 100%)`;
     validationEl.className = 'share-mode-validation invalid';

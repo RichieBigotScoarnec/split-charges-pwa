@@ -1040,8 +1040,11 @@ exemplaires** : un témoin qui n'en tient qu'un ne verra pas l'autre partir.
 
 ### 5. Une explication doit pouvoir être fausse
 
-**5 hypothèses réfutées par la mesure — détail en archive.** Jamais énoncée comme
-règle jusqu'ici : elle n'existait que par ses exemples.
+**5 hypothèses réfutées par la mesure — détail en archive — plus une sixième,
+réfutée le 2026-09-10 et consignée ci-dessous.** Jamais énoncée comme
+règle jusqu'ici : elle n'existait que par ses exemples. Le `grep` du sommaire
+compte les mentions de l'**archive** ; la sixième vit ici, elle ne s'y trouvera
+donc pas.
 
 Une explication qui paraît solide et qu'on n'a pas exécutée n'est pas un
 diagnostic, c'est une intention. Les cinq réfutations étaient toutes plausibles à
@@ -1064,6 +1067,37 @@ qu'on doutait. La plus coûteuse était **la thèse de l'auteur** : correctif d�
 cohérente. Rien n'obligeait à la tester. **Une explication à laquelle on tient
 déjà ne déclenche aucune alerte** — c'est celle-là qu'il faut soumettre à la
 mesure, précisément parce qu'on n'en a pas envie.
+
+> **ET PIRE QUE LA THÈSE DE L'AUTEUR : L'ARTEFACT D'EXÉCUTION RECOPIÉ SANS SA
+> DATE.** Une pile d'appels, une sortie de commande, un tableau de mesures sont
+> des **sorties de machine** — donc ils ont l'air d'une preuve, et pas d'une
+> opinion. C'est exactement ce qui les rend dangereux : une thèse d'auteur, on
+> sait la mettre en doute ; **une pile recopiée, on la croit.**
+>
+> Or un artefact d'exécution est une preuve **DATÉE**. Il dit ce qui s'est
+> produit un jour donné, sur un état donné du code — et il ne le dit pas
+> lui-même. Recopié sans sa date, il passe pour intemporel.
+>
+> Mesuré le 2026-09-10 sur l'entrée `share-mode`. Elle se présentait comme
+> « CAUSE ÉTABLIE », et portait la pile complète d'un
+> `EnvironmentTeardownError` traversant `db.js` → `utils/miroir.js`. La pile
+> était **authentique** : elle avait bien été obtenue, sur un état du fichier de
+> test **antérieur au mock de `db.js`**. Depuis, le mock intercepte l'import et
+> cette chaîne ne peut plus se produire — 0 mention de `db.js` dans la sortie,
+> 0 levée portant l'étiquette de son `catch`. L'entrée a survécu **deux jours**,
+> et ce n'est pas malgré la pile : **c'est grâce à elle.**
+>
+> **Ce qu'elle exige** — quand une entrée porte un artefact d'exécution, elle
+> doit dire **de quand il date et sur quel état du code il a été obtenu**. Une
+> ligne suffit : « relevé le AAAA-MM-JJ, avant le mock de `db.js` ». Sans elle,
+> l'artefact est **plus difficile à mettre en doute qu'une thèse**, alors qu'il
+> est plus périssable : une thèse reste vraie ou fausse, un relevé cesse d'être
+> vrai dès que le code bouge sous lui.
+>
+> C'est la même famille que la quatrième réponse condamnante de la règle 1 — un
+> contrôle qui nomme une surface se périme au premier déménagement, EN VERT. Ici
+> c'est une **entrée** qui nomme un état, et elle se périme de la même façon :
+> sans rougir, en restant parfaitement lisible.
 
 **Ce qu'elle exige** — vouloir **prouver** l'explication plutôt que la raconter :
 c'est le **mutant appliqué à une explication au lieu d'un contrôle**. L'exécuter
@@ -1552,50 +1586,100 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   a fait tomber la CI deux fois. Il **parle sans faire échouer** — basculer 500
   contrôles d'un coup ferait rougir ce qu'on n'a pas mesuré. Mesuré à la pose :
   **0 exception sur 548 contrôles**, donc aucun bruit de fond à trier.
-- **`share-mode.test.js` laisse tourner une chaîne asynchrone APRÈS la fin du
-  fichier — CAUSE ÉTABLIE le 2026-09-07.** `selectShareMode` appelle
-  `saveShareMode()` **sans `await`** (`share-mode.js:42` et `:104`) ;
-  `saveShareMode` (`:130`) fait `await import('../db.js')` en `:139` ; `db.js:25`
-  importe `utils/miroir.js`. Le test rend la main, le fichier finit,
-  l'environnement est démonté — **puis** la chaîne reprend et réclame un module :
+- **Une chaîne asynchrone qui survit à la fin d'un fichier de test réclame un
+  module après le démontage.** Le motif : un appel à une fonction `async` sans
+  `await` rend la main tout de suite, mais sa chaîne continue. Le test finit, le
+  fichier finit, Vitest démonte l'environnement du worker — **puis** la promesse
+  reprend et demande un module. D'où `EnvironmentTeardownError`, rattrapée par le
+  `catch` applicatif et journalisée par `debug.error` → `console.error`. Or
+  `onUserConsoleLog` est **exactement** le RPC par lequel Vitest remonte la
+  console d'un worker : un `console.error` émis pendant sa fermeture donne
+  `Closing rpc while "onUserConsoleLog" was pending`, et un `EXIT=1` sur une
+  passe où tous les tests sont verts. **La fuite est inconditionnelle, la course
+  est le seul élément intermittent** — une passe verte ne prouve donc rien.
+  ✅ **Corrigé sur `share-mode.js` le 2026-09-10** (import statique de
+  `carry-over.js` + `void` aux deux sites d'appel), et tenu par
+  **`tests/fuite-post-demontage.test.js`**, qui rejoue la suite visée dans un
+  sous-processus et lit la « last recorded callstack » de chaque levée. Ce qui
+  reste ici est le motif, encore vivant partout ailleurs.
 
-  ```text
-  EnvironmentTeardownError: Cannot load '/public/js/utils/miroir.js'
-  imported from public/js/db.js after the environment was torn down
-  - /public/js/utils/miroir.js
-  - public/js/db.js
-  - public/js/modules/share-mode.js
-  - tests/modules/share-mode.test.js
-  ```
+  > **DEUX AFFIRMATIONS DE CETTE ENTRÉE ÉTAIENT FAUSSES, ET ELLE SE PRÉSENTAIT
+  > COMME « CAUSE ÉTABLIE ».** Corrigées le 2026-09-10 après remesure. Elles ont
+  > tenu deux jours et envoyaient chercher au mauvais endroit :
+  >
+  > - **la cause principale annoncée ne peut pas se produire.** L'entrée nommait
+  >   `saveShareMode` → `await import('../db.js')` (`:139`) → `db.js:25` →
+  >   `utils/miroir.js`, avec la pile recopiée. Or `share-mode.test.js:7` **mocke
+  >   `db.js`** : le mock intercepte l'import dynamique, `db.js` n'est jamais
+  >   chargé. Remesuré — **0 mention de `db.js` ou de `miroir.js`** dans la
+  >   sortie, et **0 des 21 levées** ne porte l'étiquette
+  >   `❌ Erreur sauvegarde mode partage` du `catch` de `saveShareMode`. La
+  >   seule chaîne vivante est celle que l'entrée reléguait en « seconde
+  >   variante » : `recalculerApresChangementDeMode` (`:68`) →
+  >   `await import('./carry-over.js')` (`:70`) → `calculations.js` → feuille,
+  >   et **les 21 levées portent son étiquette**, `❌ Report non recalculé après
+  >   changement de mode` ;
+  > - **la feuille réclamée n'est pas stable.** Même défaut, trois modules en
+  >   trois mesures, selon le cache de modules de la passe : `utils/miroir.js`
+  >   au relevé du 2026-09-07, `utils/salaries.js` sur le fichier joué seul le
+  >   2026-09-10, `utils/perimetre.js` sur la suite entière le même jour. C'est
+  >   ce qui justifie que le contrôle tienne la **racine** de la pile — le
+  >   fichier de test, seul élément stable de la chaîne — et jamais la feuille.
+  >   **Un contrôle qui l'aurait nommée se serait périmé EN VERT** au premier de
+  >   ces déplacements : c'est la quatrième réponse condamnante de la règle 1,
+  >   « il interroge la surface où la chose vit, pas la propriété ».
+  >
+  > **Et les deux valent au-delà du cas. Une entrée qui dit « cause établie »
+  > doit dire PAR QUELLE MESURE, et laquelle a été rejouée.** Ce que cette
+  > entrée a coûté est devenu la **sixième réfutation de la règle 5** — un
+  > artefact d'exécution recopié sans sa date se croit plus qu'une thèse, et se
+  > périme plus vite. Le geste est là-bas, il n'est pas redit ici.
 
-  La levée est rattrapée en `share-mode.js:146` et journalisée par `debug.error`
-  → `console.error`. Or `onUserConsoleLog` est **exactement** le RPC par lequel
-  Vitest remonte la console d'un worker : un `console.error` émis pendant la
-  fermeture du RPC donne `Closing rpc while "onUserConsoleLog" was pending`.
-  C'est le même événement, un cran plus tard. Seconde variante, même fichier,
-  même motif : `recalculerApresChangementDeMode:68` → `await import('./carry-over.js')`.
-  **Ce que l'entrée précédente affirmait, et qui était faux.** Elle a tenu deux
-  jours et envoyait chercher au mauvais endroit :
-  - « *une suite qui journalise beaucoup pendant sa fermeture* » — le fichier
-    contient **zéro** `console.*`. La journalisation vient du code applicatif
-    qu'il a laissé tourner, pas de lui ;
-  - « *jouée seule, la suite passe* » — vrai, et ce n'est pas une exonération.
-    Jouée seule, **6 fois sur 6**, elle fuit à l'identique : 21, 21, 21, 21, 21
-    puis 5 erreurs post-démontage. La fuite est **inconditionnelle** ; seule sa
-    conséquence visible est une course.
-
-  Mesuré sur 6 passes complètes : **73 erreurs post-démontage, 73 remontant à
-  `share-mode.test.js`**, aucune à un autre fichier de test — et `EXIT=0` six
-  fois. Le drapeau rouge est donc rare, la fuite permanente. **Ne pas conclure
-  d'une passe verte que le défaut a disparu** : c'est la règle 1 appliquée à un
-  symptôme intermittent.
+  Ce qui reste exact de la mesure d'origine, et qui a été rejoué le 2026-09-10 :
+  la fuite est **inconditionnelle**. Jouée seule, 6 fois sur 6, elle fuyait à
+  l'identique (21 erreurs), et sur 6 passes complètes **73 erreurs
+  post-démontage, 73 remontant à `share-mode.test.js`**, aucune à un autre
+  fichier de test, `EXIT=0` six fois. Remesuré le 2026-09-10 avant correctif :
+  **21 levées, les 21 enracinées dans `share-mode.test.js`, zéro ailleurs** sur
+  168 fichiers et 3078 tests verts, `Closing rpc` absent. **Ne pas conclure
+  d'une passe verte que le défaut a disparu** — règle 1 appliquée à un symptôme
+  intermittent.
   **La règle 3 avait fonctionné** sur la contradiction d'origine — `3014 passed`
   affiché, `EXIT=1` rendu — et sans `echo EXIT=$?` avant le résumé la passe
   serait passée pour verte. Elle reste la bonne garde ; ce qui manquait, c'est
   d'avoir lu **la sortie d'erreur** plutôt que le seul code de sortie.
 
+- **27 appels flottants du même genre vivent dans le dépôt, et un seul fuyait.**
+  Relevé le 2026-09-10 : 27 appels à une fonction `async` déclarée et appelée
+  dans le **même** fichier, sans `await` ni consommation, répartis sur 12
+  modules — `choix-lieu` ×2, `custom-lists` ×2, `envelopes` ×3, `map` ×2,
+  `notifications` ×4, `period` ×1, `quick-add` ×5, `search` ×1, `share-mode` ×4
+  (corrigés), `connection-banner` ×2.
+  **Aucune campagne n'est lancée, et c'est mesuré plutôt que supposé** : sur la
+  suite entière, une seule spec fuit. Un appel flottant ne devient une fuite
+  post-démontage que s'il **charge un module** après la fin du fichier ; les
+  autres sites sont soit jamais atteints par un test unitaire, soit atteints avec
+  leurs dépendances asynchrones mockées.
+  > **La limite du balayage, dite parce qu'elle compte : il ne voit QUE les
+  > appels dont la fonction est déclarée dans le même fichier.** Un appel
+  > flottant vers une fonction `async` **importée d'ailleurs** lui échappe
+  > entièrement, et il n'y a pas d'heuristique bon marché pour le voir — il
+  > faudrait résoudre les imports et savoir quelles exportations sont `async`.
+  > Ce trou n'est pas couvert par le balayage : il est couvert par **la passe
+  > complète**, où une telle fuite se serait affichée comme les 21 autres. C'est
+  > donc la passe qui fait autorité sur « y en a-t-il d'autres », et le balayage
+  > qui sert à dire « où le motif existe-t-il encore ».
+  >
+  > La forme générale du contrôle serait la suite ENTIÈRE dans le
+  > sous-processus : elle nommerait la prochaine fuite dans n'importe quel
+  > fichier. La commande est écrite en tête de `tests/fuite-post-demontage.test.js`
+  > et **délibérément non branchée** — deux minutes par passe pour le verdict
+  > qu'on vient d'obtenir à la main.
+
 > **Il reste UN contrôle ouvert, et c'est un état correct, pas une dette.** Les
-> deux autres ont été nommés le 2026-09-07 : `share-mode` a sa cause, et
+> deux autres sont refermés : `share-mode` a son correctif et sa garde depuis le
+> 2026-09-10 — sa cause avait été nommée le 2026-09-07, et **à moitié faux**,
+> voir ci-dessus — et
 > l'occurrence du 2026-09-01 de `detail-depenses` est un défaut de mise en page,
 > pas un contrôle instable. Ce qui reste ouvert est l'occurrence du 2026-09-02,
 > et elle n'est refermée sur aucune hypothèse — la règle 5 dit pourquoi.

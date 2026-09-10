@@ -15,8 +15,9 @@ vi.mock('../../public/js/modules/summary.js', () => ({
   calculateSummary: vi.fn()
 }));
 
+import { dbGet, dbSet } from '../../public/js/db.js';
 import { getState, setState, resetState } from '../../public/js/state.js';
-import { selectShareMode, validateCustomPercents } from '../../public/js/modules/share-mode.js';
+import { selectShareMode, validateCustomPercents, loadShareMode } from '../../public/js/modules/share-mode.js';
 
 function setupDOM() {
   document.body.innerHTML = `
@@ -172,5 +173,50 @@ describe('validateCustomPercents — mise à jour du DOM', () => {
     document.getElementById('customPercentPartner').value = '40';
     validateCustomPercents();
     expect(document.getElementById('shareModeValidation').className).toContain('invalid');
+  });
+});
+
+// ===== Le garde-fou `_isLoading` =====
+//
+// `appliquerSansReecrire` relève `_isLoading`, appelle `selectShareMode`, et le
+// rabaisse dans un `finally`. Sans lui, charger le mode le réécrit aussitôt en
+// base — une écriture pour rien à chaque ouverture et à chaque changement de
+// mois, et, à deux appareils, la possibilité d'écraser le choix que l'autre
+// venait de faire.
+//
+// Ce garde-fou n'avait aucun contrôle, et il repose sur le fait que
+// `selectShareMode` est SYNCHRONE : si elle devenait `async`, le `finally`
+// tomberait à son premier `await` et cesserait de couvrir la suite. Les deux cas
+// ci-dessous fixent la propriété plutôt que la déduire de la signature.
+describe('Charger un mode ne le réécrit pas en base', () => {
+  /**
+   * Laisse les chaînes abandonnées atteindre leur `dbSet`
+   *
+   * `saveShareMode` est appelée en `void` : elle rend la main à son premier
+   * `await import('../db.js')`, et `dbSet` n'est atteint qu'au tour de boucle
+   * suivant. Une assertion posée dans le même tour lit donc un `dbSet` jamais
+   * appelé, **quel que soit l'état du drapeau** — c'est le témoin positif
+   * ci-dessous qui a dénoncé ce défaut, pas la relecture.
+   */
+  const laisserLesChainesFinir = () => new Promise(resoudre => setTimeout(resoudre, 0));
+
+  it('loadShareMode n\'écrit rien', async () => {
+    dbGet.mockResolvedValueOnce({ mode: '50-50' });
+
+    await loadShareMode();
+    await laisserLesChainesFinir();
+
+    expect(getState('shareMode')).toBe('50-50');
+    expect(dbSet, 'charger a déclenché une écriture').not.toHaveBeenCalled();
+  });
+
+  it('mais un choix explicite écrit — témoin positif', async () => {
+    // Sans ce cas, « rien n'a été écrit » serait satisfait par un `dbSet` que
+    // ce fichier n'atteint jamais, pour une raison sans rapport avec le drapeau.
+    selectShareMode('50-50');
+    await laisserLesChainesFinir();
+
+    expect(dbSet, 'aucune écriture sur un choix explicite : l\'instrument ne mesure rien')
+      .toHaveBeenCalled();
   });
 });
