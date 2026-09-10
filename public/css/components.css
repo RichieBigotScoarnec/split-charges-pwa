@@ -280,6 +280,10 @@
   padding: var(--space-lg);
   margin-bottom: var(--space-md);
   border: 1px solid var(--border-color);
+  /* Portée en thème clair seulement — le jeton vaut `none` en sombre, où la
+     bordure suffit à détacher la carte. C'est ce que les planches 1 et 2
+     montrent : même carte, ombre d'un seul côté. */
+  box-shadow: var(--carte-ombre);
   transition: all var(--duration) var(--ease);
 }
 
