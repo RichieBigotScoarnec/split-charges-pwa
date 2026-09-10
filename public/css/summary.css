@@ -581,12 +581,25 @@
 }
 
 /* ===== TRENDS CHART ===== */
+/* Repliée, la section EST son bouton : une carte de 56 px et rien d'autre.
+   Les planches la réduisent à cela dans la colonne de droite, à côté de cartes
+   qui, elles, montrent des chiffres — un panneau qui ne dit rien tant qu'on ne
+   l'ouvre pas n'a pas à occuper la hauteur d'un panneau qui parle.
+
+   Le rembourrage vertical passe donc au contenu : la carte n'en garde que
+   l'horizontal, et `#trendsContent` porte le sien quand il paraît. Sans ce
+   déplacement, la carte fermée mesurerait 56 px de bouton PLUS deux fois
+   `--space-lg` de carte. */
 .trends-section {
   margin-top: var(--space-md);
-  padding: var(--space-lg);
+  padding: 0 var(--space-md);
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+}
+
+#trendsContent {
+  padding-bottom: var(--space-md);
 }
 
 /* L'en-tête est devenu le bouton d'ouverture de la section : le graphique
@@ -595,23 +608,31 @@
 .trends-header {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-sm) 0;
+  min-height: 56px;
+  padding: 0;
   border: none;
   background: none;
   font-family: var(--font);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  text-align: center;
+  text-align: left;
   letter-spacing: -0.01em;
   cursor: pointer;
 }
 
+/* `margin-left: auto` plutôt que `justify-content: space-between` sur le
+   bouton, et ce n'est pas équivalent ici : le bouton porte TROIS enfants de
+   flux — l'emoji, le texte nu, le chevron — là où les planches n'en ont que
+   deux, l'emoji étant chez elles dans le même span que le libellé. Un
+   `space-between` écarterait donc les trois, et le libellé flotterait au
+   milieu. La marge automatique épingle le chevron à droite et laisse l'emoji
+   collé à son texte, sans toucher au balisage. */
 .trends-toggle-icon {
   font-size: 11px;
+  margin-left: auto;
   color: var(--text-secondary);
   transition: transform var(--duration) var(--ease);
 }
@@ -863,7 +884,10 @@
 
 .budget-progress-bar {
   width: 100%;
-  height: 10px;
+  /* 7 px sur les planches, contre 10 ici. La barre est une indication, pas une
+     donnée : le chiffre est écrit juste au-dessus. La piste garde
+     `--elevated-bg`, qui vaut déjà exactement le fond des planches. */
+  height: 7px;
   background: var(--elevated-bg);
   border-radius: var(--radius-full);
   overflow: hidden;

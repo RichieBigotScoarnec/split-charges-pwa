@@ -312,14 +312,59 @@ npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 
 Secteur : finance personnelle / couple. Émotion : confiance, clarté, simplicité.
 
+**La référence visuelle est `design/`** — six planches : `tableau-de-bord.html`
+(1 tableau de bord sombre, 2 le même en clair, 3 Réglages et Outils),
+`mobile.html` (4 à 390 px sombre, 5 à 390 px clair, **6 à 320 px, « les cinq
+adaptations forcées »**) et `connexion.html`. La maquette est le **livrable**,
+pas une inspiration : le chantier de structure de septembre en a traduit la
+portée, les vues et la décomposition, et a laissé toute la mise en forme de
+côté. C'est ce que les lots d'apparence reprennent.
+
+> **Les chiffres des planches sont ceux du concepteur — re-mesurés le
+> 2026-09-10, trois sur cinq tiennent.** La planche 6 chiffre « les cinq
+> adaptations forcées » à 320 px. Rejouées sur le rendu réel, avec les fontes
+> auto-hébergées du dépôt :
+>
+> | # | La planche affirme | Mesuré | |
+> |---|---|---:|---|
+> | 1 | héros 40 px = 168 px | **159,61** | tient, 8 px de marge en plus |
+> | 2 | sous-ligne ≈ 251 px, « Alimentation » casserait | **177,45** de texte | **réfutée** |
+> | 3 | « 2 888,43 € » = 132 px dans 136 | **119,70** | tient, 16 px restants et non 4 |
+> | 4 | « 🤝 À deux » = 69 px pour 96 | **68** | exacte à 1 px |
+> | 5 | pastille « ＋ Dépense » = 145 px | **81** + 58 = **139** | tient à 6 px |
+>
+> **La n° 2 est fausse dans le sens qui compte** : elle prescrit d'enrouler les
+> libellés du grand-livre parce qu'il ne resterait « que 25 px ». Il en reste
+> une cinquantaine, et le cas qu'elle nomme comme cassant — « Alimentation,
+> prorata 71 % », 145,36 px — **entre**. L'enroulement reste défendable pour
+> d'autres raisons ; il ne l'est pas par ce calcul.
+>
+> **Deux caveats qui valent pour toute mesure de ce genre ici :**
+>
+> - **`document.fonts.ready` n'attend QUE les fontes déjà employées par la
+>   page.** JetBrains Mono 700 est bien déclarée (`variables.css:65`) mais
+>   n'était pas téléchargée : `fonts.check()` rendait `false`, et le premier
+>   relevé a mesuré une fonte de repli — 145,55 px au lieu de 159,61, soit 9 %
+>   d'erreur dans le sens rassurant. C'est le **témoin positif** de la sonde qui
+>   l'a dit, pas la relecture. Charger explicitement par `document.fonts.load()`
+>   chaque couple graisse/taille avant de mesurer ;
+> - **`🤝` et `＋` (U+FF0B) sortent de l'`unicode-range` des woff2** et sont donc
+>   rendus par une fonte SYSTÈME. Les adaptations 4 et 5 dépendent de la
+>   plateforme ; les chiffres ci-dessus sont ceux de Windows.
+
 Principes UX :
 - Le BILAN doit être la première section visible après la période
-- **La tête du bilan porte le fait SYMÉTRIQUE** — « Ensemble ce mois : 1 717,39 € » —
-  et l'écart vient entier juste en dessous, sans condition, zéro compris. Le mois
-  est nommé selon son état (`etatDuMois`) : « Ensemble en juillet 2026 » pour un
-  mois révolu, « Déjà engagé pour septembre 2026 » pour un mois à venir.
-  « Doit » garde sa place là où c'est le mot juste : au moment de régler, et sur
-  la barre collante. Le raisonnement est dans `summary.js:765`
+- **La tête du bilan porte la CRÉANCE, et seulement sur « À deux »**
+  (2026-09-10, sur les six planches). « Tu dois **66,94 €** à Cindy » — 54 px au
+  bureau, 40 px à 390, 32 px à 320, en ambre, seul chiffre coloré des trois
+  cartes de tête. Le mois est nommé selon son état (`etatDuMois`).
+- **Le fait symétrique reste, au rang 3** — « Dépensé à deux : 229,04 € », 31 px,
+  encre neutre, troisième carte de tête ; et « Ta part du commun » ouvre le
+  grand-livre. Il n'est pas supprimé, il est **rétrogradé**.
+- **Les deux autres portées ne portent aucune créance** : Solo met un total
+  personnel en encre neutre — « personne ne doit rien à personne dessus » — et
+  Privé n'affiche **aucun chiffre**, sa tête est une phrase et son montant est
+  masqué (`••••`). Le fait symétrique, lui, ne paraît que sur « À deux ».
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
   pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,
@@ -334,6 +379,42 @@ Principes UX :
 > chaque jour. Le principe est resté écrit ici quatre jours de plus que dans le
 > code : une consigne périmée en tête de fichier pèse plus lourd qu'un journal
 > exact, parce que c'est elle qu'on applique.
+>
+> **⟲ ET CE RETRAIT EST RÉVOQUÉ LE 2026-09-10. Le bloc ci-dessus reste — c'est
+> lui qui rend la révocation lisible.** Ce qui revient n'est pas l'ancien
+> cadrage : c'est celui des planches, qui n'est pas le même.
+>
+> **Pourquoi la décision du 31/08 ne tient plus.** Elle a été prise **sans
+> maquette, sur un raisonnement**, et **avant que la portée existe**. Son grief
+> — « celui des deux qui doit le lit chaque jour » — supposait un écran unique
+> où la créance serait la seule lecture possible. Cet écran n'existe plus : il y
+> en a trois, et la mesure des six planches le dit :
+>
+> | Portée | Tête | Fait symétrique |
+> |---|---|---|
+> | **À deux** *(par défaut)* | créance, 54 px ambre | **oui**, rang 3, 31 px neutre |
+> | Solo | total personnel, encre neutre, « personne ne doit rien à personne dessus » | non |
+> | Privé | **aucun chiffre** — une phrase ; le montant est masqué `••••` | non |
+>
+> Le grief portait donc sur **un écran sur trois**. Il n'est pas nul pour
+> autant, et il faut le dire : c'est **celui de l'ouverture**, la portée par
+> défaut. La révocation est un arbitrage assumé, pas un désamorçage complet.
+>
+> **Et le fait symétrique n'est pas supprimé** — c'est la différence avec
+> l'ancien cadrage, qui l'ignorait. Il passe de rang 1 à 28 px, à rang 3 à
+> 31 px : il grossit de 3 px en perdant la tête. Ce que la maquette apporte est
+> une **inversion de hiérarchie**, pas une amputation.
+>
+> **La raison de fond :** la maquette est le livrable. La respecter partout sauf
+> sur sa tête donnerait un écran qui lui ressemble sans dire ce qu'elle dit.
+>
+> **Ce que `bilan-hierarchie` devient.** Il ne disparaît pas : **il change de
+> sujet en gardant son argument.** Sa propriété qui compte — *le solde reste
+> visible depuis la portée personnelle* — survit intacte ; c'est sa **surface**
+> qui bouge, de `.bilan-tete` vers la carte de tête. Ses cas qui exigent
+> `toContainText('Ensemble')` sur `.bilan-tete` (`:69`) et son absence de la
+> barre collante (`:100`) sont à réécrire **sur la nouvelle hiérarchie**, pas à
+> supprimer. C'est le lot H.
 
 ## Les cinq règles
 
@@ -1806,10 +1887,39 @@ reprend faute de savoir qu'elle a été prise coûte plus cher qu'un gotcha.**
   période est mensuelle, le jour ne vit que dans le champ `date`, donc une
   charge semée le 05 est lue tout le mois. Figer partout coûterait 24 réécritures
   pour un risque nul dans la plupart des cas.
-  **⚠️ L'angle exposé, relevé et non traité** : `data-flow`, `regles-donnees`,
-  `renommage` et `vues` sèment des **mois absolus sans figer l'horloge**. Elles
-  passent aujourd'hui, et c'est le motif qui a fait rougir la CI le 2026-09-01.
-  À reprendre dans son lot, pas en passant.
+  **✅ L'angle qu'on croyait exposé ne l'est pas — MESURÉ le 2026-09-10, après
+  deux jours passés en ⚠️.** `data-flow`, `regles-donnees`, `renommage` et
+  `vues` sèment bien des **mois absolus sans figer l'horloge** : la description
+  était exacte. L'**exposition**, elle, ne se réalise pas. Balayage de
+  **12 dates sur un an** — les deux bords de chaque mois, premier à 00 h 30
+  (jour UTC = la veille) et dernier à 23 h 58, décembre et passage d'année
+  compris —, horloge déplacée par `page.clock.setFixedTime`, sous émulateurs :
+  **143 contrôles verts aux 12 dates, zéro rouge.**
+  La sonde a été lue **sur son cas connu d'abord** — figée à aujourd'hui, elle
+  rend 143 verts, donc un rouge ailleurs aurait été calendaire.
+  **Et deux mécanismes plausibles sont réfutés sur le code**, pas écartés par
+  raisonnement : `data-flow` sème `exportedAt: '2027-01-01'` pour un fichier
+  « plus récent que l'application », mais `backup.js:177` tranche sur la
+  **version**, jamais sur la date ; et `database.rules.json` ne contient
+  **aucune** occurrence de `now`, donc les dates de `regles-donnees` sont des
+  charges utiles inertes. `renommage` agrège une enveloppe **à travers les
+  mois** par construction, et `vues` ne fait entrer aucun mois vide dans sa
+  fenêtre — seuls les mois écrits existent comme clés.
+  > **La note visait le bon motif et les mauvais fichiers.** Le mécanisme du
+  > 2026-09-01 est à `journal-archive.md:568`, et il est plus étroit que
+  > « semer de l'absolu » : c'est **un mois vide neuf qui entre dans une fenêtre
+  > de calcul** — le 1ᵉʳ septembre a ouvert sur un `2026-09` vide, et la médiane
+  > des tendances est passée de 1 014 € sur quatre mois à 973 € sur cinq. Aucune
+  > des quatre n'a cette forme. Une alerte posée par ressemblance de forme, sans
+  > la mesure, a coûté deux jours de dette imaginaire.
+
+  **⚠️ Ce qui EST exposé, et que le balayage a trouvé en passant :**
+  `playwright.config.js` ne déclare **aucun `timezoneId`**. Le navigateur hérite
+  du fuseau de la machine — **Europe/Paris en local, UTC sur les runners
+  GitHub**. La suite unitaire épingle `TZ: 'Europe/Paris'` avec sa
+  justification écrite dans `vitest.config.mjs` ; la suite de bout en bout
+  n'épingle rien. C'est le même défaut, sur l'autre suite, et il n'est pas
+  traité.
 - **Le nœud d'agrégats mensuels est écarté** (2026-08-27). Il exposerait un
   chiffre d'argent dérivé à 25 chemins d'écriture, au rejeu hors ligne, à une
   restauration qui écrase la racine et à un workflow de migration — et les règles
