@@ -23,7 +23,12 @@
     "couverture:unitaire": "vitest run --coverage --coverage.reporter=json --coverage.include=\"public/js/**\"",
     "couverture:e2e": "COUVERTURE=1 npx firebase emulators:exec --only auth,database \"npx playwright test\"",
     "couverture:fusion": "node tools/fusionner-couverture.mjs",
-    "artefacts": "node tools/garder-artefacts.mjs"
+    "artefacts": "node tools/garder-artefacts.mjs",
+    "ports": "node tools/liberer-les-ports.mjs",
+    "e2e": "npm run ports && npx firebase emulators:exec --only auth,database \"npx playwright test --project=chromium --workers=4 --reporter=line\"",
+    "preemulators": "npm run ports",
+    "preemulators:test": "npm run ports",
+    "precouverture:e2e": "npm run ports"
   },
   "repository": {
     "type": "git",

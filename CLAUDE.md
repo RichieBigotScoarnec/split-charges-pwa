@@ -51,7 +51,7 @@ FairSplit/
 │       │                       # quatre accès absolus du détail privé
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 30 modules fonctionnels — dont trash (rétablir
+│       ├── modules/            # 31 modules fonctionnels — dont trash (rétablir
 │       │                       # ce qui a été supprimé en douceur, sur tout
 │       │                       # l'historique), selection-charges (agir sur
 │       │                       # plusieurs charges à la fois),
@@ -127,7 +127,7 @@ FairSplit/
 │                               # jamais rien publier),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # 8 outils, hors `public/` donc jamais publiés :
+├── tools/                      # 11 outils, hors `public/` donc jamais publiés :
 │                               # adherences.mjs (les dépendants d'un module,
 │                               # imports dynamiques compris),
 │                               # plafond-innerhtml.mjs (le plafond des sites
@@ -139,6 +139,9 @@ FairSplit/
 │                               # fusionner-couverture.mjs + couverture-lignes.mjs
 │                               # (la couverture réelle, E2E comprise),
 │                               # enveloppe-sauvegarde.mjs,
+│                               # liberer-les-ports.mjs (le jar d'émulateur qui
+│                               # garde son port — quatre fois subi malgré son
+│                               # gotcha, donc devenu une commande),
 │                               # migration-repartition.mjs, generer-icones.mjs
 │                               # + logo-fairsplit.svg (la marque)
 ├── docs/                       # Dépannage, déploiement, aide-mémoire Git
@@ -253,6 +256,10 @@ importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 - `npm run serve` puis http://localhost:3333 — dev local
 - `node tools/adherences.mjs MODULE` — les dépendants d'un module, imports
   dynamiques compris (cf. *Adhérences critiques*)
+- `npm run e2e` — la suite de bout en bout **sous émulateurs**, ports libérés
+  d'abord. C'est la commande à employer : la lancer à la main a échoué quatre
+  fois sur un jar résiduel dans la seule semaine du chantier
+- `npm run ports` — libère les ports des émulateurs, et dit ce qu'il a tué
 
 ### Avant de pousser : les deux contrôles de lint de la CI
 
@@ -1421,14 +1428,20 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   celui-ci a été écrit en connaissance du motif.
   **Ce n'est PAS un défaut de configuration du projet, et c'est recensé :**
 
-  | | |
-  |---|---:|
-  | specs E2E | 57 |
-  | ne fixent aucune largeur (`viewport`, `setViewportSize`, `devices[…]`) | 32 |
-  | parmi elles, qui touchent une géométrie | 3 |
-  | qui font une **affirmation de mise en page** | **1** |
+  | | au relevé | recompté le 09-09 au soir |
+  |---|---:|---:|
+  | specs E2E | 57 | **59** |
+  | ne fixent aucune largeur (`viewport`, `setViewportSize`, `devices[…]`) | 32 | **31** |
+  | parmi elles, qui touchent une géométrie | 3 | **2** |
+  | qui font une **affirmation de mise en page** | **1** | **0** |
 
-  Les 29 autres ne mesurent aucune géométrie, et 1280 leur convient. Donner un
+  La dernière colonne est le même comptage rejoué après les correctifs : la
+  seule affirmation de mise en page sans largeur déclarée était
+  `depense-privee`, et elle en déclare deux depuis. Les deux qui restent —
+  `raccourci` et `prive-bac-a-sable` — n'en font pas : un contrôle d'ordre
+  d'empilement et une aide à la visibilité.
+
+  Les autres ne mesurent aucune géométrie, et 1280 leur convient. Donner un
   viewport au projet recontextualiserait **32 fichiers d'un coup** pour n'en
   corriger qu'un — c'est ce que le dépôt s'interdit depuis la pose de l'écouteur
   d'exceptions. **La largeur se déclare par fichier, dans celui qui la mesure.**
@@ -1687,7 +1700,7 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 
 ### Livraison et commandes
 
-- **`sw.js` tient sa liste de précache à la main** (112 entrées). **Tout module
+- **`sw.js` tient sa liste de précache à la main** (129 entrées). **Tout module
   neuf doit y être ajouté**, sinon le rendu échoue hors ligne. La garde est
   **`tests/utils/service-worker-precache.test.js`**, cas « couvre tous les
   modules JavaScript publiés » : il énumère `public/**/*.js` et exige que chacun
@@ -1715,19 +1728,31 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   CI lance `npx eslint .`, qui couvre `tests/`.
 - **`--reporter=basic` n'existe pas en Vitest 4** (`^4.1.0`). La suite ne tourne
   pas du tout, et un `tail` sert alors le résumé d'une exécution précédente.
-- **Le jar d'émulateur survit à son arrêt.** `firebase emulators:exec` annonce
-  « Stopping Database Emulator » sans toujours l'obtenir : `java` garde le port,
-  et la passe suivante échoue sur `port taken`. Ports dans `firebase.json` —
-  database 9010, auth 9099 :
+- **Le jar d'émulateur survit à son arrêt — ✅ le geste a changé le 2026-09-09.**
+  `firebase emulators:exec` annonce « Stopping Database Emulator » sans toujours
+  l'obtenir : `java` garde le port, et la passe suivante échoue sur `port taken`.
 
-  ```bash
-  netstat -ano | grep -E ":(9010|9099) "          # le PID qui tient le port
-  powershell.exe -NoProfile -Command "Get-Process -Id <PID> | Select Id,ProcessName,StartTime"
-  powershell.exe -NoProfile -Command "Stop-Process -Id <PID> -Force"
-  ```
+  > **Cette entrée a porté ses trois commandes manuelles pendant des semaines, et
+  > le défaut a été subi QUATRE FOIS de plus dans la seule semaine du chantier.**
+  > À chaque fois la suite entière n'a pas tourné, et à chaque fois le premier
+  > réflexe a été de lire le résumé plutôt que le code de sortie.
+  >
+  > C'est le même constat que les artefacts perdus trois fois : **une leçon
+  > qu'on réapprend n'est pas apprise.** Ce qui manquait n'était pas la
+  > connaissance — elle était écrite ici — c'était un geste qui coûte moins cher
+  > que l'oubli.
 
-  Vérifier `StartTime` avant de tuer : c'est ce qui distingue un jar résiduel
-  d'un autre `java` qui travaille.
+  **`npm run ports`** lit les ports dans `firebase.json`, nomme qui les tient
+  avec son heure de démarrage, et ne tue que `java`. Il est branché en `pre`
+  devant tout ce qui démarre un émulateur : `npm run emulators`,
+  `npm run emulators:test`, `npm run couverture:e2e`. Et **`npm run e2e`** est
+  la suite complète sous émulateurs, ports libérés d'abord.
+
+  Il ne tue que `java` à dessein : un port peut être occupé par autre chose, et
+  tuer à l'aveugle serait pire que l'échec qu'on évite. Il ne le fait jamais en
+  silence non plus — l'heure de démarrage est affichée en clair, parce que c'est
+  elle qui distingue un jar résiduel d'un émulateur qu'on venait de lancer
+  exprès.
 - **`git checkout -- <fichier>` pour défaire un mutant efface le correctif en
   cours**, puisqu'il restaure HEAD et que le travail n'est pas commité. Copie de
   sûreté **avant** de muter, restauration par `cp`. Le piège est discret : le
