@@ -1033,8 +1033,11 @@ exemplaires** : un témoin qui n'en tient qu'un ne verra pas l'autre partir.
 
 ### 5. Une explication doit pouvoir être fausse
 
-**5 hypothèses réfutées par la mesure — détail en archive.** Jamais énoncée comme
-règle jusqu'ici : elle n'existait que par ses exemples.
+**5 hypothèses réfutées par la mesure — détail en archive — plus une sixième,
+réfutée le 2026-09-10 et consignée ci-dessous.** Jamais énoncée comme
+règle jusqu'ici : elle n'existait que par ses exemples. Le `grep` du sommaire
+compte les mentions de l'**archive** ; la sixième vit ici, elle ne s'y trouvera
+donc pas.
 
 Une explication qui paraît solide et qu'on n'a pas exécutée n'est pas un
 diagnostic, c'est une intention. Les cinq réfutations étaient toutes plausibles à
@@ -1057,6 +1060,37 @@ qu'on doutait. La plus coûteuse était **la thèse de l'auteur** : correctif d�
 cohérente. Rien n'obligeait à la tester. **Une explication à laquelle on tient
 déjà ne déclenche aucune alerte** — c'est celle-là qu'il faut soumettre à la
 mesure, précisément parce qu'on n'en a pas envie.
+
+> **ET PIRE QUE LA THÈSE DE L'AUTEUR : L'ARTEFACT D'EXÉCUTION RECOPIÉ SANS SA
+> DATE.** Une pile d'appels, une sortie de commande, un tableau de mesures sont
+> des **sorties de machine** — donc ils ont l'air d'une preuve, et pas d'une
+> opinion. C'est exactement ce qui les rend dangereux : une thèse d'auteur, on
+> sait la mettre en doute ; **une pile recopiée, on la croit.**
+>
+> Or un artefact d'exécution est une preuve **DATÉE**. Il dit ce qui s'est
+> produit un jour donné, sur un état donné du code — et il ne le dit pas
+> lui-même. Recopié sans sa date, il passe pour intemporel.
+>
+> Mesuré le 2026-09-10 sur l'entrée `share-mode`. Elle se présentait comme
+> « CAUSE ÉTABLIE », et portait la pile complète d'un
+> `EnvironmentTeardownError` traversant `db.js` → `utils/miroir.js`. La pile
+> était **authentique** : elle avait bien été obtenue, sur un état du fichier de
+> test **antérieur au mock de `db.js`**. Depuis, le mock intercepte l'import et
+> cette chaîne ne peut plus se produire — 0 mention de `db.js` dans la sortie,
+> 0 levée portant l'étiquette de son `catch`. L'entrée a survécu **deux jours**,
+> et ce n'est pas malgré la pile : **c'est grâce à elle.**
+>
+> **Ce qu'elle exige** — quand une entrée porte un artefact d'exécution, elle
+> doit dire **de quand il date et sur quel état du code il a été obtenu**. Une
+> ligne suffit : « relevé le AAAA-MM-JJ, avant le mock de `db.js` ». Sans elle,
+> l'artefact est **plus difficile à mettre en doute qu'une thèse**, alors qu'il
+> est plus périssable : une thèse reste vraie ou fausse, un relevé cesse d'être
+> vrai dès que le code bouge sous lui.
+>
+> C'est la même famille que la quatrième réponse condamnante de la règle 1 — un
+> contrôle qui nomme une surface se périme au premier déménagement, EN VERT. Ici
+> c'est une **entrée** qui nomme un état, et elle se périme de la même façon :
+> sans rougir, en restant parfaitement lisible.
 
 **Ce qu'elle exige** — vouloir **prouver** l'explication plutôt que la raconter :
 c'est le **mutant appliqué à une explication au lieu d'un contrôle**. L'exécuter
@@ -1583,12 +1617,10 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   >   « il interroge la surface où la chose vit, pas la propriété ».
   >
   > **Et les deux valent au-delà du cas. Une entrée qui dit « cause établie »
-  > doit dire PAR QUELLE MESURE, et laquelle a été rejouée.** Celle-ci portait
-  > une pile d'appels recopiée, ce qui a tout l'air d'une preuve — une pile est
-  > une sortie de machine, pas une thèse d'auteur. Elle datait pourtant d'un état
-  > du fichier de test antérieur au mock de `db.js`, et rien dans sa rédaction ne
-  > permettait de le voir. C'est la règle 5 : l'explication était cohérente,
-  > personne ne l'a réexécutée, et ce qui l'a réfutée est la mesure.
+  > doit dire PAR QUELLE MESURE, et laquelle a été rejouée.** Ce que cette
+  > entrée a coûté est devenu la **sixième réfutation de la règle 5** — un
+  > artefact d'exécution recopié sans sa date se croit plus qu'une thèse, et se
+  > périme plus vite. Le geste est là-bas, il n'est pas redit ici.
 
   Ce qui reste exact de la mesure d'origine, et qui a été rejoué le 2026-09-10 :
   la fuite est **inconditionnelle**. Jouée seule, 6 fois sur 6, elle fuyait à
