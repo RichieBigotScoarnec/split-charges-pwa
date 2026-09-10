@@ -272,9 +272,42 @@
   --shadow-lg: 0 8px 32px rgba(60, 42, 28, 0.13);
   --shadow-glow: 0 0 24px var(--primary-glow);
 
-  /* Radii */
+  /* L'ombre d'une carte n'est PAS symétrique entre les deux thèmes, et c'est
+     une intention des planches, pas un oubli : la planche 2 (clair) pose
+     `0 4px 16px rgba(60,42,28,0.09)` — exactement `--shadow-md` — sur chaque
+     carte, et la planche 1 (sombre) n'en pose aucune. Sur un fond sombre une
+     ombre portée ne sépare rien : ce qui détache la carte est sa bordure.
+     Écrire `box-shadow: var(--shadow-md)` en dur donnerait donc au sombre une
+     ombre que la maquette lui refuse — d'où ce jeton, qui vaut `none` là-bas. */
+  --carte-ombre: var(--shadow-md);
+
+  /* Le squelette du panneau Privé : une piste, et une barre posée dessus.
+     ⚠️ La valeur CLAIRE est DÉRIVÉE, pas relevée. Le panneau Privé n'existe
+     qu'en thème sombre dans les six planches — `#2E2A25` y paraît sept fois,
+     aucune contrepartie claire n'a été dessinée. La dérivation suit la même
+     direction que le sombre : la barre s'éloigne de `--card-bg` d'un pas de
+     plus que la piste. À remplacer si une planche claire du Privé est dessinée
+     un jour ; ne pas la présenter comme venant de la maquette. */
+  --squelette-piste: var(--elevated-bg);
+  --squelette-barre: #E7E1D9;
+
+  /* Radii
+     L'échelle vient des six planches de `design/`, relevée le 2026-09-10 :
+     403 rayons, dont 297 déjà couverts par les quatre pas existants. Les deux
+     ajoutés ci-dessous couvrent 48 des 106 restants, et portent chacun un RÔLE
+     distinct plutôt qu'un pas de plus dans une suite :
+       --radius-xs  petit bouton et bouton d'icône — « Sélectionner », « ⋯ »
+       --radius-md  encart posé DANS une carte, et pilule de groupe
+     Deux valeurs des planches ne deviennent pas des jetons, à dessein :
+       9px  segment du sélecteur de portée — c'est un rayon IMBRIQUÉ, la pilule
+            de 12 px moins son rembourrage. Il s'écrit `calc(var(--radius-md) -
+            3px)`, ce qui reste juste si la pilule change ;
+       20px cadre du téléphone dans `mobile.html`. C'est le décor de la planche,
+            pas l'application — ne jamais le transposer. */
   --radius-sm: 6px;
+  --radius-xs: 8px;
   --radius: 10px;
+  --radius-md: 12px;
   --radius-lg: 14px;
   --radius-xl: 18px;
   --radius-full: 9999px;
@@ -369,5 +402,11 @@
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45);
+    /* Aucune ombre de carte sur fond sombre — voir la raison au jeton clair.
+       `--shadow-md` reste défini juste au-dessus : d'autres surfaces s'en
+       servent, et c'est bien la CARTE qui n'en veut pas, pas le sombre. */
+    --carte-ombre: none;
+    --squelette-piste: var(--elevated-bg);
+    --squelette-barre: #2E2A25;
   }
 }

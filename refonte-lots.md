@@ -97,6 +97,58 @@ qui ne se serait déclenchée sur rien.
 
 ---
 
+### Et la même chose pour les COTES — 2026-09-10
+
+La note ci-dessus porte sur les **comptes de sites**. Celle-ci porte sur les
+**dimensions**, et c'est une seconde famille : une planche qui annonce « 168 px
+sur 288 » a l'air d'avoir mesuré. Elle a dessiné.
+
+**Les planches sont des dessins, pas des rendus mesurés. Toute cote qu'elles
+annoncent se remesure sur le rendu réel avant d'être suivie.**
+
+Trois relevés du 2026-09-10, chacun avec la commande qui le rend :
+
+- **la largeur utile n'est pas celle que la planche 6 suppose.** Elle fonde ses
+  cinq adaptations sur **288 px** ; le conteneur réel du bilan à 320 px au doigt
+  en offre **272**. Seize pixels de trop dans *toutes* ses marges — un écart qui
+  ne se voit nulle part, parce qu'aucune de ses phrases ne dit d'où vient 288 ;
+- **une de ses cinq adaptations est réfutée.** Elle prescrit d'enrouler les
+  libellés du grand-livre parce qu'il ne resterait « que 25 px », et nomme
+  « Alimentation » comme cassant la ligne. Mesuré : la sous-ligne demande
+  **177,45 px** de texte et non 251, et « Alimentation, prorata 71 % »
+  (145,36 px) **entre**. L'enroulement reste défendable pour d'autres raisons ;
+  pas par ce calcul ;
+- **et le héros de la planche 1 est impossible à 320 px.** Ses 54 px donnent
+  **306 px** pour un montant à quatre chiffres — `1 234,56 €`, insécable par
+  construction (`U+202F` puis `U+00A0`) — contre 272 disponibles. Vérifié par
+  trois chemins qui rendent le même nombre : largeur non enroulée, débord dans
+  une boîte à la largeur réelle, et les trois arrangements de la maquette
+  (enroulé entre morceaux, empilé, montant seul). **Aucun arrangement ne sauve
+  un morceau qui déborde à lui seul.** À 390 px, en revanche, les douze
+  arrangements tiennent : le défaut est confiné à 320.
+
+> **Le piège de mesure qui a failli fausser le troisième relevé.**
+> `document.fonts.ready` n'attend **que les fontes déjà employées par la page**.
+> JetBrains Mono 700 est déclarée mais n'était pas téléchargée : `fonts.check()`
+> rendait `false`, et la première passe a mesuré une fonte de repli —
+> **145,55 px au lieu de 159,61, 9 % d'erreur dans le sens rassurant**. C'est le
+> témoin positif de la sonde qui l'a dit, pas la relecture. Charger
+> explicitement par `document.fonts.load()` chaque couple graisse/taille avant
+> de mesurer.
+>
+> Et deux caveats de plateforme : `🤝` et `＋` (U+FF0B) sortent de
+> l'`unicode-range` des woff2 et sont rendus par une fonte **système**. Les
+> cotes qui les contiennent dépendent de la machine.
+
+**Un corollaire qui a coûté un aller-retour** : on a cru pouvoir tenir « une
+seule taille, pas de palier, parce qu'aucune planche n'en montre ». Les planches
+en montrent un, explicitement — **54/21 au bureau, 40/16 à 390, 32/15 à 320**.
+La prémisse était fausse, et elle excluait la seule réponse que la mesure
+autorise. **Avant d'écarter une forme parce que « la maquette ne la montre pas »,
+relever ce qu'elle montre.**
+
+---
+
 ## 2. L'inventaire repris
 
 ### Devenus des levées explicites
