@@ -149,6 +149,52 @@ relever ce qu'elle montre.**
 
 ---
 
+### Deux écarts qui n'en sont pas — vérifiés le 2026-09-10
+
+Consignés **parce qu'ils ont failli être ouverts**, pas parce qu'ils restent à
+faire. Un écart imaginaire coûte le même travail qu'un vrai jusqu'au moment où
+quelqu'un le mesure.
+
+- **Les icônes : aucun conflit, et donc aucune décision à prendre.** On a cru
+  que les planches proposaient un jeu d'icônes que `EMOJI_PICKER`
+  (`custom-lists.js:31`) rendrait intransposable — les remplacer au rendu
+  créerait deux vocabulaires, celui que l'utilisateur choisit et celui que
+  l'écran dessine. **Mesuré : les planches emploient des emojis, elles aussi.**
+  Zéro `<svg>` dans `mobile.html`, deux dans `tableau-de-bord.html` — le logo,
+  une fois par thème. Le vocabulaire est déjà commun. Il n'y a rien à arbitrer,
+  et surtout rien à inscrire comme dette ;
+- **Les trois cartes de tête ne fusionnent pas.** Le bureau les met en trois
+  volets d'une même section, séparés par des `border-left` ; `mobile.html` les
+  empile déjà — le solde en héros, puis « reste à vivre » et « dépensé à deux »
+  en deux cartes côte à côte à 390, empilées à 320. **Les deux côtés de la
+  maquette disent la même chose** : c'est une adaptation de largeur, pas une
+  fusion. Le lot qui les touchera vérifiera qu'elles s'empilent proprement ; il
+  ne les refondra pas.
+
+### Ce que les lots livrés n'ont PAS de contrôle nommé sous 900 px
+
+Relevé le 2026-09-10, après A, B et C. Les trois ont bien été éprouvés en
+mobile — la suite de 696 contrôles a tourné après B **et** après C, et
+`coherence-visuelle` balaie **320 / 390 / 768 / 900 px × deux pointeurs**, ce
+qui tient le débordement et le chevauchement **sans nommer aucune classe**.
+
+Mais deux surfaces n'ont **aucun contrôle qui les nomme** sous 900 px :
+
+| Surface | Lot | Couverture sous 900 |
+|---|---|---|
+| `.charge-item`, `.charge-amount` | B | `recherche-totaux.spec.js` |
+| `.trends-header`, `.trends-section` | C | `etats-vides`, `tendances` |
+| `.card` (l'ombre) | A | `mois-archive`, `onglets`, `portee-selecteur`, `tendances` |
+| **`.card-title`** | C | **aucun** — seuls les balayages génériques |
+| **`.budget-progress-bar`** | C | **aucun**, à aucune largeur |
+
+Ce n'est pas un trou de sécurité : les balayages génériques attrapent ce qui
+déborde ou se recouvre. C'est un trou de **régression dimensionnelle** — rien
+n'affirme que ces deux-là gardent leur taille. À traiter le jour où l'un des
+deux redevient un sujet, pas en passant.
+
+---
+
 ## 2. L'inventaire repris
 
 ### Devenus des levées explicites
