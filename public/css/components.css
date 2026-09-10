@@ -301,13 +301,17 @@
   border-bottom: 1px solid var(--border-color);
 }
 
+/* 15/600/-0.01em sur les six planches, sans exception : c'est la taille de
+   TOUS leurs `<h2>` de carte. Ici les titres étaient à 17/-0.02em, et ils
+   entraient en concurrence avec les chiffres qu'ils annoncent. Un titre de
+   carte nomme, il ne se lit pas — ce qu'on cherche du regard est le montant. */
 .card-title {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 /* ===== SALARIES ===== */
@@ -394,21 +398,41 @@
 }
 
 /* ===== CHARGES ===== */
+/* Une ligne de relevé, pas une pastille.
+   Les planches posent les charges à PLAT dans la carte qui les contient,
+   séparées par un filet, et ne peignent un fond qu'au survol. La liste était
+   faite de boîtes surélevées, arrondies, espacées : trois signaux visuels par
+   ligne là où le filet suffit, et de la hauteur perdue à chaque charge alors
+   que cette liste est un objet de BALAYAGE — la raison est écrite en toutes
+   lettres dans `responsive.css:88`.
+
+   Le fond reste porté par `border: 1px solid transparent`, et seul le bord bas
+   est coloré. C'est ce qui laisse `.charge-item--choisie` faire son travail :
+   elle pose `border-color` sur les quatre côtés d'un coup, et reprend donc le
+   bord bas avec les autres. Passer à `border-bottom` seul lui aurait retiré
+   son encadré sans que rien ne le dise. */
 .charge-item {
-  background: var(--elevated-bg);
-  padding: 12px var(--space-md);
-  border-radius: var(--radius);
-  margin-bottom: var(--space-sm);
+  background: transparent;
+  padding: 12px var(--space-sm);
+  border-radius: 0;
+  margin-bottom: 0;
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: var(--space-sm);
   align-items: center;
   border: 1px solid transparent;
-  transition: border-color var(--duration) var(--ease);
+  border-bottom-color: var(--border-color);
+  transition: background-color var(--duration) var(--ease);
+}
+
+/* La dernière ligne ne porte pas de filet : c'est le bord de la carte qui
+   ferme la liste. Le filet y ferait un double trait. */
+.charge-item:last-child {
+  border-bottom-color: transparent;
 }
 
 .charge-item:hover {
-  border-color: var(--border-strong);
+  background: var(--hover-bg);
 }
 
 .charge-info {
@@ -426,11 +450,14 @@
   font-size: 14px;
 }
 
+/* 15/600 sur les planches, contre 14/500 ici. Le montant est ce qu'on cherche
+   en parcourant la liste : il gagne le pas de graisse qui le détache du
+   libellé sans le mettre en concurrence avec les chiffres de tête. */
 .charge-amount {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
   font-family: var(--font-mono);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Qui a avancé l'argent décide du sens du solde : c'est l'information la plus
