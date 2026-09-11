@@ -132,25 +132,46 @@ test.describe('Le prévisionnel du mois', () => {
       .toContainText('déjà comptés dans le solde');
   });
 
-  test('se place sous le solde, avant le détail', async ({ page }) => {
+  test('se place sous le solde — et le détail vit DANS la carte du solde', async ({ page }) => {
     await chargeDatee(page, { description: 'Internet', amount: 40, joursDEcart: 3 });
 
-    // Les blocs vivent desormais dans le panneau « A deux » et non plus a la
-    // racine de la carte : celle-ci porte d'abord la bascule entre les deux
-    // questions du resume. L'ordre garanti est le meme, sa profondeur a change.
+    // LOT D, 2026-09-11 — CE CAS A CHANGÉ DE SURFACE, PAS D'ARGUMENT.
+    //
+    // Il tenait l'ordre solde → prévisionnel → détail, trois enfants du
+    // panneau. Les planches rangent le grand-livre DANS la carte du solde,
+    // juste sous la phrase qu'il explique : le détail n'est plus un frère, et
+    // « avant le détail » ne peut plus s'écrire en ordre de frères.
+    //
+    // Ce qui compte n'a pas bougé. La phrase « déjà comptés dans le solde
+    // ci-dessus » exige que le solde soit AU-DESSUS, et qu'aucun dépliant ne
+    // s'intercale entre les deux pour la repousser. Les deux sont tenus : le
+    // prévisionnel suit la carte du solde, et le détail ne peut plus
+    // s'intercaler puisqu'il vit dedans.
+    // L'ordre se lit dans le DOCUMENT, plus entre frères : la carte du solde
+    // est rendue une fois pour les trois portées, avant le panneau « À deux »
+    // qui porte le prévisionnel.
     const ordre = await page.evaluate(() => {
-      const panneau = document.querySelector('#resumePanneauDuo');
-      return [...panneau.children].map(enfant => enfant.className.split(' ')[0]);
+      const solde = document.querySelector('.bilan-heros[data-tete="deux"]');
+      const previsionnel = document.querySelector('.summary-previsionnel');
+      return {
+        solde: Boolean(solde),
+        previsionnel: Boolean(previsionnel),
+        previsionnelApresLeSolde: Boolean(solde && previsionnel
+          && (solde.compareDocumentPosition(previsionnel) & Node.DOCUMENT_POSITION_FOLLOWING)),
+        detailDansLeSolde: Boolean(solde && solde.querySelector('.summary-details')),
+        detailHorsDuSolde: [...document.querySelectorAll('.summary-details')]
+          .some((detail) => !detail.closest('.bilan-heros'))
+      };
     });
 
-    // Sans cette garde, un bloc absent vaudrait -1 et deux comparaisons sur
-    // trois passeraient quand meme : le controle dirait vert sur un ecran vide.
-    for (const bloc of ['summary-balance', 'summary-previsionnel', 'summary-details']) {
-      expect(ordre, `${bloc} manque du panneau`).toContain(bloc);
-    }
+    // Sans ces gardes, un bloc absent rendrait `false` partout où l'on attend
+    // `false`, et le contrôle dirait vert sur un écran vide.
+    expect(ordre.solde, 'la carte du solde manque').toBe(true);
+    expect(ordre.previsionnel, 'le prévisionnel manque').toBe(true);
 
-    expect(ordre.indexOf('summary-previsionnel')).toBeGreaterThan(ordre.indexOf('summary-balance'));
-    expect(ordre.indexOf('summary-previsionnel')).toBeLessThan(ordre.indexOf('summary-details'));
+    expect(ordre.previsionnelApresLeSolde, 'le prévisionnel passe au-dessus du solde qu\'il cite').toBe(true);
+    expect(ordre.detailDansLeSolde, 'le grand-livre a quitté la carte du solde').toBe(true);
+    expect(ordre.detailHorsDuSolde, 'un détail vit hors de la carte du solde : il peut s\'intercaler').toBe(false);
   });
 
   test('un libellé hostile est affiché en texte, jamais interprété', async ({ page }) => {

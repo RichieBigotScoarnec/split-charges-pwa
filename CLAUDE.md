@@ -361,6 +361,13 @@ Principes UX :
 - **Le fait symétrique reste, au rang 3** — « Dépensé à deux : 229,04 € », 31 px,
   encre neutre, troisième carte de tête ; et « Ta part du commun » ouvre le
   grand-livre. Il n'est pas supprimé, il est **rétrogradé**.
+- **Appliqué au lot D (2026-09-11), avec trois entorses dites plutôt que
+  cachées** : la carte 3 est en **21 px** et non 31 — elle vit dans la colonne
+  du bilan, qui a la largeur d'un téléphone de 900 à 1100 px, jusqu'au lot des
+  colonnes ; le grand-livre garde son **contenu** d'avant (« Total des
+  charges », pas encore « Ta part du commun ») ; et il est **replié sous
+  900 px**, ce que `mobile.html` ne fait pas — décision du foyer, sur son coût
+  (250 à 337 px de premier écran à 320).
 - **Les deux autres portées ne portent aucune créance** : Solo met un total
   personnel en encre neutre — « personne ne doit rien à personne dessus » — et
   Privé n'affiche **aucun chiffre**, sa tête est une phrase et son montant est
@@ -414,7 +421,9 @@ Principes UX :
 > qui bouge, de `.bilan-tete` vers la carte de tête. Ses cas qui exigent
 > `toContainText('Ensemble')` sur `.bilan-tete` (`:69`) et son absence de la
 > barre collante (`:100`) sont à réécrire **sur la nouvelle hiérarchie**, pas à
-> supprimer. C'est le lot H.
+> supprimer. ~~C'est le lot H.~~ **C'est le lot D, et c'est fait le 2026-09-11**
+> — les deux fichiers sont réécrits, aucun cas supprimé. Le « lot H » n'a jamais
+> existé que dans cette phrase (`refonte-lots.md`, §0).
 
 ## Les cinq règles
 

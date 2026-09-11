@@ -97,6 +97,18 @@ describe('Phrase du solde', () => {
     expect(nul.texte).toBe('Comptes équilibrés');
     expect(nul.debiteur).toBeNull();
     expect(nul.crediteur).toBeNull();
+    expect(nul.emplacementDebiteur).toBeNull();
+  });
+
+  it('désigne aussi l\'EMPLACEMENT du débiteur — le nom ne suffit pas à savoir si c\'est moi', () => {
+    // La tête du bilan dit « Tu dois » ou « Cindy te doit » selon le compte
+    // connecté. Deux prénoms identiques, ou aucun prénom saisi, rendraient le
+    // nom inutilisable pour le savoir ; l'emplacement ne l'est jamais.
+    expect(describeBalance(500, MEMBRES).emplacementDebiteur).toBe('conjointe');
+    expect(describeBalance(-500, MEMBRES).emplacementDebiteur).toBe('vous');
+    // Sans prénoms aussi : la convention ne dépend pas des libellés.
+    expect(describeBalance(500, null).emplacementDebiteur).toBe('conjointe');
+    expect(describeBalance(-500, { vous: 'Alex', conjointe: 'Alex' }).emplacementDebiteur).toBe('vous');
   });
 
   it("sans prénoms, les formulations d'origine sont conservées", () => {

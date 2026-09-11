@@ -88,7 +88,7 @@ export function memberLabel(cle, members) {
  *
  * @param {number} balance - Solde du mois ; positif, la conjointe est débitrice
  * @param {Object} members - Prénoms bruts ou normalisés
- * @returns {{prefixe: string, suffixe: string, texte: string, debiteur: string|null, crediteur: string|null}}
+ * @returns {{prefixe: string, suffixe: string, texte: string, debiteur: string|null, crediteur: string|null, emplacementDebiteur: 'vous'|'conjointe'|null}}
  */
 export function describeBalance(balance, members) {
   const noms = normalizeMembers(members);
@@ -97,7 +97,7 @@ export function describeBalance(balance, members) {
   if (balance === 0) {
     return {
       prefixe: 'Comptes équilibrés', suffixe: '', texte: 'Comptes équilibrés',
-      debiteur: null, crediteur: null, sens: ''
+      debiteur: null, crediteur: null, emplacementDebiteur: null
     };
   }
 
@@ -125,19 +125,20 @@ export function describeBalance(balance, members) {
     debiteur,
     crediteur,
 
-    // LE MÊME SENS, DIT SANS LE VERBE « DEVOIR »
+    // L'EMPLACEMENT DU DÉBITEUR, ET PAS SEULEMENT SON NOM — 2026-09-11
     //
-    // Le bilan ouvre désormais sur ce que le foyer a dépensé ENSEMBLE, et
-    // range l'écart en dessous : « À rééquilibrer : 408,37 € — Claire vers
-    // vous ». « Doit » reste le mot juste au moment de régler, et la barre
-    // collante le garde ; il n'a pas à être la première phrase que lit, chaque
-    // jour, celui des deux qui est débiteur.
+    // La tête du bilan parle à la personne qui tient le téléphone : « Tu dois »
+    // ou « Cindy te doit », selon que le compte connecté est le débiteur. Elle
+    // ne peut pas le savoir par le nom — deux prénoms identiques, ou aucun
+    // prénom saisi — et relire le signe dans le rendu aurait fait une seconde
+    // fabrique de la convention « positif, la conjointe est débitrice ». Celle-ci
+    // est la seule, et elle vit ici.
     //
-    // Cette seconde formulation vit ICI et non dans le rendu : c'est la
-    // fabrique unique du sens du solde, et un état ajouté demain doit traverser
-    // les deux surfaces ou aucune. La rédiger dans `summary.js` aurait fait un
-    // second registre de « qui doit à qui » sur le même écran.
-    sens: `${debiteur} vers ${crediteur}`
+    // Ce champ remplace `sens` (« Claire vers vous »), qui disait le même sens
+    // sans le verbe « devoir » pour la ligne « À rééquilibrer ». Cette ligne a
+    // quitté le bilan au lot D : la tête dit désormais la créance elle-même, et
+    // un champ que plus rien ne lit se relit comme un champ qui sert.
+    emplacementDebiteur: conjointeDoit ? 'conjointe' : 'vous'
   };
 }
 

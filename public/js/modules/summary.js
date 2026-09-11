@@ -7,7 +7,7 @@ import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { suivreLeBilan, CLASSE_REDONDANTE } from '../utils/barre-solde.js';
 import { computeSummary, exigeLesSalaires, computeVirementsByDestination, resolveShareMode, resolvePercents, computeMoisPersonnel } from '../utils/calculations.js';
 import { resolveIncomeBase } from '../utils/salaries.js';
-import { describeBalance, memberLabel } from '../utils/members.js';
+import { describeBalance, memberLabel, normaliserEmplacement } from '../utils/members.js';
 import { previsionnelDuMois } from '../utils/previsionnel.js';
 import { anticiper, projectionDuMois } from '../utils/anticipation.js';
 import { rapportDuMois } from '../utils/rapport-mensuel.js';
@@ -25,6 +25,8 @@ import { decomposerParRegle } from '../utils/decomposition.js';
 import { PORTEES, porteeRetenue } from '../utils/portee.js';
 import { marquerLeSoldeDu } from './selecteur-portee.js';
 import { remplirLePanneauPrive } from './prive.js';
+import { teteDuBilan } from '../utils/tete-du-bilan.js';
+import { emplacementOppose } from '../utils/confidentialite.js';
 
 /**
  * Quelle question le résumé affiche
@@ -69,6 +71,19 @@ function versantDuResume() {
 export function initSummary() {
   log('📦 Initialisation module summary/bilan');
   initResumePrive();
+
+  // Franchir 900 px — une tablette qu'on tourne, une fenêtre qu'on
+  // redimensionne — réaligne le grand-livre sur la largeur. Sans cet écouteur,
+  // il garderait l'état de la largeur d'ouverture jusqu'au rendu suivant.
+  // Idempotent : poser deux fois cet écouteur ouvre ou ferme deux fois le même
+  // dépliant dans le même sens.
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    window.matchMedia(GRAND_LIVRE_OUVERT_DES).addEventListener('change', (evenement) => {
+      const grandLivre = document.querySelector('#summarySection .summary-details');
+      if (grandLivre) grandLivre.open = evenement.matches;
+    });
+  }
+
   log('✅ Module summary/bilan initialisé');
 }
 
@@ -242,15 +257,28 @@ export function calculateSummary({ historique } = {}) {
   // établie, et la recalculer ici ouvrirait la porte à deux formules pour un
   // même chiffre — le défaut que ce fichier a déjà payé deux fois (report de
   // solde, mode du mois).
+  //
+  // LE COMPTE CONNECTÉ, ET NON `vous` — 2026-09-11. Le calcul portait sur
+  // `vous` quel que soit le téléphone : sur celui de Cindy, le versant
+  // personnel affichait le reste à vivre de Richard, sous « Mes ». Le lot D
+  // met ce chiffre en tête du bilan — il fallait qu'il soit celui de la
+  // personne qui le lit. Même emplacement que la saisie rapide et le privé.
+  const moi = normaliserEmplacement(getState('emplacementCourant'));
   const moisPersonnel = computeMoisPersonnel({
     salaries,
     fixedCharges,
     variableCharges,
-    partDue: summary.yourShare
+    personne: moi,
+    partDue: moi === 'conjointe' ? summary.partnerShare : summary.yourShare
   });
 
   // Afficher le résumé
   renderSummary({
+    moi,
+    // Le nombre de charges que le total commun additionne, lu sur l'assiette
+    // de `computeSummary` : recompter ailleurs donnerait un « sur 3 charges »
+    // qui ne décrit pas le total d'à côté.
+    nombreDeCharges: (summary.chargesRetenues || []).length,
     moisPersonnel,
     previsionnel: previsionnelDuMois({ fixedCharges, variableCharges }),
     projection: projectionAffichee(periods),
@@ -607,13 +635,15 @@ function renderObservations(observations) {
  * @returns {string} Fragment HTML
  */
 /**
- * Comment nommer le total qui ouvre le bilan
+ * Comment nommer le total commun — la troisième carte de tête
  *
- * « Ensemble ce mois » n'est vrai que du mois en cours. Le sélecteur en propose
- * un d'AVANCE — la reconduction peut y avoir inscrit les charges fixes dès le
- * premier — et l'historique en propose des dizaines derrière. Nommer les trois
- * états de la même façon ferait dire au bilan qu'un mois qui n'a pas commencé
- * a déjà coûté 1 717 €.
+ * Le total a quitté la tête du bilan au lot D (2026-09-11) : il est au rang 3,
+ * sous « Dépensé à deux », le libellé des planches. Ce qui le nomme n'a pas
+ * changé de raison. « Dépensé » n'est vrai que d'un mois commencé : le
+ * sélecteur en propose un d'AVANCE — la reconduction peut y avoir inscrit les
+ * charges fixes dès le premier — et l'historique en propose des dizaines
+ * derrière. Nommer les trois états de la même façon ferait dire au bilan qu'un
+ * mois qui n'a pas commencé a déjà coûté 1 717 €.
  *
  * L'état vient d'`etatDuMois`, la fabrique que le rapport lisait déjà : c'est
  * la même question, et deux réponses finiraient par différer.
@@ -623,15 +653,14 @@ function renderObservations(observations) {
  * @returns {string} Texte brut, à échapper par l'appelant
  */
 function libelleDuTotal(mois, etat) {
-  if (etat === 'en-cours') return 'Ensemble ce mois';
-  if (etat === 'revolu') return `Ensemble en ${formatPeriod(mois)}`;
+  if (etat === 'revolu') return `Dépensé à deux en ${formatPeriod(mois)}`;
   // Un mois à venir ne porte que ce que la reconduction y a posé d'avance :
   // « dépensé » serait faux, « engagé » est exact.
   if (etat === 'a-venir') return `Déjà engagé pour ${formatPeriod(mois)}`;
 
-  // Sans repère de calendrier, on ne situe pas le mois plutôt que de supposer
-  // qu'il est en cours.
-  return 'Dépensé ensemble';
+  // En cours, ou sans repère de calendrier : le libellé des planches, qui ne
+  // situe pas le mois — le sélecteur, juste au-dessus, le fait déjà.
+  return 'Dépensé à deux';
 }
 
 function phraseSolde(solde, montant) {
@@ -706,12 +735,18 @@ function renderDecomposition(lignes) {
  * contre laquelle ce montant est masqué, et la seule à disposer des trois
  * termes. Cf. `computeMoisPersonnel` et `confidentialite.js`.
  *
+ * ## Mes charges solo sont dans la tête — lot D, 2026-09-11
+ *
+ * Elles avaient leur ligne ici, « Mes charges solo — visible de Cindy ». La
+ * tête de la portée porte désormais ce total, et la même précision : les
+ * garder aussi en ligne aurait écrit le même chiffre deux fois sur le même
+ * écran.
+ *
  * @param {Object} moisPersonnel - Sortie de `computeMoisPersonnel`
- * @param {string} nomConjointe - Pour nommer qui voit quoi
  * @returns {string}
  */
-function renderPanneauSolo(moisPersonnel, nomConjointe) {
-  const { disponible, resteAVivre, tauxEffort, solo } = moisPersonnel;
+function renderPanneauSolo(moisPersonnel) {
+  const { disponible, resteAVivre, tauxEffort } = moisPersonnel;
 
   // Sans revenus, il n'y a rien à diviser. Le 50-50 et le mode personnalisé
   // n'en demandent aucun : ce panneau est le premier écran qui en ait besoin,
@@ -741,12 +776,135 @@ function renderPanneauSolo(moisPersonnel, nomConjointe) {
       </p>
     </div>
 
-    <div class="summary-row">
-      <span>Mes charges solo <small>— visible de ${escapeHtml(nomConjointe)}</small></span>
-      <strong>${formatCurrency(solo)}</strong>
-    </div>
-
     ${blocPriveDuResume()}`;
+}
+
+/**
+ * Le grand-livre, ouvert au bureau et replié au téléphone
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE N'EST PAS LA MAQUETTE, ET IL FAUT LE DIRE — 2026-09-11
+ *
+ * `mobile.html` le montre DÉPLIÉ à 390 comme à 320 px (planches 4, 5 et 6),
+ * dans la carte du solde. Le repli sous 900 px est une décision du foyer, prise
+ * sur son coût : mesuré à 320 px au doigt, déplier le grand-livre ajoute
+ * **250,5 px** (cinq lignes) à **336,7 px** (sept, avec une dérogation) —
+ * davantage que tout le chrome au-dessus du premier contenu. Au-delà de
+ * 900 px, la place existe : le cacher serait gratuit.
+ *
+ * Et une précision qui évite de lui prêter un effet qu'il n'a pas : ce repli
+ * ne rend RIEN au contrôle `onglets:280`. Celui-ci mesure le haut de la carte
+ * du bilan, et le grand-livre vit dedans — 161,5 px replié comme déplié.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * LE CHOIX DE LA PERSONNE L'EMPORTE SUR LA LARGEUR, À L'INTÉRIEUR D'UNE VISITE
+ *
+ * `calculateSummary` réécrit le bilan après chaque écriture. Relire la largeur
+ * à chaque rendu rouvrirait le dépliant qu'on vient de fermer — à chaque charge
+ * ajoutée. L'état du dépliant en place fait donc autorité ; la largeur ne
+ * décide qu'au premier rendu, et quand on franchit 900 px (`initSummary`).
+ *
+ * `900px` est la rupture principale du dépôt (`responsive.css:222`,
+ * `onglets.css`). Ce fichier en est le seul lecteur JavaScript.
+ */
+const GRAND_LIVRE_OUVERT_DES = '(min-width: 900px)';
+
+function grandLivreOuvert() {
+  const enPlace = document.querySelector('#summarySection .summary-details');
+  if (enPlace) return enPlace.open;
+
+  return typeof window.matchMedia === 'function'
+    && window.matchMedia(GRAND_LIVRE_OUVERT_DES).matches;
+}
+
+/**
+ * La tête du bilan — UN gabarit pour les trois portées
+ *
+ * Il ne rédige rien : libellé, phrase, montant, ton et note viennent de
+ * `teteDuBilan`, la fabrique unique. Ce qui varie d'une portée à l'autre est
+ * dans le descripteur, jamais dans une branche de ce gabarit.
+ *
+ * Les trois morceaux de la phrase — « Tu dois », le montant, « à Cindy » — sont
+ * des éléments distincts d'une ligne qui S'ENROULE : à 320 px, les trois sur
+ * une ligne en 54 px débordaient de 107 px (mesuré). Le montant, lui, reste
+ * insécable, par `formatCurrency` et par `nowrap`. Les espaces entre les
+ * morceaux ne se voient pas — une boîte flexible les ignore — mais elles
+ * restent dans le texte, pour qui le lit sans le voir.
+ *
+ * ── LE TÉMOIN DE LA BARRE EST LA PHRASE, PAS LA CARTE ──
+ *
+ * `barre-solde.js` se tait tant que les deux tiers de `.summary-balance` sont à
+ * l'écran. La première version posait ce témoin sur la carte ENTIÈRE — et le
+ * grand-livre, ouvert au bureau, vit dedans. Mesuré à 1280 × 720 : la carte
+ * dépassait l'écran, un tiers seulement en était visible, et la barre répétait
+ * le solde juste au-dessus de la phrase qui le disait (`data-flow:786`, rouge).
+ *
+ * Le témoin est donc la plus petite surface qui contienne ce que la barre
+ * répéterait : le libellé, la phrase, son explication. Ni le grand-livre, ni le
+ * bouton — la barre ne les dit pas.
+ *
+ * @param {Object} tete - Sortie de `teteDuBilan`
+ * @param {Object} [options]
+ * @param {string} [options.temoin] - Classes internes posées sur ce que la tête
+ *   DIT : sur « À deux », `summary-balance`, le témoin de `barre-solde.js`
+ * @param {string} [options.dit] - Fragment déjà échappé, rendu avec la phrase
+ * @param {string} [options.suite] - Fragment déjà échappé, rendu après elle
+ * @returns {string} Fragment échappé
+ */
+function renderTete(tete, { temoin = '', dit = '', suite = '' } = {}) {
+  const mot = (texte) => (texte ? `<span class="bilan-heros-mot">${escapeHtml(texte)}</span>` : '');
+  const montant = tete.montant === null
+    ? ''
+    : `<strong class="bilan-heros-montant">${formatCurrency(tete.montant)}</strong>`;
+
+  return `
+      <section class="bilan-heros bilan-heros--${escapeHtml(tete.ton)}" data-tete="${escapeHtml(tete.portee)}">
+        <div class="bilan-heros-dit ${temoin}">
+          <span class="bilan-tete">${escapeHtml(tete.libelle)}</span>
+          <p class="bilan-heros-phrase">${mot(tete.avant)} ${montant} ${mot(tete.apres)}</p>
+          ${tete.note ? `<p class="bilan-heros-note">${escapeHtml(tete.note)}</p>` : ''}
+          ${dit}
+        </div>
+        ${suite}
+      </section>`;
+}
+
+/**
+ * Les deux autres cartes de tête : ce qui me reste, ce que nous avons dépensé
+ *
+ * Le total commun est le FAIT SYMÉTRIQUE — ce que le foyer a dépensé ensemble.
+ * Il ouvrait le bilan du 2026-08-31 au 2026-09-11 ; il est au rang 3, en encre
+ * neutre, et c'est la créance, au-dessus, qui porte seule la couleur.
+ *
+ * Aucun chiffre n'est calculé ici : le reste à vivre et le taux d'effort
+ * viennent de `computeMoisPersonnel`, le total et son compte de `computeSummary`.
+ *
+ * @param {Object} p
+ * @returns {string} Fragment échappé
+ */
+function renderCartesTete({ moisPersonnel, totalCharges, nombreDeCharges, libelleDuCommun }) {
+  const reste = moisPersonnel && moisPersonnel.disponible
+    ? `<strong class="carte-tete-montant">${formatCurrency(moisPersonnel.resteAVivre)}</strong>
+          <span class="carte-tete-pastille">Taux d'effort ${Math.round(moisPersonnel.tauxEffort * 100)}&nbsp;%</span>`
+    : '<span class="carte-tete-sous">Revenus non renseignés.</span>';
+
+  const pluriel = nombreDeCharges > 1 ? 's' : '';
+  const combien = nombreDeCharges === 0
+    ? 'Aucune charge commune.'
+    : `Sur ${nombreDeCharges} charge${pluriel} commune${pluriel}.`;
+
+  return `
+      <div class="cartes-tete">
+        <div class="carte-tete carte-tete--reste">
+          <span class="bilan-tete">Reste à vivre hors privé</span>
+          ${reste}
+        </div>
+        <div class="carte-tete carte-tete--commun">
+          <span class="bilan-tete">${escapeHtml(libelleDuCommun)}</span>
+          <strong class="carte-tete-montant">${formatCurrency(totalCharges)}</strong>
+          <span class="carte-tete-sous">${combien}</span>
+        </div>
+      </div>`;
 }
 
 function renderSummary(summary) {
@@ -772,7 +930,9 @@ function renderSummary(summary) {
     ownBalance,
     finalBalance,
     virementsByDestination,
-    decomposition
+    decomposition,
+    moi,
+    nombreDeCharges
   } = summary;
 
   // Calculer les pourcentages de répartition
@@ -799,42 +959,35 @@ function renderSummary(summary) {
     balanceClass = 'balance-zero';
   }
 
-  // LA TÊTE DU BILAN DIT CE QUI EST COMMUN ; L'ÉCART VIENT APRÈS
+  // LA TÊTE DU BILAN PORTE LA CRÉANCE, ET SEULEMENT SUR « À DEUX » — lot D,
+  // 2026-09-11. Ce bloc a défendu l'inverse du 2026-08-31 à ce jour, et sa
+  // raison est gardée ici parce que c'est elle qui rend la révocation lisible.
   //
-  // Elle disait « Conjointe vous doit 408,37 € », en 28 px, sur la première
-  // ligne du premier écran. Le calcul est juste ; le CADRAGE était un choix, et
-  // ce choix n'avait jamais été fait — il était arrivé par défaut. Une
-  // application de couple qui ouvre sur une créance transforme une organisation
-  // commune en comptabilité entre deux parties, et c'est celui des deux qui
-  // doit qui le lit chaque jour.
+  // Il mettait en tête le TOTAL commun, « Ensemble ce mois », et rangeait
+  // l'écart dessous, « À rééquilibrer ». La raison était écrite : une
+  // application de couple qui ouvre sur une créance transforme une
+  // organisation commune en comptabilité entre deux parties, et c'est celui des
+  // deux qui doit qui le lit chaque jour.
   //
-  // Ce qui passe en tête est donc le fait SYMÉTRIQUE : ce que le foyer a
-  // dépensé ensemble. L'écart reste, entier, juste en dessous — rien n'est
-  // caché, rien n'est recalculé, et le bouton qui le règle n'a pas bougé.
-  // « Doit » garde sa place là où c'est le mot juste : au moment de régler, et
-  // sur la barre collante qui rappelle le solde pendant qu'on parcourt les
-  // charges.
+  // Cette décision est RÉVOQUÉE (`CLAUDE.md`, *Design*, 2026-09-10). Elle avait
+  // été prise sans maquette et avant que la portée existe : son grief supposait
+  // un écran unique. Il y en a trois, et la créance n'est en tête que sur l'un
+  // d'eux. Solo porte un total en encre neutre, Privé aucun chiffre — la tête
+  // vient de `teteDuBilan`, une fabrique pour les trois. Le grief tient encore
+  // pour l'écran d'OUVERTURE, « À deux » étant la portée par défaut : c'est un
+  // arbitrage assumé, pas un désamorçage.
   //
-  // Le mois est NOMMÉ selon son état. Le sélecteur propose un mois d'avance, et
-  // la reconduction peut y avoir inscrit les charges fixes dès le premier :
-  // « Ensemble ce mois » y désignerait un mois qui n'a pas commencé. Même
-  // fabrique que le rapport, `etatDuMois` — c'est la leçon que ce dépôt a payée
-  // en annonçant « 1 090 € de moins qu'un mois ordinaire » pour un mois à venir.
+  // Le fait symétrique n'est pas supprimé : il passe au rang 3, carte
+  // « Dépensé à deux », et son mois y est toujours NOMMÉ selon son état —
+  // même fabrique que le rapport, `etatDuMois`, la leçon payée en annonçant
+  // « 1 090 € de moins qu'un mois ordinaire » pour un mois à venir.
   const moisAffiche = getState('currentPeriod');
-  const teteDuBilan = libelleDuTotal(moisAffiche, etatDuMois(moisAffiche, jourDuCalendrier().moisReel));
+  const libelleDuCommun = libelleDuTotal(moisAffiche, etatDuMois(moisAffiche, jourDuCalendrier().moisReel));
 
-  // L'écart est rendu SANS CONDITION, y compris à zéro.
-  //
-  // `barre-solde.js` masque la barre collante sur la seule GÉOMÉTRIE de
-  // `.summary-balance`, sur la prémisse écrite dans `responsive.css` :
-  // « repliée tant que le bilan dit déjà la même chose ». Un bilan qui, dans un
-  // cas, ne porterait plus le solde rendrait cette prémisse fausse en silence —
-  // et « Comptes équilibrés » ne serait alors nulle part à l'écran.
-  const ecartDuBilan = finalBalance === 0
-    ? '<p class="bilan-ecart bilan-ecart--nul">Comptes équilibrés — rien à se rembourser</p>'
-    : `<p class="bilan-ecart">À rééquilibrer :
-        <span class="bilan-ecart-montant">${formatCurrency(Math.abs(finalBalance))}</span>
-        — ${escapeHtml(soldeDit.sens)}</p>`;
+  // La ligne « À rééquilibrer » a disparu avec l'ancienne tête : c'est la tête
+  // qui dit le solde, désormais. Sa propriété, elle, a suivi — la tête le dit
+  // SANS CONDITION, « Comptes équilibrés » compris (`teteDuBilan`), parce que
+  // `barre-solde.js` se tait sur la seule géométrie de `.summary-balance`.
 
   // Explication du calcul (utilise le solde arrondi pour éviter décalage d'1 centime)
   // Avec un report, « a payé plus que sa part » serait faux : le solde affiché
@@ -848,10 +1001,10 @@ function renderSummary(summary) {
   let balanceExplanation = '';
   const duReport = expliquerLeReport({ carryOver, ownBalance, finalBalance });
   if (duReport) {
-    balanceExplanation = `<small>${escapeHtml(duReport)}</small>`;
+    balanceExplanation = `<p class="bilan-heros-explication">${escapeHtml(duReport)}</p>`;
   } else if (finalBalance !== 0) {
     const overpayer = soldeDit.crediteur;
-    balanceExplanation = `<small>${escapeHtml(overpayer)} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</small>`;
+    balanceExplanation = `<p class="bilan-heros-explication">${escapeHtml(overpayer)} a payé ${formatCurrency(Math.abs(finalBalance))} de plus que sa part</p>`;
   }
 
   // L'action n'a de sens que s'il reste quelque chose à régler, et elle vit
@@ -902,23 +1055,20 @@ function renderSummary(summary) {
   const enDuo = versant === PORTEES.DEUX;
   const enPrive = versant === PORTEES.PRIVE;
 
-  summaryElement.innerHTML = `
-    <div class="summary-card">
-      ${enDuo ? `
-      <div class="resume-panneau" id="resumePanneauDuo">
-      <div class="summary-balance ${balanceClass}">
-        <span class="bilan-tete">${escapeHtml(teteDuBilan)}</span>
-        <strong>${formatCurrency(totalCharges)}</strong>
-        ${ecartDuBilan}
-        ${balanceExplanation}
-        ${settleButton}
-      </div>
+  const tete = teteDuBilan({
+    portee: versant,
+    solde: soldeDit,
+    montant: finalBalance,
+    moi,
+    totalSolo: moisPersonnel.solo,
+    autre: memberLabel(emplacementOppose(moi), membres)
+  });
 
-      ${renderPrevisionnel(previsionnel)}
-      ${renderProjection(projection)}
-      ${renderObservations(observations)}
-
-      <details class="summary-details">
+  // Le grand-livre vit DANS la carte du solde, juste sous la phrase qu'il
+  // explique — c'est la place que lui donnent les planches. Ouvert au bureau,
+  // replié au téléphone : voir `grandLivreOuvert`.
+  const grandLivre = `
+      <details class="summary-details"${grandLivreOuvert() ? ' open' : ''}>
         <summary>Voir le détail</summary>
 
         <div class="summary-row summary-total-row">
@@ -959,7 +1109,23 @@ ${renderDecomposition(decomposition)}
             <strong class="${reimbursementAdjustment > 0 ? 'positive' : 'negative'}">${reimbursementAdjustment > 0 ? '+' : ''}${formatCurrency(reimbursementAdjustment)}</strong>
           </div>
         ` : ''}
-      </details>
+      </details>`;
+
+  // La tête est rendue UNE fois, pour les trois portées, avant le corps du
+  // panneau. Seule « À deux » y ajoute quelque chose : le témoin que
+  // `barre-solde.js` observe, et ce que la créance appelle — son explication,
+  // son grand-livre, le geste qui la règle.
+  summaryElement.innerHTML = `
+    <div class="summary-card summary-card--tete">
+      ${renderTete(tete, enDuo
+    ? { temoin: `summary-balance ${balanceClass}`, dit: balanceExplanation, suite: `${grandLivre}${settleButton}` }
+    : {})}
+      ${enDuo ? `
+      <div class="resume-panneau" id="resumePanneauDuo">
+      ${renderCartesTete({ moisPersonnel, totalCharges, nombreDeCharges, libelleDuCommun })}
+      ${renderPrevisionnel(previsionnel)}
+      ${renderProjection(projection)}
+      ${renderObservations(observations)}
 
       ${rapport && !rapport.vide
         ? `<button type="button" class="btn btn-secondary rapport-ouvrir" data-action="ouvrirRapportDuMois">
@@ -971,7 +1137,7 @@ ${renderDecomposition(decomposition)}
         <p class="empty-state">Lecture de votre espace privé…</p>
       </div>` : `
       <div class="resume-panneau" id="resumePanneauSolo">
-        ${renderPanneauSolo(moisPersonnel, nomConjointe)}
+        ${renderPanneauSolo(moisPersonnel)}
       </div>`}
     </div>
 

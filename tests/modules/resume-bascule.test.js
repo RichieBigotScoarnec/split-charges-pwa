@@ -142,7 +142,10 @@ describe('Le versant du résumé', () => {
       expect(segmentDuo.getAttribute('aria-checked')).toBe('true');
     });
 
-    it('porte le total du foyer en tête, comme avant la fusion', () => {
+    // Le total a quitté la tête au lot D (2026-09-11) : il est au rang 3,
+    // carte « Dépensé à deux ». La propriété que ce cas tient — le panneau
+    // du foyer porte le total du foyer — n'a pas bougé ; son titre, si.
+    it('porte le total du foyer, au rang 3 depuis le lot D', () => {
       const { texte } = resumeRendu();
       expect(texte).toContain(formatCurrency(1000));
     });
