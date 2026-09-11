@@ -189,6 +189,9 @@ export function calculateSummary({ historique } = {}) {
     const summaryElement = document.getElementById('summarySection');
     if (summaryElement) {
       updateBalanceBar(null, '');
+      // Sans bilan, pas de bas de colonne : celui d'un rendu précédent y
+      // survivrait sinon, avec les chiffres d'un autre mois.
+      poserLeBasDeColonne(null);
 
       // ── L'ESPACE PRIVÉ NE DEMANDE AUCUN SALAIRE, ET NE DOIT PAS EN
       //    DEMANDER — trouvé le 2026-09-08 en câblant la vue ──
@@ -295,6 +298,10 @@ export function calculateSummary({ historique } = {}) {
     ownBalance: summary.ownBalance,
     finalBalance: summary.balance,
     virementsByDestination,
+    // La règle du partage et son assiette, pour le bandeau qui les dit. Les
+    // parts des charges, elles, s'écartent de la règle dès qu'une charge
+    // porte une répartition dérogatoire : le bandeau dit la RÈGLE.
+    regle: { shareMode, incomeBase, customPercents },
     // La décomposition porte sur les charges QUE `computeSummary` a retenues,
     // et elle les reçoit de lui : refaire ici le filtrage des solo, des
     // supprimées et des montants illisibles aurait été une seconde fabrique de
@@ -880,6 +887,76 @@ function renderCartesTete({ moisPersonnel, totalCharges, nombreDeCharges, libell
       </div>`;
 }
 
+/** Le nom de chaque règle, tel que le bandeau le dit */
+const NOM_DE_LA_REGLE = Object.freeze({
+  prorata: 'Prorata',
+  '50-50': 'Moitié-moitié',
+  custom: 'Parts choisies'
+});
+
+/**
+ * Le bandeau du partage — la règle qui fait les parts, et d'où elle vient
+ *
+ * Planche 1, au pied de la tête : « ⚖️ Prorata · Richard 71 % · Cindy 29 % ·
+ * d'après … de revenus mensuels · Modifier les revenus ». Le lot E a sorti les
+ * salaires du tableau de bord ; ce lien les ramène à un geste de l'écran où
+ * le chiffre compte, par le chemin de la porte (`focusSalaries`).
+ *
+ * Il dit la RÈGLE, pas les parts des charges : celles-ci s'en écartent dès
+ * qu'une charge porte une répartition dérogatoire, et le grand-livre les
+ * donne déjà. L'assiette n'est nommée qu'au prorata — c'est le seul mode où
+ * les revenus décident.
+ *
+ * @param {{ shareMode: string, incomeBase: Object, customPercents: Object }|undefined} regle
+ * @param {string} nomVous
+ * @param {string} nomConjointe
+ * @returns {string} Balisage — les prénoms échappés, le reste numérique
+ */
+function bandeauDuPartage(regle, nomVous, nomConjointe) {
+  if (!regle) return '';
+  const { shareMode, incomeBase, customPercents } = regle;
+
+  let vous = 50;
+  if (shareMode === 'prorata' && incomeBase?.total > 0) {
+    vous = Math.round((incomeBase.vous / incomeBase.total) * 100);
+  } else if (shareMode === 'custom' && Number.isFinite(Number(customPercents?.vous))) {
+    vous = Math.round(Number(customPercents.vous));
+  }
+  vous = Math.min(100, Math.max(0, vous));
+  const conjointe = 100 - vous;
+
+  const assiette = shareMode === 'prorata' && incomeBase
+    ? `<span class="bandeau-partage-assiette">d'après ${formatCurrency(incomeBase.vous)} et ${formatCurrency(incomeBase.conjointe)} de revenus mensuels</span>`
+    : '';
+
+  return `
+      <div class="bandeau-partage">
+        <span class="bandeau-partage-regle"><span aria-hidden="true">⚖️</span> ${NOM_DE_LA_REGLE[shareMode] || NOM_DE_LA_REGLE.prorata}</span>
+        <span class="bandeau-partage-parts"><span class="bandeau-partage-jauge" aria-hidden="true"><span style="width: ${vous}%"></span></span>${escapeHtml(nomVous)} ${vous}\u202F% · ${escapeHtml(nomConjointe)} ${conjointe}\u202F%</span>
+        ${assiette}
+        <button type="button" class="bandeau-partage-lien" data-action="focusSalaries">Modifier les revenus</button>
+      </div>`;
+}
+
+/**
+ * Pose le bas de la colonne des cartes
+ *
+ * « Le mois en un coup d'œil » et le récap des virements sont rendus avec la
+ * tête, dans le même gabarit : ils lisent les mêmes chiffres, et une seconde
+ * injection ferait un 25ᵉ site sur un plafond de 24. Ils sont ensuite
+ * DÉPLACÉS dans `#bilanBas`, en bas de la colonne des cartes (lot E).
+ *
+ * Appelée à CHAQUE rendu, y compris ceux qui n'en portent pas : un bas de
+ * colonne laissé en place survivrait à un changement de portée ou de mois.
+ *
+ * @param {Element|null} source - Le bilan fraîchement rendu, ou null pour vider
+ */
+function poserLeBasDeColonne(source) {
+  const bas = document.getElementById('bilanBas');
+  if (!bas) return;
+  bas.replaceChildren(...(source ? source.querySelectorAll('[data-bas-de-colonne]') : []));
+}
+
 function renderSummary(summary) {
   const summaryElement = document.getElementById('summarySection');
   if (!summaryElement) {
@@ -905,7 +982,8 @@ function renderSummary(summary) {
     virementsByDestination,
     decomposition,
     moi,
-    nombreDeCharges
+    nombreDeCharges,
+    regle
   } = summary;
 
   // Calculer les pourcentages de répartition
@@ -1116,12 +1194,13 @@ ${renderDecomposition(decomposition)}
       ${enDuo ? `
       <div class="resume-panneau" id="resumePanneauDuo">
       ${renderCartesTete({ moisPersonnel, totalCharges, nombreDeCharges, libelleDuCommun })}
+      ${bandeauDuPartage(regle, nomVous, nomConjointe)}
       ${renderPrevisionnel(previsionnel)}
       ${renderProjection(projection)}
       ${renderObservations(observations)}
 
       ${rapport && !rapport.vide
-        ? `<button type="button" class="btn btn-secondary rapport-ouvrir" data-action="ouvrirRapportDuMois">
+        ? `<button type="button" class="btn btn-secondary rapport-ouvrir" data-action="ouvrirRapportDuMois" data-bas-de-colonne>
              📄 Le mois en un coup d'œil
            </button>`
         : ''}
@@ -1135,7 +1214,7 @@ ${renderDecomposition(decomposition)}
     ${enDuo ? renderBudgetGauge(totalCharges) : ''}
 
     ${enDuo && virementsByDestination && virementsByDestination.length > 0 ? `
-    <div class="summary-card virements-recap">
+    <div class="summary-card virements-recap" data-bas-de-colonne>
       <h3>🏦 Récap virements — ${escapeHtml(nomConjointe)}</h3>
       <p class="virements-subtitle">Montants à virer par destination</p>
 
@@ -1184,6 +1263,8 @@ ${renderDecomposition(decomposition)}
     </div>
     ` : ''}
   `;
+
+  poserLeBasDeColonne(summaryElement);
 
   // Le bilan vient d'être réécrit : l'élément que la barre observait n'existe
   // plus. Sans ce rappel, l'observation resterait posée sur un nœud détaché —

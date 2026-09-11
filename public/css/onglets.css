@@ -591,9 +591,9 @@
 
 /* ===== LES ACCÈS QUOTIDIENS DU BILAN ===== */
 /*
-   Ce qui reste sur l'écran d'accueil : les enveloppes, ce qui est privé, et
-   la carte quand des dépenses sont localisées. Trois lectures du mois, à
-   côté du solde qu'elles complètent.
+   Ce qui reste sur l'écran d'accueil : les enveloppes. « Privé » est devenu
+   une portée le 2026-09-08, et la carte a sa propre carte depuis le lot E,
+   « Où vous dépensez ». La rangée vit dans la carte « Enveloppes à deux ».
 */
 .acces-rapides {
   margin-top: var(--space-md);

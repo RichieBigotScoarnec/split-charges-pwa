@@ -310,7 +310,12 @@
          d'entrée. Au-delà, elle reprend sa colonne et la barre d'onglets
          disparaît — il y a la place de tout montrer, cacher serait gratuit. -->
     <div class="col-bilan panneau panneau--actif" id="panneauBilan">
-    <section aria-labelledby="sectionResume">
+    <!-- LA TÊTE DU BILAN — au bureau, pleine largeur au-dessus des deux
+         colonnes (planches 1 et 2, lot E). Sous 900 px, le haut de l'onglet.
+         `bilan-zone-tete` et non `bilan-tete` : ce nom-là est déjà pris par
+         l'étiquette « Solde du mois », en capitales — la section l'a porté
+         une passe, et toute la tête s'est affichée en majuscules. -->
+    <section class="bilan-zone-tete" aria-labelledby="sectionResume">
     <div class="card">
       <div class="card-header">
         <h2 class="card-title" id="sectionResume"><span aria-hidden="true">📊</span> Résumé du Mois</h2>
@@ -320,16 +325,41 @@
       <div id="summarySection">
         <!-- Populated dynamically by summary.js -->
       </div>
+    </div>
+    </section>
 
-      <!-- Budgets par catégorie. Le panneau existait mais n'affichait rien :
-           sa cible de rendu n'existait pas et personne ne l'appelait.
-           Masqué tant qu'aucune dépense ni aucun budget n'existe. -->
+    <!-- LA COLONNE DES CARTES — lot E, 2026-09-11.
+         Au bureau, la colonne de droite, à côté des charges ; sous 900 px, la
+         suite de l'onglet Bilan. L'ORDRE EST CELUI DES PLANCHES 1, 2 ET 4, le
+         même sur les trois : où part l'argent, où il se dépense, les
+         tendances, les enveloppes. Puis le bas de colonne, que summary.js
+         remplit : ce que les planches ne connaissaient pas. -->
+    <div class="bilan-cartes">
+
+      <!-- 🎯 Une carte, deux états (planche 1, `budgetsAbsents` /
+           `budgetsDefinis`) : « Où part votre argent » tant qu'aucun budget
+           n'est fixé, « Budgets par catégorie » ensuite. category-budgets.js
+           pose le titre. Masquée tant qu'aucune dépense ni aucun budget
+           n'existe. -->
       <div id="categoryAnalysis" class="category-analysis" hidden>
-        <div class="category-analysis-header"><span aria-hidden="true">🎯</span> Budgets par catégorie</div>
+        <div class="category-analysis-header"><span aria-hidden="true">🎯</span> <span id="titreCategories">Où part votre argent</span></div>
         <div id="categoryAnalysisContent">
           <!-- Rempli par modules/category-budgets.js -->
         </div>
       </div>
+
+      <!-- 📍 Où vous dépensez. Masquée tant qu'aucune dépense n'est localisée :
+           elle suit son bouton, que map.js révèle. -->
+      <section class="carte-rang3 carte-lieux" aria-labelledby="titreLieux">
+        <h2 class="carte-rang3-titre" id="titreLieux"><span aria-hidden="true">📍</span> Où vous dépensez</h2>
+        <!-- Le seul accès à la carte se trouvait jadis dans un panneau en
+             display:none, ce qui la rendait inatteignable. Elle reste avec les
+             lectures du mois : la ranger dans les réglages la rendrait
+             introuvable une fois de plus. -->
+        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
+          <span aria-hidden="true">📍</span> Carte
+        </button>
+      </section>
 
       <!-- Tendances Historiques — repliées par défaut : le graphique demande
            une lecture de tout l'historique, inutile tant qu'on ne le regarde
@@ -352,36 +382,30 @@
            qu'on arme une fois n'ont rien à faire sur l'écran qu'on ouvre dix
            fois par semaine. -->
 
-      <!-- Accès quotidiens.
-           Dix boutons se disputaient cette rangée : deux qu'on ouvre chaque
-           semaine et huit qu'on ouvre deux fois l'an. Rangés à égalité, il
-           fallait lire les dix pour en viser un.
-           Ne restent ici que les lectures du mois — les enveloppes, ce qui est
-           privé, et la carte si des dépenses sont localisées. Les huit autres
-           ont leur place dans l'onglet Réglages, groupés par ce qu'ils font. -->
-      <div class="acces-rapides">
-        <!-- Les enveloppes transversales : un séjour, un déménagement, un
-             chantier. Elles regroupent des dépenses par-delà les catégories et
-             les mois, sans jamais toucher au solde. -->
-        <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
-          <span aria-hidden="true">🧳</span> Enveloppes
-        </button>
-        <!-- « Privé » a quitté cette rangée le 2026-09-08 : il est devenu une
-             PORTÉE, gouvernée par le segment en tête du panneau. Un bouton qui
-             double un segment situé plus haut est une seconde surface, et deux
-             surfaces pour l'espace privé liraient la base séparément — un
-             partage refermé dans l'une serait resté ouvert dans l'autre. -->
-        <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
-             la carte se trouvait dans un panneau en display:none, ce qui la
-             rendait inatteignable. Elle reste ici, avec les lectures du mois :
-             la ranger dans les réglages la rendrait introuvable une fois de
-             plus, et c'est exactement le défaut qu'on a corrigé. -->
-        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
-          <span aria-hidden="true">📍</span> Carte
-        </button>
-      </div>
+      <!-- 🧳 Enveloppes à deux.
+           Dix boutons se disputaient jadis la rangée des accès quotidiens :
+           deux qu'on ouvre chaque semaine et huit qu'on ouvre deux fois l'an.
+           Les huit ont leur place dans Réglages ; la carte a sa carte depuis
+           le lot E ; « Privé » est devenu une portée le 2026-09-08. Ne reste
+           dans la rangée que ce qui ouvre les enveloppes. -->
+      <section class="carte-rang3" aria-labelledby="titreEnveloppes">
+        <h2 class="carte-rang3-titre" id="titreEnveloppes"><span aria-hidden="true">🧳</span> Enveloppes à deux</h2>
+        <div class="acces-rapides">
+          <!-- Les enveloppes transversales : un séjour, un déménagement, un
+               chantier. Elles regroupent des dépenses par-delà les catégories
+               et les mois, sans jamais toucher au solde. -->
+          <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
+            <span aria-hidden="true">🧳</span> Enveloppes
+          </button>
+        </div>
+      </section>
+
+      <!-- LE BAS DE COLONNE — « Le mois en un coup d'œil » et le récap des
+           virements par destination. Les planches ne les connaissaient pas ;
+           ils rendent un service qu'elles ne proposent pas. summary.js les
+           rend avec la tête, puis les pose ici. -->
+      <div class="bilan-bas" id="bilanBas"></div>
     </div>
-    </section>
     </div>
 
 

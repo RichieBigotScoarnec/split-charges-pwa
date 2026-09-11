@@ -203,8 +203,12 @@ importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 ### CSS
 - Tokens dans `public/css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
 - Mobile-first. **Rupture principale : 900 px** — sous 899 px, les trois panneaux
-  deviennent trois onglets (`onglets.css:38`) ; au-delà, la barre disparaît, le
-  bilan et les charges sont deux colonnes (`responsive.css:222`), et Réglages
+  deviennent trois onglets (`onglets.css:38`) ; au-delà, la barre disparaît, la
+  tête du bilan tient toute la largeur, et dessous les charges (1,4fr, à
+  gauche) et la colonne des cartes (1fr) se partagent la rangée — zones
+  nommées et sous-grille, `responsive.css`, « La silhouette des planches » ; le
+  panneau Bilan y garde sa boîte, ce que `display: contents` lui aurait
+  retiré. Réglages
   est un écran à part, ouvert par la porte « ⚙️ Réglages » de l'en-tête et
   refermé par « ← Retour au tableau de bord » (`onglets.css`, « Les portes du
   bureau »). Jusqu'au lot E (2026-09-11), Réglages était empilé sous le bilan,
@@ -1321,6 +1325,13 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   le conteneur reçoit `tabindex="-1"` pour cela.
 - **`changePeriod()` ne prend aucun argument** — elle lit le sélecteur. Lui
   passer une période ne fait rien du tout.
+- **Une classe neuve se vérifie contre `main` avant d'être posée.** Le
+  2026-09-11, la section de tête du bilan a été nommée `.bilan-tete` — nom
+  déjà pris par l'étiquette « Solde du mois », en `text-transform:
+  uppercase` (`summary.css:553`). Toute la tête s'est affichée en capitales,
+  et c'est un test sur le texte du bandeau qui l'a vu, pas la relecture. Le
+  geste, avec son témoin positif (un nom connu doit rendre plus de zéro) :
+  `git grep -nE "(\.|class=\"[^\"]*\b|id=\")NOM\b" origin/main -- public/`.
 - **`formatCurrency` produit une espace fine insécable** (U+202F). Tout test qui
   lit un montant doit l'échapper (` `, ` `, ` `) : l'écrire en
   clair a fait rougir la CI deux fois.

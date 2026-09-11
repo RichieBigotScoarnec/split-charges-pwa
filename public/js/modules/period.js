@@ -21,7 +21,7 @@ import {
   libelleMarque, doitLeverLeMalentendu, LEVEE_DU_MALENTENDU
 } from '../utils/mois-revolu.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
-import { activerOnglet } from '../utils/onglets.js';
+import { ouvrirPanneau } from '../utils/onglets.js';
 import { apprendre } from '../utils/memoire-libelle.js';
 import { haussesDepuisLAnDernier } from '../utils/cout-annuel.js';
 import { ecartLaisseParLaCorrection } from '../utils/correction-retroactive.js';
@@ -611,15 +611,19 @@ function revealExtraIncomeIfUsed(salaries) {
  * où aller et `focus()` échoue en silence. Le bouton serait resté visible et
  * inerte, exactement à l'endroit où l'application demande une action.
  *
- * Changer d'onglet **avant** de viser, donc. Au-delà de 900 px l'appel ne
- * fait rien : les trois panneaux sont déjà là.
+ * Changer d'onglet **avant** de viser, donc — et par le chemin de la porte,
+ * `ouvrirPanneau`, pas par `activerOnglet`. Au bureau, Réglages est un écran
+ * à part qui remplace le tableau de bord (lot E) : sans la couche que ce
+ * chemin inscrit, le retour du navigateur quittait l'application au lieu de
+ * refermer Réglages. Ce bouton et « Modifier les revenus », dans le bandeau
+ * du partage, l'empruntent tous deux.
  */
 export function focusSalaries() {
   const input = document.getElementById('salaireVous');
   if (!input) return;
 
   const panneau = input.closest('.panneau');
-  if (panneau) activerOnglet(panneau.id);
+  if (panneau) ouvrirPanneau(panneau.id);
 
   input.closest('section, .card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   // Le focus après le défilement, sinon le navigateur saute sèchement

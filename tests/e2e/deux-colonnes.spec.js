@@ -58,24 +58,42 @@ for (const { largeur, hauteur } of BUREAU) {
       await waitForApp(page);
     });
 
-    test('le tableau de bord porte deux colonnes : le bilan et les charges', async ({ page }) => {
+    test('la tête du bilan couvre les deux colonnes ; dessous, les charges à gauche et les cartes à droite', async ({ page }) => {
       expect(await panneauxRendus(page), 'panneaux rendus à l\'ouverture')
         .toEqual(['panneauBilan', 'panneauCharges']);
 
+      // La silhouette des planches 1 et 2 : la tête en pleine largeur, puis
+      // deux colonnes — les charges, larges, à gauche ; les cartes du bilan à
+      // droite. Le témoin de la colonne de droite est la carte des
+      // enveloppes : sur un mois vide, c'est la seule que le bilan rende.
+      //
+      // Ce témoin a d'abord été la carte des TENDANCES, sur la foi qu'elle
+      // paraît toujours. Elle ne paraît pas sans données : sa boîte valait
+      // (0, 0, 0, 0), et « la tête s'étend au-dessus des cartes » se
+      // comparait à une gauche de ZÉRO — satisfaite par le vide, dès le rouge.
+      // D'où le témoin positif ci-dessous.
       const g = await page.evaluate(() => {
-        const b = document.getElementById('panneauBilan').getBoundingClientRect();
-        const c = document.getElementById('panneauCharges').getBoundingClientRect();
-        return { bilanHaut: b.top, bilanDroite: b.right, chargesHaut: c.top, chargesGauche: c.left };
+        const r = (el) => { const b = el.getBoundingClientRect(); return { haut: b.top, bas: b.bottom, gauche: b.left, droite: b.right, largeur: b.width }; };
+        return {
+          tete: r(document.getElementById('summarySection')),
+          charges: r(document.getElementById('panneauCharges')),
+          cartes: r(document.querySelector('[data-action="showManageEnvelopesModal"]').closest('section'))
+        };
       });
 
-      // Côte à côte : même rangée, les charges à droite du bilan. Une colonne
-      // qui décroche passe à la rangée suivante et allonge la page de toute sa
-      // hauteur — c'est ce que faisait l'ordre du document quand il ne suivait
-      // pas l'ordre visuel.
-      expect(Math.abs(g.chargesHaut - g.bilanHaut), 'les deux colonnes partent de la même rangée')
-        .toBeLessThan(5);
-      expect(g.chargesGauche, 'les charges sont à droite du bilan')
-        .toBeGreaterThanOrEqual(g.bilanDroite);
+      expect(g.cartes.largeur, 'prémisse : le témoin de la colonne des cartes est rendu').toBeGreaterThan(0);
+      expect(g.tete.largeur, 'prémisse : la tête est rendue').toBeGreaterThan(0);
+
+      expect(g.tete.gauche, 'la tête commence au-dessus des charges').toBeLessThan(g.charges.droite);
+      expect(g.tete.droite, 'la tête s\'étend au-dessus des cartes').toBeGreaterThan(g.cartes.gauche);
+      expect(g.charges.haut, 'les charges viennent sous la tête').toBeGreaterThanOrEqual(g.tete.bas);
+      expect(g.cartes.haut, 'les cartes viennent sous la tête').toBeGreaterThanOrEqual(g.tete.bas);
+
+      // Côte à côte : une colonne qui décroche passe à la rangée suivante et
+      // allonge la page de toute sa hauteur.
+      expect(g.charges.droite, 'les charges sont à gauche des cartes').toBeLessThanOrEqual(g.cartes.gauche);
+      expect(g.cartes.haut, 'les cartes partagent la rangée des charges').toBeLessThan(g.charges.bas);
+      expect(g.charges.largeur, 'les charges sont la colonne large').toBeGreaterThan(g.cartes.largeur);
 
       for (const s of CONTENU_DES_REGLAGES) {
         await expect(page.locator(s).first(), `${s} ne doit pas être sur le tableau de bord`)

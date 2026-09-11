@@ -261,6 +261,62 @@
   }
 }
 
+/* ===== LA SILHOUETTE DES PLANCHES, AU BUREAU — lot E ===== */
+/*
+   Planches 1 et 2 : la tête du bilan en pleine largeur, puis deux colonnes —
+   les charges, larges, à gauche ; la colonne des cartes à droite. Le rapport
+   `1.4fr 1fr` est celui des planches (`tableau-de-bord.html:202`).
+
+   Le balisage ne bouge pas : sous 900 px, l'onglet Bilan garde sa tête, ses
+   cartes et son bas de colonne, dans cet ordre.
+
+   POURQUOI UNE SOUS-GRILLE, ET PAS `display: contents`. Le panneau Bilan doit
+   garder sa BOÎTE : `checkVisibility()`, `allerAuPanneau` et la barre de solde
+   lisent sa présence, et un élément `display: contents` n'a pas de boîte — il
+   passerait pour absent. Le panneau couvre donc les rangées « portée » à
+   « charges » sur les deux colonnes, et ses enfants se placent dans les zones
+   du conteneur, dont une sous-grille hérite les noms.
+
+   POURQUOI LES CHARGES RECOUVRENT LA BOÎTE DU BILAN. Une zone de grille est un
+   rectangle : le bilan ne peut pas occuper « tête » plus « cartes » sans
+   occuper aussi la case des charges. Il n'y a rien dans cette case ; les
+   charges, venues après lui dans le document, s'y peignent et y reçoivent les
+   appuis.
+
+   `screen` : à l'impression, les panneaux s'empilent (onglets.css), et une
+   page imprimée assez large tomberait sinon sous cette requête.
+*/
+@media screen and (min-width: 900px) {
+  .container {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-areas:
+      "entete  entete"
+      "mois    mois"
+      "solde   solde"
+      "portee  portee"
+      "tete    tete"
+      "charges cartes";
+  }
+
+  .container > header { grid-area: entete; }
+  .bandeau-colle > nav { grid-area: mois; }
+  .bandeau-colle > #balanceBar { grid-area: solde; }
+
+  .col-bilan {
+    grid-column: 1 / -1;
+    grid-row: portee-start / charges-end;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+    align-items: start;
+  }
+
+  .col-bilan > .portee { grid-area: portee; }
+  .bilan-zone-tete { grid-area: tete; }
+  .bilan-cartes { grid-area: cartes; }
+  .col-listes { grid-area: charges; }
+}
+
 /* ===== LA LARGEUR S'OUVRE AU-DELÀ DE 1600 PX ===== */
 /*
    Mesuré sur un écran de 3440 px : le contenu restait plafonné à 1120 px, soit

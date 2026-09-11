@@ -150,11 +150,18 @@ export function ongletCourant(racine = document) {
 }
 
 /**
- * Amène l'écran sur un panneau — le chemin unique des onglets et des portes
+ * Amène l'écran sur un panneau — le chemin unique des onglets, des portes, et
+ * des gestes de l'application qui mènent ailleurs
+ *
+ * Exporté pour ces derniers : « Renseigner les salaires » et « Modifier les
+ * revenus » vont du bilan à Réglages. Ils basculaient par `activerOnglet`,
+ * qui change l'écran sans inscrire de couche — et au bureau, où Réglages
+ * remplace le tableau de bord, le retour du navigateur quittait alors
+ * l'application au lieu de refermer Réglages.
  *
  * @param {string} id - Identifiant du panneau demandé
  */
-function ouvrirPanneau(id) {
+export function ouvrirPanneau(id) {
   // Où on en était ici, avant de partir ailleurs.
   const quitte = ongletCourant();
   if (quitte) defilementParPanneau.set(quitte, window.scrollY || 0);

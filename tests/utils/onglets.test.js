@@ -6,9 +6,11 @@ import {
   panneauRetenu,
   activerOnglet,
   ongletCourant,
-  initOnglets
+  initOnglets,
+  ouvrirPanneau
 } from '../../public/js/utils/onglets.js';
 import { oublierLesEcouteurs } from '../../public/js/utils/ecouteur.js';
+import { couchesOuvertes, viderCouches } from '../../public/js/utils/retour.js';
 
 /**
  * Trois destinations plutôt qu'un seul long écran
@@ -262,6 +264,19 @@ describe('les portes — une commande hors de la barre qui désigne un panneau',
     expect(porte.getAttribute('aria-current')).toBe('true');
     document.querySelector('#panneauReglages .porte').click();
     expect(porte.hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('un geste de l\'application emprunte le même chemin, retour compris', () => {
+    // « Renseigner les salaires » et « Modifier les revenus » mènent à
+    // Réglages depuis le bilan. Ils basculaient par `activerOnglet` : l'écran
+    // changeait, mais aucune couche n'était inscrite, et au bureau le retour
+    // du navigateur quittait l'application au lieu de refermer Réglages.
+    viderCouches();
+    initOnglets();
+    ouvrirPanneau('panneauReglages');
+    expect(actifs()).toEqual(['panneauReglages']);
+    expect(couchesOuvertes(), 'la couche de retour est inscrite').toEqual(['onglet']);
+    viderCouches();
   });
 
   it('un élément quelconque qui porte `data-panneau` ne navigue pas', () => {
