@@ -43,18 +43,34 @@ window.addEventListener = (type, fn) => {
 function monterHistorique() {
   const pile = [{ state: null }];
 
-  global.history = {
-    get length() { return pile.length; },
-    get state() { return pile[pile.length - 1].state; },
-    pushState(state) { pile.push({ state }); },
-    back() {
-      if (pile.length <= 1) return;
-      pile.pop();
-      // Le navigateur émet `popstate` de façon asynchrone ; ici on le fait
-      // tout de suite, ce qui est plus dur pour le code testé.
-      auditeurs.forEach(fn => fn({ state: global.history.state }));
+  // `Object.defineProperty` et non `global.history = …`.
+  //
+  // Sous jsdom, `global` EST la fenêtre, et `history` y est un accesseur SANS
+  // setter. L'affectation directe était tolérée par le jsdom d'avant ; celui
+  // que Vitest 5 embarque lève `TypeError: Cannot set property history of
+  // [object Window] which has only a getter` — un module ESM est en mode
+  // strict, donc l'écriture sur un accesseur en lecture seule ne passe plus en
+  // silence. Les douze cas de ce fichier tombaient d'un coup, sur le montage
+  // et non sur ce qu'ils mesurent.
+  //
+  // `configurable: true` est nécessaire : `monterHistorique` est rejoué à
+  // chaque `beforeEach`, et une propriété non configurable ne se redéfinit pas.
+  Object.defineProperty(global, 'history', {
+    configurable: true,
+    writable: true,
+    value: {
+      get length() { return pile.length; },
+      get state() { return pile[pile.length - 1].state; },
+      pushState(state) { pile.push({ state }); },
+      back() {
+        if (pile.length <= 1) return;
+        pile.pop();
+        // Le navigateur émet `popstate` de façon asynchrone ; ici on le fait
+        // tout de suite, ce qui est plus dur pour le code testé.
+        auditeurs.forEach(fn => fn({ state: global.history.state }));
+      }
     }
-  };
+  });
 
   return { pile, retourNavigateur: () => global.history.back() };
 }
