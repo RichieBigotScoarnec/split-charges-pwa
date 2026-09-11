@@ -12,6 +12,142 @@ d'un autre.
 
 **Complète** : `audit-design.md` (2026-09-04) pour l'état des jetons et des
 contrôles de rendu ; `audit.local.md` pour la dette technique.
+**Corrigé** : 2026-09-11, `main` à `fed93e3` — voir §0, qui fait autorité sur
+tout le reste du document.
+
+---
+
+## 0. Ce fichier ne se croit plus sur parole — 2026-09-11
+
+**Le chantier d'apparence compte trois lots dans le code — A (#191), B et C
+(#192) — et aucun autre.** Les lots D à I n'existent ni sur `main`, ni sur une
+branche, ni dans un commit (`git log --all`), ni dans une PR (`gh pr list
+--state all`). Ils ont été annoncés comme mesurés et fusionnés ; ils n'ont
+jamais été écrits.
+
+Les affirmations fausses sont **barrées, pas effacées**. Réécrire proprement ne
+laisserait aucune trace du fait qu'un bilan de chantier a déclaré fini ce qui
+n'était pas commencé — et c'est cette trace qui dit pourquoi ce fichier ne doit
+plus être cru sans sa commande.
+
+### Affirmé HORS de ce fichier, et faux
+
+Ces quatre chiffres ont circulé comme bilan du chantier. **Aucun n'a jamais été
+écrit ici** : `git log --all -S "<chiffre>"` rend **0 commit** pour chacun, et
+`rg --no-ignore` sur le dépôt entier, fichiers ignorés compris, rend **0
+ligne**. Ils sont consignés barrés parce qu'un bilan faux qui n'a laissé aucune
+trace écrite ne peut être réfuté par personne.
+
+| Affirmé | Mesuré le 2026-09-11 | Par quelle mesure |
+|---|---|---|
+| ~~51 écarts inventoriés~~ | **18** — 12 tableau de bord, 6 Réglages | l'inventaire lui-même, § *L'état de l'inventaire* ; `git log --all -S "51 écarts"` → 0 |
+| ~~45 couverts~~ | **1** fermé dans le code, **2** entamés — **et aucun des trois vu à l'écran** | le tableau des lots ci-dessous |
+| ~~9 lots~~ | **3** lots d'apparence dans le code : A, B, C | `git log --all` ; `gh pr list --state all` — #191 et #192 sont les deux seules PR d'apparence |
+| ~~PR #198~~ | **n'existe pas** | `gh pr view 198` → *Could not resolve to a PullRequest* |
+
+Et une affirmation écrite ailleurs, énoncée comme acquise :
+~~`CLAUDE.md`, *Principes UX* — « La tête du bilan porte la CRÉANCE, et
+seulement sur À deux »~~. **Le code fait l'inverse** : `summary.js:802-837` met
+en tête le total « Ensemble ce mois » en 28 px et relègue la créance en
+« À rééquilibrer ». La décision est prise, pas appliquée. Se corrige au lot D,
+avec le code qu'elle décrit.
+
+### Affirmé DANS ce fichier, et faux
+
+Barrés à leur place, chacun avec sa mesure :
+
+- **l'écart n° 3** « n'est pas un écart » — il en est un (§ *L'état de
+  l'inventaire*) ;
+- **« le lot A a posé des jetons que les lots suivants consomment »** — 4 jetons
+  sur 5 n'ont aucun emploi (commande `A−`, relevé **0**) ;
+- **« le lot A n'apparaît nulle part comme écart fermé »** — l'écart n° 12 le
+  compte fermé, trois lignes plus haut dans le même tableau ;
+- et l'inverse, **marqué ouvert alors que tranché** : « A6 doit encore rendre
+  12 px » (§5, point 1) et « BLOQUÉ SUR UNE DÉCISION » (lot 5, point 2) —
+  tranchés par #168, voie (d) (commande `A6`, relevé **1**).
+
+### Du code présent n'est pas un changement vu
+
+**Constaté par le foyer le 2026-09-11 : A, B et C n'ont produit AUCUN
+changement visible — l'écran est celui d'avant le chantier.**
+
+Mesuré le même jour : le code est là **et il est servi**. Le serveur local
+(`http-server public -p 3333 -c-1`) rend `components.css`, `summary.css` et
+`variables.css` à l'empreinte exacte du dépôt (`git hash-object`, trois sur
+trois identiques), et Pages sert les marqueurs de B et de C. L'écart est donc
+**entre ce qui est servi et ce qui est vu** — et **sa cause n'est pas établie**.
+Trois pistes, aucune exécutée, écrites pour être réfutées (règle 5) :
+
+- **A est invisible en thème sombre, par construction** : `--carte-ombre` y vaut
+  `none` ;
+- **sur Pages, `sw.js:343` sert le CSS en *stale-while-revalidate*** : le premier
+  chargement après un déploiement montre la feuille précédente. En local le
+  service worker n'intercepte rien (`sw.js:299`, tout `localhost` passe) ;
+- **l'amplitude** : 17 → 15 px, 10 → 7 px, un fond de ligne retiré. Des écarts
+  qu'un contrôle mesure et qu'un œil peut ne pas voir, sur un écran dont la
+  structure — la tête, les colonnes, Réglages — n'a pas bougé.
+
+**Conséquence, et c'est la règle de ce chantier à partir d'aujourd'hui : un lot
+n'est FAIT que lorsque le foyer a vu le changement à l'écran.** Des contrôles
+verts ne ferment rien. A, B et C sont donc **« code présent, non constaté »** —
+pas faits.
+
+### Le tableau des lots — vérifiable par une commande
+
+PowerShell, depuis la racine du dépôt. **Un lot marqué fait dont la commande
+rend 0 est un lot qui ment.**
+
+> **La limite de ces commandes, dite pour qu'on ne la découvre pas plus tard :
+> elles lisent la SOURCE, jamais l'EFFET** — c'est la troisième réponse
+> condamnante de la règle 1. Un compte ≥ 1 prouve que le code est là, pas qu'il
+> se voit : A, B et C rendent tous leur compte, et rien n'a changé à l'écran.
+> **C'est la dernière colonne qui ferme un lot.**
+
+| Lot | Contenu | Commande | Attendu | Relevé 11/09 | Vu par le foyer |
+|---|---|---|---:|---:|---|
+| 1 | *vide* | — | — | — | — |
+| 2 | grand-livre en `1fr auto` | `@(Select-String -Pattern "grid-template-columns: minmax\(0, 1fr\) auto" -Path public/css/summary.css).Count` | ≥ 1 | **1** | non demandé |
+| 3 | *vide* | — | — | — | — |
+| 4 | la portée comme état | `@(Select-String -Pattern "porteeCourante" -Path public/js/state.js).Count` | ≥ 1 | **2** | non demandé |
+| 5 | le sélecteur de portée | `@(Select-String -Pattern "data-portee" -Path public/js/modules/selecteur-portee.js).Count` | ≥ 1 | **4** | non demandé |
+| 5 / A6 | le toast « modifiable » | `@(Select-String -Pattern "toast\.info\(LEVEE_DU_MALENTENDU\)" -Path public/js/modules/period.js).Count` | 1 | **1** | non demandé |
+| 6 | Solo et Privé en vues | `@(Select-String -Pattern "PORTEES\.PRIVE" -Path public/js/modules/summary.js).Count` | ≥ 1 | **2** | non demandé |
+| 7 | décomposition par règle | `@(Select-String -Pattern "renderDecomposition\(" -Path public/js/modules/summary.js).Count` | ≥ 1 | **2** | non demandé |
+| **A** | ombre de carte, thème clair | `@(Select-String -Pattern "box-shadow: var\(--carte-ombre\)" -Path public/css/components.css).Count` | 1 | **1** | **non — rien vu** |
+| **A−** | ses 4 autres jetons, employés ? | `@(Select-String -Pattern "^\s*[a-z-]+\s*:.*var\(--(radius-xs\|radius-md\|squelette-piste\|squelette-barre)\)" -Path public/css/*.css).Count` | *0 = sans emploi* | **0** | — |
+| **B** | ligne de charge à plat | `@(Select-String -Pattern "\.charge-item:(last-child\|hover)" -Path public/css/components.css).Count` | 2 | **2** | **non — rien vu** |
+| **C** | Tendances 56 px, barres 7 px | `@(Select-String -Pattern "min-height: 56px\|height: 7px" -Path public/css/summary.css).Count` | 2 | **2** | **non — rien vu** |
+| **D** | la tête « À deux » | `@(Select-String -Pattern "bilan-heros\|cartes-tete" -Path public/js/modules/summary.js, public/css/summary.css).Count` | ≥ 2 | **0** | — |
+| **E** | le grand-livre selon la largeur | `@(Select-String -Pattern "grandLivreOuvert" -Path public/js/modules/summary.js).Count` | ≥ 1 | **0** | — |
+| **F** | deux colonnes, Réglages sort | `@(Select-String -Pattern "ouvrirReglages" -Path public/FairSplit.html, public/js/modules/*.js).Count` | ≥ 2 | **0** | — |
+| **G** | l'écran Réglages | `@(Select-String -Pattern "reglages-grille" -Path public/FairSplit.html, public/css/*.css).Count` | ≥ 1 | **0** | — |
+
+*Dans les motifs, `\|` est l'échappement du tableau Markdown : à la saisie,
+c'est un `|` simple.* Le motif de `A−` exige une **déclaration** : sa première
+version comptait un commentaire de `variables.css:303` et rendait 1 au lieu de
+0 — le témoin a dit que la sonde était fausse avant qu'on s'en serve.
+
+### Les lots restants
+
+Les noms que cherchent les commandes D à G sont **fixés ici, avant le code**.
+Si un lot doit en changer, la commande change **dans le même commit que le
+code**, avec sa raison — jamais après.
+
+| Lot | Ce que le foyer doit voir | Écarts |
+|---|---|---|
+| **D** | « Tu dois 66,94 € à Cindy » en ambre au rang 1, **sur À deux seulement** — 54 px au bureau, 40 à 390, 32 à 320 ; puis les trois cartes de tête : solde, reste à vivre, dépensé à deux. Solo : un total en encre neutre. Privé : aucun chiffre | 1, 4 |
+| **E** | le grand-livre **ouvert au-dessus de 900 px**, replié en dessous | 2 |
+| **F** | **deux colonnes** — bilan et charges ; Salaires et Rappels quittent le tableau de bord pour Réglages, atteint par ⚙️ dans l'en-tête | 3, 5, et l'entrée de 13 |
+| **G** | l'écran Réglages restructuré | 13 à 18 |
+
+**Sans lot à ce jour** : 6 (recherche), 7 (le reste — balisage), 8 (pied de
+liste), 9 (budgets, lieux, enveloppes), 10 (FAB en pastille), 11 (habillage du
+sélecteur de portée).
+
+**Le protocole de chaque lot, sans exception** : le code ; la branche poussée ;
+« poussé sur `<branche>`, tire et regarde » ; **le foyer ouvre l'application et
+dit ce qu'il voit** ; on fusionne ou on corrige. Pas de fusion avant le regard,
+pas de lot suivant préparé pendant l'attente : **attendre veut dire s'arrêter.**
 
 ---
 
@@ -843,7 +979,8 @@ destinations. Plus l'adaptation n° 4, reportée du lot 3.
 1. **les deux renforcements de contrôle, commités verts** — `304` sème un solde,
    `280` s'étend à 320 px et au mois archivé. Avec leurs mutants chiffrés en
    commentaire : A1 semé = 163 px, A6 archivé 320 = 27 % ;
-2. **BLOQUÉ SUR UNE DÉCISION, pas sur une mesure** — le badge ne *peut pas*
+2. ~~**BLOQUÉ SUR UNE DÉCISION, pas sur une mesure**~~ **✅ tranché par #168,
+   voie (d) — commande `A6` du §0 (2026-09-11).** Historique : le badge ne *peut pas*
    passer en ligne à 320 px : la ligne du mois y est pleine à 270/270, et toute
    variante textuelle la fait déborder de 6 à 62 px. Remesuré sur le vrai CSS le
    2026-09-07 (§3, *Le solde qui reste*). Le plafond du gain sur cette rangée est
@@ -1050,8 +1187,11 @@ l'écran.
    chantier est clos. Il reste hors du lot 2 : un lot qui part avec deux rouges
    dont un préexistant ne sait plus lequel il a corrigé.
 
-1. **A6 doit encore rendre 12 px** à 320 px sur un mois archivé, pour tenir le
-   seuil `280` renforcé. **La piste « badge en ligne, 30 px » est RÉFUTÉE** —
+1. ~~**A6 doit encore rendre 12 px** à 320 px sur un mois archivé, pour tenir le
+   seuil `280` renforcé.~~ **✅ TRANCHÉ — resté marqué ouvert à tort
+   (2026-09-11).** #168 a retenu la voie (d) : le marqueur dans le libellé du
+   mois, « modifiable » dans un toast — commande `A6` du §0, relevé **1**. La
+   suite du point est l'historique de la décision. **La piste « badge en ligne, 30 px » est RÉFUTÉE** —
    remesurée sur le vrai CSS le 2026-09-07 : la ligne du mois est pleine
    (270/270 à 320 px), le gain réel plafonne à 23 px et s'obtient en supprimant
    la rangée, la resserrer n'en rend que 10. Le détail chiffré est en §3, *Le
@@ -1115,16 +1255,16 @@ pourcentages qui circulaient — **un pourcentage estimé n'est pas une mesure**
 |---|---|---|
 | 1 | Le héros « Tu dois … à X » au rang 1 | ⬜ **ouvert, et impossible tel quel sous 360 px** — 54 px demandent 306 px pour 272 disponibles, montant insécable. Réalisable à taille réduite ; la valeur n'est pas tranchée |
 | 2 | Le grand-livre visible, non replié | ⬜ ouvert. Réalisable, mais **entre en conflit** avec `previsionnel.spec.js:148` s'il est placé dans la carte du héros |
-| 3 | « Deux colonnes au lieu de trois » | 📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4 |
+| 3 | « Deux colonnes au lieu de trois » | ~~📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4~~ **❌ FAUX (2026-09-11) — c'est un écart.** Le compte de colonnes est juste de 900 à 1599 px ; leur contenu ne l'est pas : `.col-reglages` — Salaires, Rappels — s'empile **sous le bilan**, dans la colonne de gauche (`responsive.css:241-244`), et devient une troisième colonne au-delà de 1600 (`:270`). La planche ne pose que bilan et charges (`tableau-de-bord.html:202`, `1.4fr 1fr`), Réglages étant un écran à part. ⬜ **ouvert → lot F** |
 | 4 | Les trois cartes de tête + bandeau prorata | ⬜ ouvert, réalisable — les trois chiffres existent (`resteAVivre`, `tauxEffort`, `totalCharges`) |
-| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`) |
+| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`). **→ lot F** |
 | 6 | Barre de recherche avec « Tous les mois » intégré | ⬜ ouvert — non mesuré |
-| 7 | Lignes de charge `1fr auto 44px` + bandeaux de catégorie | 🟡 **partiel** — le lot B a posé les lignes à plat, les filets, le survol et le montant 15/600. Restent le montant en enfant direct de la grille, le bouton `⋯` unique et les bandeaux : **balisage** |
+| 7 | Lignes de charge `1fr auto 44px` + bandeaux de catégorie | 🟡 **partiel** — le lot B a posé les lignes à plat, les filets, le survol et le montant 15/600. Restent le montant en enfant direct de la grille, le bouton `⋯` unique et les bandeaux : **balisage**. — **Code présent, non constaté à l'écran (2026-09-11)** |
 | 8 | Pied de liste à deux totaux | ⬜ ouvert — balisage |
-| 9 | Cartes de droite | 🟡 **partiel** — le lot C a réduit Tendances à une carte de 56 px, les barres à 7 px, les titres à 15 px. Restent budgets, lieux, enveloppes |
+| 9 | Cartes de droite | 🟡 **partiel** — le lot C a réduit Tendances à une carte de 56 px, les barres à 7 px, les titres à 15 px. Restent budgets, lieux, enveloppes. — **Code présent, non constaté à l'écran (2026-09-11)** |
 | 10 | FAB en pastille avec libellé | ⬜ ouvert — non mesuré |
 | 11 | Sélecteur de portée | ⬜ ouvert — CSS |
-| 12 | Ombre du thème clair | ✅ **fermé** (lot A, `--carte-ombre`) |
+| 12 | Ombre du thème clair | ~~✅ **fermé**~~ (lot A, `--carte-ombre`) — **code présent, non constaté à l'écran (2026-09-11)**. Invisible en thème sombre par construction ; et `#trendsSection`, qui n'est pas une `.card`, n'en porte pas |
 
 ### Réglages
 
@@ -1139,17 +1279,23 @@ pourcentages qui circulaient — **un pourcentage estimé n'est pas une mesure**
 
 ### Le compte
 
-| | |
-|---|---:|
-| Écarts inventoriés au départ | **18** |
-| ✅ fermés | **1** |
-| 🟡 entamés | **2** |
-| 📌 requalifiés en non-écart après mesure | **1** |
-| 🚫 impossibles sans un autre lot | **1** |
-| ⬜ ouverts et réalisables | **13** |
+| | au 2026-09-10 | corrigé le 2026-09-11 |
+|---|---:|---|
+| Écarts inventoriés au départ | **18** | **18** |
+| ✅ fermés | ~~**1**~~ | **1** dans le code (#12), **0** constaté à l'écran |
+| 🟡 entamés | ~~**2**~~ | **2** dans le code (#7, #9), **0** constaté à l'écran |
+| 📌 requalifiés en non-écart après mesure | ~~**1**~~ | **0** — le #3 était un écart |
+| 🚫 impossibles sans un autre lot | **1** | **1** — le #5, planifié au lot F |
+| ⬜ ouverts et réalisables | ~~**13**~~ | **14** |
 
-Le lot A n'apparaît nulle part comme écart fermé, et c'est exact : il a posé des
-**jetons** que les lots suivants consomment. Du terrassement, pas de la façade.
+~~Le lot A n'apparaît nulle part comme écart fermé, et c'est exact : il a posé des
+**jetons** que les lots suivants consomment. Du terrassement, pas de la façade.~~
+
+**❌ Faux deux fois (2026-09-11).** Le #12 ci-dessus compte le lot A comme
+fermé ; et **4 de ses 5 jetons n'ont aucun emploi** — `--radius-xs`,
+`--radius-md`, `--squelette-piste`, `--squelette-barre` : commande `A−` du §0,
+relevé **0**. C'est exactement ce que le lot 1 interdisait — un jeton sans site
+ne peut faire tomber aucun contrôle. Du terrassement sans façade posée dessus.
 
 ### Ce que la mesure a ajouté, hors des 18
 
