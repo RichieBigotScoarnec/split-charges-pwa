@@ -6,8 +6,30 @@ import {
   porteeRetenue,
   panneauPorteLaPortee,
   porteeDuPanneau,
-  porteeApresChangementDeMois
+  porteeApresChangementDeMois,
+  porteeRappelleLeSolde
 } from '../../public/js/utils/portee.js';
+
+/**
+ * La barre collante rappelle le solde sur « À deux » et « Moi », jamais sur
+ * « Privé » — vu à l'écran par le foyer, le 2026-09-11. La preuve de câblage
+ * est dans `tests/e2e/barre-par-portee.spec.js`, rouge avant le correctif.
+ */
+describe('La barre collante suit la portée', () => {
+  it('« À deux » et « Moi » rappellent le solde commun', () => {
+    expect(porteeRappelleLeSolde(PORTEES.DEUX)).toBe(true);
+    expect(porteeRappelleLeSolde(PORTEES.SOLO)).toBe(true);
+  });
+
+  it('« Privé » ne le rappelle jamais', () => {
+    expect(porteeRappelleLeSolde(PORTEES.PRIVE)).toBe(false);
+  });
+
+  it('une valeur inconnue suit le repli : la dette ne disparaît pas par accident', () => {
+    expect(porteeRappelleLeSolde('inconnue')).toBe(true);
+    expect(porteeRappelleLeSolde(undefined)).toBe(true);
+  });
+});
 
 /**
  * La propriété centrale de ce module n'est pas « les trois portées existent ».

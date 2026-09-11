@@ -200,6 +200,17 @@ dans le segment.
 | Le grand-livre de « Moi », déplié | **300 px** à 320, 240 à 390 | plus que celui d'« À deux », qui est replié ; ouvert parce que la planche 16 l'est |
 | Le renvoi « Gérer mes dépenses privées » retiré | à 320, quand « Les compter » est à l'écran, le segment « Privé » est **270 px au-dessus** | visible à 390 et au bureau ; la planche n'a pas de renvoi |
 
+**Regardé à l'écran par le foyer — 2026-09-11, grand format et 320 px, les
+trois portées.** Les trois têtes sont conformes aux planches. Deux corrections :
+
+1. **La barre collante s'affichait sur « Privé »** — « Richard doit 145,37 € à
+   Cindy » en haut de la portée qui ne porte aucune créance. Corrigé dans ce
+   lot : `porteeRappelleLeSolde` déclare « À deux » et « Moi », jamais
+   « Privé » ; `barre-par-portee.spec.js`, rouge avant le correctif.
+2. **Deux sélecteurs de portée identiques au-dessus de 900 px** — un par
+   colonne. Mesuré, proposition faite, **non corrigé** : peut-être un lot à
+   part.
+
 **Le protocole de chaque lot, sans exception** : le code ; la branche poussée ;
 « poussé sur `<branche>`, tire et regarde » ; **le foyer ouvre l'application et
 dit ce qu'il voit** ; on fusionne ou on corrige. Pas de fusion avant le regard,

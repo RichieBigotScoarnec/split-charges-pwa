@@ -384,6 +384,11 @@ Principes UX :
   personne dessus » — et Privé n'affiche aucun chiffre, sa tête est une phrase
   et son montant est masqué (`••••`).~~ Le fait symétrique, lui, ne paraît que
   sur « À deux ».
+- **La barre collante rappelle le solde sur « À deux » et « Moi », jamais sur
+  « Privé »** (2026-09-11, vu à l'écran par le foyer) — la portée Privé ne
+  porte aucune créance. Déclaré par `porteeRappelleLeSolde` (`utils/portee.js`),
+  tenu par `portee.test.js` et `tests/e2e/barre-par-portee.spec.js`, rouge avant
+  le correctif.
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
   pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,

@@ -287,6 +287,22 @@ describe('Le versant du résumé', () => {
       expect(document.getElementById('resumePanneauPrive').textContent.trim())
         .not.toBe('');
     });
+
+    it('la barre collante se tait : « Privé » ne porte aucune créance', () => {
+      // Vu à l'écran le 2026-09-11 : « Richard doit 145,37 € à Cindy » en haut
+      // de la portée qui dit que l'autre n'y voit rien. La règle est déclarée
+      // par `porteeRappelleLeSolde` ; ce cas tient son câblage dans le rendu.
+      resumeRendu({ portee: PORTEES.SOLO });
+      const barre = document.getElementById('balanceBar');
+      // Témoin : sur « Moi », la barre porte le solde — sinon « elle se tait »
+      // serait satisfait par une barre morte partout.
+      expect(barre.hidden, 'prémisse : sur « Moi », la barre ne porte pas le solde').toBe(false);
+      expect(barre.textContent).toContain('doit');
+
+      resumeRendu({ portee: PORTEES.PRIVE });
+      expect(barre.hidden).toBe(true);
+      expect(barre.textContent).toBe('');
+    });
   });
 
   describe('l\'annonce du versant actif', () => {

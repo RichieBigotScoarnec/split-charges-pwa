@@ -22,7 +22,7 @@ import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { decomposerParRegle } from '../utils/decomposition.js';
-import { PORTEES, porteeRetenue } from '../utils/portee.js';
+import { PORTEES, porteeRetenue, porteeRappelleLeSolde } from '../utils/portee.js';
 import { marquerLeSoldeDu } from './selecteur-portee.js';
 import { remplirLePanneauPrive } from './prive.js';
 import { teteDuBilan, gabaritDeTete } from '../utils/tete-du-bilan.js';
@@ -1004,7 +1004,14 @@ function renderSummary(summary) {
   // scinderait « Conjointe vous doit » et le montant en deux éléments séparés
   // par un intervalle.
   // Même texte que le bilan : une seule source, pas de calcul dupliqué
-  updateBalanceBar(`<span>${balanceText}</span>`, balanceClass);
+  //
+  // Et la barre ne paraît que sur les portées qui rappellent le solde commun —
+  // « À deux » et « Moi », jamais « Privé ». La règle n'est pas écrite ici :
+  // elle est déclarée par `porteeRappelleLeSolde`, et ce rendu la consulte.
+  updateBalanceBar(
+    porteeRappelleLeSolde(versantDuResume()) ? `<span>${balanceText}</span>` : null,
+    balanceClass
+  );
 
   // Les budgets se lisent sur les mêmes charges que le bilan : ils se
   // rafraîchissent au même moment, sans hameçon supplémentaire dans chaque
