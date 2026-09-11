@@ -279,7 +279,10 @@ describe('La décomposition du grand-livre, par règle', () => {
       const lignes = decomposerParRegle(JEU, contexte());
       const base = lignes.find((l) => !l.derogatoire);
 
-      expect(base.libelle).toBe('Au prorata de 70,6 %');
+      // Une espace fine INSÉCABLE avant « % », écrite en échappement — jamais
+      // en clair (`CLAUDE.md`, gotcha de `formatCurrency`) : le signe tombait
+      // seul à la ligne à 320 px avec une espace ordinaire.
+      expect(base.libelle).toBe('Au prorata de 70,6\u202F%');
       expect(base.libelle, 'le libellé dit le mode au lieu du taux')
         .not.toContain('prorata »');
     });
@@ -290,7 +293,7 @@ describe('La décomposition du grand-livre, par règle', () => {
       const autres = { ...contexte(), salaries: { vous: 1000, conjointe: 1000 }, totalSalaries: 2000 };
       const lignes = decomposerParRegle(JEU.filter((c) => !c.splitOverride), autres);
 
-      expect(lignes[0].libelle).toBe('Au prorata de 50,0 %');
+      expect(lignes[0].libelle).toBe('Au prorata de 50,0\u202F%');
     });
 
     it('un mois à parts égales le dit sans pourcentage', () => {
@@ -303,7 +306,7 @@ describe('La décomposition du grand-livre, par règle', () => {
     it('un mois en parts choisies dit la part, pas le mot « custom »', () => {
       const ctx = { ...contexte('custom'), customPercents: { vous: 60, conjointe: 40 } };
       const lignes = decomposerParRegle(JEU.filter((c) => !c.splitOverride), ctx);
-      expect(lignes[0].libelle).toBe('Selon vos parts, 60,0 %');
+      expect(lignes[0].libelle).toBe('Selon vos parts, 60,0\u202F%');
     });
   });
 

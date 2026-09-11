@@ -108,7 +108,13 @@ test.describe('Le rapport du mois', () => {
     // juste chacun de leur côté et faux ensemble.
     await ouvrir(page, semer());
 
-    await page.locator('.summary-details > summary').click();
+    // Au-delà de 900 px le grand-livre est OUVERT au rendu — lot D,
+    // 2026-09-11 ; ce fichier tourne à 1280, le défaut de Playwright. Le clic
+    // qui l'ouvrait le REFERMERAIT désormais, et le total se lirait dans un
+    // dépliant fermé. La prémisse dit dans quel état on lit.
+    await expect(page.locator('.summary-details'),
+      'prémisse : au bureau, le grand-livre est ouvert au rendu')
+      .toHaveAttribute('open', '');
     const duBilan = await page.locator('.summary-total-row strong').innerText();
 
     const modale = await ouvrirLeRapport(page);

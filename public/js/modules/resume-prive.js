@@ -41,12 +41,28 @@
 // Le défaut retenu est l'absence parce que, dans une application de couple, un
 // défaut ne se change pas gratuitement : remettre la ligne n'appelle aucune
 // explication, la retirer après des mois en appellerait une.
+//
+// ## Le bloc est devenu une ligne du grand-livre — lot D, 2026-09-11
+//
+// « Il te reste » ouvre désormais le versant personnel, et il EXCLUT les
+// dépenses privées : c'est un plafond, pas un solde, et l'écran le dit. La
+// ligne masquée n'est plus un bloc à part avec son « Afficher » : elle est la
+// dernière ligne du grand-livre, et son geste s'appelle « Les compter » —
+// dévoiler le total, c'est aussi dire ce qui resterait (`resteSiLePriveCompte`).
+//
+// Le renvoi « Gérer mes dépenses privées et le partage » est parti avec le
+// bloc : les planches 12 et 15 n'en ont pas, et le segment « Privé » est la
+// seule porte vers l'espace — `prive-en-vue.spec.js` le tient.
+//
+// Tout ce qui précède reste vrai de la ligne : rien n'est lu avant le geste,
+// masqué veut dire absent, et elle se referme quand on quitte l'onglet.
 
 import { getState } from '../state.js';
 import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { warn } from '../utils/debug.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { normaliserDepensesPrivees, resumePublie } from '../utils/confidentialite.js';
+import { resteSiLePriveCompte } from '../utils/calculations.js';
 
 /** La racine hors `household` — même nom que `prive.js` */
 const RACINE_PRIVE = 'prive';
@@ -55,7 +71,13 @@ const RACINE_PRIVE = 'prive';
 const LIGNES = Object.freeze(['mien']);
 
 /** Le libellé de la ligne, repris tel quel par les étiquettes d'accessibilité */
-const NOM = 'Mes dépenses privées';
+const NOM = 'Tes dépenses privées';
+
+/** Le geste, dans ses deux états — relevé sur la planche 12 */
+const GESTE = Object.freeze({
+  ferme: { texte: 'Les compter', aria: 'Compter tes dépenses privées' },
+  ouvert: { texte: 'Ne plus les compter', aria: 'Ne plus compter tes dépenses privées' }
+});
 
 /** L'emplacement du compte connecté */
 function moi() {
@@ -63,55 +85,40 @@ function moi() {
 }
 
 /**
- * Le bloc privé du panneau personnel
+ * La ligne « Tes dépenses privées » du grand-livre de « Moi »
  *
- * Rendu masqué, toujours : il n'existe aucun chemin par lequel un montant privé
- * entre dans le document au premier rendu.
+ * Rendue masquée, toujours : il n'existe aucun chemin par lequel un montant
+ * privé entre dans le document au premier rendu.
  *
+ * Le reste à vivre est porté par un attribut pour que la ligne dévoilée puisse
+ * dire ce qui RESTERAIT. C'est un nombre que le grand-livre affiche déjà juste
+ * au-dessus — l'attribut ne révèle rien que l'écran ne dise.
+ *
+ * @param {number|null} reste - Le reste à vivre du grand-livre
  * @returns {string} Fragment échappé
  */
-export function blocPriveDuResume() {
+export function lignePriveeACompter(reste) {
+  const repere = Number.isFinite(reste) ? ` data-reste="${reste}"` : '';
+
   return `
-    <div class="resume-prive">
-      <div class="resume-prive-titre">Mon espace privé</div>
-
-      <div class="resume-prive-ligne" data-prive="mien">
-        <span class="resume-prive-nom">${escapeHtml(NOM)}</span>
-        <span class="resume-prive-valeur resume-prive-valeur--masque"
-              role="img" aria-label="${escapeHtml(NOM)} : masqué"></span>
-        <button type="button" class="resume-prive-bouton"
-                data-action="devoilerPrive" data-arg="mien"
-                aria-expanded="false"
-                aria-label="Afficher ${escapeHtml(NOM.toLowerCase())}">Afficher</button>
-      </div>
-
-      <p class="resume-prive-aide">
-        Le montant se referme en quittant l'onglet ou l'application.
-      </p>
-
-      <!--
-        Elle menait à une modale ; elle mène maintenant à la VUE — le segment
-        « Privé » du sélecteur, en tête du panneau.
-
-        Elle reste, et une mesure le justifie seule : une fois défilé jusqu'à ce
-        bloc, le segment est **415 px plus haut à 320 px** (373 à 390), donc
-        hors de l'écran. La retirer coûterait ce défilement à chaque fois. Et
-        elle dit ce que « Privé » seul ne dit pas — « et le partage ».
-      -->
-      <button type="button" class="summary-row summary-row--ouvrable"
-              data-action="allerALaPortee" data-arg="prive">
-        <span>Gérer mes dépenses privées et le partage</span>
-        <strong>Ouvrir</strong>
-      </button>
-    </div>`;
+          <div class="resume-prive-ligne" data-prive="mien"${repere}>
+            <span class="resume-prive-nom">${escapeHtml(NOM)}</span>
+            <span class="resume-prive-valeur resume-prive-valeur--masque"
+                  role="img" aria-label="${escapeHtml(NOM)} : masqué"></span>
+            <button type="button" class="resume-prive-bouton"
+                    data-action="devoilerPrive" data-arg="mien"
+                    aria-expanded="false"
+                    aria-label="${escapeHtml(GESTE.ferme.aria)}">${escapeHtml(GESTE.ferme.texte)}</button>
+          </div>`;
 }
 
 /**
  * Ce que la ligne doit dire une fois dévoilée
  *
+ * @param {HTMLElement} ligne - Pour y lire le reste à vivre
  * @returns {Promise<string>} Texte à afficher
  */
-async function valeurDeLaLigne() {
+async function valeurDeLaLigne(ligne) {
   const emplacement = moi();
   const periode = getState('currentPeriod');
 
@@ -122,7 +129,11 @@ async function valeurDeLaLigne() {
     await dbGetAbsolu(`${RACINE_PRIVE}/${emplacement}/periods/${periode}/depenses`)));
 
   if (resume.nombre === 0) return 'aucune ce mois-ci';
-  return `${formatCurrency(resume.montant)} · ${resume.nombre} dépense${resume.nombre > 1 ? 's' : ''}`;
+
+  const total = `− ${formatCurrency(resume.montant)} · ${resume.nombre} dépense${resume.nombre > 1 ? 's' : ''}`;
+  const reste = ligne.dataset.reste === undefined ? NaN : Number(ligne.dataset.reste);
+  const resterait = resteSiLePriveCompte(reste, resume.montant);
+  return resterait === null ? total : `${total} — il te resterait ${formatCurrency(resterait)}`;
 }
 
 /**
@@ -157,9 +168,9 @@ function remasquer(ligne) {
   valeur.classList.add('resume-prive-valeur--masque');
   valeur.setAttribute('role', 'img');
   valeur.setAttribute('aria-label', `${nom} : masqué`);
-  bouton.textContent = 'Afficher';
+  bouton.textContent = GESTE.ferme.texte;
   bouton.setAttribute('aria-expanded', 'false');
-  bouton.setAttribute('aria-label', `Afficher ${nom.toLowerCase()}`);
+  bouton.setAttribute('aria-label', GESTE.ferme.aria);
 }
 
 /**
@@ -192,7 +203,6 @@ export async function devoilerPrive(quoi) {
 
   const valeur = ligne.querySelector('.resume-prive-valeur');
   const bouton = ligne.querySelector('.resume-prive-bouton');
-  const nom = ligne.querySelector('.resume-prive-nom')?.textContent || '';
   if (!valeur || !bouton) return;
 
   if (bouton.getAttribute('aria-expanded') === 'true') {
@@ -204,7 +214,7 @@ export async function devoilerPrive(quoi) {
 
   let texte;
   try {
-    texte = await valeurDeLaLigne();
+    texte = await valeurDeLaLigne(ligne);
   } catch (erreur) {
     // Un échec de lecture ne doit pas ressembler à une absence de dépenses :
     // la ligne dit qu'elle n'a pas pu lire, ce qui est une troisième chose.
@@ -221,9 +231,9 @@ export async function devoilerPrive(quoi) {
   valeur.classList.remove('resume-prive-valeur--masque');
   valeur.removeAttribute('role');
   valeur.removeAttribute('aria-label');
-  bouton.textContent = 'Masquer';
+  bouton.textContent = GESTE.ouvert.texte;
   bouton.setAttribute('aria-expanded', 'true');
-  bouton.setAttribute('aria-label', `Masquer ${nom.toLowerCase()}`);
+  bouton.setAttribute('aria-label', GESTE.ouvert.aria);
 }
 
 /** Un seul écouteur, quel que soit le nombre de rendus */

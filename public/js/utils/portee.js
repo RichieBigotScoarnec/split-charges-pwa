@@ -173,3 +173,39 @@ export function porteeDuPanneau(idPanneau, porteeCourante) {
 export function porteeApresChangementDeMois(porteeCourante) {
   return porteeRetenue(porteeCourante);
 }
+
+/**
+ * Les portées qui rappellent le solde commun dans la barre collante.
+ * Volontairement privée, comme `PANNEAUX_AVEC_PORTEE` : la propriété s'éprouve
+ * par `porteeRappelleLeSolde`, jamais par la lecture de cette liste.
+ */
+const PORTEES_QUI_RAPPELLENT_LE_SOLDE = Object.freeze([PORTEES.DEUX, PORTEES.SOLO]);
+
+/**
+ * Cette portée rappelle-t-elle le solde commun dans la barre collante ?
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * « À DEUX » ET « MOI », JAMAIS « PRIVÉ » — vu à l'écran par le foyer, 2026-09-11
+ *
+ * La barre rappelle « qui doit combien à qui » pendant qu'on fait défiler. Sur
+ * « Moi », le rappel a du sens : on regarde son reste à vivre, et la dette
+ * commune en est l'autre moitié. Sur « Privé », il n'en a aucun — la portée ne
+ * porte aucune créance, et son écran dit en toutes lettres que l'autre n'y voit
+ * rien. « Richard doit 145,37 € à Cindy » s'y affichait en haut d'écran : le
+ * seul chiffre du couple, sur l'écran qui promet de n'en montrer aucun de
+ * l'autre.
+ *
+ * Une liste DÉCLARÉE plutôt qu'une condition dans le rendu : la règle se lit
+ * ici, s'éprouve ici (`portee.test.js`) et sur la page
+ * (`barre-par-portee.spec.js`), et une portée ajoutée demain devra dire si elle
+ * la porte.
+ *
+ * Une valeur inconnue suit `porteeRetenue` — « à deux » — et garde donc la
+ * barre : une dette ne disparaît pas de l'écran par accident.
+ *
+ * @param {*} portee
+ * @returns {boolean}
+ */
+export function porteeRappelleLeSolde(portee) {
+  return PORTEES_QUI_RAPPELLENT_LE_SOLDE.includes(porteeRetenue(portee));
+}

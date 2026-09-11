@@ -12,7 +12,7 @@ vi.mock('../../public/js/db.js', () => ({
 
 import { setState, resetState } from '../../public/js/state.js';
 import {
-  blocPriveDuResume, devoilerPrive, masquerLePrive
+  lignePriveeACompter, devoilerPrive, masquerLePrive
 } from '../../public/js/modules/resume-prive.js';
 
 /**
@@ -50,7 +50,9 @@ function ecran({ mesDepenses = null } = {}) {
   lectures.table.clear();
   lectures.table.set(MOI, mesDepenses);
 
-  document.body.innerHTML = `<div id="hote">${blocPriveDuResume()}</div>`;
+  // La ligne du grand-livre de « Moi » depuis le lot D, avec le reste à vivre
+  // qu'elle dira ce qu'il deviendrait.
+  document.body.innerHTML = `<div id="hote">${lignePriveeACompter(2888.43)}</div>`;
 }
 
 const ligne = () => document.querySelector('.resume-prive-ligne[data-prive="mien"]');
@@ -65,7 +67,7 @@ describe('Le bloc privé du résumé', () => {
       const { dbGetAbsolu } = await import('../../public/js/db.js');
       dbGetAbsolu.mockClear();
 
-      document.body.innerHTML = blocPriveDuResume();
+      document.body.innerHTML = lignePriveeACompter(2888.43);
 
       expect(dbGetAbsolu).not.toHaveBeenCalled();
     });
@@ -88,20 +90,17 @@ describe('Le bloc privé du résumé', () => {
       expect(document.body.textContent).not.toContain('Publié par');
     });
 
-    it('renvoie vers l\'écran privé, où la réciprocité est le sujet', () => {
-      // ── LE RENVOI A CHANGÉ DE DESTINATION, PAS DE RAISON D'ÊTRE ──
+    it('ne porte que son geste : le renvoi vers l\'écran privé est parti', () => {
+      // ── CE CAS TENAIT UN RENVOI, ET IL EST PARTI — lot D, 2026-09-11 ──
       //
-      // Il ouvrait une modale — `showPrivateExpensesModal`. L'espace privé est
-      // une PORTÉE depuis le 2026-09-08 : ce bouton pose `porteeCourante`, et
-      // le résumé rend la vue.
-      //
-      // Il n'a pas été supprimé, et une mesure le justifie seule : une fois
-      // défilé jusqu'à ce bloc, le segment « Privé » est 415 px plus haut à
-      // 320 px. Le retirer coûterait ce défilement à chaque fois.
-      const renvoi = document.querySelector('[data-action="allerALaPortee"]');
-      expect(renvoi).not.toBeNull();
-      expect(renvoi.dataset.arg, 'le renvoi mène ailleurs que dans le privé')
-        .toBe('prive');
+      // Le bloc portait « Gérer mes dépenses privées et le partage », justifié
+      // par une mesure : une fois défilé jusqu'à lui, le segment « Privé » était
+      // 415 px plus haut à 320 px. Le bloc est devenu la dernière ligne du
+      // grand-livre de « Moi », et les planches 12 et 15 n'ont pas de renvoi :
+      // le segment est la seule porte vers l'espace privé
+      // (`prive-en-vue.spec.js`, « aucune seconde porte »).
+      expect(document.querySelectorAll('button')).toHaveLength(1);
+      expect(document.querySelector('[data-action="allerALaPortee"]')).toBeNull();
     });
   });
 
@@ -114,7 +113,10 @@ describe('Le bloc privé du résumé', () => {
       expect(valeur().textContent).toContain('2 dépenses');
       expect(valeur().classList.contains('resume-prive-valeur--masque')).toBe(false);
       expect(bouton().getAttribute('aria-expanded')).toBe('true');
-      expect(bouton().textContent).toBe('Masquer');
+      expect(bouton().textContent).toBe('Ne plus les compter');
+      // « Les compter », c'est aussi dire ce qui resterait — par la fabrique
+      // `resteSiLePriveCompte`, jamais une soustraction écrite dans le rendu.
+      expect(valeur().textContent).toContain('il te resterait');
     });
 
     it('un second appui referme, et la valeur quitte le document', async () => {

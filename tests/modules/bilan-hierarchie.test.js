@@ -7,38 +7,44 @@ vi.mock('../../public/js/components/toast.js', () => ({
 vi.mock('../../public/js/components/modal.js', () => ({
   showModal: vi.fn(), closeModal: vi.fn(), showConfirmModal: vi.fn()
 }));
+// Le panneau privé se remplit par une lecture en base, asynchrone : ici on ne
+// mesure que la tête, qui est rendue avant. Le laisser courir ferait survivre
+// une chaîne à la fin du fichier — le motif de `fuite-post-demontage`.
+vi.mock('../../public/js/modules/prive.js', () => ({ remplirLePanneauPrive: vi.fn() }));
 
 import { setState, resetState } from '../../public/js/state.js';
 import { calculateSummary } from '../../public/js/modules/summary.js';
-import { describeBalance } from '../../public/js/utils/members.js';
 import { formatCurrency } from '../../public/js/utils/format.js';
+import { PORTEES } from '../../public/js/utils/portee.js';
 
 /**
- * Le bilan ouvre sur ce qui est COMMUN, l'écart vient après
+ * La hiérarchie du bilan — la créance en tête, sur « À deux » seulement
  *
- * La première ligne du premier écran disait « Conjointe vous doit 408,37 € »,
- * en 28 px, répétée par la barre collante tout du long. Le calcul est juste ;
- * le cadrage était un choix, et ce choix n'avait jamais été fait — il était
- * arrivé par défaut. Une application de couple qui ouvre sur une créance
- * transforme une organisation commune en comptabilité entre deux parties, et
- * c'est celui des deux qui doit qui le lit chaque jour.
+ * ─────────────────────────────────────────────────────────────────────
+ * CE FICHIER A CHANGÉ DE SUJET EN GARDANT SON ARGUMENT — lot D, 2026-09-11
  *
- * Ce que ces contrôles tiennent :
+ * Il tenait l'inverse : « le bilan ouvre sur ce qui est COMMUN, l'écart vient
+ * après » — la décision du 2026-08-31, pour laquelle « une application de
+ * couple qui ouvre sur une créance transforme une organisation commune en
+ * comptabilité ». Elle est révoquée (`CLAUDE.md`, *Design*, 2026-09-10). Ses
+ * contrôles ne sont pas supprimés : ils sont réécrits sur la nouvelle
+ * hiérarchie, et ce qu'ils protégeaient survit, mot pour mot quand c'est
+ * possible :
  *
- *   1. La tête porte le TOTAL, pas le solde.
- *   2. L'écart reste entier, nommé, et RENDU SANS CONDITION — y compris à zéro.
- *      `barre-solde.js` masque la barre collante sur la seule géométrie de
- *      `.summary-balance`, sur la prémisse « le bilan dit déjà la même chose » :
- *      un bilan qui, dans un cas, ne porterait plus le solde rendrait cette
- *      prémisse fausse en silence, et « Comptes équilibrés » ne serait alors
- *      NULLE PART à l'écran.
- *   3. La barre garde le verbe « devoir », mot juste au moment de régler.
- *   4. Le mois est nommé selon son ÉTAT : « ce mois » ne vaut que du mois en
- *      cours, et le sélecteur en propose un d'avance.
- *   5. Aucun chiffre ne change : les deux surfaces lisent la même fabrique.
+ *   1. La tête porte la CRÉANCE sur « À deux » — et seulement là.
+ *   2. Le fait symétrique RESTE, au rang 3 : « Dépensé à deux », le total.
+ *   3. La tête dit le solde SANS CONDITION, y compris à zéro. `barre-solde.js`
+ *      se tait sur la seule géométrie de `.summary-balance` : un bilan qui,
+ *      dans un cas, ne porterait plus le solde laisserait « Comptes
+ *      équilibrés » nulle part.
+ *   4. La barre collante et la tête annoncent le MÊME montant.
+ *   5. Le mois du total est nommé selon son ÉTAT.
+ *   6. La phrase est dite à la personne qui tient le téléphone — et le reste à
+ *      vivre est le sien.
  */
 
 const SALAIRES = { vous: 3000, conjointe: 1000 };
+const MEMBRES = { vous: 'Richard', conjointe: 'Cindy' };
 
 /** Une charge avancée par une seule personne : c'est ce qui crée l'écart */
 const charge = (id, amount, paidBy = 'vous') => ({
@@ -49,7 +55,13 @@ const charge = (id, amount, paidBy = 'vous') => ({
 /** Le 10 août 2026 : le mois en cours est donc « 2026-08 » */
 const LE_10_AOUT = new Date(2026, 7, 10, 12, 0, 0);
 
-function bilanRendu({ mois = '2026-08', charges = [charge('v1', 1000)], membres } = {}) {
+/**
+ * 1 000 € avancés par Richard, salaires 3000/1000 : sa part est de 750 €,
+ * celle de Cindy de 250 €. Le solde vaut +250 — Cindy doit 250 € à Richard.
+ */
+function bilanRendu({
+  mois = '2026-08', charges = [charge('v1', 1000)], membres = MEMBRES, moi = 'vous', portee
+} = {}) {
   resetState();
   setState('currentPeriod', mois);
   setState('salaries', SALAIRES);
@@ -57,13 +69,17 @@ function bilanRendu({ mois = '2026-08', charges = [charge('v1', 1000)], membres 
   setState('fixedCharges', []);
   setState('reimbursements', []);
   setState('shareMode', 'prorata');
-  if (membres) setState('members', membres);
+  setState('members', membres);
+  setState('emplacementCourant', moi);
+  if (portee) setState('porteeCourante', portee);
 
   calculateSummary();
 
+  const bilan = document.getElementById('summarySection');
   return {
-    bilan: document.getElementById('summarySection'),
-    barre: document.getElementById('balanceBar')
+    bilan,
+    barre: document.getElementById('balanceBar'),
+    tete: bilan.querySelector('.bilan-heros')
   };
 }
 
@@ -83,96 +99,135 @@ describe('La hiérarchie du bilan', () => {
     vi.useRealTimers();
   });
 
-  it('ouvre sur le total commun, pas sur la créance', () => {
-    const { bilan } = bilanRendu();
+  describe('LA TÊTE PORTE LA CRÉANCE', () => {
+    it('sous le libellé « Solde du mois », avec le montant du solde', () => {
+      const { tete } = bilanRendu();
 
-    const tete = bilan.querySelector('.bilan-tete');
-    const montant = bilan.querySelector('.summary-balance > strong');
+      expect(tete.querySelector('.bilan-tete').textContent.trim()).toBe('Solde du mois');
+      expect(tete.querySelector('.bilan-heros-montant').textContent).toBe(formatCurrency(250));
+      expect(tete.classList.contains('bilan-heros--creance')).toBe(true);
+    });
 
-    expect(tete.textContent.trim()).toBe('Ensemble ce mois');
-    expect(montant.textContent).toBe(formatCurrency(1000));
+    it('dite à qui tient le téléphone : le créancier lit « Cindy te doit »', () => {
+      const { tete } = bilanRendu({ moi: 'vous' });
+      expect(tete.querySelector('.bilan-heros-phrase').textContent).toContain('Cindy te doit');
+    });
+
+    it('et le débiteur lit « Tu dois … à Richard » — la même dette, le même montant', () => {
+      const { tete } = bilanRendu({ moi: 'conjointe' });
+      const phrase = tete.querySelector('.bilan-heros-phrase').textContent;
+
+      expect(phrase).toContain('Tu dois');
+      expect(phrase).toContain('à Richard');
+      expect(tete.querySelector('.bilan-heros-montant').textContent).toBe(formatCurrency(250));
+    });
+
+    it('le témoin de `barre-solde.js` est la PHRASE du solde — pas la carte entière', () => {
+      // La barre se tait tant que les deux tiers de ce témoin sont à l'écran.
+      // Posé sur la carte, il englobait le grand-livre ouvert : à 1280 × 720
+      // un tiers seulement était visible, et la barre répétait le solde
+      // au-dessus de la phrase qui le disait (`data-flow:786`, mesuré rouge).
+      const { bilan, tete } = bilanRendu();
+      const temoins = bilan.querySelectorAll('.summary-balance');
+
+      expect(temoins).toHaveLength(1);
+      expect(tete.contains(temoins[0])).toBe(true);
+      expect(temoins[0].querySelector('.bilan-heros-montant')).not.toBeNull();
+      expect(temoins[0].querySelector('.summary-details')).toBeNull();
+    });
   });
 
-  it('le montant de tête est le TOTAL des charges, jamais le solde', () => {
-    // 1 000 € de charges, salaires 3000/1000 → part de 750 €, solde 250 €.
-    // Le mutant qui met `finalBalance` en tête fait tomber ce contrôle.
-    const { bilan } = bilanRendu();
-    const montant = bilan.querySelector('.summary-balance > strong').textContent;
+  describe('LE FAIT SYMÉTRIQUE RESTE, AU RANG 3', () => {
+    it('le total commun est dans « Dépensé à deux », jamais en tête', () => {
+      // 1 000 € de charges, solde de 250 € : le mutant qui remet le total en
+      // tête fait tomber ce contrôle, et celui qui met le solde en carte 3 aussi.
+      const { bilan, tete } = bilanRendu();
+      const commun = bilan.querySelector('.carte-tete--commun');
 
-    expect(montant).toBe(formatCurrency(1000));
-    expect(montant).not.toBe(formatCurrency(250));
+      expect(commun.querySelector('.carte-tete-montant').textContent).toBe(formatCurrency(1000));
+      expect(tete.querySelector('.bilan-heros-montant').textContent).not.toBe(formatCurrency(1000));
+    });
+
+    it('il vient APRÈS la tête, et après le reste à vivre', () => {
+      const { bilan, tete } = bilanRendu();
+      const reste = bilan.querySelector('.carte-tete--reste');
+      const commun = bilan.querySelector('.carte-tete--commun');
+      const suit = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+      expect(suit(tete, reste)).toBe(true);
+      expect(suit(reste, commun)).toBe(true);
+    });
+
+    it('il dit combien de charges il additionne', () => {
+      const { bilan } = bilanRendu({ charges: [charge('v1', 600), charge('v2', 400)] });
+      expect(bilan.querySelector('.carte-tete--commun').textContent).toContain('Sur 2 charges communes');
+    });
   });
 
-  it('range l\'écart juste en dessous, entier et nommé', () => {
-    const { bilan } = bilanRendu();
-    const ecart = bilan.querySelector('.bilan-ecart');
+  describe('LA BARRE COLLANTE', () => {
+    it('garde le verbe « devoir », et le montant de la tête', () => {
+      const { barre, tete } = bilanRendu();
 
-    expect(ecart).not.toBe(null);
-    expect(ecart.textContent).toContain('À rééquilibrer');
-    expect(ecart.querySelector('.bilan-ecart-montant').textContent)
-      .toBe(formatCurrency(250));
-    // Le sens vient de `describeBalance`, la fabrique unique : le rendu ne
-    // rédige pas une seconde façon de dire qui doit à qui.
-    expect(ecart.textContent).toContain(describeBalance(250, null).sens);
+      expect(barre.textContent).toContain('doit');
+      expect(barre.textContent).toContain(tete.querySelector('.bilan-heros-montant').textContent);
+    });
   });
 
-  it('la barre collante, elle, garde le verbe « devoir »', () => {
-    // C'est le mot juste au moment de régler, et la barre est ce qui rappelle
-    // le solde pendant qu'on parcourt les charges. Le mutant qui lui donne la
-    // phrase du bilan fait tomber ce contrôle — et briserait la raison d'être
-    // de la barre.
-    const { barre } = bilanRendu();
-
-    expect(barre.textContent).toContain('doit');
-    expect(barre.textContent).toContain(formatCurrency(250));
-    expect(barre.textContent).not.toContain('Ensemble ce mois');
-  });
-
-  it('les deux surfaces annoncent le MÊME montant', () => {
-    const { bilan, barre } = bilanRendu();
-
-    const surLeBilan = bilan.querySelector('.bilan-ecart-montant').textContent;
-    expect(barre.textContent).toContain(surLeBilan);
-  });
-
-  describe('À SOLDE NUL, LE BILAN LE DIT QUAND MÊME', () => {
-    // Sans cette ligne, `.summary-balance` ne porterait plus le solde ; la barre
-    // collante se masquerait sur sa géométrie, en croyant que le bilan dit la
-    // même chose ; et « Comptes équilibrés » ne serait nulle part.
+  describe('À SOLDE NUL, LA TÊTE LE DIT QUAND MÊME', () => {
     const EQUILIBRE = [charge('v1', 750, 'vous'), charge('v2', 250, 'conjointe')];
 
-    it('rend l\'écart même quand il n\'y a rien à rééquilibrer', () => {
-      const { bilan } = bilanRendu({ charges: EQUILIBRE });
-      const ecart = bilan.querySelector('.bilan-ecart');
+    it('« Comptes équilibrés », sans montant et sans ambre', () => {
+      const { tete } = bilanRendu({ charges: EQUILIBRE });
 
-      expect(ecart).not.toBe(null);
-      expect(ecart.textContent).toContain('Comptes équilibrés');
+      expect(tete.textContent).toContain('Comptes équilibrés');
+      expect(tete.querySelector('.bilan-heros-montant')).toBeNull();
+      expect(tete.classList.contains('bilan-heros--creance')).toBe(false);
     });
 
-    it('et les deux surfaces s\'accordent : personne n\'est nommé', () => {
-      const { bilan, barre } = bilanRendu({ charges: EQUILIBRE });
-
-      expect(bilan.querySelector('.bilan-ecart').textContent).toContain('rien à se rembourser');
+    it('et la barre s\'accorde : personne n\'est nommé', () => {
+      const { barre } = bilanRendu({ charges: EQUILIBRE });
       expect(barre.textContent).toContain('Comptes équilibrés');
-      // `describeBalance` ne nomme personne à zéro : il n'y a rien à faire
-      // correspondre, et exiger un nom serait insatisfaisable.
-      expect(describeBalance(0, null).sens).toBe('');
     });
 
-    it('le total de tête, lui, reste affiché', () => {
+    it('le total, lui, reste affiché au rang 3', () => {
       const { bilan } = bilanRendu({ charges: EQUILIBRE });
-
-      expect(bilan.querySelector('.summary-balance > strong').textContent)
+      expect(bilan.querySelector('.carte-tete--commun .carte-tete-montant').textContent)
         .toBe(formatCurrency(1000));
     });
   });
 
-  describe('LE MOIS EST NOMMÉ SELON SON ÉTAT', () => {
-    it('un mois révolu porte son nom, pas « ce mois »', () => {
-      const { bilan } = bilanRendu({ mois: '2026-07' });
+  describe('LA CRÉANCE N\'EST EN TÊTE QUE SUR « À DEUX »', () => {
+    it('Solo : un total neutre, jamais la créance ni le verbe', () => {
+      const { tete } = bilanRendu({ portee: PORTEES.SOLO });
 
-      expect(bilan.querySelector('.bilan-tete').textContent).toContain('juillet 2026');
-      expect(bilan.querySelector('.bilan-tete').textContent).not.toContain('ce mois');
+      expect(tete.querySelector('.bilan-tete').textContent.trim()).toBe('Moi ce mois');
+      expect(tete.classList.contains('bilan-heros--creance')).toBe(false);
+      // La PHRASE, pas la note — qui dit « personne ne doit rien à personne ».
+      expect(tete.querySelector('.bilan-heros-phrase').textContent).not.toMatch(/\bdoi[st]\b/);
+    });
+
+    it('Privé : le bilan ne rend AUCUNE tête — elle attend la lecture de l\'espace', () => {
+      // La règle que la tête du privé énonce dépend de ce que l'autre peut
+      // réellement lire : la posture, lue en base. `prive.js` la dessine avec
+      // le même gabarit une fois la lecture faite — mocké ici. Une tête posée
+      // d'avance par le bilan dirait une règle au hasard. Celle qui paraît est
+      // tenue par `tests/e2e/tete-du-bilan.spec.js` ; son absence de chiffre,
+      // par `tests/utils/tete-du-bilan.test.js`.
+      const { bilan, tete } = bilanRendu({ portee: PORTEES.PRIVE });
+
+      expect(tete).toBeNull();
+      expect(bilan.querySelector('#resumePanneauPrive')).not.toBeNull();
+      // Témoin : sur « À deux », la même lecture trouve bien une tête.
+      expect(bilanRendu().tete).not.toBeNull();
+    });
+  });
+
+  describe('LE MOIS DU TOTAL EST NOMMÉ SELON SON ÉTAT', () => {
+    it('un mois révolu porte son nom', () => {
+      const { bilan } = bilanRendu({ mois: '2026-07' });
+      const libelle = bilan.querySelector('.carte-tete--commun .bilan-tete').textContent;
+
+      expect(libelle).toContain('juillet 2026');
     });
 
     it('un mois à venir est « engagé », jamais « dépensé »', () => {
@@ -181,15 +236,31 @@ describe('La hiérarchie du bilan', () => {
       // annonçant « 1 090 € de moins qu'un mois ordinaire » pour un mois qui
       // n'avait pas commencé.
       const { bilan } = bilanRendu({ mois: '2026-09' });
-      const tete = bilan.querySelector('.bilan-tete').textContent;
+      const libelle = bilan.querySelector('.carte-tete--commun .bilan-tete').textContent;
 
-      expect(tete).toContain('Déjà engagé');
-      expect(tete).toContain('septembre 2026');
+      expect(libelle).toContain('Déjà engagé');
+      expect(libelle).toContain('septembre 2026');
+      expect(libelle).not.toContain('Dépensé');
     });
   });
 
-  it('un prénom saisi se retrouve dans les deux surfaces, échappé', () => {
-    const { bilan, barre } = bilanRendu({
+  describe('LE RESTE À VIVRE EST CELUI DE QUI TIENT LE TÉLÉPHONE', () => {
+    it('Richard : 3 000 − 750 ; Cindy : 1 000 − 250 — deux chiffres que le jeu d\'essai sépare', () => {
+      // Le calcul portait sur `vous` quel que soit le compte : ce cas l'aurait
+      // vu, parce que les deux réponses diffèrent. Sur des revenus égaux, il
+      // serait vert sur le défaut.
+      const chezRichard = bilanRendu({ moi: 'vous' }).bilan
+        .querySelector('.carte-tete--reste .carte-tete-montant').textContent;
+      const chezCindy = bilanRendu({ moi: 'conjointe' }).bilan
+        .querySelector('.carte-tete--reste .carte-tete-montant').textContent;
+
+      expect(chezRichard).toBe(formatCurrency(2250));
+      expect(chezCindy).toBe(formatCurrency(750));
+    });
+  });
+
+  it('un prénom saisi est échappé, dans la tête comme dans la barre', () => {
+    const { bilan, barre, tete } = bilanRendu({
       membres: { vous: 'Richard', conjointe: '<img src=x onerror=alert(1)>' }
     });
 
@@ -197,6 +268,6 @@ describe('La hiérarchie du bilan', () => {
     // dans le HTML sans passer par `escapeHtml`.
     expect(bilan.querySelector('img')).toBe(null);
     expect(barre.querySelector('img')).toBe(null);
-    expect(bilan.querySelector('.bilan-ecart').textContent).toContain('Richard');
+    expect(tete.textContent).toContain('te doit');
   });
 });

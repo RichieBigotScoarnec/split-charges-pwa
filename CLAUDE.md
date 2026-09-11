@@ -361,10 +361,34 @@ Principes UX :
 - **Le fait symétrique reste, au rang 3** — « Dépensé à deux : 229,04 € », 31 px,
   encre neutre, troisième carte de tête ; et « Ta part du commun » ouvre le
   grand-livre. Il n'est pas supprimé, il est **rétrogradé**.
-- **Les deux autres portées ne portent aucune créance** : Solo met un total
-  personnel en encre neutre — « personne ne doit rien à personne dessus » — et
-  Privé n'affiche **aucun chiffre**, sa tête est une phrase et son montant est
-  masqué (`••••`). Le fait symétrique, lui, ne paraît que sur « À deux ».
+- **Appliqué au lot D (2026-09-11), avec trois entorses dites plutôt que
+  cachées** : la carte 3 est en **21 px** et non 31 — elle vit dans la colonne
+  du bilan, qui a la largeur d'un téléphone de 900 à 1100 px, jusqu'au lot des
+  colonnes ; le grand-livre garde son **contenu** d'avant (« Total des
+  charges », pas encore « Ta part du commun ») ; et il est **replié sous
+  900 px**, ce que `mobile.html` ne fait pas — décision du foyer, sur son coût
+  (250 à 337 px de premier écran à 320).
+- **Les deux autres portées ne portent aucune créance** — et depuis les
+  planches 12 à 16 (`design/bilan-par-portee.html`, 2026-09-11), chacune porte
+  SA tête, par une fabrique et un gabarit (`utils/tete-du-bilan.js`) :
+  - **Moi** : « Il te reste 2 888,43 € à vivre », encre neutre, suivi du
+    grand-livre qui le vérifie — revenus − part du commun − dépenses solo. **Il
+    exclut les dépenses privées** : c'est un plafond, pas un solde, dit sous le
+    grand-livre avec « Les compter ». Les inclure ferait du reste un indice de
+    ce qu'on a dépensé en privé, lisible par-dessus l'épaule ;
+  - **Privé** : **pas de héros chiffré**, pour une raison mécanique — la portée
+    vit en mémoire vive pour qu'un rechargement ne rouvre pas cet écran, et un
+    grand chiffre en tête défait cette protection. Un titre qui dit la règle,
+    selon le réglage réel, puis deux faces de permission.
+  ~~Solo met un total personnel en encre neutre — « personne ne doit rien à
+  personne dessus » — et Privé n'affiche aucun chiffre, sa tête est une phrase
+  et son montant est masqué (`••••`).~~ Le fait symétrique, lui, ne paraît que
+  sur « À deux ».
+- **La barre collante rappelle le solde sur « À deux » et « Moi », jamais sur
+  « Privé »** (2026-09-11, vu à l'écran par le foyer) — la portée Privé ne
+  porte aucune créance. Déclaré par `porteeRappelleLeSolde` (`utils/portee.js`),
+  tenu par `portee.test.js` et `tests/e2e/barre-par-portee.spec.js`, rouge avant
+  le correctif.
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
   pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,
@@ -414,7 +438,9 @@ Principes UX :
 > qui bouge, de `.bilan-tete` vers la carte de tête. Ses cas qui exigent
 > `toContainText('Ensemble')` sur `.bilan-tete` (`:69`) et son absence de la
 > barre collante (`:100`) sont à réécrire **sur la nouvelle hiérarchie**, pas à
-> supprimer. C'est le lot H.
+> supprimer. ~~C'est le lot H.~~ **C'est le lot D, et c'est fait le 2026-09-11**
+> — les deux fichiers sont réécrits, aucun cas supprimé. Le « lot H » n'a jamais
+> existé que dans cette phrase (`refonte-lots.md`, §0).
 
 ## Les cinq règles
 
