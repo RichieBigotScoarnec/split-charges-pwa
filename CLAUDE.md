@@ -203,9 +203,13 @@ importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 ### CSS
 - Tokens dans `public/css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
 - Mobile-first. **Rupture principale : 900 px** — sous 899 px, les trois panneaux
-  deviennent trois onglets (`onglets.css:38` et `:225`) ; au-delà, ils sont trois
-  colonnes simultanées et la barre d'onglets disparaît (`responsive.css:222`).
-  C'est le même balisage des deux côtés.
+  deviennent trois onglets (`onglets.css:38`) ; au-delà, la barre disparaît, le
+  bilan et les charges sont deux colonnes (`responsive.css:222`), et Réglages
+  est un écran à part, ouvert par la porte « ⚙️ Réglages » de l'en-tête et
+  refermé par « ← Retour au tableau de bord » (`onglets.css`, « Les portes du
+  bureau »). Jusqu'au lot E (2026-09-11), Réglages était empilé sous le bilan,
+  puis troisième colonne au-delà de 1600 px. C'est le même balisage des deux
+  côtés.
 - Ruptures secondaires : 600 px (densité des listes — `responsive.css:72`,
   `summary.css:611`), 1600 px et 2000 px (largeur maximale), `pointer: coarse`
   (agrandit les cibles tactiles sur un vrai doigt)
@@ -1682,6 +1686,13 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   (voir *Décisions*) : `true` = on a navigué, `false` = la surface était déjà là,
   et une surface **inatteignable lève**. Ne pas rétablir un `return false`
   silencieux — c'est ce qui faisait mesurer trois fois le même panneau.
+  **Depuis le lot E (2026-09-11), « on a navigué » a deux chemins** : une
+  commande visible qui NOMME le panneau — l'onglet sous 900 px, une porte au
+  bureau (`.porte[data-panneau]`) —, ou une destination voisine qui le fait
+  paraître. Le second existe parce qu'au bureau, sur l'écran Réglages, aucune
+  commande ne nomme les charges : « ← Retour au tableau de bord » nomme le
+  bilan, et montre les charges avec lui. `garde-du-panneau.spec.js` tient les
+  quatre issues.
 - **`detail-depenses.spec.js` : DEUX défauts, pas un — et l'affirmation « un
   seul point de chute » est réfutée par les artefacts (2026-09-07).**
   Elle a tenu deux jours. Les deux artefacts CI ont été **téléchargés et

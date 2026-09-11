@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Deux fonctionnalités annoncées dans le README ne pouvaient pas être
@@ -17,10 +17,12 @@ test.describe('Tendances sur 6 mois', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Ajoute une charge variable dans le mois affiché */
@@ -187,10 +189,12 @@ test.describe('Totaux de liste', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Ajoute une charge variable */
@@ -253,8 +257,10 @@ test.describe('État des notifications', () => {
     await setupFirebaseMock(page);
     await waitForApp(page);
 
-    // Le bloc vit dans le panneau « Rappels », replié par défaut : on l'ouvre
-    // comme le ferait l'utilisateur avant de juger de la visibilité.
+    // Le bloc vit dans le panneau « Rappels », replié par défaut, lui-même dans
+    // Réglages : on s'y rend et on l'ouvre comme le ferait l'utilisateur avant
+    // de juger de la visibilité.
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('[data-action="toggleRemindersPanel"]').click();
 
     await expect(page.locator('#notificationsStatus')).toContainText('autorisation');
@@ -302,9 +308,12 @@ test.describe('État des notifications', () => {
  */
 test.describe('Prénoms des membres', () => {
 
+  // Les prénoms se saisissent dans Réglages : chaque cas y commence, et ceux
+  // qui lisent ensuite le tableau de bord y reviennent.
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
   });
 
   /** Renseigne les deux prénoms */
@@ -350,6 +359,7 @@ test.describe('Prénoms des membres', () => {
     // depuis, affichaient « Vous » et « Conjointe » au milieu d'un écran
     // entièrement nommé.
     await nommer(page, 'Richard', 'Cindy');
+    await allerAuPanneau(page, 'panneauBilan');
     await page.locator('.fab').click();
 
     await expect(page.locator('#quickAddPayer [data-payer="vous"]')).toHaveText('Richard');
@@ -359,6 +369,7 @@ test.describe('Prénoms des membres', () => {
   test('le total des remboursements nomme la personne', async ({ page }) => {
     // Dernier libellé à parler de « Conjointe » à l'écran.
     await nommer(page, 'Richard', 'Cindy');
+    await allerAuPanneau(page, 'panneauBilan');
 
     await page.locator('#addReimbursementBtn').click();
     await page.locator('#reimbursementDirection').selectOption('vous-to-conjointe');
@@ -377,6 +388,7 @@ test.describe('Prénoms des membres', () => {
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
 
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Loyer partage');
@@ -439,17 +451,20 @@ test.describe('Mise en page sur grand écran', () => {
   test.describe('au-delà de 1600 px', () => {
     test.use({ viewport: { width: 2560, height: 1440 } });
 
-    test('les trois colonnes sont côte à côte', async ({ page }) => {
+    test('les deux colonnes sont côte à côte', async ({ page }) => {
+      // Ce cas exigeait TROIS colonnes jusqu'au lot E (2026-09-11) : Réglages
+      // en prenait une au-delà de 1600 px. Il a quitté le tableau de bord
+      // pour un écran à part — `deux-colonnes.spec.js` le tient. L'argument
+      // demeure sur les deux qui restent.
       const y = await page.evaluate(() => {
         const t = (s) => Math.round(document.querySelector(s).getBoundingClientRect().y);
-        return { bilan: t('.col-bilan'), listes: t('.col-listes'), reglages: t('.col-reglages') };
+        return { bilan: t('.col-bilan'), listes: t('.col-listes') };
       });
 
       // Une colonne qui décroche se retrouve à la rangée suivante : c'est ce
       // qui se produisait quand l'ordre du document ne suivait pas l'ordre
       // visuel, et la page s'allongeait de 600 px.
       expect(Math.abs(y.listes - y.bilan)).toBeLessThan(5);
-      expect(Math.abs(y.reglages - y.bilan)).toBeLessThan(5);
     });
 
     test('la largeur utile augmente avec l\'écran', async ({ page }) => {
@@ -515,15 +530,14 @@ test.describe('Mise en page sur grand écran', () => {
   test.describe('entre 900 et 1600 px', () => {
     test.use({ viewport: { width: 1280, height: 1440 } });
 
-    test('deux colonnes, réglages sous le bilan', async ({ page }) => {
+    test('deux colonnes : les listes à droite du bilan', async ({ page }) => {
+      // « Réglages sous le bilan » était la moitié de ce cas jusqu'au lot E :
+      // Réglages est devenu un écran à part, tenu par `deux-colonnes.spec.js`.
       const p = await page.evaluate(() => {
         const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y) }; };
-        return { bilan: r('.col-bilan'), listes: r('.col-listes'), reglages: r('.col-reglages') };
+        return { bilan: r('.col-bilan'), listes: r('.col-listes') };
       });
 
-      // Les réglages restent alignés sur le bilan, en dessous.
-      expect(p.reglages.x).toBe(p.bilan.x);
-      expect(p.reglages.y).toBeGreaterThan(p.bilan.y);
       // Les listes occupent la seconde colonne, à la hauteur du bilan.
       expect(p.listes.x).toBeGreaterThan(p.bilan.x);
       expect(Math.abs(p.listes.y - p.bilan.y)).toBeLessThan(5);

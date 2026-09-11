@@ -231,6 +231,15 @@
       <!-- La signature du produit appartient à l'écran de connexion. Une fois
            connecté, elle consomme ~60 px de haut à chaque ouverture pour une
            information que les deux utilisateurs connaissent. -->
+      <!-- LA PORTE DES RÉGLAGES — au bureau seulement (lot E).
+           Au-delà de 900 px la barre d'onglets n'existe pas, et Réglages n'a
+           plus de colonne : c'est un écran à part, que cette pastille ouvre —
+           en haut à droite, avant le compte (maquette, planche 1). Sous 900 px
+           elle est masquée : la barre du bas porte déjà « Réglages ».
+           `onglets.js` la branche comme un onglet : même chemin, même retour. -->
+      <button type="button" class="porte porte-reglages" data-panneau="panneauReglages">
+        <span aria-hidden="true">⚙️</span> Réglages
+      </button>
       <div class="user-info-bar" id="userInfoBar">
         <img class="user-avatar" id="userAvatar" src="" alt="Avatar" width="32" height="32" loading="lazy" />
         <span class="user-name" id="userName"></span>
@@ -498,9 +507,21 @@
 
     <!-- ==================== PANNEAU RÉGLAGES ==================== -->
     <!-- Ce qu'on ajuste rarement : les revenus, la règle de partage, les
-         rappels, puis les outils. Au-delà de 1600 px il prend sa propre
-         colonne ; en deçà de 900 px il devient le troisième onglet. -->
+         rappels, puis les outils. En deçà de 900 px il est le troisième
+         onglet ; au-delà, un écran à part qui REMPLACE le tableau de bord,
+         ouvert par la porte « ⚙️ Réglages » de l'en-tête. Jusqu'au lot E il
+         prenait une colonne — empilé sous le bilan, puis en troisième au-delà
+         de 1600 px ; la maquette l'a sorti du tableau de bord. -->
     <div class="col-reglages panneau" id="panneauReglages">
+
+    <!-- L'entrée de l'écran, au bureau seulement (maquette, planche 3). Sous
+         900 px la barre du bas dit déjà où l'on est et comment en sortir. -->
+    <div class="reglages-entete">
+      <button type="button" class="porte reglages-retour" data-panneau="panneauBilan">
+        <span aria-hidden="true">←</span> Retour au tableau de bord
+      </button>
+      <h2 class="reglages-titre"><span aria-hidden="true">⚙️</span> Réglages</h2>
+    </div>
 
     <!-- Rappels et notifications -->
     <section aria-labelledby="sectionRappels">

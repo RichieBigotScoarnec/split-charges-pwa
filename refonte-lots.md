@@ -122,13 +122,25 @@ rend 0 est un lot qui ment.**
 | **D** | la fabrique et le gabarit des trois têtes | `@(Select-String -Pattern "export function (teteDuBilan\|gabaritDeTete)" -Path public/js/utils/tete-du-bilan.js).Count` | 2 | **2** | *en attente* |
 | **D** | les têtes de « Moi » et de « Privé » (planches 12 à 16) | `@(Select-String -Pattern "function suiteDeMoi\|function teteDuPrive\|function faceDeLAutre" -Path public/js/modules/summary.js, public/js/modules/prive.js).Count` | 3 | **3** | *en attente* |
 | ~~**E**~~ | ~~le grand-livre selon la largeur~~ — **absorbé par D**, décision du foyer du 2026-09-11 | *compté par la commande de D* | — | — | — |
-| **F** | deux colonnes, Réglages sort | `@(Select-String -Pattern "ouvrirReglages" -Path public/FairSplit.html, public/js/modules/*.js).Count` | ≥ 2 | **0** | — |
+| ~~**F**~~ **E** | deux colonnes, Réglages sort — *lettré F jusqu'au 2026-09-11 ; le foyer l'appelle E, la lettre que l'absorption de l'ancien E a libérée* | ~~`@(Select-String -Pattern "ouvrirReglages" -Path public/FairSplit.html, public/js/modules/*.js).Count`~~ `@(Select-String -Pattern 'class="porte' -Path public/FairSplit.html).Count` | ~~≥ 2~~ 2 | **2** *(0 sur `main` avant le lot)* | *en attente* |
 | **G** | l'écran Réglages | `@(Select-String -Pattern "reglages-grille" -Path public/FairSplit.html, public/css/*.css).Count` | ≥ 1 | **0** | — |
 
 *Dans les motifs, `\|` est l'échappement du tableau Markdown : à la saisie,
 c'est un `|` simple.* Le motif de `A−` exige une **déclaration** : sa première
 version comptait un commentaire de `variables.css:303` et rendait 1 au lieu de
 0 — le témoin a dit que la sonde était fausse avant qu'on s'en serve.
+
+**La commande du lot E a changé avec son code — et voici pourquoi.** Elle
+cherchait `ouvrirReglages`, un nom fixé ici avant le code. Le lot n'ouvre pas
+Réglages par une fonction à lui : la porte « ⚙️ Réglages » est une commande
+`.porte[data-panneau]` qui emprunte **le chemin même d'un onglet**,
+`ouvrirPanneau` (`utils/onglets.js`). Une fonction propre à Réglages aurait
+été un second chemin vers le même écran, et la règle 2 dit comment finissent
+deux chemins vers une même grandeur. Ajouter le nom au code pour que
+l'ancienne commande rende son chiffre aurait été fabriquer la preuve après
+coup. La commande neuve compte les deux portes du balisage — celle de
+l'en-tête, et « ← Retour » en tête de Réglages ; rejouée sur `main` avant le
+lot, elle rend 0.
 
 ### Les lots restants
 
@@ -141,8 +153,9 @@ code**, avec sa raison — jamais après.
 | **D** | ~~Solo : un total en encre neutre. Privé : aucun chiffre.~~ **Trois têtes, les rangs 1 des planches** (reprise du 2026-09-11) : « Tu dois 66,94 € à Cindy » en ambre sur À deux — 54 / 40 / 32 px —, les trois cartes de tête, le grand-livre ouvert au-dessus de 900 px ; « Il te reste » et son grand-livre sur Moi ; sur Privé, un titre selon le réglage et les deux faces | 1, 2, 4 |
 | *à lettrer* | Moi, rangs 2 et 3 : part du commun et dépenses solo en cartes, liste solo, enveloppes solo | — |
 | *à lettrer* | Le réglage de partage déménage dans Réglages ; la tête Privé en porte alors le rappel, avec « Changer » | — |
+| *à lettrer* | **La silhouette exacte de la planche 1** : la tête du bilan et son grand-livre en section pleine largeur au-dessus des colonnes (`tableau-de-bord.html:131`) ; dessous, les charges à gauche en colonne large et les cartes d'analyse à droite — budgets, « Où part votre argent », la carte (`:202`, `1.4fr 1fr`). Relevé en écrivant le lot E, qui pose bilan \| charges | 3 *(fin)* |
 | ~~**E**~~ | ~~le grand-livre ouvert au-dessus de 900 px, replié en dessous~~ — **absorbé par D** le 2026-09-11 | — |
-| **F** | **deux colonnes** — bilan et charges ; Salaires et Rappels quittent le tableau de bord pour Réglages, atteint par ⚙️ dans l'en-tête | 3, 5, et l'entrée de 13 |
+| ~~**F**~~ **E** | **deux colonnes** — bilan et charges ; ~~Salaires et Rappels quittent~~ **Rappels, Salaires et Outils — tout le panneau Réglages — quittent** le tableau de bord pour un écran à part, atteint par ⚙️ dans l'en-tête et refermé par « ← Retour au tableau de bord » | 3, 5 *(en partie)*, et l'entrée de 13 |
 | **G** | l'écran Réglages restructuré | 13 à 18 |
 
 **Sans lot à ce jour** : 6 (recherche), 7 (le reste — balisage), 8 (pied de
@@ -1332,9 +1345,9 @@ pourcentages qui circulaient — **un pourcentage estimé n'est pas une mesure**
 |---|---|---|
 | 1 | Le héros « Tu dois … à X » au rang 1 | ⬜ **ouvert, et impossible tel quel sous 360 px** — 54 px demandent 306 px pour 272 disponibles, montant insécable. Réalisable à taille réduite ; la valeur n'est pas tranchée. **→ lot D, 2026-09-11 : paliers 54 / 40 / 32 px, la phrase s'enroule entre ses trois morceaux, le montant reste insécable — code présent, non constaté** |
 | 2 | Le grand-livre visible, non replié | ⬜ ouvert. Réalisable, mais **entre en conflit** avec `previsionnel.spec.js:148` s'il est placé dans la carte du héros. **→ lot D : placé dans la carte du héros, ouvert au-dessus de 900 px ; `previsionnel:148` réécrit avec son argument, pas supprimé — code présent, non constaté** |
-| 3 | « Deux colonnes au lieu de trois » | ~~📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4~~ **❌ FAUX (2026-09-11) — c'est un écart.** Le compte de colonnes est juste de 900 à 1599 px ; leur contenu ne l'est pas : `.col-reglages` — Salaires, Rappels — s'empile **sous le bilan**, dans la colonne de gauche (`responsive.css:241-244`), et devient une troisième colonne au-delà de 1600 (`:270`). La planche ne pose que bilan et charges (`tableau-de-bord.html:202`, `1.4fr 1fr`), Réglages étant un écran à part. ⬜ **ouvert → lot F** |
+| 3 | « Deux colonnes au lieu de trois » | ~~📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4~~ **❌ FAUX (2026-09-11) — c'est un écart.** Le compte de colonnes est juste de 900 à 1599 px ; leur contenu ne l'est pas : `.col-reglages` — Salaires, Rappels — s'empile **sous le bilan**, dans la colonne de gauche (`responsive.css:241-244`), et devient une troisième colonne au-delà de 1600 (`:270`). La planche ne pose que bilan et charges (`tableau-de-bord.html:202`, `1.4fr 1fr`), Réglages étant un écran à part. ~~⬜ **ouvert → lot F**~~ **→ lot E, 2026-09-11 : deux colonnes à toute largeur au-delà de 900 px, la troisième retirée ; Réglages est un écran à part qui remplace le tableau de bord — code présent, non constaté.** **Et ce que la planche montre en plus, relu bloc par bloc en écrivant le lot — le lot E ne le fait pas :** la tête du bilan — « Solde du mois », « Tu dois 66,94 € à Cindy » et le grand-livre — est une section **pleine largeur au-dessus** de la grille (`:131`) ; la grille `1.4fr 1fr` (`:202`) met ensuite **les charges à gauche, en large**, et **les cartes d'analyse à droite** — budgets par catégorie, « Où part votre argent », la carte. Le lot E pose bilan \| charges, que l'application rendait déjà entre 900 et 1599 px ; la silhouette exacte demande un déplacement de plus, laissé « à lettrer » |
 | 4 | Les trois cartes de tête + bandeau prorata | ⬜ ouvert, réalisable — les trois chiffres existent (`resteAVivre`, `tauxEffort`, `totalCharges`). **→ lot D : les trois cartes ; le bandeau prorata n'est PAS fait — code présent, non constaté** |
-| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`). **→ lot F** |
+| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`). ~~**→ lot F**~~ **→ lot E, 🟡 en partie** : la porte « ⚙️ Réglages » est dans l'en-tête, qui tient désormais sur une ligne — la marque à gauche, la porte et le compte à droite. **Le mois n'y est PAS centré** : il reste dans son bandeau collé, sous l'en-tête. Code présent, non constaté |
 | 6 | Barre de recherche avec « Tous les mois » intégré | ⬜ ouvert — non mesuré |
 | 7 | Lignes de charge `1fr auto 44px` + bandeaux de catégorie | 🟡 **partiel** — le lot B a posé les lignes à plat, les filets, le survol et le montant 15/600. Restent le montant en enfant direct de la grille, le bouton `⋯` unique et les bandeaux : **balisage**. — **Code présent, non constaté à l'écran (2026-09-11)** |
 | 8 | Pied de liste à deux totaux | ⬜ ouvert — balisage |

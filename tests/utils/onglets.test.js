@@ -30,11 +30,21 @@ import { oublierLesEcouteurs } from '../../public/js/utils/ecouteur.js';
 
 /** Le balisage minimal qu'attend le module */
 function poserLaPage({ ongletOrphelin = false } = {}) {
+  // Les deux PORTES du bureau : celle de l'en-tête vers Réglages, et le retour
+  // posé en tête de Réglages. Elles vivent hors de la barre.
   document.body.innerHTML = `
     <main>
+      <header>
+        <button type="button" class="porte" data-panneau="panneauReglages">
+          <span class="porte-icone">⚙️</span> Réglages
+        </button>
+      </header>
       <div class="col-bilan panneau panneau--actif" id="panneauBilan">bilan</div>
       <div class="col-listes panneau" id="panneauCharges">charges</div>
-      <div class="col-reglages panneau" id="panneauReglages">réglages</div>
+      <div class="col-reglages panneau" id="panneauReglages">
+        <button type="button" class="porte" data-panneau="panneauBilan">Retour au tableau de bord</button>
+        réglages
+      </div>
       <div id="pasUnPanneau">intrus</div>
       <nav class="onglets" id="onglets">
         <button type="button" class="onglet" data-panneau="panneauBilan" aria-current="true">
@@ -210,6 +220,59 @@ describe('initOnglets — un écouteur, et l\'appui qui change d\'écran', () =>
   it('un appui hors d\'un onglet ne change rien', () => {
     initOnglets();
     document.getElementById('onglets').click();
+    expect(actifs()).toEqual(['panneauBilan']);
+  });
+});
+
+/**
+ * Au bureau, la barre n'existe pas : Réglages s'ouvre par une PORTE de
+ * l'en-tête, et se referme par le « Retour » posé en tête de l'écran.
+ *
+ * Une porte suit exactement le chemin d'un onglet — même activation, même
+ * mémoire du défilement, même couche de retour. Deux chemins distincts
+ * vers la même grandeur finiraient par diverger (règle 2) : la barre et la
+ * porte ne doivent jamais annoncer deux écrans différents.
+ */
+describe('les portes — une commande hors de la barre qui désigne un panneau', () => {
+  it('la porte de l\'en-tête affiche son panneau, et l\'onglet suit', () => {
+    initOnglets();
+    document.querySelector('header .porte').click();
+    expect(actifs()).toEqual(['panneauReglages']);
+    expect(marques(), 'la barre et la porte annoncent le même écran').toEqual(['panneauReglages']);
+  });
+
+  it('un appui sur l\'icône, à l\'intérieur de la porte, compte aussi', () => {
+    initOnglets();
+    document.querySelector('header .porte .porte-icone').click();
+    expect(actifs()).toEqual(['panneauReglages']);
+  });
+
+  it('le retour, depuis les réglages, rend le bilan', () => {
+    initOnglets();
+    document.querySelector('header .porte').click();
+    document.querySelector('#panneauReglages .porte').click();
+    expect(actifs()).toEqual(['panneauBilan']);
+  });
+
+  it('la porte de l\'écran affiché porte `aria-current`, et elle seule', () => {
+    initOnglets();
+    const porte = document.querySelector('header .porte');
+    expect(porte.hasAttribute('aria-current')).toBe(false);
+    porte.click();
+    expect(porte.getAttribute('aria-current')).toBe('true');
+    document.querySelector('#panneauReglages .porte').click();
+    expect(porte.hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('un élément quelconque qui porte `data-panneau` ne navigue pas', () => {
+    // Seules les commandes déclarées — `.onglet` dans la barre, `.porte`
+    // ailleurs — déplacent l'écran. Un attribut posé par un rendu sur un
+    // élément sans rapport ne doit pas devenir un chemin de navigation.
+    document.querySelector('main').insertAdjacentHTML(
+      'beforeend', '<div class="intrus" data-panneau="panneauCharges">intrus</div>'
+    );
+    initOnglets();
+    document.querySelector('.intrus').click();
     expect(actifs()).toEqual(['panneauBilan']);
   });
 });

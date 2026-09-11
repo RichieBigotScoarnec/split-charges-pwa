@@ -3,7 +3,7 @@ import { test, expect } from './_couverture.js';
 
 // Le simulateur Firebase et les aides d'ouverture sont partagés : les recopier
 // dans chaque suite ferait diverger leur fidélité au fil des corrections.
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Date la saisie du mois affiché
@@ -31,6 +31,31 @@ async function daterDuMoisAffiche(page, champ) {
 // ============================================================
 // Ajout de charges variables
 // ============================================================
+/**
+ * Ouvre la corbeille. Sa porte vit dans Réglages, rangée « Vos données » —
+ * l'écran qu'ouvre la porte ⚙️ au bureau depuis le lot E, l'onglet en deçà.
+ */
+async function ouvrirLaCorbeille(page) {
+  await allerAuPanneau(page, 'panneauReglages');
+  await page.locator('#trashButton').click();
+}
+
+/**
+ * Referme la corbeille et revient au tableau de bord, où vivent la liste et
+ * le bilan. La fenêtre reste ouverte après un rétablissement ; sans la
+ * refermer, « Retour » serait touché à travers son voile.
+ */
+async function revenirAuTableau(page) {
+  await page.locator('[data-action="closeModal"][data-arg="modalTrash"]').click();
+  await allerAuPanneau(page, 'panneauBilan');
+}
+
+/** Ouvre la sauvegarde — sa porte vit elle aussi dans Réglages */
+async function ouvrirLaSauvegarde(page) {
+  await allerAuPanneau(page, 'panneauReglages');
+  await page.locator('[data-action="showBackup"]').click();
+}
+
 test.describe('CRUD — Charges variables', () => {
 
   test.beforeEach(async ({ page }) => {
@@ -242,11 +267,13 @@ test.describe('Bilan — mise à jour après actions', () => {
   });
 
   test('avec salaires : le bilan s\'affiche', async ({ page }) => {
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('3000');
     await page.locator('#salaireVous').press('Tab');
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').press('Tab');
     await page.waitForTimeout(600); // debounce sauvegarde
+    await allerAuPanneau(page, 'panneauBilan');
 
     const summary = page.locator('#summarySection');
     await expect(summary).toBeVisible();
@@ -256,11 +283,13 @@ test.describe('Bilan — mise à jour après actions', () => {
 
   test('ajout d\'une charge → bilan mis à jour', async ({ page }) => {
     // Saisir les salaires
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').press('Tab');
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').press('Tab');
     await page.waitForTimeout(600);
+    await allerAuPanneau(page, 'panneauBilan');
 
     // Ajouter une charge payée par vous
     await page.locator('#addVariableChargeBtn').click();
@@ -492,10 +521,12 @@ test.describe('Régler le solde', () => {
    * par une seule personne. L'autre lui doit donc exactement 50 €.
    */
   async function creerDesequilibre(page, payeur) {
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
 
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Charge de reference');
@@ -559,21 +590,26 @@ test.describe('Report du solde', () => {
     await setupFirebaseMock(page);
     await waitForApp(page);
 
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /**
    * Bascule le report en cliquant le curseur, comme le ferait l'utilisateur.
    * La case elle-même est masquée (opacity: 0) : seul le curseur est cliquable.
+   * Le réglage vit dans Réglages ; on y va, puis on revient au tableau de bord.
    * @param {import('@playwright/test').Page} page - Page de test
    * @param {boolean} actif - État attendu après la bascule
    */
   async function basculerReport(page, actif) {
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('.setting-toggle-row .reminder-toggle-slider').click();
     await expect(page.locator('#carryOverToggle')).toBeChecked({ checked: actif });
+    await allerAuPanneau(page, 'panneauBilan');
   }
 
   /** Ajoute une charge avancée par une seule personne dans le mois affiché */
@@ -662,10 +698,12 @@ test.describe('Corbeille', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Ajoute une charge variable payée par vous */
@@ -690,12 +728,13 @@ test.describe('Corbeille', () => {
     // existé. Le compteur dit désormais ce qu'il contient.
     await ajouter(page, 'Charge conservee', 100);
 
+    await allerAuPanneau(page, 'panneauReglages');
     await expect(page.locator('#trashButton')).toBeVisible();
   });
 
   test('une corbeille vide le dit clairement', async ({ page }) => {
     await ajouter(page, 'Charge conservee', 100);
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
 
     await expect(page.locator('#trashList')).toContainText('La corbeille est vide');
   });
@@ -704,8 +743,9 @@ test.describe('Corbeille', () => {
     await ajouter(page, 'Charge a jeter', 100);
     await supprimer(page);
 
+    await allerAuPanneau(page, 'panneauReglages');
     await expect(page.locator('#trashButton')).toBeVisible({ timeout: 5000 });
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await expect(page.locator('#trashList')).toContainText('Charge a jeter', { timeout: 5000 });
   });
 
@@ -713,7 +753,7 @@ test.describe('Corbeille', () => {
     await ajouter(page, 'Charge a jeter', 100);
     await supprimer(page);
 
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await expect(page.locator('#trashList')).toContainText('Charge a jeter');
     await expect(page.locator('#trashList')).toContainText('Charge variable');
   });
@@ -725,9 +765,10 @@ test.describe('Corbeille', () => {
     await supprimer(page);
     await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
 
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await page.locator('#trashList .btn-restore').first().click();
 
+    await revenirAuTableau(page);
     await expect(page.locator('#variableChargesList').getByText('Charge a retablir')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
   });
@@ -736,7 +777,7 @@ test.describe('Corbeille', () => {
     await ajouter(page, 'Dernier element', 100);
     await supprimer(page);
 
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await page.locator('#trashList .btn-restore').first().click();
 
     // La corbeille se vide, mais la fenêtre reste ouverte : la refermer
@@ -751,7 +792,7 @@ test.describe('Corbeille', () => {
     await ajouter(page, hostile, 50);
     await supprimer(page);
 
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await expect(page.locator('#trashList')).toContainText(hostile);
     await expect(page.locator('#trashList img')).toHaveCount(0);
   });
@@ -784,10 +825,12 @@ test.describe('Éléments masqués', () => {
   });
 
   test('les deux apparaissent dès qu\'elles ont un objet', async ({ page }) => {
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
 
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Une charge');
@@ -823,10 +866,12 @@ test.describe('Sauvegarde', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Lit le contenu texte d'un téléchargement Playwright */
@@ -844,7 +889,7 @@ test.describe('Sauvegarde', () => {
     await page.locator('#saveVariableCharge').click();
     await expect(page.locator('#variableChargesList').getByText('Charge sauvegardee')).toBeVisible({ timeout: 5000 });
 
-    await page.locator('[data-action="showBackup"]').click();
+    await ouvrirLaSauvegarde(page);
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.locator('[data-action="downloadBackup"]').click()
@@ -862,7 +907,7 @@ test.describe('Sauvegarde', () => {
   });
 
   test('un fichier qui n\'est pas une sauvegarde est refusé', async ({ page }) => {
-    await page.locator('[data-action="showBackup"]').click();
+    await ouvrirLaSauvegarde(page);
 
     await page.locator('#backupFileInput').setInputFiles({
       name: 'liste-courses.json',
@@ -879,7 +924,7 @@ test.describe('Sauvegarde', () => {
     const erreurs = [];
     page.on('pageerror', e => erreurs.push(e.message));
 
-    await page.locator('[data-action="showBackup"]').click();
+    await ouvrirLaSauvegarde(page);
     await page.locator('#backupFileInput').setInputFiles({
       name: 'corrompu.json',
       mimeType: 'application/json',
@@ -891,7 +936,7 @@ test.describe('Sauvegarde', () => {
   });
 
   test('une sauvegarde plus récente que l\'application est refusée', async ({ page }) => {
-    await page.locator('[data-action="showBackup"]').click();
+    await ouvrirLaSauvegarde(page);
     await page.locator('#backupFileInput').setInputFiles({
       name: 'futur.json',
       mimeType: 'application/json',
@@ -906,7 +951,7 @@ test.describe('Sauvegarde', () => {
   test('restaurer télécharge une copie de sécurité avant d\'écraser', async ({ page }) => {
     // C'est la seule protection réelle : une fois le nœud remplacé, l'ancien
     // contenu n'est plus nulle part.
-    await page.locator('[data-action="showBackup"]').click();
+    await ouvrirLaSauvegarde(page);
     await page.locator('#backupFileInput').setInputFiles({
       name: 'sauvegarde.json',
       mimeType: 'application/json',
@@ -930,7 +975,7 @@ test.describe('Sauvegarde', () => {
   });
 
   test('refuser la confirmation ne modifie rien', async ({ page }) => {
-    await page.locator('[data-action="showBackup"]').click();
+    await ouvrirLaSauvegarde(page);
     await page.locator('#backupFileInput').setInputFiles({
       name: 'sauvegarde.json',
       mimeType: 'application/json',
@@ -956,9 +1001,14 @@ test.describe('Sauvegarde', () => {
 */
 test.describe('Revenus complémentaires', () => {
 
+  // Le bloc vit dans Réglages, et chaque cas commence LÀ. C'est aussi ce qui
+  // garde « replié par défaut » honnête : depuis le tableau de bord, où
+  // Réglages n'est pas rendu au bureau (lot E), `toBeHidden` serait satisfait
+  // par n'importe quel bloc — replié ou non.
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
   });
 
   /** Renseigne les deux salaires */
@@ -971,6 +1021,9 @@ test.describe('Revenus complémentaires', () => {
 
   /** Ajoute une charge de 1000 € avancée par vous */
   async function chargeAvancee(page) {
+    // Les charges vivent sur le tableau de bord : on y va, puis on revient
+    // dans Réglages, où le reste du cas se joue.
+    await allerAuPanneau(page, 'panneauBilan');
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Loyer');
     await page.locator('#variableChargeAmount').fill('1000');
@@ -978,6 +1031,7 @@ test.describe('Revenus complémentaires', () => {
     await page.locator('#variableChargePaidBy').selectOption('vous');
     await page.locator('#saveVariableCharge').click();
     await expect(page.locator('#variableChargesList').getByText('Loyer')).toBeVisible({ timeout: 5000 });
+    await allerAuPanneau(page, 'panneauReglages');
   }
 
   test('le bloc est replié par défaut', async ({ page }) => {
@@ -1067,10 +1121,12 @@ test.describe('Budgets par catégorie', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Ajoute une charge variable dans une catégorie donnée */
@@ -1167,10 +1223,12 @@ test.describe('Charges récurrentes', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Ajoute une charge fixe dans le mois affiché */
@@ -1287,10 +1345,12 @@ test.describe('Corbeille sur tous les mois', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /** Ajoute puis supprime une charge dans le mois affiché */
@@ -1314,7 +1374,7 @@ test.describe('Corbeille sur tous les mois', () => {
     await ajouterPuisSupprimer(page, 'Depense du mois passe');
 
     await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
 
     await expect(page.locator('#trashList')).toContainText('Depense du mois passe', { timeout: 10000 });
   });
@@ -1324,7 +1384,7 @@ test.describe('Corbeille sur tous les mois', () => {
     await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
     await ajouterPuisSupprimer(page, 'Depense du mois passe');
 
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await expect(page.locator('#trashList .trash-month')).toHaveCount(2, { timeout: 10000 });
 
     // Le mois le plus récent d'abord : c'est ce qu'on vient de supprimer.
@@ -1337,14 +1397,14 @@ test.describe('Corbeille sur tous les mois', () => {
     await ajouterPuisSupprimer(page, 'A retablir ailleurs');
     await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
 
-    await page.locator('#trashButton').click();
+    await ouvrirLaCorbeille(page);
     await expect(page.locator('#trashList')).toContainText('A retablir ailleurs', { timeout: 10000 });
     await page.locator('#trashList .btn-restore').first().click();
 
     // Le mois courant ne doit pas l'accueillir : il appartient au précédent.
     await expect(page.locator('#variableChargesList').getByText('A retablir ailleurs')).toHaveCount(0);
 
-    await page.locator('[data-action="closeModal"][data-arg="modalTrash"]').click();
+    await revenirAuTableau(page);
     await page.locator('[data-action="navigatePeriod"][data-arg="-1"]').click();
     await expect(page.locator('#variableChargesList').getByText('A retablir ailleurs'))
       .toBeVisible({ timeout: 10000 });
@@ -1368,10 +1428,12 @@ test.describe('Écritures simultanées', () => {
   test('régler le solde deux fois de suite n\'enregistre qu\'un règlement', async ({ page }) => {
     // Un règlement enregistre un remboursement du montant du solde. Deux
     // déclenchements le feraient basculer du même montant dans l'autre sens.
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
 
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Charge a regler');
@@ -1399,6 +1461,7 @@ test.describe('Écritures simultanées', () => {
     // Les deux prénoms étaient réécrits d'un bloc. Le champ de l'autre personne
     // n'existe que dans sa session à elle : celle-ci écrivait donc du vide
     // par-dessus son prénom, sans jamais l'avoir vu.
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#prenomVous').fill('Richard');
     await page.locator('#prenomVous').blur();
     await expect(page.locator('#labelSalaireVous')).toContainText('Richard', { timeout: 5000 });

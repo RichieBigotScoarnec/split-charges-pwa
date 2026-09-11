@@ -14,9 +14,16 @@
  *
  * Ce module ne fait qu'une chose : déplacer la classe `panneau--actif` et
  * l'attribut `aria-current`. **C'est `onglets.css` qui décide si masquer a un
- * sens** — au-delà de 900 px les trois panneaux prennent leurs colonnes et la
- * barre disparaît. Aucune requête média n'est donc lue ici : l'état reste
- * juste quelle que soit la largeur, et une rotation d'écran ne demande rien.
+ * sens** — au-delà de 900 px la barre disparaît, le bilan et les charges
+ * prennent deux colonnes, et Réglages devient un écran à part, ouvert par une
+ * PORTE de l'en-tête (lot E). Aucune requête média n'est donc lue ici : l'état
+ * reste juste quelle que soit la largeur, et une rotation d'écran ne demande
+ * rien.
+ *
+ * Une porte et un onglet empruntent le MÊME chemin, `ouvrirPanneau` : même
+ * activation, même mémoire du défilement, même couche de retour. Deux chemins
+ * vers le même écran finiraient par diverger, et la barre annoncerait un
+ * panneau quand la porte en montre un autre.
  *
  * Volontairement à l'écart de la délégation de `init.js` : celle-ci résout un
  * nom de fonction sur `window` depuis un attribut du DOM, surface qu'une liste
@@ -54,6 +61,16 @@ const defilementParPanneau = new Map();
 
 /** Le nom sous lequel la barre d'onglets s'inscrit dans l'historique */
 const COUCHE_ONGLET = 'onglet';
+
+/**
+ * Les commandes qui déplacent l'écran, et elles seules
+ *
+ * Les onglets de la barre, et les portes du bureau — « ⚙️ Réglages » dans
+ * l'en-tête, « ← Retour au tableau de bord » en tête de Réglages. Un
+ * `data-panneau` posé ailleurs n'est PAS un chemin de navigation : la classe
+ * est la déclaration, l'attribut n'en est que l'argument.
+ */
+const COMMANDES = '.onglet[data-panneau], .porte[data-panneau]';
 
 /**
  * Les identifiants de panneaux que la barre propose réellement
@@ -107,12 +124,15 @@ export function activerOnglet(id, racine = document) {
     panneau.classList.toggle(CLASSE_ACTIF, panneau.id === retenu);
   }
 
-  for (const onglet of racine.querySelectorAll('.onglet[data-panneau]')) {
+  for (const commande of racine.querySelectorAll(COMMANDES)) {
     // `aria-current` est retiré et non mis à « false » : la valeur « false »
     // est une valeur comme une autre pour cet attribut, et certains lecteurs
     // d'écran annoncent alors deux onglets courants.
-    if (onglet.dataset.panneau === retenu) onglet.setAttribute('aria-current', 'true');
-    else onglet.removeAttribute('aria-current');
+    //
+    // Les portes le reçoivent aussi : sur l'écran Réglages, la porte de
+    // l'en-tête dit où l'on est, comme l'onglet le dit sous 900 px.
+    if (commande.dataset.panneau === retenu) commande.setAttribute('aria-current', 'true');
+    else commande.removeAttribute('aria-current');
   }
 
   return retenu;
@@ -130,12 +150,50 @@ export function ongletCourant(racine = document) {
 }
 
 /**
- * Branche la barre d'onglets
+ * Amène l'écran sur un panneau — le chemin unique des onglets et des portes
+ *
+ * @param {string} id - Identifiant du panneau demandé
+ */
+function ouvrirPanneau(id) {
+  // Où on en était ici, avant de partir ailleurs.
+  const quitte = ongletCourant();
+  if (quitte) defilementParPanneau.set(quitte, window.scrollY || 0);
+
+  const affiche = activerOnglet(id);
+  if (!affiche) return;
+
+  // Changer d'onglet sans rien faire laisserait le nouveau panneau ouvert au
+  // milieu : on aurait quitté le bas du bilan pour le bas des charges, en
+  // paraissant n'avoir rien fait. On remonte donc — sauf si on REVIENT, et
+  // qu'on sait où on en était. `auto` et non `smooth` : le défilement animé
+  // d'une page qui vient de changer entièrement de contenu donne un effet de
+  // glissement sans repère.
+  window.scrollTo({ top: defilementParPanneau.get(affiche) || 0, behavior: 'auto' });
+
+  // Le retour ramène au premier onglet, et une seule fois.
+  //
+  // Une entrée par changement d'onglet exigerait dix retours pour sortir
+  // après dix allers-retours entre Bilan et Charges : le geste deviendrait
+  // une punition. `empilerCouche` refusant un nom déjà empilé, quitter le
+  // premier onglet pousse une entrée, et y revenir la consomme — quel que
+  // soit le trajet entre les deux. Au bureau, c'est ce qui fait refermer
+  // l'écran Réglages par le geste retour du navigateur.
+  const premier = panneauxProposes()[0];
+  if (affiche === premier) depilerCouche(COUCHE_ONGLET);
+  else empilerCouche(COUCHE_ONGLET, () => activerOnglet(premier));
+}
+
+/**
+ * Branche la barre d'onglets, et les portes du bureau
  *
  * Un seul écouteur, délégué sur la barre : les trois boutons existent dans le
  * HTML et ne sont jamais recréés, mais `initializeAppData()` rejoue à chaque
  * reconnexion sans rechargement — sans `ecouterUneFois`, un aller-retour de
  * déconnexion doublerait le gestionnaire.
+ *
+ * Les portes vivent à deux endroits — l'en-tête et la tête de Réglages — que
+ * rien ne recrée non plus : leur écouteur est délégué sur le document, sous
+ * une clé à lui pour ne jamais se confondre avec un autre écouteur de clic.
  *
  * @returns {boolean} La barre a-t-elle été trouvée ?
  */
@@ -146,33 +204,14 @@ export function initOnglets() {
   ecouterUneFois(barre, 'click', (evenement) => {
     const onglet = evenement.target.closest('.onglet[data-panneau]');
     if (!onglet || !barre.contains(onglet)) return;
-
-    // Où on en était ici, avant de partir ailleurs.
-    const quitte = ongletCourant();
-    if (quitte) defilementParPanneau.set(quitte, window.scrollY || 0);
-
-    const affiche = activerOnglet(onglet.dataset.panneau);
-    if (!affiche) return;
-
-    // Changer d'onglet sans rien faire laisserait le nouveau panneau ouvert au
-    // milieu : on aurait quitté le bas du bilan pour le bas des charges, en
-    // paraissant n'avoir rien fait. On remonte donc — sauf si on REVIENT, et
-    // qu'on sait où on en était. `auto` et non `smooth` : le défilement animé
-    // d'une page qui vient de changer entièrement de contenu donne un effet de
-    // glissement sans repère.
-    window.scrollTo({ top: defilementParPanneau.get(affiche) || 0, behavior: 'auto' });
-
-    // Le retour ramène au premier onglet, et une seule fois.
-    //
-    // Une entrée par changement d'onglet exigerait dix retours pour sortir
-    // après dix allers-retours entre Bilan et Charges : le geste deviendrait
-    // une punition. `empilerCouche` refusant un nom déjà empilé, quitter le
-    // premier onglet pousse une entrée, et y revenir la consomme — quel que
-    // soit le trajet entre les deux.
-    const premier = panneauxProposes()[0];
-    if (affiche === premier) depilerCouche(COUCHE_ONGLET);
-    else empilerCouche(COUCHE_ONGLET, () => activerOnglet(premier));
+    ouvrirPanneau(onglet.dataset.panneau);
   });
+
+  ecouterUneFois(document, 'click', (evenement) => {
+    const porte = evenement.target?.closest?.('.porte[data-panneau]');
+    if (!porte) return;
+    ouvrirPanneau(porte.dataset.panneau);
+  }, 'portes-des-panneaux');
 
   // L'état de départ vient du balisage — `aria-current` posé sur le premier
   // onglet — et non d'une valeur retenue d'une session précédente : ouvrir

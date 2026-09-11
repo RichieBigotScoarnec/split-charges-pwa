@@ -212,9 +212,16 @@
    sur un écran de 1280, la mise en page mobile était simplement centrée, et
    tout s'empilait. Il n'existait qu'un seul point de rupture, à 600 px.
 
-   Au-delà de 900 px, deux colonnes : le bilan et les salaires à gauche — ce
-   qu'on consulte —, les listes de charges à droite — ce qu'on alimente.
-   En-tête, navigation de période et solde restent pleine largeur.
+   Au-delà de 900 px, deux colonnes : le bilan à gauche — ce qu'on consulte —,
+   les listes de charges à droite — ce qu'on alimente. En-tête, navigation de
+   période et solde restent pleine largeur.
+
+   Réglages n'y a plus sa place (lot E, 2026-09-11). Il était empilé sous le
+   bilan jusqu'à 1600 px, puis prenait une troisième colonne ; la maquette le
+   sort du tableau de bord. C'est un écran à part, ouvert par la porte
+   « ⚙️ Réglages » de l'en-tête, qui REMPLACE les deux colonnes au lieu de
+   s'y ajouter — voir `onglets.css`, « Les portes du bureau ». Il prend donc
+   toute la largeur.
 */
 /* Le cas particulier de #mainApp est désormais couvert par la règle globale
    `[hidden]` de base.css, qui traite la même faiblesse pour tout l'écran. */
@@ -238,42 +245,38 @@
     grid-column: 1 / -1;
   }
 
-  .col-bilan,
-  .col-reglages {
+  .col-bilan {
     grid-column: 1;
   }
 
+  /* La rangée de départ est laissée au placement automatique — la fixer
+     entrerait en collision avec l'en-tête, qui occupe toute la largeur. Plus
+     besoin de couvrir deux rangées : Réglages n'est plus empilé sous le bilan. */
   .col-listes {
-    /* Le bilan et les réglages s'empilent dans la colonne de gauche : les
-       listes doivent couvrir les deux rangées correspondantes. La rangée de
-       départ est laissée au placement automatique — la fixer entrerait en
-       collision avec l'en-tête, qui occupe toute la largeur. */
     grid-column: 2;
-    grid-row: span 2;
+  }
+
+  .col-reglages {
+    grid-column: 1 / -1;
   }
 }
 
-/* ===== TROIS COLONNES AU-DELÀ DE 1600 PX ===== */
+/* ===== LA LARGEUR S'OUVRE AU-DELÀ DE 1600 PX ===== */
 /*
    Mesuré sur un écran de 3440 px : le contenu restait plafonné à 1120 px, soit
    1160 px de marge vide de chaque côté — et la page mesurait 1920 px de haut
    pour une fenêtre de 1440. L'application imposait donc de faire défiler tout
    en laissant les deux tiers de la largeur inutilisés.
 
-   Les réglages — salaires, revenus, prénoms, mode de partage, report — se
-   consultent rarement et se modifient encore moins. Ils prennent leur propre
-   colonne plutôt que d'allonger celle du bilan.
+   Ce palier portait aussi une TROISIÈME colonne, pour les réglages. Le lot E
+   l'a retirée (2026-09-11) : la maquette ne montre au bureau que deux
+   colonnes, à toute largeur, et Réglages est devenu un écran à part. Ce qui
+   reste du palier est ce qu'il achetait d'autre — la largeur.
 */
 @media (min-width: 1600px) {
   .container {
     max-width: 1560px;
-    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr);
   }
-
-  /* Chacune sa colonne : plus besoin de couvrir deux rangées. */
-  .col-bilan { grid-column: 1; }
-  .col-listes { grid-column: 2; grid-row: auto; }
-  .col-reglages { grid-column: 3; }
 }
 
 /* ===== LE PLAFOND CÈDE AU-DELÀ DE 2000 PX ===== */
