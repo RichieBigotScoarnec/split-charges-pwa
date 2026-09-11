@@ -356,7 +356,8 @@
    encadrement de chiffre. */
 .bilan-heros--equilibre .bilan-heros-mot,
 .bilan-heros--aucun-chiffre .bilan-heros-mot {
-  font-size: 20px;
+  /* 18 px à 320, 20 px à 390 : la phrase du privé, planches 15 et 16. */
+  font-size: clamp(18px, calc(2.86vw + 8.86px), 20px);
   font-weight: 600;
   line-height: 1.3;
   color: var(--text-primary);
@@ -380,7 +381,7 @@
 
   .bilan-heros--equilibre .bilan-heros-mot,
   .bilan-heros--aucun-chiffre .bilan-heros-mot {
-    font-size: 24px;
+    font-size: 26px;
   }
 }
 
@@ -439,6 +440,90 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+/* --- Le grand-livre de « Moi » — lot D, 2026-09-11, planche 12 ---
+   Les trois soustractions sont tout ce que l'application connaît de cette
+   portée. Il n'est PAS replié sous 900 px, à la différence de celui d'« À
+   deux » — et pas parce qu'il serait court : il fait 300 px à 320 au doigt
+   (mesuré). La planche 16 le montre ouvert, et sa réserve — « un plafond, pas
+   un solde » — ne doit jamais être derrière un geste. */
+/* Rembourrage horizontal RESSERRÉ : le cadre vit dans la carte du solde, qui
+   vit dans la carte du bilan, dans le conteneur — quatre rembourrages
+   emboîtés. À `--space-md`, il ne restait à 320 px qu'environ 105 px au
+   libellé, et « Tes revenus du mois » s'enroulait (vu sur la capture). */
+.grand-livre-moi {
+  margin-top: var(--space-md);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.grand-livre-base,
+.grand-livre-reste {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.grand-livre-base span,
+.grand-livre-reste span {
+  font-weight: 600;
+}
+
+.grand-livre-base strong,
+.grand-livre-retire strong,
+.grand-livre-reste strong {
+  font-size: 14px;
+}
+
+/* Sous 600 px, les deux lignes fortes reviennent à la taille des autres — la
+   planche 16 les pose en 12,5 px à 320. */
+@media (max-width: 600px) {
+  .grand-livre-base,
+  .grand-livre-reste,
+  .grand-livre-base strong,
+  .grand-livre-retire strong,
+  .grand-livre-reste strong {
+    font-size: 13px;
+  }
+}
+
+/* Ce qu'on retranche, en ambre : l'encre des planches, par son jeton d'ENCRE. */
+.grand-livre-retire strong {
+  color: var(--warning-ink);
+}
+
+.grand-livre-sous {
+  padding-left: calc(var(--space-sm) + var(--space-md));
+}
+
+.grand-livre-precision {
+  margin: 0;
+  padding-bottom: var(--space-xs);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.grand-livre-reste {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.grand-livre-reste strong {
+  font-weight: 700;
+}
+
+.grand-livre-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.bilan-heros .resume-prive-ligne {
+  margin-top: var(--space-xs);
 }
 
 /* Le libellé qui NOMME chaque carte de tête — « Solde du mois », « Reste à

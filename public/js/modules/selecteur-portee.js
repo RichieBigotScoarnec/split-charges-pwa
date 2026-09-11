@@ -250,22 +250,19 @@ function choisirLaPortee(demandee) {
  * @returns {void}
  */
 export function initSelecteurPortee() {
-  // ── LA SEULE ACTION QUE CE MODULE DÉCLARE, ET POURQUOI IL EN FAUT UNE ──
+  // ── CE MODULE NE DÉCLARE PLUS AUCUNE ACTION — lot D, 2026-09-11 ──
   //
-  // Les segments n'en ont pas besoin : ils portent `data-portee`, et l'écouteur
-  // est posé sur leur groupe. Mais une commande VIT AILLEURS — la rangée
-  // « Gérer mes dépenses privées et le partage », dans le bloc privé du versant
-  // personnel — et elle ne peut pas être atteinte par cet écouteur-là.
+  // Il exposait `allerALaPortee`, pour une seule commande vivant hors des
+  // segments : la rangée « Gérer mes dépenses privées et le partage », dans le
+  // bloc privé du versant personnel. Ce bloc est devenu la dernière ligne du
+  // grand-livre de « Moi », sans renvoi — les planches 12 et 15 n'en ont pas —,
+  // et le segment est désormais la seule porte vers l'espace privé.
   //
-  // Elle ne pouvait pas non plus disparaître : mesuré, le segment est 415 px
-  // plus haut à 320 px une fois qu'on a défilé jusqu'à ce bloc. Elle change
-  // donc de destination, et il lui faut un nom déclaré.
-  //
-  // Élargir l'écouteur à tout `[data-portee]` du document aurait évité la liste
-  // blanche, et c'est précisément ce qu'on ne veut pas : n'importe quel balisage
-  // injecté porterait alors une commande. Un nom, une entrée, `porteeValide`
-  // qui tranche — la surface reste bornée.
-  window.allerALaPortee = choisirLaPortee;
+  // L'action a quitté la liste blanche d'`init.js` avec sa dernière commande :
+  // une entrée sans balisage est ce que `actions-declarees` refuse, dans les
+  // deux sens. Si une commande hors segments revient un jour, elle reprendra un
+  // nom déclaré — jamais un écouteur élargi à tout `[data-portee]` du document,
+  // qui ferait de n'importe quel balisage injecté une commande.
 
   let poses = 0;
 

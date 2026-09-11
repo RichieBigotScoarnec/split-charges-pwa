@@ -194,32 +194,48 @@ describe('Le versant du résumé', () => {
   });
 
   describe('le panneau personnel', () => {
-    it('affiche le reste à vivre et le taux d\'effort', () => {
+    // ── RÉÉCRIT AU LOT D, 2026-09-11 — la tête « Moi » des planches 12 à 16 ──
+    //
+    // Le versant s'ouvrait sur « Reste à vivre hors privé », un taux d'effort
+    // et une ligne « Mes charges solo ». Il s'ouvre sur « Il te reste », suivi
+    // du grand-livre qui le vérifie : revenus, moins ma part du commun, moins
+    // mes dépenses solo. Les propriétés tenues ici ne changent pas de sujet —
+    // le reste, les privées qui n'y sont pas, qui voit le solo, et ce que ce
+    // versant ne porte pas. Le taux d'effort revient au rang 2, au lot suivant.
+    it('ouvre sur ce qu\'il me reste, et le grand-livre qui le vérifie', () => {
       const { texte } = resumeRendu({ portee: PORTEES.SOLO });
 
+      expect(texte).toContain('Il te reste');
       expect(texte).toContain(formatCurrency(2150));
-      expect(texte).toContain('Reste à vivre hors privé');
-      expect(texte).toContain('28');
+      expect(texte).toContain('Tes revenus du mois');
+      expect(texte).toContain('Ta part du commun');
+      expect(texte).toContain('Tes dépenses solo');
     });
 
-    it('dit que les dépenses privées n\'en sont pas déduites', () => {
+    it('dit que les dépenses privées n\'y sont pas — un plafond, pas un solde', () => {
       const { texte } = resumeRendu({ portee: PORTEES.SOLO });
-      expect(texte).toContain('privées n\'en sont pas déduites');
+      expect(texte).toContain('Tes dépenses privées ne sont pas dans ce calcul');
+      expect(texte).toContain('un plafond, pas un solde');
     });
 
-    it('affiche mes charges solo, et dit qu\'elles sont visibles', () => {
+    it('affiche mes dépenses solo, et dit qui les voit', () => {
       const { texte } = resumeRendu({ portee: PORTEES.SOLO });
       expect(texte).toContain(formatCurrency(100));
-      expect(texte).toContain('visible de');
+      expect(texte).toContain('voit tes dépenses solo');
     });
 
-    it('ne porte AUCUN chiffre du foyer', () => {
+    it('ne porte ni le total du foyer, ni le geste de règlement', () => {
+      // ── CE CAS EXIGEAIT AUSSI L'ABSENCE DE 750 €, MA PART — et elle revient,
+      //    à dessein ──
+      //
+      // « Aucun chiffre du foyer » visait ce qui appartient à l'autre question :
+      // qui doit combien à qui. Ma part du commun n'en est pas — c'est MON
+      // argent, et c'est la première des trois soustractions qui rendent « Il
+      // te reste » vérifiable (planche 12). Le total du foyer et le geste de
+      // règlement, eux, restent absents.
       const { texte } = resumeRendu({ portee: PORTEES.SOLO });
 
-      // Le total du foyer, la part due, le geste de règlement : tout cela
-      // appartient à l'autre question.
       expect(texte).not.toContain(formatCurrency(1000));
-      expect(texte).not.toContain(formatCurrency(750));
       expect(texte).not.toContain('Régler ce solde');
     });
 
@@ -238,7 +254,7 @@ describe('Le versant du résumé', () => {
 
       expect(texte).toContain('Renseignez vos revenus');
       expect(bilan.querySelector('[data-action="focusSalaries"]')).not.toBeNull();
-      expect(texte).not.toContain('Reste à vivre hors privé');
+      expect(texte).not.toContain('Il te reste');
     });
   });
 

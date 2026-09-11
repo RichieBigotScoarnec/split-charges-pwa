@@ -30,6 +30,8 @@ import { escapeHtml, formatCurrency } from '../utils/format.js';
 import { log, error as logError } from '../utils/debug.js';
 import { dateDuJour, formatDate } from '../utils/date.js';
 import { normaliserEmplacement, memberLabel } from '../utils/members.js';
+import { teteDuBilan, gabaritDeTete } from '../utils/tete-du-bilan.js';
+import { PORTEES } from '../utils/portee.js';
 import {
   emplacementOppose,
   normaliserAval,
@@ -251,34 +253,66 @@ export async function remplirLePanneauPrive() {
   const cible = document.getElementById('resumePanneauPrive');
   if (!cible) return;
 
+  // La tête d'abord — le titre qui dit la règle, puis les deux faces de la
+  // permission —, ensuite ce qu'on fait ici : saisir, relire ses dépenses.
   cible.innerHTML = `
-    ${blocPartage(etat)}
+    ${teteDuPrive(etat)}
     ${blocSaisie(etat)}
     ${blocMesDepenses(etat)}
-    ${blocSonCote(etat)}
   `;
 
   brancherLEcran(cible, etat);
 }
 
 /**
- * Les deux accords : celui qu'on donne, celui qu'on reçoit
+ * La tête du privé : un titre qui dit la règle, puis les deux faces
  *
- * On ne peut agir que sur le sien — ouvrir **ses** dépenses à l'autre. Celui
- * qu'on reçoit ne se prend pas : c'est la règle serveur qui l'exige, pas une
- * politesse d'interface. Les deux sont affichés parce qu'un accord se lit dans
- * les deux sens, et qu'aucun des deux n'oblige l'autre : ouvrir ne donne aucun
- * droit sur l'espace d'en face.
+ * ─────────────────────────────────────────────────────────────────────
+ * PAS DE HÉROS CHIFFRÉ — lot D, 2026-09-11, planche 13
+ *
+ * La portée vit en mémoire vive pour qu'un rechargement ne rouvre pas cet
+ * écran ; un grand chiffre en tête défait cette protection. Le titre vient de
+ * `teteDuBilan`, la fabrique des trois têtes, selon ce que l'autre peut
+ * RÉELLEMENT lire — la posture relue en base, jamais supposée.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * ⚠️ DETTE ÉCRITE, PAS OUBLI : la tête Privé n'affiche pas de rappel du
+ * réglage de partage tant que la commande vit sur le même écran.
+ *
+ * La planche 13 met dans la première face un rappel en lecture seule —
+ * « Un total, et un nombre · Réglable dans Réglages · Changer ». Il suppose la
+ * commande AILLEURS, dans Réglages. Elle n'y est pas encore : la première face
+ * EST donc la commande elle-même, telle quelle, et il n'y a rien à rappeler.
+ * Afficher les deux ferait deux fois la même chose à 300 px d'écart. Le rappel
+ * arrive avec le déplacement de la commande vers Réglages, au lot suivant.
  *
  * @param {Object} etat
  * @returns {string} Fragment échappé
  */
-function blocPartage(etat) {
-  const prenom = prenomDeLAutre();
+function teteDuPrive(etat) {
+  const tete = teteDuBilan({
+    portee: PORTEES.PRIVE,
+    posture: posturePartage(etat.monPartage),
+    autre: prenomDeLAutre()
+  });
 
-  const recu = etat.sonPartage.actif
-    ? `<span class="prive-aval-etat prive-aval-etat--actif">ouvert</span> — vous voyez le détail de ${escapeHtml(prenom)}`
-    : `<span class="prive-aval-etat">fermé</span> — vous ne voyez que son total`;
+  return gabaritDeTete(tete, {
+    suite: `<div class="prive-faces">${faceDeMoi(etat)}${faceDeLAutre(etat)}</div>`
+  });
+}
+
+/**
+ * Première face : ce que JE partage — la commande, telle quelle
+ *
+ * On ne peut agir que sur le sien — ouvrir **ses** dépenses à l'autre. Celui
+ * qu'on reçoit ne se prend pas : c'est la règle serveur qui l'exige, pas une
+ * politesse d'interface. Il vit dans la seconde face.
+ *
+ * @param {Object} etat
+ * @returns {string} Fragment échappé
+ */
+function faceDeMoi(etat) {
+  const prenom = prenomDeLAutre();
 
   // Deux drapeaux en base, une seule échelle à l'écran : ouvrir le détail sans
   // publier le total n'aurait pas de sens, puisque le détail contient le total.
@@ -298,7 +332,7 @@ function blocPartage(etat) {
   }[posture];
 
   return `
-    <div class="prive-avals">
+    <div class="prive-face prive-avals">
       <div class="prive-aval">
         <div class="prive-aval-titre">Ce que vous partagez avec ${escapeHtml(prenom)}</div>
         <div class="prive-posture" role="group"
@@ -308,11 +342,6 @@ function blocPartage(etat) {
           ${cran('detail', 'Total + détail')}
         </div>
         <p class="form-aide">${aide}</p>
-      </div>
-
-      <div class="prive-aval">
-        <div class="prive-aval-titre">Ce que ${escapeHtml(prenom)} vous ouvre</div>
-        <div class="prive-aval-detail">${recu}</div>
       </div>
 
       <p class="form-aide">Vos dépenses privées s'enregistrent librement : personne n'a à les autoriser. C'est l'accès au détail de l'autre qui se demande — et personne ne peut se l'accorder soi-même, c'est la base de données qui refuse.</p>
@@ -442,19 +471,34 @@ function ligneDepensePrivee(depense, { modifiable = true } = {}) {
 }
 
 /**
- * Côté l'autre : le détail si elle l'a ouvert, le total sinon
+ * Seconde face : ce que l'AUTRE m'ouvre — dans ses trois états (planche 14)
  *
- * Les deux cas sont légitimes et l'écran ne fait pas de l'un le brouillon de
- * l'autre. Sans accord, le total publié suffit à savoir de quoi on parle.
+ * Les états ne sont pas des brouillons l'un de l'autre, et chacun dit ce qu'il
+ * est, sous un repère qui le nomme :
  *
- * L'absence de publication n'est pas « zéro dépense privée » : c'est « on n'en
- * sait rien ». L'écran se tait plutôt que d'affirmer.
+ *   Ouvert             — le détail, lu ligne par ligne : le total s'en déduit,
+ *                        il n'est plus déclaratif ;
+ *   Fermé, total publié — le total et sa réserve, dans la même ligne ;
+ *   Rien publié        — la carte se TAIT. L'absence de publication n'est pas
+ *                        « zéro dépense privée » : c'est « on n'en sait rien »,
+ *                        et 0,00 € affirmerait ce qu'on ne sait pas.
+ *
+ * Elle réunit ce qui vivait en deux endroits — la ligne « fermé / ouvert » de
+ * l'ancien bloc des accords, et le bloc « Côté X » en bas de l'écran. Les
+ * garder séparés aurait dit l'état de l'accord à un endroit et son effet à
+ * un autre.
  *
  * @param {Object} etat
  * @returns {string} Fragment échappé
  */
-function blocSonCote(etat) {
+function faceDeLAutre(etat) {
   const prenom = prenomDeLAutre();
+  const entete = (etatAccord, libelle, nom) => `
+        <div class="prive-aval-titre">Ce que ${escapeHtml(prenom)} vous ouvre</div>
+        <div class="prive-face-entete">
+          <span class="prive-face-etat prive-face-etat--${etatAccord}">${libelle}</span>
+          <span class="prive-face-nom">${nom}</span>
+        </div>`;
 
   // Accès ouvert : on lit le détail, et le total s'en déduit — plus besoin du
   // chiffre déclaré, ni de la réserve qui l'accompagne.
@@ -463,19 +507,25 @@ function blocSonCote(etat) {
     const resume = resumePublie(etat.sesDepenses);
 
     return `
-      <div class="prive-autre">
+      <div class="prive-face prive-autre">
+        ${entete('ouvert', 'Ouvert', 'Son détail')}
         ${sousTitrePrive(`Côté ${escapeHtml(prenom)}`,
           `<span class="prive-total">${formatCurrency(resume.montant)}</span>`)}
         ${actives.length === 0
           ? `<p class="empty-state">Aucune dépense privée ce mois-ci.</p>`
           : actives.map(depense => ligneDepensePrivee(depense, { modifiable: false })).join('')}
-        <p class="form-aide">${escapeHtml(prenom)} vous a ouvert son détail. Elle peut le refermer quand elle veut.</p>
+        <p class="form-aide">${escapeHtml(prenom)} vous a ouvert son détail : ce total est lu ligne par ligne, il n'est plus déclaratif. Elle peut le refermer quand elle veut.</p>
       </div>
     `;
   }
 
   if (!etat.sonResume.publie) {
-    return `<div class="prive-autre"><p class="empty-state">${escapeHtml(prenom)} n'a rien publié pour ce mois. Cela ne veut pas dire qu'il n'y a rien : seulement qu'on n'en sait rien.</p></div>`;
+    return `
+      <div class="prive-face prive-autre">
+        ${entete('rien', 'Rien', 'On n\'en sait rien')}
+        <p class="empty-state">${escapeHtml(prenom)} n'a rien publié pour ce mois. Cela ne veut pas dire qu'il n'y a rien : seulement qu'on n'en sait rien.</p>
+      </div>
+    `;
   }
 
   const compte = `${etat.sonResume.nombre} dépense${etat.sonResume.nombre > 1 ? 's' : ''}`;
@@ -502,10 +552,11 @@ function blocSonCote(etat) {
   // Mesuré : à 320 px le sous-titre passe de une à deux lignes (24 → 42 px),
   // sans rien rogner ; à 390 il tient sur une seule.
   return `
-    <div class="prive-autre">
+    <div class="prive-face prive-autre">
+      ${entete('ferme', 'Fermé', 'Son total seulement')}
       ${sousTitrePrive(`Côté ${escapeHtml(prenom)}`,
         `<span class="prive-total">${formatCurrency(etat.sonResume.montant)} <span class="prive-declare">déclaré</span></span>`)}
-      <p class="form-aide">${escapeHtml(compte)} ce mois-ci, sans le détail : ${escapeHtml(prenom)} ne l'a pas ouvert, et c'est son droit. Ce chiffre est déclaré par son application — aucune règle ne peut le vérifier sans lire ce qu'elle n'a pas le droit de lire.</p>
+      <p class="form-aide"><strong class="prive-declaratif">Chiffre déclaratif.</strong> ${escapeHtml(compte)} ce mois-ci, sans le détail : ${escapeHtml(prenom)} ne l'a pas ouvert, et c'est son droit. Ce chiffre est déclaré par son application — aucune règle ne peut le vérifier sans lire ce qu'elle n'a pas le droit de lire.</p>
     </div>
   `;
 }

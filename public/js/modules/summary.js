@@ -16,7 +16,7 @@ import {
   jourEtMois, dateDuJour, joursDeLaPeriode, etatDuMois, formatPeriod
 } from '../utils/date.js';
 import { renderCategoryBudgets } from './category-budgets.js';
-import { blocPriveDuResume, initResumePrive } from './resume-prive.js';
+import { lignePriveeACompter, initResumePrive } from './resume-prive.js';
 import { expliquerLeReport } from '../utils/explication-solde.js';
 import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
@@ -25,7 +25,7 @@ import { decomposerParRegle } from '../utils/decomposition.js';
 import { PORTEES, porteeRetenue } from '../utils/portee.js';
 import { marquerLeSoldeDu } from './selecteur-portee.js';
 import { remplirLePanneauPrive } from './prive.js';
-import { teteDuBilan } from '../utils/tete-du-bilan.js';
+import { teteDuBilan, gabaritDeTete } from '../utils/tete-du-bilan.js';
 import { emplacementOppose } from '../utils/confidentialite.js';
 
 /**
@@ -300,8 +300,11 @@ export function calculateSummary({ historique } = {}) {
     // supprimées et des montants illisibles aurait été une seconde fabrique de
     // l'assiette — et l'écran aurait montré une décomposition dont la somme ne
     // fait pas le total qu'elle explique.
+    //
+    // Et elle décompose la part de QUI TIENT LE TÉLÉPHONE (2026-09-11) : « Ta
+    // part du commun » dans « Moi », « Pourquoi votre part » dans « À deux ».
     decomposition: decomposerParRegle(summary.chargesRetenues, {
-      shareMode, salaries: incomeBase, totalSalaries, customPercents
+      shareMode, salaries: incomeBase, totalSalaries, customPercents, personne: moi
     })
   });
 
@@ -713,70 +716,92 @@ function renderDecomposition(lignes) {
 }
 
 /**
- * Le panneau personnel : ce que le mois me coûte, ce qu'il me reste
+ * La suite de la tête « Moi » : le grand-livre qui rend le reste vérifiable
  *
- * ## Ce qu'il ne contient pas, et pourquoi
+ * ─────────────────────────────────────────────────────────────────────
+ * TROIS SOUSTRACTIONS, ET CE SONT LES SEULES — lot D, 2026-09-11, planche 12
  *
- * Ni prévisionnel, ni projection, ni budgets par catégorie. Ces trois panneaux
- * sont calculés sur les charges du FOYER — `previsionnelDuMois` écarte même
- * explicitement les dépenses solo, et documente l'incident qui l'a exigé. Les
- * placer ici ferait redire à cet onglet ce que l'autre dit déjà, et un onglet
- * qui redit l'autre n'a plus de raison d'être. Ils restent donc sous « À deux »,
- * là où le code les calcule.
+ * Revenus, moins ma part du commun, moins mes dépenses solo : c'est tout ce
+ * que l'application connaît de cette portée. Chacune a sa ligne, la part se
+ * décompose par règle — la même fabrique que « Pourquoi votre part » —, et le
+ * reste se vérifie ligne par ligne. C'est ce qui a manqué une fois au prorata :
+ * un chiffre juste qu'on ne pouvait pas refaire.
  *
- * Ce panneau est court, et c'est le prix de sa justesse : chaque ligne y est un
- * chiffre qui m'appartient.
+ * Il n'est PAS replié sous 900 px, à la différence de celui d'« À deux », et ce
+ * n'est pas parce qu'il serait court : mesuré au doigt, il fait **300 px à
+ * 320**, 240 à 390 — plus que celui d'« À deux » replié. Il est ouvert parce
+ * que la planche 16 le montre ouvert à 320, et que la réserve qu'il porte —
+ * « un plafond, pas un solde » — ne doit jamais être séparée du chiffre
+ * qu'elle qualifie, ni derrière un geste. Le coût est réel ; la décision est à
+ * confirmer à l'écran.
  *
- * ## Le reste à vivre est « hors privé », et le dit
+ * ─────────────────────────────────────────────────────────────────────
+ * LE RESTE EXCLUT LES DÉPENSES PRIVÉES — et c'est une décision, deux fois
  *
- * Les dépenses privées ne sont pas déduites. Les y inclure rendrait leur total
- * déductible par soustraction — la conjointe connaît la part due, les charges
- * solo, et les revenus dont le prorata découle. Elle est la seule personne
- * contre laquelle ce montant est masqué, et la seule à disposer des trois
- * termes. Cf. `computeMoisPersonnel` et `confidentialite.js`.
+ *   - la décision du foyer, sur les planches : les inclure ferait du reste un
+ *     indice de ce qu'on a dépensé en privé, lisible par-dessus l'épaule ;
+ *   - et la raison qui la précédait ici : l'autre connaît ma part, mes charges
+ *     solo et les revenus dont le prorata découle — le total privé deviendrait
+ *     déductible par soustraction, contre la seule personne pour qui il est
+ *     masqué.
  *
- * ## Mes charges solo sont dans la tête — lot D, 2026-09-11
- *
- * Elles avaient leur ligne ici, « Mes charges solo — visible de Cindy ». La
- * tête de la portée porte désormais ce total, et la même précision : les
- * garder aussi en ligne aurait écrit le même chiffre deux fois sur le même
- * écran.
+ * « Les compter » le dévoile à la demande, pour l'onglet seulement
+ * (`resume-prive.js`).
  *
  * @param {Object} moisPersonnel - Sortie de `computeMoisPersonnel`
- * @returns {string}
+ * @param {Array<Object>} decomposition - Sortie de `decomposerParRegle`, pour moi
+ * @param {string} autre - Le prénom de l'autre personne
+ * @returns {string} Fragment échappé
  */
-function renderPanneauSolo(moisPersonnel) {
-  const { disponible, resteAVivre, tauxEffort } = moisPersonnel;
-
+function suiteDeMoi(moisPersonnel, decomposition, autre) {
   // Sans revenus, il n'y a rien à diviser. Le 50-50 et le mode personnalisé
-  // n'en demandent aucun : ce panneau est le premier écran qui en ait besoin,
+  // n'en demandent aucun : ce versant est le premier écran qui en ait besoin,
   // et il le demande pour lui seul, sans bloquer le reste de l'application.
-  if (!disponible) {
+  if (!moisPersonnel.disponible) {
     return `
-      <div class="empty-state">
-        <p>Renseignez vos revenus pour connaître votre reste à vivre.</p>
-        <button type="button" class="btn btn-primary" data-action="focusSalaries">
-          Renseigner les revenus
-        </button>
-      </div>`;
+        <div class="empty-state">
+          <p>Renseignez vos revenus pour connaître votre reste à vivre.</p>
+          <button type="button" class="btn btn-primary" data-action="focusSalaries">
+            Renseigner les revenus
+          </button>
+        </div>`;
   }
 
-  const pourcent = Math.round(tauxEffort * 100);
+  const { revenus, partDue, solo, resteAVivre } = moisPersonnel;
+
+  // Une seule règle dans le mois : la sous-ligne répéterait le montant juste
+  // au-dessus. Même seuil que « Pourquoi votre part ».
+  const sousLignes = decomposition.length < 2 ? '' : decomposition.map(ligne => `
+          <div class="summary-row summary-row--decompose grand-livre-sous">
+            <span>${ligne.pastille
+              ? `<span class="charge-split-tag">${escapeHtml(ligne.pastille)}</span>`
+              : escapeHtml(ligne.libelle)}</span>
+            <strong>${formatCurrency(ligne.mien)}</strong>
+          </div>`).join('');
 
   return `
-    <div class="resume-solo-tete">
-      <span class="bilan-tete">Reste à vivre hors privé</span>
-      <strong>${formatCurrency(resteAVivre)}</strong>
-      <p class="resume-solo-sous">
-        Revenus moins ma part du commun et mes charges solo.
-        Taux d'effort <span class="resume-solo-taux">${pourcent}&nbsp;%</span>.
-      </p>
-      <p class="resume-solo-note">
-        Mes dépenses privées n'en sont pas déduites : leur suivi se fait dans mon espace privé.
-      </p>
-    </div>
-
-    ${blocPriveDuResume()}`;
+        <div class="grand-livre-moi">
+          <div class="summary-row grand-livre-base">
+            <span>Tes revenus du mois</span>
+            <strong>${formatCurrency(revenus)}</strong>
+          </div>
+          <div class="summary-row grand-livre-retire">
+            <span>Ta part du commun</span>
+            <strong>−&nbsp;${formatCurrency(partDue)}</strong>
+          </div>
+          ${sousLignes}
+          <div class="summary-row grand-livre-retire">
+            <span>Tes dépenses solo</span>
+            <strong>−&nbsp;${formatCurrency(solo)}</strong>
+          </div>
+          <p class="grand-livre-precision">${escapeHtml(autre)} voit tes dépenses solo ; personne ne doit rien dessus.</p>
+          <div class="summary-row grand-livre-reste">
+            <span>Il te reste</span>
+            <strong>${formatCurrency(resteAVivre)}</strong>
+          </div>
+        </div>
+        <p class="grand-livre-note">Tes dépenses privées ne sont pas dans ce calcul. Le montant qui reste est donc un plafond, pas un solde.</p>
+        ${lignePriveeACompter(resteAVivre)}`;
 }
 
 /**
@@ -815,58 +840,6 @@ function grandLivreOuvert() {
 
   return typeof window.matchMedia === 'function'
     && window.matchMedia(GRAND_LIVRE_OUVERT_DES).matches;
-}
-
-/**
- * La tête du bilan — UN gabarit pour les trois portées
- *
- * Il ne rédige rien : libellé, phrase, montant, ton et note viennent de
- * `teteDuBilan`, la fabrique unique. Ce qui varie d'une portée à l'autre est
- * dans le descripteur, jamais dans une branche de ce gabarit.
- *
- * Les trois morceaux de la phrase — « Tu dois », le montant, « à Cindy » — sont
- * des éléments distincts d'une ligne qui S'ENROULE : à 320 px, les trois sur
- * une ligne en 54 px débordaient de 107 px (mesuré). Le montant, lui, reste
- * insécable, par `formatCurrency` et par `nowrap`. Les espaces entre les
- * morceaux ne se voient pas — une boîte flexible les ignore — mais elles
- * restent dans le texte, pour qui le lit sans le voir.
- *
- * ── LE TÉMOIN DE LA BARRE EST LA PHRASE, PAS LA CARTE ──
- *
- * `barre-solde.js` se tait tant que les deux tiers de `.summary-balance` sont à
- * l'écran. La première version posait ce témoin sur la carte ENTIÈRE — et le
- * grand-livre, ouvert au bureau, vit dedans. Mesuré à 1280 × 720 : la carte
- * dépassait l'écran, un tiers seulement en était visible, et la barre répétait
- * le solde juste au-dessus de la phrase qui le disait (`data-flow:786`, rouge).
- *
- * Le témoin est donc la plus petite surface qui contienne ce que la barre
- * répéterait : le libellé, la phrase, son explication. Ni le grand-livre, ni le
- * bouton — la barre ne les dit pas.
- *
- * @param {Object} tete - Sortie de `teteDuBilan`
- * @param {Object} [options]
- * @param {string} [options.temoin] - Classes internes posées sur ce que la tête
- *   DIT : sur « À deux », `summary-balance`, le témoin de `barre-solde.js`
- * @param {string} [options.dit] - Fragment déjà échappé, rendu avec la phrase
- * @param {string} [options.suite] - Fragment déjà échappé, rendu après elle
- * @returns {string} Fragment échappé
- */
-function renderTete(tete, { temoin = '', dit = '', suite = '' } = {}) {
-  const mot = (texte) => (texte ? `<span class="bilan-heros-mot">${escapeHtml(texte)}</span>` : '');
-  const montant = tete.montant === null
-    ? ''
-    : `<strong class="bilan-heros-montant">${formatCurrency(tete.montant)}</strong>`;
-
-  return `
-      <section class="bilan-heros bilan-heros--${escapeHtml(tete.ton)}" data-tete="${escapeHtml(tete.portee)}">
-        <div class="bilan-heros-dit ${temoin}">
-          <span class="bilan-tete">${escapeHtml(tete.libelle)}</span>
-          <p class="bilan-heros-phrase">${mot(tete.avant)} ${montant} ${mot(tete.apres)}</p>
-          ${tete.note ? `<p class="bilan-heros-note">${escapeHtml(tete.note)}</p>` : ''}
-          ${dit}
-        </div>
-        ${suite}
-      </section>`;
 }
 
 /**
@@ -982,7 +955,10 @@ function renderSummary(summary) {
   // même fabrique que le rapport, `etatDuMois`, la leçon payée en annonçant
   // « 1 090 € de moins qu'un mois ordinaire » pour un mois à venir.
   const moisAffiche = getState('currentPeriod');
-  const libelleDuCommun = libelleDuTotal(moisAffiche, etatDuMois(moisAffiche, jourDuCalendrier().moisReel));
+  // L'état du mois, lu UNE fois : il nomme le total commun et accorde le verbe
+  // du reste dans « Moi ». Deux lectures d'horloge pourraient enjamber minuit.
+  const etatAffiche = etatDuMois(moisAffiche, jourDuCalendrier().moisReel);
+  const libelleDuCommun = libelleDuTotal(moisAffiche, etatAffiche);
 
   // La ligne « À rééquilibrer » a disparu avec l'ancienne tête : c'est la tête
   // qui dit le solde, désormais. Sa propriété, elle, a suivi — la tête le dit
@@ -1048,20 +1024,23 @@ function renderSummary(summary) {
   // barre s'affiche, ce qui est exactement le comportement voulu là.
   //
   // C'est aussi ce qui referme le bloc privé : les lignes dévoilées sont
-  // détruites avec le panneau, et `blocPriveDuResume` n'écrit jamais qu'un état
+  // détruites avec le panneau, et `lignePriveeACompter` n'écrit jamais qu'un état
   // masqué. Aucun changement de portée ne peut donc laisser un montant privé
   // derrière lui, et il n'y a pas de second chemin à tenir à jour.
   const versant = versantDuResume();
   const enDuo = versant === PORTEES.DEUX;
   const enPrive = versant === PORTEES.PRIVE;
 
+  const autre = memberLabel(emplacementOppose(moi), membres);
   const tete = teteDuBilan({
     portee: versant,
     solde: soldeDit,
     montant: finalBalance,
     moi,
-    totalSolo: moisPersonnel.solo,
-    autre: memberLabel(emplacementOppose(moi), membres)
+    moisPersonnel,
+    etat: etatAffiche,
+    moisNomme: formatPeriod(moisAffiche),
+    autre
   });
 
   // Le grand-livre vit DANS la carte du solde, juste sous la phrase qu'il
@@ -1111,15 +1090,22 @@ ${renderDecomposition(decomposition)}
         ` : ''}
       </details>`;
 
-  // La tête est rendue UNE fois, pour les trois portées, avant le corps du
-  // panneau. Seule « À deux » y ajoute quelque chose : le témoin que
-  // `barre-solde.js` observe, et ce que la créance appelle — son explication,
-  // son grand-livre, le geste qui la règle.
+  // La tête d'« À deux » et de « Moi » est rendue ici, par le gabarit commun.
+  // « À deux » y ajoute le témoin que `barre-solde.js` observe, et ce que la
+  // créance appelle — son explication, son grand-livre, le geste qui la règle ;
+  // « Moi », le grand-livre qui rend le reste vérifiable.
+  //
+  // Celle du PRIVÉ n'est pas rendue ici : la règle qu'elle énonce dépend de ce
+  // que l'autre peut réellement lire, c'est-à-dire de la posture lue en base.
+  // `prive.js` la dessine avec le même gabarit, une fois la lecture faite — la
+  // poser d'avance ici lui ferait dire une règle au hasard.
+  const optionsDeTete = enDuo
+    ? { temoin: `summary-balance ${balanceClass}`, dit: balanceExplanation, suite: `${grandLivre}${settleButton}` }
+    : { suite: enPrive ? '' : suiteDeMoi(moisPersonnel, decomposition, autre) };
+
   summaryElement.innerHTML = `
     <div class="summary-card summary-card--tete">
-      ${renderTete(tete, enDuo
-    ? { temoin: `summary-balance ${balanceClass}`, dit: balanceExplanation, suite: `${grandLivre}${settleButton}` }
-    : {})}
+      ${enPrive ? '' : gabaritDeTete(tete, optionsDeTete)}
       ${enDuo ? `
       <div class="resume-panneau" id="resumePanneauDuo">
       ${renderCartesTete({ moisPersonnel, totalCharges, nombreDeCharges, libelleDuCommun })}
@@ -1136,9 +1122,7 @@ ${renderDecomposition(decomposition)}
       <div class="resume-panneau" id="resumePanneauPrive">
         <p class="empty-state">Lecture de votre espace privé…</p>
       </div>` : `
-      <div class="resume-panneau" id="resumePanneauSolo">
-        ${renderPanneauSolo(moisPersonnel)}
-      </div>`}
+      <div class="resume-panneau" id="resumePanneauSolo"><!-- Rangs 2 et 3 de la planche 12 : lot suivant --></div>`}
     </div>
 
     ${enDuo ? renderBudgetGauge(totalCharges) : ''}

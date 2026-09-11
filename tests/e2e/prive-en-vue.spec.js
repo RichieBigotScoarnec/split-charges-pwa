@@ -189,50 +189,33 @@ for (const { nom, viewport } of LARGEURS) {
         .toEqual([]);
     });
 
-    test('la commande du versant personnel mène à la VUE, pas à une seconde surface', async ({ page }) => {
+    test('le versant personnel n\'offre aucune seconde porte vers le privé', async ({ page }) => {
       /**
-       * La rangée « Gérer mes dépenses privées et le partage » vit dans le bloc
-       * privé du versant personnel. Elle reste — le segment est 415 px plus
-       * haut à 320 px une fois qu'on a défilé jusque-là, et la retirer
-       * coûterait ce défilement — mais elle change de destination.
+       * ── CE CAS TENAIT UNE COMMANDE, ET ELLE EST PARTIE — lot D, 2026-09-11 ──
        *
-       * Elle est cherchée par son INTITULÉ, pas par son `data-action` : c'est
-       * précisément l'attribut que le lot doit changer.
+       * La rangée « Gérer mes dépenses privées et le partage » vivait dans le
+       * bloc privé du versant personnel, et ce cas tenait qu'elle menait à la
+       * VUE plutôt qu'à une seconde surface. Le bloc est devenu la dernière
+       * ligne du grand-livre de « Moi » — « Les compter » —, et les planches 12
+       * et 15 n'ont pas de renvoi.
        *
-       * ── « GÉRER », ET PAS SEULEMENT « DÉPENSES PRIVÉES » ──
-       *
-       * Première rédaction : `{ name: /dépenses privées/i }`. Elle relevait
-       * DEUX boutons, et `.first()` prenait le mauvais — « Afficher », dont
-       * l'étiquette d'accessibilité est « Afficher mes dépenses privées » et
-       * qui ne fait que dévoiler un montant masqué. Le cas tombait alors sur la
-       * bonne conclusion pour la mauvaise raison, et son message envoyait
-       * chercher là où il n'y avait rien. Le compte exact — `toBe(1)` — est ce
-       * qui empêche la même méprise de revenir.
+       * Ce qui reste à tenir est la raison même du cas d'origine : deux
+       * surfaces pour le même espace finissent par se contredire. Il n'en reste
+       * qu'UNE, le segment. Cherchée par l'intitulé ET par l'attribut : une
+       * commande renommée échapperait à l'un, pas aux deux.
        */
       await page.locator('.panneau--actif [data-portee="solo"]').click();
       await page.waitForTimeout(700);
 
-      const commande = page.getByRole('button', { name: /gérer mes dépenses privées/i });
-      expect(await commande.count(),
-        'prémisse : le versant personnel n\'offre pas exactement une commande vers le privé')
-        .toBe(1);
+      // Prémisse : le versant personnel est bien rendu, sinon « aucune porte »
+      // serait satisfait par un écran vide.
+      await expect(page.locator('.panneau--actif .bilan-heros[data-tete="solo"]')).toBeVisible();
 
-      await commande.scrollIntoViewIfNeeded();
-      await commande.click();
-      await page.waitForTimeout(900);
+      const parIntitule = await page.locator('.panneau--actif')
+        .getByRole('button', { name: /gérer mes dépenses privées/i }).count();
+      const parAttribut = await page.locator('.panneau--actif [data-action="allerALaPortee"]').count();
 
-      const m = await espacePriveRendu(page);
-
-      expect(m.dialogues,
-        `la commande ouvre une fenêtre — « ${m.dialogues[0]} » — au lieu de mener `
-        + 'à la vue : deux surfaces pour le même espace finissent par se '
-        + 'contredire, et un partage refermé dans l\'une resterait ouvert dans '
-        + 'l\'autre')
-        .toEqual([]);
-
-      expect(m.porteeAnnoncee,
-        'la commande n\'a pas emmené l\'écran dans la portée « Privé »')
-        .toBe('prive');
+      expect(parIntitule + parAttribut, 'le versant personnel offre une seconde porte vers le privé').toBe(0);
     });
   });
 }

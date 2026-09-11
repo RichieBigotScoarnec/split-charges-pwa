@@ -1609,6 +1609,61 @@
   border-top: 1px solid var(--border-color);
 }
 
+/* --- Les deux faces de la permission, dans la tête du privé — lot D,
+   2026-09-11, planches 13 et 14 ---
+   Côte à côte quand deux faces de 260 px tiennent, empilées sinon : `auto-fit`,
+   sans rupture neuve. Chaque face est une carte ; les filets que `.prive-avals`
+   et `.prive-autre` portaient seuls sont remplacés par son bord, et ses marges
+   par l'espacement de la grille. */
+.prive-faces {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.prive-face,
+.prive-face.prive-autre {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+}
+
+.prive-face-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: var(--space-xs) 0 var(--space-sm);
+}
+
+/* L'état de l'accord, nommé en toutes lettres : la couleur double le mot, elle
+   ne le remplace pas (WCAG 1.4.1). Bleu pour « fermé » — un état, pas une
+   faute —, vert pour « ouvert », neutre pour « rien ». */
+.prive-face-etat {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.prive-face-etat--ferme { color: var(--info-ink); }
+.prive-face-etat--ouvert { color: var(--success-ink); }
+
+.prive-face-nom {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* « Chiffre déclaratif. » — l'ambre des planches, par son jeton d'ENCRE. */
+.prive-declaratif {
+  color: var(--warning-ink);
+}
+
 /* ===== IMPORT CSV ===== */
 /*
    Trois principes tiennent cet écran, et le style les suit : on n'écrase rien,

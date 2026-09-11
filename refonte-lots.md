@@ -110,16 +110,17 @@ rend 0 est un lot qui ment.**
 | 2 | grand-livre en `1fr auto` | `@(Select-String -Pattern "grid-template-columns: minmax\(0, 1fr\) auto" -Path public/css/summary.css).Count` | ≥ 1 | **1** | non demandé |
 | 3 | *vide* | — | — | — | — |
 | 4 | la portée comme état | `@(Select-String -Pattern "porteeCourante" -Path public/js/state.js).Count` | ≥ 1 | **2** | non demandé |
-| 5 | le sélecteur de portée | `@(Select-String -Pattern "data-portee" -Path public/js/modules/selecteur-portee.js).Count` | ≥ 1 | **4** | non demandé |
+| 5 | le sélecteur de portée | `@(Select-String -Pattern "data-portee" -Path public/js/modules/selecteur-portee.js).Count` | ≥ 1 | **3** *(4 avant le lot D, qui a réécrit un commentaire — la commande compte aussi les commentaires)* | non demandé |
 | 5 / A6 | le toast « modifiable » | `@(Select-String -Pattern "toast\.info\(LEVEE_DU_MALENTENDU\)" -Path public/js/modules/period.js).Count` | 1 | **1** | non demandé |
 | 6 | Solo et Privé en vues | `@(Select-String -Pattern "PORTEES\.PRIVE" -Path public/js/modules/summary.js).Count` | ≥ 1 | **2** | non demandé |
 | 7 | décomposition par règle | `@(Select-String -Pattern "renderDecomposition\(" -Path public/js/modules/summary.js).Count` | ≥ 1 | **2** | non demandé |
 | **A** | ombre de carte, thème clair | `@(Select-String -Pattern "box-shadow: var\(--carte-ombre\)" -Path public/css/components.css).Count` | 1 | **1** | **non — rien vu** |
-| **A−** | ses 4 autres jetons, employés ? | `@(Select-String -Pattern "^\s*[a-z-]+\s*:.*var\(--(radius-xs\|radius-md\|squelette-piste\|squelette-barre)\)" -Path public/css/*.css).Count` | *0 = sans emploi* | **0** | — |
+| **A−** | ses 4 autres jetons, employés ? | `@(Select-String -Pattern "^\s*[a-z-]+\s*:.*var\(--(radius-xs\|radius-md\|squelette-piste\|squelette-barre)\)" -Path public/css/*.css).Count` | *0 = sans emploi* | **2** *(0 le matin du 11/09 ; `--radius-md` a trouvé ses deux premiers emplois au lot D — grand-livre de « Moi », faces du privé. `--radius-xs` et les deux `--squelette-*` restent sans emploi)* | — |
 | **B** | ligne de charge à plat | `@(Select-String -Pattern "\.charge-item:(last-child\|hover)" -Path public/css/components.css).Count` | 2 | **2** | **non — rien vu** |
 | **C** | Tendances 56 px, barres 7 px | `@(Select-String -Pattern "min-height: 56px\|height: 7px" -Path public/css/summary.css).Count` | 2 | **2** | **non — rien vu** |
-| **D** | la tête par portée, les cartes, le grand-livre selon la largeur | `@(Select-String -Pattern "bilan-heros\|cartes-tete\|grandLivreOuvert" -Path public/js/modules/summary.js, public/css/summary.css).Count` | ≥ 3 | **28** | *en attente* |
-| **D** | sa fabrique unique | `@(Select-String -Pattern "export function teteDuBilan" -Path public/js/utils/tete-du-bilan.js).Count` | 1 | **1** | *en attente* |
+| **D** | la tête d'« À deux », les cartes, le grand-livre selon la largeur | `@(Select-String -Pattern "bilan-heros\|cartes-tete\|grandLivreOuvert" -Path public/js/modules/summary.js, public/css/summary.css).Count` | ≥ 3 | **23** | *en attente* |
+| **D** | la fabrique et le gabarit des trois têtes | `@(Select-String -Pattern "export function (teteDuBilan\|gabaritDeTete)" -Path public/js/utils/tete-du-bilan.js).Count` | 2 | **2** | *en attente* |
+| **D** | les têtes de « Moi » et de « Privé » (planches 12 à 16) | `@(Select-String -Pattern "function suiteDeMoi\|function teteDuPrive\|function faceDeLAutre" -Path public/js/modules/summary.js, public/js/modules/prive.js).Count` | 3 | **3** | *en attente* |
 | ~~**E**~~ | ~~le grand-livre selon la largeur~~ — **absorbé par D**, décision du foyer du 2026-09-11 | *compté par la commande de D* | — | — | — |
 | **F** | deux colonnes, Réglages sort | `@(Select-String -Pattern "ouvrirReglages" -Path public/FairSplit.html, public/js/modules/*.js).Count` | ≥ 2 | **0** | — |
 | **G** | l'écran Réglages | `@(Select-String -Pattern "reglages-grille" -Path public/FairSplit.html, public/css/*.css).Count` | ≥ 1 | **0** | — |
@@ -137,7 +138,9 @@ code**, avec sa raison — jamais après.
 
 | Lot | Ce que le foyer doit voir | Écarts |
 |---|---|---|
-| **D** | « Tu dois 66,94 € à Cindy » en ambre au rang 1, **sur À deux seulement** — 54 px au bureau, 40 à 390, 32 à 320 ; puis les trois cartes de tête : solde, reste à vivre, dépensé à deux. Solo : un total en encre neutre. Privé : aucun chiffre. **Et le grand-livre ouvert au-dessus de 900 px, replié en dessous** | 1, 2, 4 |
+| **D** | ~~Solo : un total en encre neutre. Privé : aucun chiffre.~~ **Trois têtes, les rangs 1 des planches** (reprise du 2026-09-11) : « Tu dois 66,94 € à Cindy » en ambre sur À deux — 54 / 40 / 32 px —, les trois cartes de tête, le grand-livre ouvert au-dessus de 900 px ; « Il te reste » et son grand-livre sur Moi ; sur Privé, un titre selon le réglage et les deux faces | 1, 2, 4 |
+| *à lettrer* | Moi, rangs 2 et 3 : part du commun et dépenses solo en cartes, liste solo, enveloppes solo | — |
+| *à lettrer* | Le réglage de partage déménage dans Réglages ; la tête Privé en porte alors le rappel, avec « Changer » | — |
 | ~~**E**~~ | ~~le grand-livre ouvert au-dessus de 900 px, replié en dessous~~ — **absorbé par D** le 2026-09-11 | — |
 | **F** | **deux colonnes** — bilan et charges ; Salaires et Rappels quittent le tableau de bord pour Réglages, atteint par ⚙️ dans l'en-tête | 3, 5, et l'entrée de 13 |
 | **G** | l'écran Réglages restructuré | 13 à 18 |
@@ -159,6 +162,43 @@ intact, fonte mono 700 chargée explicitement — le témoin `fonts.check()` ren
 | ~~le grand-livre déplié coûte **155 px** au premier écran~~ | **250,5 px** (5 lignes) à **336,7 px** (7, avec une dérogation) | le repli sous 900 px est mieux justifié qu'annoncé |
 | ~~pour **17,5 px** de marge sur `onglets:280`~~ | **18,5 px** à 320 — et **le grand-livre n'y touche pas** : ce contrôle mesure le haut de la carte, 161,5 px replié comme déplié | le repli ne se justifie pas par ce contrôle |
 | ~~le repli sous 900 px, « que `mobile.html` fait déjà »~~ | **`mobile.html` ne le replie pas** — déplié à 390 (planches 4 et 5) et à 320 (planche 6) | le repli reste la décision du foyer, sur son coût — pas une reprise de la maquette |
+| « Il te reste » en 32 px à 320 : texte 182,4 px ~~sur **275,1** disponibles, **92,7** px de marge~~ (Claude Design, au Range) | texte **181,5 px** — la cote tient à 1 px ; disponibles **236 px**, marge **54,5 px** | nos cartes s'emboîtent plus que la planche ; le montant tient quand même |
+
+### La reprise du lot D — trois têtes, 2026-09-11
+
+Planches 12 à 16 (`design/bilan-par-portee.html`). **Chaque portée porte sa
+tête**, par une fabrique (`teteDuBilan`) et un gabarit (`gabaritDeTete`), que
+le bilan et l'espace privé lisent tous deux.
+
+- **Moi** — « Il te reste 2 888,43 € à vivre », en encre neutre, puis le
+  grand-livre qui le vérifie : revenus − part du commun (une sous-ligne par
+  règle) − dépenses solo. **Le reste EXCLUT les dépenses privées** : c'est un
+  plafond, pas un solde, dit sous le grand-livre, avec « Les compter ».
+  *Raison :* les inclure ferait du reste un indice de ce qu'on a dépensé en
+  privé, lisible par-dessus l'épaule.
+- **Privé** — **pas de héros chiffré**, et l'argument est mécanique : la portée
+  vit en mémoire vive pour qu'un rechargement ne rouvre pas cet écran, et un
+  grand chiffre en tête défait cette protection. Un titre qui dit la règle —
+  selon le réglage réel, trois phrases pour trois réglages —, puis deux faces.
+  La seconde réunit l'état de l'accord et le total de l'autre, avec sa réserve
+  dans la même ligne ; « rien publié » se tait au lieu d'afficher 0,00 €.
+
+**Dette écrite, pas oubli : la tête Privé n'affiche pas de rappel du réglage de
+partage tant que la commande vit sur le même écran.** La première face EST la
+commande, telle quelle ; le rappel en lecture seule et son « Changer »
+arriveront avec son déplacement vers Réglages, au lot suivant.
+
+**Hors de ce lot, et dit :** les rangs 2 et 3 de « Moi » (cartes, liste solo,
+enveloppes solo — une seconde liste de charges dans le Bilan) ; le total privé
+masqué et « Afficher le détail » de la planche 13 ; « Moi » raccourci à 320 px
+dans le segment.
+
+**Deux coûts mesurés, à juger à l'écran :**
+
+| | Mesuré au doigt | |
+|---|---|---|
+| Le grand-livre de « Moi », déplié | **300 px** à 320, 240 à 390 | plus que celui d'« À deux », qui est replié ; ouvert parce que la planche 16 l'est |
+| Le renvoi « Gérer mes dépenses privées » retiré | à 320, quand « Les compter » est à l'écran, le segment « Privé » est **270 px au-dessus** | visible à 390 et au bureau ; la planche n'a pas de renvoi |
 
 **Le protocole de chaque lot, sans exception** : le code ; la branche poussée ;
 « poussé sur `<branche>`, tire et regarde » ; **le foyer ouvre l'application et

@@ -16,7 +16,7 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
  *      caractères sans une coupure.
  */
 
-const LIBELLES = { deux: 'Solde du mois', solo: 'Mes dépenses solo', prive: 'Mon espace privé' };
+const LIBELLES = { deux: 'Solde du mois', solo: 'Moi ce mois', prive: 'Mon espace privé' };
 
 /**
  * Salaires 3000/1000, et ce que chacun a avancé
@@ -92,17 +92,22 @@ test.describe('La tête suit la portée — 390 px', () => {
     }
   });
 
-  test('Privé : aucun chiffre dans la tête', async ({ page }) => {
+  test('Privé : aucun chiffre dans la phrase de tête — elle dit la règle', async ({ page }) => {
+    // La PHRASE, pas toute la carte : la seconde face porte le total de
+    // l'autre, et c'est voulu (planche 13). Ce qui n'a pas de chiffre est la
+    // tête proprement dite — un grand chiffre y déferait la protection d'une
+    // portée qui vit en mémoire vive.
     await page.locator('#panneauBilan [data-portee="prive"]').click();
     const tete = page.locator('#panneauBilan .bilan-heros');
     await expect(tete).toHaveAttribute('data-tete', 'prive');
-    expect(await tete.innerText()).not.toMatch(/\d/);
+    await expect(tete.locator('.bilan-heros-phrase')).toContainText('voit');
+    expect(await tete.locator('.bilan-heros-phrase').innerText()).not.toMatch(/\d/);
 
     // Témoin : la même lecture, sur « À deux », trouve bien un chiffre. Sans
-    // lui, une tête vide satisferait l'absence.
+    // lui, une phrase vide satisferait l'absence.
     await page.locator('#panneauBilan [data-portee="deux"]').click();
     await expect(tete).toHaveAttribute('data-tete', 'deux');
-    expect(await tete.innerText()).toMatch(/\d/);
+    expect(await tete.locator('.bilan-heros-phrase').innerText()).toMatch(/\d/);
   });
 
   test('Solo : un total en encre neutre — l\'ambre n\'appartient qu\'à la créance', async ({ page }) => {

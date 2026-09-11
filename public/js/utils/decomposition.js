@@ -90,11 +90,20 @@ function cleDeLaRegle(charge, ctx) {
 /**
  * Le pourcentage d'une ligne, écrit pour être lu
  *
- * Une décimale, virgule française, espace ordinaire avant le signe. L'espace
- * fine insécable (U+202F) que produit `Intl` n'est pas employée ici : elle a
- * fait rougir la CI deux fois sur des contrôles qui lisaient un montant en
- * clair, et ce libellé-ci est fabriqué à la main — rien n'oblige à en hériter
- * le piège.
+ * Une décimale, virgule française, et une espace fine INSÉCABLE (U+202F) avant
+ * le signe.
+ *
+ * ── CE CHOIX EST UN RENVERSEMENT, ET IL EST DIT — 2026-09-11 ──
+ *
+ * Ce commentaire prescrivait une espace ORDINAIRE : l'insécable « a fait
+ * rougir la CI deux fois sur des contrôles qui lisaient un montant en clair »,
+ * et rien n'obligeait à en hériter le piège. La raison était juste ; elle ne
+ * connaissait pas son coût. Mesuré sur la capture du grand-livre de « Moi » à
+ * 320 px : le « % » tombait SEUL à la ligne sous « Au prorata de 70,6 ».
+ *
+ * Le piège qu'elle évitait est tenu autrement : les tests écrivent le caractère
+ * en ÉCHAPPEMENT (`\u202F`), jamais en clair — la règle que `CLAUDE.md` pose
+ * déjà pour `formatCurrency`.
  *
  * @param {number} part
  * @param {number} total
@@ -102,7 +111,10 @@ function cleDeLaRegle(charge, ctx) {
  */
 function pourcentEcrit(part, total) {
   if (!(total > 0)) return '';
-  return `${((part / total) * 100).toFixed(1).replace('.', ',')} %`;
+  // Une espace fine INSÉCABLE avant le signe, comme `formatCurrency` en pose
+  // devant l'euro. Avec une espace ordinaire, le « % » tombait seul à la ligne
+  // dans le grand-livre de « Moi » à 320 px — vu sur la capture, 2026-09-11.
+  return `${((part / total) * 100).toFixed(1).replace('.', ',')}\u202F%`;
 }
 
 /**
@@ -146,7 +158,9 @@ function libelleDeLaRegle(mode, mien, plein) {
  * pastille.
  *
  * @param {Array<Object>} charges - Charges du mois, déjà filtrées par périmètre
- * @param {{shareMode: string, salaries: Object, totalSalaries: number, customPercents: Object}} ctx
+ * @param {{shareMode: string, salaries: Object, totalSalaries: number, customPercents: Object,
+ *          personne?: 'vous'|'conjointe'}} ctx - `personne` : de QUI la part est
+ *          décomposée ; `vous` par défaut, le comportement d'avant
  * @returns {Array<{cle: string, libelle: string, pastille: string, mien: number,
  *                  plein: number, nombre: number, derogatoire: boolean}>}
  */
@@ -161,8 +175,13 @@ export function decomposerParRegle(charges, ctx) {
   const groupes = new Map();
   for (const charge of liste) {
     const cle = cleDeLaRegle(charge, ctx);
-    const { yourShare } = calculateChargeShares(
+    const { yourShare, partnerShare } = calculateChargeShares(
       charge, ctx.shareMode, ctx.salaries, ctx.totalSalaries, ctx.customPercents);
+    // LA PART DE QUI TIENT LE TÉLÉPHONE — 2026-09-11. Elle était toujours celle
+    // de `vous` : sur le téléphone de la conjointe, « Pourquoi votre part » et
+    // le grand-livre de « Moi » décomposaient la part de l'autre, et leurs
+    // lignes ne sommaient pas au chiffre qu'elles prétendaient expliquer.
+    const mienne = ctx.personne === 'conjointe' ? partnerShare : yourShare;
 
     const groupe = groupes.get(cle) || {
       cle,
@@ -178,7 +197,7 @@ export function decomposerParRegle(charges, ctx) {
       mode: charge.splitOverride?.mode || ctx.shareMode
     };
 
-    groupe.mien += yourShare;
+    groupe.mien += mienne;
     groupe.plein += Number(charge.amount) || 0;
     groupe.nombre += 1;
     groupes.set(cle, groupe);

@@ -435,6 +435,29 @@ export function computeMoisPersonnel({ salaries, fixedCharges, variableCharges, 
 }
 
 /**
+ * Ce qui resterait, si l'on comptait les dépenses privées — lot D, 2026-09-11
+ *
+ * « Il te reste » les EXCLUT, et c'est une décision : inclure les privées
+ * ferait du reste un indice de ce qu'on a dépensé en privé, lisible
+ * par-dessus l'épaule. Le reste affiché est donc un plafond, pas un solde, et
+ * l'écran le dit ; « Les compter » dévoile, à la demande et pour l'onglet
+ * seulement, ce qu'il deviendrait.
+ *
+ * Une fonction et pas une soustraction écrite dans le rendu : c'est une
+ * seconde lecture du reste à vivre, et la règle 2 veut qu'elle ait sa fabrique
+ * — arrondie au centime comme la première.
+ *
+ * @param {number} resteAVivre - Sortie de `computeMoisPersonnel`
+ * @param {number} totalPrive - Mes dépenses privées du mois
+ * @returns {number|null} `null` quand le reste lui-même n'est pas connu
+ */
+export function resteSiLePriveCompte(resteAVivre, totalPrive) {
+  if (!Number.isFinite(resteAVivre)) return null;
+  const prive = Number.isFinite(totalPrive) ? totalPrive : 0;
+  return Math.round((resteAVivre - prive) * 100) / 100;
+}
+
+/**
  * Calcule les montants à virer par destination (pur, sans DOM)
  * @param {Array} fixedCharges - Charges fixes actives
  * @param {Object} params - { shareMode, salaries, totalSalaries, customPercents }

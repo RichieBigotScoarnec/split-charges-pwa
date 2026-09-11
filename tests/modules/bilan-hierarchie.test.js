@@ -200,19 +200,25 @@ describe('La hiérarchie du bilan', () => {
     it('Solo : un total neutre, jamais la créance ni le verbe', () => {
       const { tete } = bilanRendu({ portee: PORTEES.SOLO });
 
-      expect(tete.querySelector('.bilan-tete').textContent.trim()).toBe('Mes dépenses solo');
+      expect(tete.querySelector('.bilan-tete').textContent.trim()).toBe('Moi ce mois');
       expect(tete.classList.contains('bilan-heros--creance')).toBe(false);
       // La PHRASE, pas la note — qui dit « personne ne doit rien à personne ».
       expect(tete.querySelector('.bilan-heros-phrase').textContent).not.toMatch(/\bdoi[st]\b/);
     });
 
-    it('Privé : aucun chiffre dans la tête', () => {
-      const { tete } = bilanRendu({ portee: PORTEES.PRIVE });
+    it('Privé : le bilan ne rend AUCUNE tête — elle attend la lecture de l\'espace', () => {
+      // La règle que la tête du privé énonce dépend de ce que l'autre peut
+      // réellement lire : la posture, lue en base. `prive.js` la dessine avec
+      // le même gabarit une fois la lecture faite — mocké ici. Une tête posée
+      // d'avance par le bilan dirait une règle au hasard. Celle qui paraît est
+      // tenue par `tests/e2e/tete-du-bilan.spec.js` ; son absence de chiffre,
+      // par `tests/utils/tete-du-bilan.test.js`.
+      const { bilan, tete } = bilanRendu({ portee: PORTEES.PRIVE });
 
-      expect(tete.querySelector('.bilan-tete').textContent.trim()).toBe('Mon espace privé');
-      expect(tete.textContent).not.toMatch(/\d/);
-      // Témoin : la même sonde, sur la tête « À deux », trouve bien un chiffre.
-      expect(bilanRendu().tete.textContent).toMatch(/\d/);
+      expect(tete).toBeNull();
+      expect(bilan.querySelector('#resumePanneauPrive')).not.toBeNull();
+      // Témoin : sur « À deux », la même lecture trouve bien une tête.
+      expect(bilanRendu().tete).not.toBeNull();
     });
   });
 

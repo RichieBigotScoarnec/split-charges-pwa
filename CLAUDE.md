@@ -368,10 +368,22 @@ Principes UX :
   charges », pas encore « Ta part du commun ») ; et il est **replié sous
   900 px**, ce que `mobile.html` ne fait pas — décision du foyer, sur son coût
   (250 à 337 px de premier écran à 320).
-- **Les deux autres portées ne portent aucune créance** : Solo met un total
-  personnel en encre neutre — « personne ne doit rien à personne dessus » — et
-  Privé n'affiche **aucun chiffre**, sa tête est une phrase et son montant est
-  masqué (`••••`). Le fait symétrique, lui, ne paraît que sur « À deux ».
+- **Les deux autres portées ne portent aucune créance** — et depuis les
+  planches 12 à 16 (`design/bilan-par-portee.html`, 2026-09-11), chacune porte
+  SA tête, par une fabrique et un gabarit (`utils/tete-du-bilan.js`) :
+  - **Moi** : « Il te reste 2 888,43 € à vivre », encre neutre, suivi du
+    grand-livre qui le vérifie — revenus − part du commun − dépenses solo. **Il
+    exclut les dépenses privées** : c'est un plafond, pas un solde, dit sous le
+    grand-livre avec « Les compter ». Les inclure ferait du reste un indice de
+    ce qu'on a dépensé en privé, lisible par-dessus l'épaule ;
+  - **Privé** : **pas de héros chiffré**, pour une raison mécanique — la portée
+    vit en mémoire vive pour qu'un rechargement ne rouvre pas cet écran, et un
+    grand chiffre en tête défait cette protection. Un titre qui dit la règle,
+    selon le réglage réel, puis deux faces de permission.
+  ~~Solo met un total personnel en encre neutre — « personne ne doit rien à
+  personne dessus » — et Privé n'affiche aucun chiffre, sa tête est une phrase
+  et son montant est masqué (`••••`).~~ Le fait symétrique, lui, ne paraît que
+  sur « À deux ».
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
   pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,
