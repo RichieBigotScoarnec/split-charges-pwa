@@ -14,9 +14,14 @@
  *
  * Ce que chaque portée met en tête — les planches 1 à 6, puis 12 à 16 :
  *
- *   À deux — la CRÉANCE, en ambre : « Tu dois 66,94 € à Cindy » ;
- *   Moi    — « Il te reste 2 888,43 € à vivre » : un plafond, en encre neutre,
- *            que le grand-livre qui suit rend vérifiable ligne par ligne ;
+ *   À deux — la CRÉANCE : « Tu dois 66,94 € à Cindy » ;
+ *   Moi    — « Il te reste 2 888,43 € à vivre » : un plafond, que le
+ *            grand-livre qui suit rend vérifiable ligne par ligne ;
+ *
+ * Les deux premières portent l'encre de leur SENS (`SENS_DU_HEROS`) — et plus
+ * l'ambre des planches, ni l'encre neutre de « Moi » : décision du foyer, le
+ * 2026-09-11, parce que « Tu dois » et « Cindy te doit » ne sont pas la même
+ * nouvelle et se ressemblaient.
  *   Privé  — AUCUN chiffre en tête : une phrase qui dit la règle.
  *
  * ─────────────────────────────────────────────────────────────────────
@@ -76,6 +81,42 @@ const REGLE_DU_PRIVE = Object.freeze({
 });
 
 /**
+ * LE SENS DU HÉROS — deux encres, et une ASYMÉTRIE ASSUMÉE à zéro
+ *
+ * Décision du foyer, 2026-09-11. Deux sens, jamais trois :
+ *
+ *   À deux — dette > 0 → DÉFAVORABLE ; sinon → FAVORABLE.
+ *   Moi    — reste > 0 → FAVORABLE ; sinon → DÉFAVORABLE.
+ *
+ * Pas de palier intermédiaire. Un troisième demanderait un montant arbitraire,
+ * et surtout « Il te reste » est un PLAFOND — les dépenses privées n'y sont
+ * pas : alerter à un seuil serait alerter sur un chiffre qu'on sait faux. Deux
+ * couleurs disent un fait ; trois diraient un jugement que l'application n'a
+ * pas les moyens de porter.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * ⚠️ NE PAS « HARMONISER » LES DEUX ZÉROS. Ils ne disent pas la même chose, et
+ * l'incohérence apparente est la décision.
+ *
+ *   À deux, 0,00 € → FAVORABLE. Le mois est soldé, personne ne doit rien :
+ *     c'est l'état SAIN de l'application, pas une absence d'information. Le
+ *     héros ne dit pas qui gagne ; il dit où l'on en est. Un neutre ferait
+ *     passer un bon état pour une absence.
+ *
+ *   Moi, 0,00 € → DÉFAVORABLE. Il ne reste rien À VIVRE : ce n'est pas un
+ *     équilibre. Et le chiffre est un plafond — zéro en plafond, c'est zéro au
+ *     mieux, déjà négatif au pire. L'annoncer en vert serait annoncer en vert
+ *     un chiffre qu'on sait optimiste.
+ *
+ * `tete-du-bilan.test.js`, « LES DEUX ZÉROS NE SONT PAS SYMÉTRIQUES », tombe si
+ * on les aligne. S'il tombe, relire ce bloc avant de corriger le test.
+ */
+const SENS_DU_HEROS = Object.freeze({
+  deux: (jeDois) => (jeDois ? 'defavorable' : 'favorable'),
+  moi: (reste) => (reste > 0 ? 'favorable' : 'defavorable')
+});
+
+/**
  * Le libellé qui ouvre la tête, pour une portée
  *
  * Une portée inconnue retombe sur « À deux » par `porteeRetenue` — jamais sur
@@ -101,10 +142,12 @@ export function libelleDeTete(portee) {
  * @param {string} [p.moisNomme] - Le mois en toutes lettres (Moi)
  * @param {'rien'|'total'|'detail'} [p.posture] - Sortie de `posturePartage` (Privé)
  * @param {string} [p.autre] - Le prénom de l'autre personne du foyer
- * @returns {{portee: string, libelle: string, ton: string, avant: string,
- *   montant: number|null, apres: string, note: string}}
- *   `ton` vaut `creance`, `equilibre`, `neutre` ou `aucun-chiffre` ; les textes
- *   sont BRUTS, à échapper par l'appelant — `gabaritDeTete` le fait.
+ * @returns {{portee: string, libelle: string, ton: string, sens: string|null,
+ *   avant: string, montant: number|null, apres: string, note: string}}
+ *   `ton` règle la typographie — `creance`, `equilibre`, `epuise`, `neutre` ou
+ *   `aucun-chiffre` ; `sens` règle l'encre — `favorable`, `defavorable`, ou
+ *   `null` pour une tête sans chiffre. Les textes sont BRUTS, à échapper par
+ *   l'appelant — `gabaritDeTete` le fait.
  */
 export function teteDuBilan({
   portee, solde, montant, moi, moisPersonnel, etat, moisNomme, posture, autre
@@ -119,6 +162,8 @@ export function teteDuBilan({
     return {
       ...base,
       ton: 'aucun-chiffre',
+      // Aucun chiffre, donc aucun sens à peindre.
+      sens: null,
       avant: regle ? regle(autre) : `Ce que ${autre} en voit, c'est toi qui le décides.`,
       montant: null,
       apres: '',
@@ -136,25 +181,40 @@ export function teteDuBilan({
     // premier écran qui en ait besoin.
     if (!moisPersonnel || !moisPersonnel.disponible) {
       return {
-        ...base, ton: 'aucun-chiffre', avant: 'Ton reste à vivre attend tes revenus.',
+        ...base, ton: 'aucun-chiffre', sens: null, avant: 'Ton reste à vivre attend tes revenus.',
         montant: null, apres: '', note: ''
       };
     }
 
     const reste = moisPersonnel.resteAVivre;
+    const sens = SENS_DU_HEROS.moi(reste);
+
     // Un reste négatif ne se lit pas « il te reste −120 € » : c'est un
     // dépassement, et la phrase le nomme. Le montant reste positif, comme
-    // celui de la créance — le sens est dans les mots.
+    // celui de la créance — le sens est dans les mots et dans l'encre.
     if (reste < 0) {
       return {
-        ...base, ton: 'neutre', avant: 'Tu dépasses tes revenus de',
+        ...base, ton: 'neutre', sens, avant: 'Tu dépasses tes revenus de',
         montant: Math.abs(reste), apres: `en ${moisNomme}`, note: ''
+      };
+    }
+
+    // Zéro : il ne reste RIEN à vivre. La phrase le dit, d'un seul tenant et
+    // sans montant — « Il te reste 0,00 € » se lirait comme un reste. Le
+    // grand-livre juste dessous montre le 0,00 €. `reste` est arrondi au
+    // centime par `computeMoisPersonnel` : « zéro » veut dire moins d'un
+    // demi-centime.
+    if (reste === 0) {
+      return {
+        ...base, ton: 'epuise', sens, avant: `Il ne te reste rien à vivre en ${moisNomme}`,
+        montant: null, apres: '', note: ''
       };
     }
 
     return {
       ...base,
       ton: 'neutre',
+      sens,
       avant: VERBE_DU_RESTE[etat] || 'Il te reste',
       montant: reste,
       apres: `à vivre en ${moisNomme}`,
@@ -169,6 +229,8 @@ export function teteDuBilan({
     return {
       ...base,
       ton: 'equilibre',
+      // Soldé est l'état sain : favorable (voir `SENS_DU_HEROS`, asymétrie assumée).
+      sens: SENS_DU_HEROS.deux(false),
       avant: 'Comptes équilibrés',
       montant: null,
       apres: '',
@@ -180,6 +242,7 @@ export function teteDuBilan({
   return {
     ...base,
     ton: 'creance',
+    sens: SENS_DU_HEROS.deux(jeDois),
     // Le montant est toujours positif : le sens est dans les mots, et un signe
     // moins devant une dette se lirait comme une dette négative.
     avant: jeDois ? 'Tu dois' : `${solde.debiteur} te doit`,
@@ -220,16 +283,24 @@ export function teteDuBilan({
  * @returns {string} Fragment échappé
  */
 export function gabaritDeTete(tete, { temoin = '', dit = '', suite = '' } = {}) {
-  const mot = (texte) => (texte ? `<span class="bilan-heros-mot">${escapeHtml(texte)}</span>` : '');
+  // La marque du sens se pose sur ce qui PORTE le chiffre : le montant, ou la
+  // phrase quand il n'y en a pas — « Comptes équilibrés », « Il ne te reste
+  // rien ». Une tête sans sens (Privé, revenus absents) n'en porte aucune.
+  const avecSens = Boolean(tete.sens);
+  const marqueSurLaPhrase = avecSens && tete.montant === null;
+  const mot = (texte, porteur = false) => (texte
+    ? `<span class="bilan-heros-mot${porteur ? ' bilan-heros-sens' : ''}">${escapeHtml(texte)}</span>`
+    : '');
   const montant = tete.montant === null
     ? ''
-    : `<strong class="bilan-heros-montant">${formatCurrency(tete.montant)}</strong>`;
+    : `<strong class="bilan-heros-montant${avecSens ? ' bilan-heros-sens' : ''}">${formatCurrency(tete.montant)}</strong>`;
+  const classeDuSens = avecSens ? ` bilan-heros--${escapeHtml(tete.sens)}` : '';
 
   return `
-      <section class="bilan-heros bilan-heros--${escapeHtml(tete.ton)}" data-tete="${escapeHtml(tete.portee)}">
+      <section class="bilan-heros bilan-heros--${escapeHtml(tete.ton)}${classeDuSens}" data-tete="${escapeHtml(tete.portee)}">
         <div class="bilan-heros-dit ${temoin}">
           <span class="bilan-tete">${escapeHtml(tete.libelle)}</span>
-          <p class="bilan-heros-phrase">${mot(tete.avant)} ${montant} ${mot(tete.apres)}</p>
+          <p class="bilan-heros-phrase">${mot(tete.avant, marqueSurLaPhrase)} ${montant} ${mot(tete.apres)}</p>
           ${tete.note ? `<p class="bilan-heros-note">${escapeHtml(tete.note)}</p>` : ''}
           ${dit}
         </div>

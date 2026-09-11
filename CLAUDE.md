@@ -384,6 +384,16 @@ Principes UX :
   personne dessus » — et Privé n'affiche aucun chiffre, sa tête est une phrase
   et son montant est masqué (`••••`).~~ Le fait symétrique, lui, ne paraît que
   sur « À deux ».
+- **Le héros porte l'encre de son SENS** (2026-09-11, décision du foyer, et
+  **écart assumé aux planches**, qui peignent la créance en ambre et le reste
+  de « Moi » en encre neutre). Deux encres, jamais trois :
+  - **À deux** : dette > 0 → `--danger-ink` ; sinon → `--success-ink` ;
+  - **Moi** : reste > 0 → `--success-ink` ; sinon → `--danger-ink`.
+  **Les deux zéros ne sont pas symétriques, et c'est voulu** : soldé est l'état
+  sain ; un plafond à zéro est déjà négatif au pire. Ne pas les « harmoniser »
+  — la raison est dans `SENS_DU_HEROS` (`utils/tete-du-bilan.js`), tenue par
+  `tete-du-bilan.test.js` et `tests/e2e/sens-du-heros.spec.js`, qui lisent le
+  SENS et jamais un hexadécimal.
 - **La barre collante rappelle le solde sur « À deux » et « Moi », jamais sur
   « Privé »** (2026-09-11, vu à l'écran par le foyer) — la portée Privé ne
   porte aucune créance. Déclaré par `porteeRappelleLeSolde` (`utils/portee.js`),

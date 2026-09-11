@@ -210,6 +210,12 @@ trois portées.** Les trois têtes sont conformes aux planches. Deux corrections
 2. **Deux sélecteurs de portée identiques au-dessus de 900 px** — un par
    colonne. Mesuré, proposition faite, **non corrigé** : peut-être un lot à
    part.
+3. **Le héros prend l'encre de son sens** — évolution demandée avant la
+   fusion. À deux : dette > 0 → danger, sinon succès ; Moi : reste > 0 →
+   succès, sinon danger. **Écart assumé aux planches** (ambre, encre neutre),
+   et asymétrie des deux zéros écrite dans `SENS_DU_HEROS`. Rouge d'abord :
+   12 cas unitaires et 6 de bout en bout, tombés sur une MAUVAISE COULEUR —
+   ambre `rgb(157, 81, 10)` ou neutre — et non sur un élément absent.
 
 **Le protocole de chaque lot, sans exception** : le code ; la branche poussée ;
 « poussé sur `<branche>`, tire et regarde » ; **le foyer ouvre l'application et

@@ -289,8 +289,9 @@
    Elle portait un TOTAL, en encre neutre, depuis le 2026-08-31 : « ce que le
    foyer a dépensé ensemble n'est ni une bonne ni une mauvaise nouvelle ». Cette
    décision est révoquée (`CLAUDE.md`, *Design*, 2026-09-10) : sur « À deux », la
-   tête porte la CRÉANCE, en ambre, seul chiffre coloré des cartes de tête. Solo
-   porte un total en encre neutre, Privé aucun chiffre. Une seule classe pour les
+   tête porte la CRÉANCE, seul chiffre coloré des cartes de tête — dans l'encre
+   de son SENS depuis le 2026-09-11, et non plus l'ambre des planches (voir la
+   règle plus bas). « Moi » porte ce qui reste, Privé aucun chiffre. Une seule classe pour les
    trois — `.bilan-heros` —, le ton en modificateur : c'est le descripteur de
    `teteDuBilan` qui choisit, pas une règle par portée.
 
@@ -345,22 +346,39 @@
   color: var(--text-primary);
 }
 
-/* L'ambre de la créance : `--warning-ink` vaut au caractère près celui des
-   planches, `#9D510A` en clair et `#FBBF24` en sombre. */
-.bilan-heros--creance .bilan-heros-montant {
-  color: var(--warning-ink);
-}
-
 /* Sans montant, la phrase EST la tête : « Comptes équilibrés », ou la phrase
    du privé. Elle prend alors le poids d'un titre plutôt que celui d'un
    encadrement de chiffre. */
 .bilan-heros--equilibre .bilan-heros-mot,
+.bilan-heros--epuise .bilan-heros-mot,
 .bilan-heros--aucun-chiffre .bilan-heros-mot {
   /* 18 px à 320, 20 px à 390 : la phrase du privé, planches 15 et 16. */
   font-size: clamp(18px, calc(2.86vw + 8.86px), 20px);
   font-weight: 600;
   line-height: 1.3;
   color: var(--text-primary);
+}
+
+/* L'encre du SENS — décision du foyer, 2026-09-11, et un ÉCART ASSUMÉ aux
+   planches, qui peignent la créance en ambre et le reste de « Moi » en encre
+   neutre. « Tu dois 145,37 € » et « Cindy te doit 145,37 € » se ressemblaient
+   en ambre ; ce n'est pas la même nouvelle.
+
+   La règle, et l'asymétrie des deux zéros, vivent dans `SENS_DU_HEROS`
+   (`utils/tete-du-bilan.js`) : ici on ne fait que peindre. La marque
+   `.bilan-heros-sens` est posée sur ce qui porte le chiffre — le montant, ou
+   la phrase quand il n'y en a pas.
+
+   Ces deux règles viennent APRÈS celle de la phrase sans montant, à même
+   spécificité (0,2,0) : c'est l'ordre qui les fait gagner. Mesuré sur la carte
+   du héros : succès 5,18:1 (clair) et 8,44:1 (sombre), danger 5,34:1 et
+   5,86:1 — au-dessus de 4,5 même pour un texte courant. */
+.bilan-heros--favorable .bilan-heros-sens {
+  color: var(--success-ink);
+}
+
+.bilan-heros--defavorable .bilan-heros-sens {
+  color: var(--danger-ink);
 }
 
 .bilan-heros-note,
@@ -380,6 +398,7 @@
   .bilan-heros-montant { font-size: 54px; }
 
   .bilan-heros--equilibre .bilan-heros-mot,
+  .bilan-heros--epuise .bilan-heros-mot,
   .bilan-heros--aucun-chiffre .bilan-heros-mot {
     font-size: 26px;
   }
@@ -732,13 +751,15 @@
 /* Le filet de 3 px qui disait le sens du solde sur le BORD de la carte est
    retiré au lot D, 2026-09-11. Il existait parce que la tête portait un total
    neutre : le sens n'avait pas d'autre place. Il est désormais dans les MOTS
-   — « Tu dois », « Cindy te doit » — et la créance est en ambre. Le garder
+   — « Tu dois », « Cindy te doit » — et, depuis le 2026-09-11, dans l'encre du
+   montant, succès ou danger. Le garder
    aurait peint le même sens deux fois, dans deux couleurs différentes.
 
    La mesure qui l'avait fait choisir reste vraie, et elle vaut toujours pour
    qui voudrait colorer un montant ici : `--success-color` et `--danger-color`
-   tombent à 3,77:1 et 4,83:1 sur cette surface. `--warning-ink` est le jeton
-   d'ENCRE de l'ambre, fait pour le texte. */
+   tombent à 3,77:1 et 4,83:1 sur cette surface. C'est pourquoi le héros
+   emploie les jetons d'ENCRE, `--success-ink` et `--danger-ink`, faits pour le
+   texte. */
 
 /* ===== ANALYSE PAR CATEGORIE ===== */
 .category-analysis {
