@@ -110,17 +110,31 @@ test.describe('La tête suit la portée — 390 px', () => {
     expect(await tete.locator('.bilan-heros-phrase').innerText()).toMatch(/\d/);
   });
 
-  test('Solo : un total en encre neutre — l\'ambre n\'appartient qu\'à la créance', async ({ page }) => {
-    const ambre = await encreDuJeton(page, '--warning-ink');
-    const montant = page.locator('#panneauBilan .bilan-heros .bilan-heros-montant');
+  test('Privé : la phrase de tête ne porte aucune encre de sens — elle n\'a aucun chiffre', async ({ page }) => {
+    // ── CE CAS TENAIT « SOLO EN ENCRE NEUTRE, L'AMBRE N'APPARTIENT QU'À LA
+    //    CRÉANCE » — révoqué le 2026-09-11 ──
+    //
+    // Le héros porte désormais l'encre de son SENS, sur « À deux » comme sur
+    // « Moi » (`sens-du-heros.spec.js`). Ce qui reste vrai, et que ce cas tient
+    // à la place : une tête sans chiffre n'a pas de sens, donc pas d'encre de
+    // sens.
+    const succes = await encreDuJeton(page, '--success-ink');
+    const danger = await encreDuJeton(page, '--danger-ink');
 
-    // Témoin d'abord : sur « À deux », la créance EST en ambre. Sinon « pas en
-    // ambre » serait satisfait par une feuille qui ne peint plus rien.
-    expect(await montant.evaluate((el) => getComputedStyle(el).color)).toBe(ambre);
-
+    // Témoin : sur « Moi », le héros porte bien une encre de sens. Sans lui,
+    // « aucune encre de sens » serait satisfait par une feuille qui n'en
+    // peint plus aucune.
     await page.locator('#panneauBilan [data-portee="solo"]').click();
     await expect(page.locator('#panneauBilan .bilan-heros')).toHaveAttribute('data-tete', 'solo');
-    expect(await montant.evaluate((el) => getComputedStyle(el).color)).not.toBe(ambre);
+    const surMoi = await page.locator('#panneauBilan .bilan-heros-montant')
+      .evaluate((el) => getComputedStyle(el).color);
+    expect([succes, danger], 'témoin : le héros de « Moi » ne porte aucune encre de sens')
+      .toContain(surMoi);
+
+    await page.locator('#panneauBilan [data-portee="prive"]').click();
+    const phrase = page.locator('#panneauBilan .bilan-heros[data-tete="prive"] .bilan-heros-phrase .bilan-heros-mot');
+    await expect(phrase).toBeVisible();
+    expect([succes, danger]).not.toContain(await phrase.evaluate((el) => getComputedStyle(el).color));
   });
 });
 

@@ -75,7 +75,10 @@ const encreDuJeton = (page, jeton) => page.evaluate((j) => {
 
 const encreDe = (locator) => locator.evaluate((el) => getComputedStyle(el).color);
 
-test('la tête du bilan porte la créance, en ambre', async ({ page }) => {
+// « En ambre » jusqu'au 2026-09-11 : le héros porte désormais l'encre de son
+// SENS (`sens-du-heros.spec.js` tient les six cas). Ce semis est « Conjointe te
+// doit » — favorable, donc l'encre de succès.
+test('la tête du bilan porte la créance, dans l\'encre de son sens', async ({ page }) => {
   test.setTimeout(180000);
   await setupFirebaseMock(page);
   await waitForApp(page);
@@ -89,10 +92,10 @@ test('la tête du bilan porte la créance, en ambre', async ({ page }) => {
   const montant = tete.locator('.bilan-heros-montant');
   expect(nombre(await montant.innerText())).toBeCloseTo(250, 2);
 
-  // L'ambre se lit sur le RENDU, contre la couleur que le moteur donne au
+  // L'encre se lit sur le RENDU, contre la couleur que le moteur donne au
   // jeton — pas contre une chaîne écrite ici, qui figerait la valeur du jour.
-  const ambre = await encreDuJeton(page, '--warning-ink');
-  expect(await encreDe(montant)).toBe(ambre);
+  const succes = await encreDuJeton(page, '--success-ink');
+  expect(await encreDe(montant)).toBe(succes);
 });
 
 test('le fait symétrique reste au rang 3, en encre neutre — la créance est le seul chiffre coloré', async ({ page }) => {
@@ -105,9 +108,13 @@ test('le fait symétrique reste au rang 3, en encre neutre — la créance est l
   // 800 + 200 : le total, et non le solde de 250 €.
   expect(nombre(await commun.innerText())).toBeCloseTo(1000, 2);
 
-  const ambre = await encreDuJeton(page, '--warning-ink');
+  // Comparé à l'encre NEUTRE, et non « différent de l'ambre » : l'ambre a
+  // quitté le héros le 2026-09-11, et « différent d'une encre que plus rien ne
+  // porte » serait vrai de n'importe quelle carte — un contrôle devenu vide
+  // parce que son voisin a changé (règle 1).
+  const neutre = await encreDuJeton(page, '--text-primary');
   for (const autre of ['.carte-tete--commun .carte-tete-montant', '.carte-tete--reste .carte-tete-montant']) {
-    expect(await encreDe(page.locator(autre)), `${autre} est coloré comme la créance`).not.toBe(ambre);
+    expect(await encreDe(page.locator(autre)), `${autre} n'est pas en encre neutre`).toBe(neutre);
   }
 });
 

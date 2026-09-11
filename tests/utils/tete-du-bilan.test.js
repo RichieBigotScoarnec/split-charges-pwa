@@ -166,7 +166,79 @@ describe('Privé : aucun chiffre en tête, une phrase qui dit la règle', () => 
   });
 });
 
+describe('Le sens du héros — deux encres, et une asymétrie ASSUMÉE à zéro', () => {
+  // Décision du foyer, 2026-09-11 :
+  //   À deux — dette > 0 → défavorable ; sinon → favorable. Soldé est l'état
+  //            SAIN de l'application, pas une absence d'information.
+  //   Moi    — reste > 0 → favorable ; sinon → défavorable. Le reste est un
+  //            PLAFOND : zéro en plafond, c'est zéro au mieux, déjà négatif au pire.
+  const ZERO = { ...MOIS_PERSONNEL, resteAVivre: 0 };
+
+  it('À deux : « Tu dois » est défavorable', () => {
+    expect(tete(PORTEES.DEUX, { montant: -66.94, moi: 'vous' }).sens).toBe('defavorable');
+  });
+
+  it('À deux : « Cindy te doit » est favorable', () => {
+    expect(tete(PORTEES.DEUX, { montant: 66.94, moi: 'vous' }).sens).toBe('favorable');
+  });
+
+  it('À deux : soldé est FAVORABLE — l\'état sain, pas une absence', () => {
+    expect(tete(PORTEES.DEUX, { montant: 0 }).sens).toBe('favorable');
+  });
+
+  it('le sens suit le téléphone : la même dette, défavorable chez l\'un, favorable chez l\'autre', () => {
+    expect(tete(PORTEES.DEUX, { montant: -66.94, moi: 'vous' }).sens).toBe('defavorable');
+    expect(tete(PORTEES.DEUX, { montant: -66.94, moi: 'conjointe' }).sens).toBe('favorable');
+  });
+
+  it('Moi : un reste positif est favorable', () => {
+    expect(tete(PORTEES.SOLO).sens).toBe('favorable');
+  });
+
+  it('Moi : zéro est DÉFAVORABLE, et dit qu\'il ne reste rien', () => {
+    const t = tete(PORTEES.SOLO, { moisPersonnel: ZERO });
+    expect(t.sens).toBe('defavorable');
+    expect(t.avant).toBe('Il ne te reste rien à vivre en septembre 2026');
+    expect(t.montant).toBeNull();
+  });
+
+  it('Moi : un dépassement est défavorable', () => {
+    expect(tete(PORTEES.SOLO, { moisPersonnel: { ...MOIS_PERSONNEL, resteAVivre: -120 } }).sens)
+      .toBe('defavorable');
+  });
+
+  it('LES DEUX ZÉROS NE SONT PAS SYMÉTRIQUES — et c\'est voulu', () => {
+    // Si ce cas tombe parce que quelqu'un a « harmonisé » les deux zéros,
+    // relire le commentaire de `sensDuHeros` avant de corriger le test.
+    expect(tete(PORTEES.DEUX, { montant: 0 }).sens)
+      .not.toBe(tete(PORTEES.SOLO, { moisPersonnel: ZERO }).sens);
+  });
+
+  it('Privé n\'a pas de sens : il n\'a aucun chiffre', () => {
+    expect(tete(PORTEES.PRIVE).sens).toBeNull();
+  });
+
+  it('sans revenus, pas de sens : il n\'y a rien à juger', () => {
+    expect(tete(PORTEES.SOLO, { moisPersonnel: { disponible: false } }).sens).toBeNull();
+  });
+});
+
 describe('Un seul gabarit', () => {
+  it('pose la marque du sens sur le MONTANT quand il y en a un', () => {
+    const html = gabaritDeTete(tete(PORTEES.DEUX, { montant: -66.94 }));
+    expect(html).toMatch(/<section class="bilan-heros [^"]*bilan-heros--defavorable/);
+    expect(html).toContain('class="bilan-heros-montant bilan-heros-sens"');
+  });
+
+  it('et sur la PHRASE quand il n\'y en a pas — « Comptes équilibrés », « Il ne te reste rien »', () => {
+    const html = gabaritDeTete(tete(PORTEES.DEUX, { montant: 0 }));
+    expect(html).toContain('class="bilan-heros-mot bilan-heros-sens">Comptes équilibrés');
+  });
+
+  it('Privé ne porte aucune marque de sens', () => {
+    expect(gabaritDeTete(tete(PORTEES.PRIVE))).not.toContain('bilan-heros-sens');
+  });
+
   it('échappe tout ce qu\'il reçoit — un prénom est une saisie', () => {
     const t = teteDuBilan({
       portee: PORTEES.DEUX,
