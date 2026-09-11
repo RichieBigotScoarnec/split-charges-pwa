@@ -1892,6 +1892,36 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > branche d'abord**, puis relire le `--stat`. S'il ne reste plus rien, la
   > branche était déjà dans `main` et n'a plus qu'à être fermée.
 
+  **Et il existe un TROISIÈME signal, plus tôt et moins cher que les deux
+  autres : le refus de `git branch -d`.**
+
+  | | |
+  |---|---|
+  | `git branch -d` | **refuse** une branche non fusionnée |
+  | `git branch -D` | force, sans rien demander |
+
+  **Un `-D` nécessaire est une information, pas un obstacle** : il dit qu'il
+  reste du travail unique sur la branche. C'est le moment de lire le `--stat`,
+  jamais celui de forcer. Le nettoyage de 23 branches du 2026-09-11 s'est fait
+  entièrement en `-d`, et les 23 sont passées — c'est ce qui prouvait qu'aucune
+  ne portait rien d'unique. Une seule qui aurait résisté aurait suffi à
+  suspendre le geste.
+
+  > **⚠️ Et la reconstitution de mémoire est le pire guide des trois.**
+  > Après coup, on a cru se souvenir que la branche du cas 2 portait un
+  > correctif perdu : `.envelope-close` resté à `opacity: 0.55` sur `main`. La
+  > mesure dit l'inverse sur les trois points — `opacity: 0.55` n'existe
+  > **nulle part** dans `public/css/` ; `.envelope-close` porte sur `main`
+  > `background: transparent` avec douze lignes expliquant que l'opacité a été
+  > **retirée** parce qu'elle cassait le contraste ; et la branche en porte la
+  > **version identique**, diff vide sur cette classe.
+  >
+  > Le remède qu'on tirait de ce faux souvenir aurait été « vérifier que le
+  > contenu est passé ailleurs » — et il est plus faible que le vrai : **une
+  > branche peut porter du travail réel ET être destructrice.** Les deux ne
+  > s'excluent pas, c'est pour cela que seul le `--stat` tranche. Règle 5 : on a
+  > affirmé sans mesurer, et le remède qu'on en tirait était le mauvais.
+
 ### Ce qui reste ouvert, et ne se referme pas dans le code
 
 - **App Check rend toujours « 400 »** — `activate()` ne prouve rien.
