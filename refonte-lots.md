@@ -149,6 +149,52 @@ relever ce qu'elle montre.**
 
 ---
 
+### Deux écarts qui n'en sont pas — vérifiés le 2026-09-10
+
+Consignés **parce qu'ils ont failli être ouverts**, pas parce qu'ils restent à
+faire. Un écart imaginaire coûte le même travail qu'un vrai jusqu'au moment où
+quelqu'un le mesure.
+
+- **Les icônes : aucun conflit, et donc aucune décision à prendre.** On a cru
+  que les planches proposaient un jeu d'icônes que `EMOJI_PICKER`
+  (`custom-lists.js:31`) rendrait intransposable — les remplacer au rendu
+  créerait deux vocabulaires, celui que l'utilisateur choisit et celui que
+  l'écran dessine. **Mesuré : les planches emploient des emojis, elles aussi.**
+  Zéro `<svg>` dans `mobile.html`, deux dans `tableau-de-bord.html` — le logo,
+  une fois par thème. Le vocabulaire est déjà commun. Il n'y a rien à arbitrer,
+  et surtout rien à inscrire comme dette ;
+- **Les trois cartes de tête ne fusionnent pas.** Le bureau les met en trois
+  volets d'une même section, séparés par des `border-left` ; `mobile.html` les
+  empile déjà — le solde en héros, puis « reste à vivre » et « dépensé à deux »
+  en deux cartes côte à côte à 390, empilées à 320. **Les deux côtés de la
+  maquette disent la même chose** : c'est une adaptation de largeur, pas une
+  fusion. Le lot qui les touchera vérifiera qu'elles s'empilent proprement ; il
+  ne les refondra pas.
+
+### Ce que les lots livrés n'ont PAS de contrôle nommé sous 900 px
+
+Relevé le 2026-09-10, après A, B et C. Les trois ont bien été éprouvés en
+mobile — la suite de 696 contrôles a tourné après B **et** après C, et
+`coherence-visuelle` balaie **320 / 390 / 768 / 900 px × deux pointeurs**, ce
+qui tient le débordement et le chevauchement **sans nommer aucune classe**.
+
+Mais deux surfaces n'ont **aucun contrôle qui les nomme** sous 900 px :
+
+| Surface | Lot | Couverture sous 900 |
+|---|---|---|
+| `.charge-item`, `.charge-amount` | B | `recherche-totaux.spec.js` |
+| `.trends-header`, `.trends-section` | C | `etats-vides`, `tendances` |
+| `.card` (l'ombre) | A | `mois-archive`, `onglets`, `portee-selecteur`, `tendances` |
+| **`.card-title`** | C | **aucun** — seuls les balayages génériques |
+| **`.budget-progress-bar`** | C | **aucun**, à aucune largeur |
+
+Ce n'est pas un trou de sécurité : les balayages génériques attrapent ce qui
+déborde ou se recouvre. C'est un trou de **régression dimensionnelle** — rien
+n'affirme que ces deux-là gardent leur taille. À traiter le jour où l'un des
+deux redevient un sujet, pas en passant.
+
+---
+
 ## 2. L'inventaire repris
 
 ### Devenus des levées explicites
@@ -1054,3 +1100,77 @@ pas les pixels finaux, et le lot 5 devra les remesurer sur le vrai CSS.
 > **Toute mesure de mise en page mobile doit relever la largeur ET la hauteur**,
 > et l'écrire : `scrollWidth > clientWidth` sur la rangée, et
 > `documentElement.scrollWidth > innerWidth` sur la page.
+
+---
+
+## L'état de l'inventaire au 2026-09-10 — compté, pas estimé
+
+L'inventaire d'apparence portait **18 écarts** : 12 sur le tableau de bord,
+6 sur Réglages. Voici chacun, nommé, avec son état réel. Le tableau remplace les
+pourcentages qui circulaient — **un pourcentage estimé n'est pas une mesure**.
+
+### Tableau de bord
+
+| # | Écart | État |
+|---|---|---|
+| 1 | Le héros « Tu dois … à X » au rang 1 | ⬜ **ouvert, et impossible tel quel sous 360 px** — 54 px demandent 306 px pour 272 disponibles, montant insécable. Réalisable à taille réduite ; la valeur n'est pas tranchée |
+| 2 | Le grand-livre visible, non replié | ⬜ ouvert. Réalisable, mais **entre en conflit** avec `previsionnel.spec.js:148` s'il est placé dans la carte du héros |
+| 3 | « Deux colonnes au lieu de trois » | 📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4 |
+| 4 | Les trois cartes de tête + bandeau prorata | ⬜ ouvert, réalisable — les trois chiffres existent (`resteAVivre`, `tauxEffort`, `totalCharges`) |
+| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`) |
+| 6 | Barre de recherche avec « Tous les mois » intégré | ⬜ ouvert — non mesuré |
+| 7 | Lignes de charge `1fr auto 44px` + bandeaux de catégorie | 🟡 **partiel** — le lot B a posé les lignes à plat, les filets, le survol et le montant 15/600. Restent le montant en enfant direct de la grille, le bouton `⋯` unique et les bandeaux : **balisage** |
+| 8 | Pied de liste à deux totaux | ⬜ ouvert — balisage |
+| 9 | Cartes de droite | 🟡 **partiel** — le lot C a réduit Tendances à une carte de 56 px, les barres à 7 px, les titres à 15 px. Restent budgets, lieux, enveloppes |
+| 10 | FAB en pastille avec libellé | ⬜ ouvert — non mesuré |
+| 11 | Sélecteur de portée | ⬜ ouvert — CSS |
+| 12 | Ombre du thème clair | ✅ **fermé** (lot A, `--carte-ombre`) |
+
+### Réglages
+
+| # | Écart | État |
+|---|---|---|
+| 13 | Réglages devient un écran | ⬜ ouvert — le plus structurel ; conditionne 5 et 14 |
+| 14 | Grille `1.15fr 1fr` | ⬜ ouvert — dépend de 13 |
+| 15 | Revenus en 2×2 + bandeau prorata | ⬜ ouvert |
+| 16 | Règle de partage en trois boutons-cartes | ⬜ ouvert |
+| 17 | Interrupteurs 46 × 26 px | ⬜ ouvert |
+| 18 | Outils en trois sous-titres | ⬜ ouvert |
+
+### Le compte
+
+| | |
+|---|---:|
+| Écarts inventoriés au départ | **18** |
+| ✅ fermés | **1** |
+| 🟡 entamés | **2** |
+| 📌 requalifiés en non-écart après mesure | **1** |
+| 🚫 impossibles sans un autre lot | **1** |
+| ⬜ ouverts et réalisables | **13** |
+
+Le lot A n'apparaît nulle part comme écart fermé, et c'est exact : il a posé des
+**jetons** que les lots suivants consomment. Du terrassement, pas de la façade.
+
+### Ce que la mesure a ajouté, hors des 18
+
+Aucun de ces points n'était dans l'inventaire. Tous sont sortis d'un relevé.
+
+| Constat | Nature |
+|---|---|
+| « Auto · 03:17 » sur la sauvegarde | 🚫 **donnée inexistante** — `backup.js:92` n'horodate que le nom de fichier. Fonction à écrire, hors chantier d'apparence |
+| « 19 catégories » sur le bouton Catégories | 🚫 **donnée inexistante** — aucun compte exposé |
+| Écran « Premier mois » (état `premierJour`) | ⬜ **écran entier à construire** — aucune contrepartie dans le code |
+| Écran au-delà de 1600 px | 🚫 **jamais dessiné** — la maquette s'arrête à `max-width: 1400px`. Tout ce qu'on y ferait serait une invention |
+| `renderPrevisionnel`, `renderProjection`, `renderObservations` | 📌 **arbitrage de produit, non tranché** — trois blocs que le bilan rend, **zéro occurrence** dans les six planches. Et l'ordre exigé par `previsionnel.spec.js:148` devient insatisfiable si le grand-livre entre dans la carte du héros |
+| Le vocabulaire d'icônes | 📌 **non-écart, vérifié** — les planches emploient des emojis comme l'application |
+
+### Ce qui ne sera pas transposable, quel que soit le lot
+
+| Famille | Raison |
+|---|---|
+| `style-hover` — 66 sites | Attribut inexistant. **Réductible à 3 règles** : survol neutre (53, déjà couvert par `--hover-bg`), bouton primaire (10), carte survolée (3) |
+| `<sc-if>`, `{{ … }}`, `DCLogic` | DSL du canevas. Ce sont **huit états à comparer**, pas du balisage |
+| Cadre du téléphone de `mobile.html` | Décor de la planche — `border-radius: 20px` et sa bordure. Le transposer mettrait un biseau autour de l'application |
+| Styles inline | Autorisés par la CSP (`style-src 'unsafe-inline'`), **interdits par la convention** du dépôt |
+| Plafond d'injection 24/24 | Interdit un second gabarit de rendu ; il faut composer dans celui qui existe |
+| Barres flottantes, mode sélection, `pointer: coarse` | Surfaces que **l'écran a et que les planches n'ont pas** |
