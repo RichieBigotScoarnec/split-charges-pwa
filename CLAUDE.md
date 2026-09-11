@@ -948,7 +948,7 @@ courait le plus ne disait pas qu'une saisie était refusée.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
-**8 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
+**9 formes recensées — détail en archive, la neuvième ci-dessous.** Un jar d'émulateur qui garde son
 port, un `--reporter=basic` qui n'existe pas, un `| tail -45` qui coupe le
 rapport — et un `--reporter=line` prescrit par cette règle même, qui n'existe pas
 davantage sous Vitest. **Aucune n'est la même commande, et deux n'impliquent
@@ -990,6 +990,45 @@ cinquième forme, à l'envers.
 gh run list --branch main --limit 3 --json databaseId,conclusion -q '.[]|[.databaseId,.conclusion]|@tsv'
 gh run view <id> --log-failed
 ```
+
+**Et la neuvième n'est pas une mesure de code : c'est un écran — « vu à l'écran »
+n'est pas « commité ».** Le 2026-09-11, la couleur du héros a été validée à
+l'écran par le foyer, puis #198 a été fusionnée sur `686f3e0` : le travail
+validé n'était commité nulle part, il vivait dans l'arbre de travail.
+
+Trois conditions s'y sont composées, aucune ne suffisait seule :
+
+- le serveur local (`http-server public -p 3333`) sert **l'arbre de travail**,
+  pas une branche : on voit du non-commité sans rien tirer, donc voir ne prouve
+  rien de ce qui est commité ;
+- le commit avait été lié à la suite complète (« je commite quand elle aura
+  rendu son verdict ») — or un commit est local, gratuit et réversible ; c'est
+  la FUSION qui a besoin de la suite complète, pas le commit ;
+- la PR ouverte ne portait aucun signal du travail en vol — ni brouillon, ni
+  commentaire : elle avait l'air finie. C'est le point 4 ci-dessous, en pire :
+  rien n'étant commité, même `merge-base --is-ancestor` ne pouvait le voir.
+
+**Le protocole supposait que « je pousse » et « tu regardes » portaient sur la
+même chose, et rien ne le vérifiait. Le retour visuel porte sur un SHA, pas sur
+un écran.**
+
+**Le geste, avant CHAQUE « poussé, regarde » :**
+
+```bash
+git status --short          # VIDE, ou l'on s'apprête à faire regarder du non-commité
+git rev-parse --short HEAD  # le SHA qu'on nomme dans le message
+```
+
+Et ses deux compléments : **commiter dès qu'un état est vert** — la suite
+complète garde la fusion, pas le commit — et **mettre la PR en brouillon**
+(`gh pr ready --undo`) dès qu'un travail est en vol pour elle.
+
+> **C'était la seconde fois ce jour-là qu'un travail validé a failli
+> disparaître.** La première : une branche qui portait un commit unique et en
+> détruisait 1 500 lignes (voir *Livraison et commandes*, « `git log` et
+> `git diff` ne répondent pas à la même question »). Les deux fois, ce qui a
+> sauvé est d'avoir **mesuré avant d'agir** — le `--stat` là, le `git status`
+> ici.
 
 **Et la cinquième n'est même pas une commande.** Le 2026-09-06, une PR a été
 mergée sur un head **périmé** : ses deux derniers commits étaient bien poussés,

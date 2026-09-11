@@ -217,9 +217,13 @@ trois portées.** Les trois têtes sont conformes aux planches. Deux corrections
    12 cas unitaires et 6 de bout en bout, tombés sur une MAUVAISE COULEUR —
    ambre `rgb(157, 81, 10)` ou neutre — et non sur un élément absent.
 
-**Le protocole de chaque lot, sans exception** : le code ; la branche poussée ;
-« poussé sur `<branche>`, tire et regarde » ; **le foyer ouvre l'application et
-dit ce qu'il voit** ; on fusionne ou on corrige. Pas de fusion avant le regard,
+**Le protocole de chaque lot, sans exception** : le code ; **commité dès qu'il
+est vert** ; la branche poussée ; **l'arbre vérifié propre (`git status
+--short` vide) et le SHA dit** ; « poussé sur `<branche>` @ `<SHA>`, tire et
+regarde » ; **le foyer ouvre l'application et dit ce qu'il voit** ; on fusionne
+ou on corrige. *(Le geste de l'arbre propre est né le 2026-09-11 : une couleur
+validée à l'écran n'était commitée nulle part — `CLAUDE.md`, règle 3,
+neuvième forme.)* Pas de fusion avant le regard,
 pas de lot suivant préparé pendant l'attente : **attendre veut dire s'arrêter.**
 
 ---
