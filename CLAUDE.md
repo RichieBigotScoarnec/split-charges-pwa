@@ -1839,6 +1839,59 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   sûreté **avant** de muter, restauration par `cp`. Le piège est discret : le
   rouge qui suit ressemble à un mutant mal défait, pas à un correctif effacé.
 
+- **`git log main..branche` et `git diff main..branche` ne répondent PAS à la
+  même question, et seule la seconde protège d'un merge destructeur.**
+
+  | Commande | Ce qu'elle dit |
+  |---|---|
+  | `git log main..branche` | ce que la branche **apporte**, en SHA |
+  | `git diff main..branche --stat` | ce qu'un merge **changerait**, en arbres |
+
+  Une branche périmée a un `log` court et rassurant — elle n'a rien fait de plus
+  — pendant que son `diff` porte **tout ce que `main` a gagné depuis** en
+  négatif. Le `log` est une liste de commits, le `diff` est une comparaison
+  d'états : c'est la règle 3 appliquée à git, « un commit, sur quoi ? ».
+
+  **Deux cas mesurés le 2026-09-11, tous deux sur des branches qu'on
+  s'apprêtait à fusionner :**
+
+  - **deux commits de documentation, aucun fichier de code touché.** Le `log`
+    rendait exactement les deux commits attendus. Le `--stat` rendait
+    `package.json`, `package-lock.json` et `tests/utils/retour.test.js` — trois
+    fichiers que la branche n'avait jamais ouverts. Le merge aurait rétrogradé
+    **Playwright 1.63 → 1.62, Vitest 5 → 4, coverage-v8 5 → 4, eslint 10.10 →
+    10.9, globals 17.12 → 17.11** et **défait le correctif jsdom** de
+    `retour.test.js`. Cause : branche créée avant la montée du groupe, jamais
+    rebasée. Le plus retors : sa contribution réelle était **déjà dans `main`**
+    par une autre PR, donc il ne restait d'elle que les dégâts ;
+  - **un commit unique, déjà présent dans `main` sous un autre SHA.** `log`
+    rendait une ligne — « la déconnexion quitte l'en-tête permanent » — et ce
+    commit vivait déjà dans `main` en `38cbfd7`, via la PR #172 ; la branche en
+    portait une copie rebasée, donc d'empreinte différente, donc « absente » du
+    log. Le `--stat` rendait **42 fichiers, 836 insertions, 5 959
+    suppressions** : `portee-unique.spec.js`, `prive-en-vue.spec.js`,
+    `decomposition.test.js`, `fuite-post-demontage.test.js` et
+    `tools/liberer-les-ports.mjs` — cinq fichiers effacés, dont deux livrés le
+    jour même.
+
+  > **Le signal d'alerte est dans le `--stat`, pas dans le log : des
+  > suppressions massives de fichiers RÉCENTS.** Une branche saine ajoute ; une
+  > branche périmée retire ce qu'elle n'a jamais vu. Quand le rapport
+  > insertions/suppressions penche lourdement du mauvais côté, la branche est
+  > périmée **quel que soit son log**.
+  >
+  > **Le geste, avant tout merge d'une branche qu'on n'a pas poussée à
+  > l'instant :**
+  >
+  > ```bash
+  > git log  main..branche --oneline        # ce qu'elle apporte
+  > git diff main..branche --stat | tail -5 # ce qu'elle changerait — LE verdict
+  > ```
+  >
+  > Et le remède est le même dans les deux cas : **fusionner `main` DANS la
+  > branche d'abord**, puis relire le `--stat`. S'il ne reste plus rien, la
+  > branche était déjà dans `main` et n'a plus qu'à être fermée.
+
 ### Ce qui reste ouvert, et ne se referme pas dans le code
 
 - **App Check rend toujours « 400 »** — `activate()` ne prouve rien.
