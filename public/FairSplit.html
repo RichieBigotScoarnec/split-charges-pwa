@@ -309,7 +309,11 @@
          par défaut : l'application répond à une question, elle doit la poser
          d'entrée. Au-delà, elle reprend sa colonne et la barre d'onglets
          disparaît — il y a la place de tout montrer, cacher serait gratuit. -->
-    <div class="col-bilan panneau panneau--actif" id="panneauBilan">
+    <!-- `data-lecture` : ce que le panneau lit — « foyer » sur « À deux »,
+         « personnelle » sur « Moi » et « Privé ». summary.js le pose à chaque
+         rendu ; les cartes qui parlent du foyer se taisent sous une lecture
+         personnelle (summary.css, « La portée gouverne le panneau »). -->
+    <div class="col-bilan panneau panneau--actif" id="panneauBilan" data-lecture="foyer">
     <!-- LA TÊTE DU BILAN — au bureau, pleine largeur au-dessus des deux
          colonnes (planches 1 et 2, lot E). Sous 900 px, le haut de l'onglet.
          `bilan-zone-tete` et non `bilan-tete` : ce nom-là est déjà pris par

@@ -157,7 +157,7 @@ code**, avec sa raison — jamais après.
 | *à lettrer* | Moi, rangs 2 et 3 : part du commun et dépenses solo en cartes, liste solo, enveloppes solo | — |
 | *à lettrer* | Le réglage de partage déménage dans Réglages ; la tête Privé en porte alors le rappel, avec « Changer » | — |
 | ~~*à lettrer*~~ | ~~**La silhouette exacte de la planche 1** : la tête du bilan et son grand-livre en section pleine largeur au-dessus des colonnes (`tableau-de-bord.html:131`) ; dessous, les charges à gauche en colonne large et les cartes d'analyse à droite — budgets, « Où part votre argent », la carte (`:202`, `1.4fr 1fr`). Relevé en écrivant le lot E, qui pose bilan \| charges~~ — **absorbée par le lot E**, décision du foyer du 2026-09-11 : « E sans les cartes, c'est vivre un lot avec une colonne vide » | ~~3 *(fin)*~~ |
-| *à lettrer — après E* | **Un seul sélecteur de portée, sous le sélecteur de mois.** La portée gouverne l'écran entier et n'appartient à aucun panneau : deux copies existent parce qu'elle a été posée dans chaque panneau — juste tant qu'un seul s'affichait, faux à deux colonnes simultanées. Mesuré : le lot E ne règle PAS le doublon, deux sélecteurs restent visibles au bureau à toutes les largeurs. La planche 1 en montre un seul (`tableau-de-bord.html:107-126`), entre l'en-tête et « Solde du mois ». Décision du foyer du 2026-09-11 | 11 *(habillage)* |
+| *à lettrer — après E* | **Un seul sélecteur de portée, sous le sélecteur de mois.** La portée gouverne l'écran entier et n'appartient à aucun panneau : deux copies existent parce qu'elle a été posée dans chaque panneau — juste tant qu'un seul s'affichait, faux à deux colonnes simultanées. Mesuré : le lot E ne règle PAS le doublon, deux sélecteurs restent visibles au bureau à toutes les largeurs — et la silhouette change leur forme : avant elle, côte à côte (centres à 446 px d'écart à 900, 556 à 1280, 776 à 1600, 1 116 à 2560) ; après elle, **l'un au-dessus de l'autre**, celui du Bilan au-dessus de la tête (y = 288), celui des Charges en tête de leur colonne (y = 596), aux quatre largeurs. La planche 1 en montre un seul (`tableau-de-bord.html:107-126`), entre l'en-tête et « Solde du mois ». Décision du foyer du 2026-09-11 | 11 *(habillage)* |
 | ~~**E**~~ | ~~le grand-livre ouvert au-dessus de 900 px, replié en dessous~~ — **absorbé par D** le 2026-09-11 | — |
 | ~~**F**~~ **E** | **la silhouette des planches 1 et 2** — ~~deux colonnes, bilan et charges~~ la tête du bilan en pleine largeur ; dessous, les charges à gauche et **les quatre cartes du rang 3 à droite, dans l'ordre des planches** — 🎯 Où part votre argent, 📍 Où vous dépensez, 📈 Tendances, 🧳 Enveloppes à deux —, fermées par « Le mois en un coup d'œil » et le récap des virements ; ~~Salaires et Rappels quittent~~ **Rappels, Salaires et Outils — tout le panneau Réglages — quittent** le tableau de bord pour un écran à part, atteint par ⚙️ dans l'en-tête et refermé par « ← Retour au tableau de bord » ; **le bandeau du partage** porte « Modifier les revenus » | 3, 4 *(le bandeau)*, 5 *(en partie)*, 9 *(placement ; contenu inchangé)*, et l'entrée de 13 |
 | **G** | l'écran Réglages restructuré | 13 à 18 |
@@ -179,6 +179,21 @@ code**, avec sa raison — jamais après.
 - **Le bandeau dit la RÈGLE**, pas les parts des charges : celles-ci s'en
   écartent dès qu'une charge porte une répartition dérogatoire, et le
   grand-livre les donne déjà. L'assiette n'est nommée qu'au prorata.
+- **La portée gouverne tout le panneau Bilan** (décision du foyer du
+  2026-09-11). Elle a été prise sur une prémisse que la mesure a RÉFUTÉE —
+  « les cartes ont déjà leur équivalent solo ou se taisent proprement ».
+  Relevé à 1280 px, avant la règle :
+
+  | Portée | Cartes visibles | Chiffres du foyer affichés |
+  |---|---|---|
+  | À deux | les 4, + coup d'œil et récap | oui |
+  | Moi | **les 4** | **oui** — « Maison 800,00 € · Courses 777,77 € » |
+  | Privé | **les 4** | **oui**, les mêmes |
+
+  Aucune carte ne lit la portée ; le coup d'œil et le récap, eux, se
+  taisaient déjà. La règle est un refus par défaut porté par le panneau :
+  **la colonne des cartes est vide sous Moi ET sous Privé**, pas seulement
+  sous Privé comme le foyer l'anticipait.
 
 **Sans lot à ce jour** : 6 (recherche), 7 (le reste — balisage), 8 (pied de
 liste), 9 (budgets, lieux, enveloppes), 10 (FAB en pastille), 11 (habillage du

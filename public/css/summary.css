@@ -807,6 +807,26 @@
   background: none;
 }
 
+/* ===== LA PORTÉE GOUVERNE LE PANNEAU — décision du foyer, 2026-09-11 =====
+   Sous une portée personnelle — « Moi », « Privé » —, aucune carte du bilan
+   n'affiche de chiffre du foyer. « Moi ce mois » veut dire « cet écran parle
+   de moi » : une carte du couple dessous ferait mentir le segment, et sur
+   « Privé » elle serait une fuite de contexte.
+
+   REFUS PAR DÉFAUT, PORTÉ PAR LE PANNEAU. summary.js déclare ce que le panneau
+   lit (`data-lecture`, d'après `porteeMontreLeFoyer`) ; toute carte de la
+   colonne se tait alors, SAUF celle qui se déclare personnelle
+   (`data-lecture="personnelle"`). Une carte ajoutée demain sans rien déclarer
+   est donc masquée d'office : elle ne peut pas oublier la règle.
+
+   Aucune ne se déclare aujourd'hui, et c'est mesuré : sous « Moi » comme sous
+   « Privé », les quatre cartes affichaient les chiffres du foyer — aucune
+   n'avait de version personnelle. La colonne est donc vide sur ces deux
+   portées ; le foyer a demandé à la voir avant de la figer. */
+#panneauBilan[data-lecture="personnelle"] .bilan-cartes > :not([data-lecture="personnelle"]) {
+  display: none;
+}
+
 /* Le bas de colonne — vide sur « Moi », sur « Privé », sur un mois sans
    bilan : summary.js le vide à chaque rendu qui n'en porte pas. */
 .bilan-bas {
@@ -842,13 +862,19 @@
   color: var(--text-primary);
 }
 
+/* Un prénom va jusqu'à trente caractères, et rien ne l'oblige à porter une
+   coupure. `anywhere` le laisse se couper au lieu de pousser la page en
+   travers — mesuré à 320 px, 30 px de débord sans elle. La première version
+   posait ces parts en `inline-flex` : le texte y était un seul bloc
+   insécable. `grand-livre:140` et `tete-du-bilan:223` l'ont vu. */
 .bandeau-partage-parts {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bandeau-partage-jauge {
+  vertical-align: middle;
+  margin-right: var(--space-sm);
   display: inline-block;
   width: 120px;
   height: 6px;

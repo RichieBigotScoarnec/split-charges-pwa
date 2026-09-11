@@ -7,7 +7,8 @@ import {
   panneauPorteLaPortee,
   porteeDuPanneau,
   porteeApresChangementDeMois,
-  porteeRappelleLeSolde
+  porteeRappelleLeSolde,
+  porteeMontreLeFoyer
 } from '../../public/js/utils/portee.js';
 
 /**
@@ -28,6 +29,30 @@ describe('La barre collante suit la portée', () => {
   it('une valeur inconnue suit le repli : la dette ne disparaît pas par accident', () => {
     expect(porteeRappelleLeSolde('inconnue')).toBe(true);
     expect(porteeRappelleLeSolde(undefined)).toBe(true);
+  });
+});
+
+/**
+ * La portée gouverne TOUT le panneau Bilan — décision du foyer, 2026-09-11.
+ *
+ * « Moi ce mois » veut dire « cet écran parle de moi ». Sous une portée
+ * personnelle, aucune carte du bilan n'affiche de chiffre du foyer. La règle
+ * se déclare ici ; le panneau la lit, et `portee-du-panneau.spec.js` la tient
+ * sur la page, sans nommer aucune carte.
+ */
+describe('Le panneau Bilan ne montre le foyer que sur « À deux »', () => {
+  it('« À deux » montre le foyer', () => {
+    expect(porteeMontreLeFoyer(PORTEES.DEUX)).toBe(true);
+  });
+
+  it('« Moi » et « Privé » ne le montrent jamais', () => {
+    expect(porteeMontreLeFoyer(PORTEES.SOLO)).toBe(false);
+    expect(porteeMontreLeFoyer(PORTEES.PRIVE)).toBe(false);
+  });
+
+  it('une valeur inconnue suit le repli — l\'écran s\'ouvre alors sur « À deux », les cartes le suivent', () => {
+    expect(porteeMontreLeFoyer('inconnue')).toBe(true);
+    expect(porteeMontreLeFoyer(undefined)).toBe(true);
   });
 });
 

@@ -407,6 +407,17 @@ Principes UX :
   porte aucune créance. Déclaré par `porteeRappelleLeSolde` (`utils/portee.js`),
   tenu par `portee.test.js` et `tests/e2e/barre-par-portee.spec.js`, rouge avant
   le correctif.
+- **La portée gouverne TOUT le panneau Bilan** (2026-09-11, décision du
+  foyer) : sous « Moi » et « Privé », aucune carte du bilan n'affiche de
+  chiffre du foyer. **Refus par défaut, porté par le panneau** —
+  `porteeMontreLeFoyer` (`utils/portee.js`) déclare, summary.js pose
+  `data-lecture` sur `#panneauBilan`, et `summary.css` fait taire toute carte
+  qui ne se déclare pas `data-lecture="personnelle"`. Aucune ne se déclare :
+  mesuré, les quatre affichaient les catégories du foyer sous Moi et Privé,
+  aucune n'a de version personnelle. **La colonne des cartes est donc vide sur
+  ces deux portées**, et le foyer a demandé à la voir avant de la figer. Tenu
+  par `portee.test.js` et `tests/e2e/portee-du-panneau.spec.js`, qui ne
+  nomme aucune carte — rouge avant la règle.
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
   pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,
@@ -1685,6 +1696,18 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   `<details>` fermé garde sa géométrie et passe donc pour visible.
   `checkVisibility()` dit la vérité — 6 specs l'utilisent, **une trentaine sont
   encore sur `toBeVisible`**.
+- **Fermer une modale RESTITUE le défilement de son ouverture — c'est le
+  navigateur, pas le code.** `showModal` pousse une entrée d'historique
+  (`empilerCouche`), `closeModal` la consomme par `history.back()`, et
+  `history.scrollRestoration` vaut `'auto'` : la page revient, **de façon
+  asynchrone**, là où elle était à l'ouverture. Mesuré le 2026-09-11 à
+  1280 × 720 : 831 px à l'ouverture, 891 après la fermeture malgré un
+  `scrollTo(0, 0)` posé entre-temps ; 0 avec `'manual'`. Pour la personne,
+  c'est juste — on revient où l'on était. Pour le banc d'essai, un `scrollTo`
+  posé avant une assertion de géométrie est défait sous ses yeux : remettre la
+  position **dans** un `expect.poll`, à chaque essai (`data-flow:827`). Deux
+  hypothèses sont tombées avant celle-ci — le focus rendu au déclencheur, le
+  bouton recréé par le rendu.
 - **Le double Firebase de `_harness.js` diverge de Realtime Database.** Deux
   divergences corrigées, aucune garde automatique : `set(null)` doit effacer, et
   `push().set()` doit écrire un chemin plat sous peine d'avaler les semences. En

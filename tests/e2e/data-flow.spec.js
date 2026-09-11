@@ -843,10 +843,33 @@ test.describe('Éléments masqués', () => {
     // haut de page. La barre, elle, se tient prête sans se montrer : elle ne
     // dirait rien que le bilan ne dise déjà, en plus gros et avec son
     // explication. Elle paraîtra en faisant défiler vers les charges.
+    //
+    // « Au repos » veut dire EN HAUT de page — et la page n'y est pas après
+    // l'ajout. Depuis la silhouette des planches (lot E), « + Ajouter » vit
+    // SOUS la tête du bilan : la page défile pour l'atteindre, et la fenêtre
+    // de saisie pousse une entrée d'historique à cette position. En la
+    // refermant, `depilerCouche` consomme l'entrée par `history.back()`, et le
+    // navigateur RESTITUE le défilement de cette entrée. La barre se montre
+    // alors, à bon droit : la phrase du solde est hors de la vue.
+    //
+    // Mesuré le 2026-09-11 à 1280 × 720 : 831 px à l'ouverture, 891 après la
+    // fermeture malgré un `scrollTo(0, 0)` posé entre-temps ; 0 avec
+    // `history.scrollRestoration = 'manual'`. La restitution est asynchrone.
+    // Deux hypothèses sont tombées avant celle-ci — le focus rendu à
+    // « + Ajouter », le bouton recréé par le rendu —, et un `scrollTo` unique
+    // avant l'assertion a été essayé : il ne suffisait pas.
+    //
+    // D'où la forme : la page est remise au repos À CHAQUE essai, jusqu'à ce
+    // que la barre se range. Une restitution tardive est rattrapée au lieu
+    // d'être devinée ; une barre qui ne se rangerait jamais en haut de page
+    // fait toujours tomber le cas.
+    await expect(page.locator('#variableChargesList').getByText('Une charge')).toBeVisible({ timeout: 5000 });
+    await expect.poll(async () => {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      return page.locator('#balanceBar').getAttribute('class');
+    }, { message: 'la barre répète le bilan au repos', timeout: 5000 }).toMatch(/balance-bar--redondante/);
     await expect(page.locator('.summary-balance')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#balanceBar')).toContainText('€', { timeout: 5000 });
-    await expect(page.locator('#balanceBar'), 'la barre répète le bilan au repos')
-      .toHaveClass(/balance-bar--redondante/);
 
     await expect(page.locator('#searchBarContainer')).toBeVisible({ timeout: 5000 });
   });

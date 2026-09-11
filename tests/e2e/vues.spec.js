@@ -456,15 +456,19 @@ test.describe('Mise en page sur grand écran', () => {
       // en prenait une au-delà de 1600 px. Il a quitté le tableau de bord
       // pour un écran à part — `deux-colonnes.spec.js` le tient. L'argument
       // demeure sur les deux qui restent.
+      //
+      // Et depuis la silhouette des planches, le bilan couvre la tête sur toute
+      // la largeur : les deux colonnes qui partagent une rangée sont les
+      // LISTES et la colonne des CARTES du bilan.
       const y = await page.evaluate(() => {
         const t = (s) => Math.round(document.querySelector(s).getBoundingClientRect().y);
-        return { bilan: t('.col-bilan'), listes: t('.col-listes') };
+        return { cartes: t('.bilan-cartes'), listes: t('.col-listes') };
       });
 
       // Une colonne qui décroche se retrouve à la rangée suivante : c'est ce
       // qui se produisait quand l'ordre du document ne suivait pas l'ordre
       // visuel, et la page s'allongeait de 600 px.
-      expect(Math.abs(y.listes - y.bilan)).toBeLessThan(5);
+      expect(Math.abs(y.listes - y.cartes)).toBeLessThan(5);
     });
 
     test('la largeur utile augmente avec l\'écran', async ({ page }) => {
@@ -530,17 +534,21 @@ test.describe('Mise en page sur grand écran', () => {
   test.describe('entre 900 et 1600 px', () => {
     test.use({ viewport: { width: 1280, height: 1440 } });
 
-    test('deux colonnes : les listes à droite du bilan', async ({ page }) => {
+    test('deux colonnes : les listes à gauche, les cartes du bilan à droite', async ({ page }) => {
       // « Réglages sous le bilan » était la moitié de ce cas jusqu'au lot E :
       // Réglages est devenu un écran à part, tenu par `deux-colonnes.spec.js`.
+      // Et « les listes à droite du bilan » est devenu « les listes à gauche
+      // des cartes » : la tête du bilan couvre désormais toute la largeur,
+      // et c'est la colonne de ses cartes qui voisine avec les listes.
       const p = await page.evaluate(() => {
         const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y) }; };
-        return { bilan: r('.col-bilan'), listes: r('.col-listes') };
+        return { cartes: r('.bilan-cartes'), listes: r('.col-listes') };
       });
 
-      // Les listes occupent la seconde colonne, à la hauteur du bilan.
-      expect(p.listes.x).toBeGreaterThan(p.bilan.x);
-      expect(Math.abs(p.listes.y - p.bilan.y)).toBeLessThan(5);
+      // Les listes occupent la première colonne, les cartes la seconde, sur
+      // la même rangée.
+      expect(p.cartes.x).toBeGreaterThan(p.listes.x);
+      expect(Math.abs(p.listes.y - p.cartes.y)).toBeLessThan(5);
     });
   });
 });

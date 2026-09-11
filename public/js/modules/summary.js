@@ -22,7 +22,7 @@ import { log, warn } from '../utils/debug.js';
 import { parseMontantOu } from '../utils/montant.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { decomposerParRegle } from '../utils/decomposition.js';
-import { PORTEES, porteeRetenue, porteeRappelleLeSolde } from '../utils/portee.js';
+import { PORTEES, porteeRetenue, porteeRappelleLeSolde, porteeMontreLeFoyer } from '../utils/portee.js';
 import { marquerLeSoldeDu } from './selecteur-portee.js';
 import { remplirLePanneauPrive } from './prive.js';
 import { teteDuBilan, gabaritDeTete } from '../utils/tete-du-bilan.js';
@@ -156,6 +156,15 @@ export function calculateSummary({ historique } = {}) {
   // qui décide, exactement comme dans `computeBalanceChain`. Même fabrique des
   // deux côtés — sans quoi l'écran et le report annoncent deux chiffres pour
   // le même mois.
+  // LA PORTÉE GOUVERNE TOUT LE PANNEAU BILAN — décision du foyer, 2026-09-11.
+  // Le panneau déclare ce qu'il lit ; les cartes qui parlent du foyer se
+  // taisent sous une lecture personnelle (summary.css, « La portée gouverne le
+  // panneau »). Posé à CHAQUE rendu et AVANT tout chemin de sortie : un rendu
+  // qui sortirait tôt laisserait sinon l'état de la portée précédente.
+  document.getElementById('panneauBilan')?.setAttribute(
+    'data-lecture', porteeMontreLeFoyer(versantDuResume()) ? 'foyer' : 'personnelle'
+  );
+
   const shareMode = resolveShareMode(getState('shareModeDuMois'), getState('shareMode'));
   // Les pourcentages figés du mois, s'il en a. Figer le mode sans ses
   // paramètres ne protégeait rien sur « custom », le seul mode qui en porte.
