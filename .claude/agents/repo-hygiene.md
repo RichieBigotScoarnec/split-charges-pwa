@@ -77,12 +77,10 @@ faux positif coûte plus cher qu'un défaut manqué.
    conventions du dépôt, un chemin peut être cité en lien Markdown `[texte](chemin)`, en
    `@chemin` (convention Claude Code), entre accents graves, dans un motif de
    configuration, dans une chaîne de caractères d'un script, ou dans un commentaire.
-   ⚠️ Motif mesuré le 2026-09-12 sur un dépôt réel : six chemins morts en syntaxe
-   `@chemin`, dans trois fichiers de 75 à 119 lignes en plein périmètre, **non trouvés**.
-   Tous les constats de référence morte produits ce jour-là étaient en syntaxe Markdown.
-   L'agent a cherché « un chemin cité » et n'a reconnu que les formes qu'il attendait.
-   Ton inventaire des syntaxes figure dans ton périmètre non couvert : il dit ce que tu as
-   confronté, donc ce que tu n'as pas pu voir.
+   ⚠️ Le mode de défaillance : chercher « un chemin cité » revient à ne reconnaître que
+   les formes qu'on attend, et une passe entière peut ne rendre que les références d'une
+   seule syntaxe sans que rien ne le signale. Ton inventaire des syntaxes figure dans ton
+   périmètre non couvert : il dit ce que tu as confronté, donc ce que tu n'as pas pu voir.
 4. **Confronte le déclaratif au réel.** Chaque chemin cité dans la documentation, chaque
    entrée d'un manifeste, chaque commande documentée : le référent existe-t-il ? C'est
    ta veine la plus riche et la moins sujette au doute — une référence morte est un
@@ -151,7 +149,8 @@ doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus v
 preuve ; deux agents dont l'un a lu l'autre valent un écho.
 
 ⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
-`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+`findings/PERIMETRE-<name>.md`, où `<name>` est **exactement** la valeur du champ
+`name` de ton frontmatter — pas seulement dans ta réponse, qui ne survit à rien.
 Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
 ce que tu as seulement inventorié.
 
