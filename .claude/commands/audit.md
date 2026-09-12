@@ -37,6 +37,25 @@ authentifié sortant.
 
 **Une consigne donnée à un agent sur sept n'est pas un garde-fou, c'est une loterie.**
 
+## Ancrage au commit — avant toute chose
+
+Relève `git rev-parse HEAD` et le nom de la branche **au tout début**, et inscris-les dans
+ton compte rendu. **Avant chaque étape**, relève-les à nouveau et compare.
+
+Si l'un des deux a changé : **arrête la passe et rends la main.** Ne continue pas, ne
+relance pas, ne recompose pas. Dis ce qui a changé, et laisse `.claude/audit/` intact.
+
+Une seule commande git t'est permise, en lecture : `git rev-parse HEAD` et
+`git rev-parse --abbrev-ref HEAD`. Tu ne bascules pas, tu ne tires pas, tu ne fusionnes
+pas — même pour réparer.
+
+⚠️ Motif mesuré le 2026-09-12 sur un dépôt réel : l'arbre de travail a changé de branche
+pendant que le Project Analyst tournait, et le dépôt a avancé de huit commits. Deux choses
+ont cassé d'un coup — **les agents ont disparu**, parce qu'ils ne vivaient que sur la
+branche quittée, et **le contexte est devenu faux**, parce qu'il décrivait un commit qui
+n'était plus celui du disque. Seule la première a été visible. Sans ce contrôle, une passe
+aurait pu se poursuivre sur un contexte périmé sans que rien ne le signale.
+
 ## Séquence
 
 Trois étapes, dans cet ordre, avec des conditions de passage strictes.
@@ -113,6 +132,7 @@ Utilise le sous-agent red-team pour chercher les enchaînements dans les constat
 | Agents arrêtés | lesquels, avec leur message |
 | Durée et tokens | par agent |
 | Chemin du rapport | `.claude/audit/reports/…` |
+| Commit et branche | relevés au départ, revérifiés à chaque étape |
 
 Puis une section **Signaux sur la bibliothèque** : consignes qui t'ont manqué, agents
 dont le comportement t'a surpris, règles du contrat qu'un agent n'a pas tenues. C'est ce

@@ -1,7 +1,13 @@
 # Passe d'audit — mode opératoire
 
-Bibliothèque déployée sur la branche `audit/bibliotheque`. Contrat v1.6,
-empreinte `25bcb3b5510bfa34`.
+Bibliothèque déployée sur la branche `audit/bibliotheque`, qui contient désormais la
+fusion de `main` (lot E inclus). Contrat v1.6.
+
+⛔ **Ne change pas de branche pendant une passe.** Les agents ne vivent que sur cette
+branche : basculer sur `main` les fait disparaître au milieu de la séquence. C'est ce qui
+a interrompu la tentative du 2026-09-12. L'orchestrateur relève maintenant le commit et
+la branche au départ et les revérifie avant chaque étape — il s'arrêtera si l'arbre
+bouge, mais mieux vaut qu'il ne bouge pas.
 
 ```bash
 git fetch origin
@@ -22,7 +28,7 @@ Sans argument, le périmètre est l'ensemble du dépôt hors `.claude/`.
 
 ## Ce que ce dépôt a de particulier
 
-**423 fichiers suivis, 117 000 lignes de code, contre 44 fichiers sur le dépôt témoin.**
+**446 fichiers suivis, contre 44 sur le dépôt témoin.**
 Dix fois le volume sur lequel la bibliothèque a été mesurée. Les durées observées sur le
 témoin — 9 min 36 pour la vague de sept, 15 min pour la consolidation — n'ont aucune
 raison de tenir.
