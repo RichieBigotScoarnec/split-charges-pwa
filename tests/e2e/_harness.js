@@ -401,19 +401,30 @@ export async function waitForApp(page, { query = '' } = {}) {
  * il mentirait le jour où la mise en page change de point de rupture. La
  * question honnête est : LA SURFACE EST-ELLE DÉJÀ LÀ ?
  *
- *   1. l'onglet répond              → on le touche, chemin nominal ;
- *   2. sinon le panneau est visible → il n'y avait rien à faire ;
- *   3. sinon                        → aucun chemin n'y mène : on lève.
+ *   1. une commande visible le nomme → on la touche : l'onglet sous 900 px,
+ *                                      la porte au bureau ;
+ *   2. sinon le panneau est visible  → il n'y avait rien à faire ;
+ *   3. sinon une destination voisine le fait paraître → on l'a touchée ;
+ *   4. sinon                         → aucun chemin n'y mène : on lève.
+ *
+ * Le troisième cas est né avec le lot E. Au bureau, sur l'écran Réglages,
+ * AUCUNE commande ne nomme les charges : « ← Retour au tableau de bord » nomme
+ * le bilan, et le tableau de bord montre les charges avec lui. Le chemin
+ * existe, il ne porte simplement pas leur nom.
  *
  * Relevé sur l'application réelle, et c'est ce qui fonde la règle :
  *
- *   1280 px         barre absente, onglet absent, panneau VISIBLE   → cas 2
- *   390 px intact   barre présente, onglet visible, panneau caché   → cas 1
- *   390 px sabordé  barre présente, onglet ABSENT, panneau CACHÉ    → cas 3
+ *   1280 px, tableau de bord    bilan et charges VISIBLES, sans commande → cas 2
+ *   1280 px, vers Réglages      la porte ⚙️ de l'en-tête le nomme         → cas 1
+ *   1280 px, Réglages → charges « Retour » les fait paraître            → cas 3
+ *   390 px intact               l'onglet le nomme                       → cas 1
+ *   390 px sabordé              onglet ABSENT, panneau CACHÉ, et aucun
+ *                               voisin ne le fait paraître              → cas 4
  *
  * La règle ne nomme ni panneau ni largeur : elle vaut pour une navigation
  * qu'on renomme, pour une quatrième destination, pour deux colonnes au lieu
- * de trois. C'est `tests/e2e/garde-du-panneau.spec.js` qui la tient.
+ * de trois — elle a traversé celle-là. C'est `garde-du-panneau.spec.js` qui la
+ * tient.
  *
  * @param {import('@playwright/test').Page} page
  * @param {string} id - Identifiant du panneau ('panneauBilan', 'panneauCharges', 'panneauReglages')
@@ -421,23 +432,38 @@ export async function waitForApp(page, { query = '' } = {}) {
  * @throws {Error} Si aucun chemin ne mène à ce panneau.
  */
 export async function allerAuPanneau(page, id) {
-  const onglet = page.locator(`.onglet[data-panneau="${id}"]`);
-  if (await onglet.isVisible()) {
-    await onglet.click();
+  const panneau = page.locator(`#${id}`);
+  const commandes = (cible) => page
+    .locator(`.onglet[data-panneau${cible}], .porte[data-panneau${cible}]`)
+    .filter({ visible: true });
+
+  // 1. Une commande visible le nomme.
+  const nommee = commandes(`="${id}"`).first();
+  if (await nommee.count() > 0) {
+    await nommee.click();
     await page.waitForSelector(`#${id}.panneau--actif`, { state: 'visible', timeout: 5000 });
     return true;
   }
 
-  // Pas d'onglet, mais le panneau est à l'écran : ses colonnes sont déployées,
-  // il n'y avait rien à faire. C'est le cas que la garde d'origine servait.
-  if (await page.locator(`#${id}`).isVisible()) return false;
+  // 2. Pas de commande, mais le panneau est à l'écran : il n'y avait rien à
+  //    faire. C'est le cas que la garde d'origine servait.
+  if (await panneau.isVisible()) return false;
 
-  // Ni onglet, ni panneau rendu. Le test qui suit croirait mesurer cette
-  // surface et mesurerait celle d'à côté, en silence.
+  // 3. Une destination voisine le fait paraître. La liste est relevée une
+  //    fois, et chaque commande revérifiée avant l'appui : en toucher une peut
+  //    masquer la suivante, et un clic sur une commande masquée expire.
+  for (const voisine of await commandes('').all()) {
+    if (!(await voisine.isVisible())) continue;
+    await voisine.click();
+    if (await panneau.isVisible()) return true;
+  }
+
+  // 4. Aucun chemin. Le test qui suit croirait mesurer cette surface et
+  //    mesurerait celle d'à côté, en silence.
   throw new Error(
-    `Aucun chemin ne mène à #${id} : ni onglet .onglet[data-panneau="${id}"], `
-    + `ni panneau rendu. La barre d'onglets a-t-elle changé de destinations ? `
-    + `Un balayage lancé ici mesurerait le panneau courant en croyant visiter `
-    + `celui-ci.`
+    `Aucun chemin ne mène à #${id} : aucune commande visible ne le nomme, `
+    + `aucune destination voisine ne le fait paraître, et il n'est pas rendu. `
+    + `La navigation a-t-elle changé de destinations ? Un balayage lancé ici `
+    + `mesurerait le panneau courant en croyant visiter celui-ci.`
   );
 }

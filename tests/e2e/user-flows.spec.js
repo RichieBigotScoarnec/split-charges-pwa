@@ -1,6 +1,7 @@
 import { test, expect } from './_couverture.js';
 
 import { ALLOWED_EMAILS } from '../../public/js/config.js';
+import { allerAuPanneau } from './_harness.js';
 
 // L'application refuse tout compte hors liste blanche (js/modules/auth.js).
 // Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
@@ -205,7 +206,12 @@ test.describe('Navigation de période', () => {
 // ============================================================
 test.describe('Saisie et calcul des salaires', () => {
 
-  test.beforeEach(async ({ page }) => { await loadApp(page); });
+  // Les salaires vivent dans Réglages — l'écran qu'ouvre la porte ⚙️ au
+  // bureau, l'onglet sous 900 px (lot E).
+  test.beforeEach(async ({ page }) => {
+    await loadApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
+  });
 
   test('saisie des deux salaires', async ({ page }) => {
     await page.locator('#salaireVous').fill('3000');
@@ -227,7 +233,10 @@ test.describe('Saisie et calcul des salaires', () => {
 // ============================================================
 test.describe('Modes de partage — interactions', () => {
 
-  test.beforeEach(async ({ page }) => { await loadApp(page); });
+  test.beforeEach(async ({ page }) => {
+    await loadApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
+  });
 
   test('prorata sélectionné par défaut', async ({ page }) => {
     await expect(page.locator('#modeProrata')).toHaveClass(/selected/);
@@ -611,12 +620,14 @@ test.describe('Section Résumé / Bilan', () => {
   });
 
   test('avec salaires renseignés : affiche un solde', async ({ page }) => {
-    // Saisir les salaires dans l'UI
+    // Saisir les salaires dans l'UI — dans Réglages, puis retour au bilan
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('3000');
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireVous').dispatchEvent('input');
     await page.locator('#salaireConjointe').dispatchEvent('input');
     await page.waitForTimeout(800);
+    await allerAuPanneau(page, 'panneauBilan');
 
     const section = page.locator('#summarySection');
     const text = await section.textContent();
@@ -630,7 +641,11 @@ test.describe('Section Résumé / Bilan', () => {
 // ============================================================
 test.describe('Boutons Export', () => {
 
-  test.beforeEach(async ({ page }) => { await loadApp(page); });
+  // Les outils de données vivent dans Réglages, rangée « Vos données ».
+  test.beforeEach(async ({ page }) => {
+    await loadApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
+  });
 
   test('bouton Export CSV présent', async ({ page }) => {
     const btn = page.locator('[data-action="exportToCSV"]');
@@ -648,7 +663,10 @@ test.describe('Boutons Export', () => {
 // ============================================================
 test.describe('Rappels et Notifications', () => {
 
-  test.beforeEach(async ({ page }) => { await loadApp(page); });
+  test.beforeEach(async ({ page }) => {
+    await loadApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
+  });
 
   test('le panneau rappels est présent', async ({ page }) => {
     await expect(page.locator('.reminders-section')).toBeVisible();
@@ -771,11 +789,15 @@ test.describe('Mise en page', () => {
     test.use({ viewport: { width: 1280, height: 900 } });
 
     test('les deux champs de salaire tiennent dans leur carte', async ({ page }) => {
+      // Au bureau, Réglages est l'écran qu'ouvre la porte ⚙️ (lot E) : c'est
+      // là, en pleine largeur, que les champs doivent tenir.
+      await allerAuPanneau(page, 'panneauReglages');
       await resteDansLesBornes(page, '#salaireVous', '#salariesGrid');
       await resteDansLesBornes(page, '#salaireConjointe', '#salariesGrid');
     });
 
     test('les champs de revenus complémentaires tiennent dans leur bloc', async ({ page }) => {
+      await allerAuPanneau(page, 'panneauReglages');
       await page.locator('#extraIncomeToggle').click();
       await expect(page.locator('#extraIncomeFields')).toBeVisible();
 
@@ -784,6 +806,7 @@ test.describe('Mise en page', () => {
     });
 
     test('les champs de pourcentage tiennent dans leur bloc', async ({ page }) => {
+      await allerAuPanneau(page, 'panneauReglages');
       await page.locator('#modeCustom').click();
       await expect(page.locator('#customPercentages')).toBeVisible();
 

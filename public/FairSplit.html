@@ -231,6 +231,15 @@
       <!-- La signature du produit appartient à l'écran de connexion. Une fois
            connecté, elle consomme ~60 px de haut à chaque ouverture pour une
            information que les deux utilisateurs connaissent. -->
+      <!-- LA PORTE DES RÉGLAGES — au bureau seulement (lot E).
+           Au-delà de 900 px la barre d'onglets n'existe pas, et Réglages n'a
+           plus de colonne : c'est un écran à part, que cette pastille ouvre —
+           en haut à droite, avant le compte (maquette, planche 1). Sous 900 px
+           elle est masquée : la barre du bas porte déjà « Réglages ».
+           `onglets.js` la branche comme un onglet : même chemin, même retour. -->
+      <button type="button" class="porte porte-reglages" data-panneau="panneauReglages">
+        <span aria-hidden="true">⚙️</span> Réglages
+      </button>
       <div class="user-info-bar" id="userInfoBar">
         <img class="user-avatar" id="userAvatar" src="" alt="Avatar" width="32" height="32" loading="lazy" />
         <span class="user-name" id="userName"></span>
@@ -300,8 +309,17 @@
          par défaut : l'application répond à une question, elle doit la poser
          d'entrée. Au-delà, elle reprend sa colonne et la barre d'onglets
          disparaît — il y a la place de tout montrer, cacher serait gratuit. -->
-    <div class="col-bilan panneau panneau--actif" id="panneauBilan">
-    <section aria-labelledby="sectionResume">
+    <!-- `data-lecture` : ce que le panneau lit — « foyer » sur « À deux »,
+         « personnelle » sur « Moi » et « Privé ». summary.js le pose à chaque
+         rendu ; les cartes qui parlent du foyer se taisent sous une lecture
+         personnelle (summary.css, « La portée gouverne le panneau »). -->
+    <div class="col-bilan panneau panneau--actif" id="panneauBilan" data-lecture="foyer">
+    <!-- LA TÊTE DU BILAN — au bureau, pleine largeur au-dessus des deux
+         colonnes (planches 1 et 2, lot E). Sous 900 px, le haut de l'onglet.
+         `bilan-zone-tete` et non `bilan-tete` : ce nom-là est déjà pris par
+         l'étiquette « Solde du mois », en capitales — la section l'a porté
+         une passe, et toute la tête s'est affichée en majuscules. -->
+    <section class="bilan-zone-tete" aria-labelledby="sectionResume">
     <div class="card">
       <div class="card-header">
         <h2 class="card-title" id="sectionResume"><span aria-hidden="true">📊</span> Résumé du Mois</h2>
@@ -311,16 +329,45 @@
       <div id="summarySection">
         <!-- Populated dynamically by summary.js -->
       </div>
+    </div>
+    </section>
 
-      <!-- Budgets par catégorie. Le panneau existait mais n'affichait rien :
-           sa cible de rendu n'existait pas et personne ne l'appelait.
-           Masqué tant qu'aucune dépense ni aucun budget n'existe. -->
+    <!-- LA COLONNE DES CARTES — lot E, 2026-09-11.
+         Au bureau, la colonne de droite, à côté des charges ; sous 900 px, la
+         suite de l'onglet Bilan. L'ORDRE EST CELUI DES PLANCHES 1, 2 ET 4, le
+         même sur les trois : où part l'argent, où il se dépense, les
+         tendances, les enveloppes. Puis le bas de colonne, que summary.js
+         remplit : ce que les planches ne connaissaient pas. -->
+    <div class="bilan-cartes">
+
+      <!-- 🎯 Une carte, deux états (planche 1, `budgetsAbsents` /
+           `budgetsDefinis`) : « Où part votre argent » tant qu'aucun budget
+           n'est fixé, « Budgets par catégorie » ensuite. category-budgets.js
+           pose le titre. Masquée tant qu'aucune dépense ni aucun budget
+           n'existe. -->
       <div id="categoryAnalysis" class="category-analysis" hidden>
-        <div class="category-analysis-header"><span aria-hidden="true">🎯</span> Budgets par catégorie</div>
+        <div class="category-analysis-header"><span aria-hidden="true">🎯</span> <span id="titreCategories">Où part votre argent</span></div>
         <div id="categoryAnalysisContent">
           <!-- Rempli par modules/category-budgets.js -->
         </div>
       </div>
+
+      <!-- 📍 Où vous dépensez. Masquée tant qu'aucune dépense n'est localisée :
+           elle suit son bouton, que map.js révèle. -->
+      <section class="carte-rang3 carte-lieux" aria-labelledby="titreLieux">
+        <h2 class="carte-rang3-titre" id="titreLieux"><span aria-hidden="true">📍</span> Où vous dépensez</h2>
+        <!-- Ce que le mois dit des lieux, sans qu'on clique : map.js le remplit
+             depuis `utils/lieux.js`. La carte n'affichait qu'un bouton, et son
+             contenu attendait une modale. -->
+        <div class="carte-liste" id="lieuxDuMois"></div>
+        <!-- Le seul accès à la carte se trouvait jadis dans un panneau en
+             display:none, ce qui la rendait inatteignable. Elle reste avec les
+             lectures du mois : la ranger dans les réglages la rendrait
+             introuvable une fois de plus. -->
+        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
+          <span aria-hidden="true">📍</span> Carte
+        </button>
+      </section>
 
       <!-- Tendances Historiques — repliées par défaut : le graphique demande
            une lecture de tout l'historique, inutile tant qu'on ne le regarde
@@ -343,36 +390,34 @@
            qu'on arme une fois n'ont rien à faire sur l'écran qu'on ouvre dix
            fois par semaine. -->
 
-      <!-- Accès quotidiens.
-           Dix boutons se disputaient cette rangée : deux qu'on ouvre chaque
-           semaine et huit qu'on ouvre deux fois l'an. Rangés à égalité, il
-           fallait lire les dix pour en viser un.
-           Ne restent ici que les lectures du mois — les enveloppes, ce qui est
-           privé, et la carte si des dépenses sont localisées. Les huit autres
-           ont leur place dans l'onglet Réglages, groupés par ce qu'ils font. -->
-      <div class="acces-rapides">
-        <!-- Les enveloppes transversales : un séjour, un déménagement, un
-             chantier. Elles regroupent des dépenses par-delà les catégories et
-             les mois, sans jamais toucher au solde. -->
-        <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
-          <span aria-hidden="true">🧳</span> Enveloppes
-        </button>
-        <!-- « Privé » a quitté cette rangée le 2026-09-08 : il est devenu une
-             PORTÉE, gouvernée par le segment en tête du panneau. Un bouton qui
-             double un segment situé plus haut est une seconde surface, et deux
-             surfaces pour l'espace privé liraient la base séparément — un
-             partage refermé dans l'une serait resté ouvert dans l'autre. -->
-        <!-- Masqué tant qu'aucune dépense n'est localisée. Le seul accès à
-             la carte se trouvait dans un panneau en display:none, ce qui la
-             rendait inatteignable. Elle reste ici, avec les lectures du mois :
-             la ranger dans les réglages la rendrait introuvable une fois de
-             plus, et c'est exactement le défaut qu'on a corrigé. -->
-        <button type="button" class="btn btn-secondary" id="mapButton" data-action="showMapModal" title="Carte des dépenses localisées" hidden>
-          <span aria-hidden="true">📍</span> Carte
-        </button>
-      </div>
+      <!-- 🧳 Enveloppes à deux.
+           Dix boutons se disputaient jadis la rangée des accès quotidiens :
+           deux qu'on ouvre chaque semaine et huit qu'on ouvre deux fois l'an.
+           Les huit ont leur place dans Réglages ; la carte a sa carte depuis
+           le lot E ; « Privé » est devenu une portée le 2026-09-08. Ne reste
+           dans la rangée que ce qui ouvre les enveloppes. -->
+      <section class="carte-rang3" aria-labelledby="titreEnveloppes">
+        <h2 class="carte-rang3-titre" id="titreEnveloppes"><span aria-hidden="true">🧳</span> Enveloppes à deux</h2>
+        <!-- Les enveloppes ouvertes du foyer et ce qu'elles portent ce mois-ci ;
+             envelopes.js le remplit avec `totalEnveloppe`, la fabrique qui sert
+             déjà à l'écran de gestion. -->
+        <div class="carte-liste" id="enveloppesDuMois"></div>
+        <div class="acces-rapides">
+          <!-- Les enveloppes transversales : un séjour, un déménagement, un
+               chantier. Elles regroupent des dépenses par-delà les catégories
+               et les mois, sans jamais toucher au solde. -->
+          <button type="button" class="btn btn-secondary" data-action="showManageEnvelopesModal" title="Regrouper des dépenses par séjour, chantier ou projet">
+            <span aria-hidden="true">🧳</span> Enveloppes
+          </button>
+        </div>
+      </section>
+
+      <!-- LE BAS DE COLONNE — « Le mois en un coup d'œil » et le récap des
+           virements par destination. Les planches ne les connaissaient pas ;
+           ils rendent un service qu'elles ne proposent pas. summary.js les
+           rend avec la tête, puis les pose ici. -->
+      <div class="bilan-bas" id="bilanBas"></div>
     </div>
-    </section>
     </div>
 
 
@@ -498,9 +543,21 @@
 
     <!-- ==================== PANNEAU RÉGLAGES ==================== -->
     <!-- Ce qu'on ajuste rarement : les revenus, la règle de partage, les
-         rappels, puis les outils. Au-delà de 1600 px il prend sa propre
-         colonne ; en deçà de 900 px il devient le troisième onglet. -->
+         rappels, puis les outils. En deçà de 900 px il est le troisième
+         onglet ; au-delà, un écran à part qui REMPLACE le tableau de bord,
+         ouvert par la porte « ⚙️ Réglages » de l'en-tête. Jusqu'au lot E il
+         prenait une colonne — empilé sous le bilan, puis en troisième au-delà
+         de 1600 px ; la maquette l'a sorti du tableau de bord. -->
     <div class="col-reglages panneau" id="panneauReglages">
+
+    <!-- L'entrée de l'écran, au bureau seulement (maquette, planche 3). Sous
+         900 px la barre du bas dit déjà où l'on est et comment en sortir. -->
+    <div class="reglages-entete">
+      <button type="button" class="porte reglages-retour" data-panneau="panneauBilan">
+        <span aria-hidden="true">←</span> Retour au tableau de bord
+      </button>
+      <h2 class="reglages-titre"><span aria-hidden="true">⚙️</span> Réglages</h2>
+    </div>
 
     <!-- Rappels et notifications -->
     <section aria-labelledby="sectionRappels">

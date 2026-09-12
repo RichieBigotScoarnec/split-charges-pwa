@@ -192,6 +192,100 @@
   }
 }
 
+/* ===== LES PORTES DU BUREAU =====
+   ---------------------------------------------------------------------------
+   Au-delà de 900 px la barre d'onglets n'existe pas. Jusqu'au lot E ce
+   n'était pas un manque : les trois panneaux avaient chacun leur place,
+   empilés ou en trois colonnes. La maquette sort Réglages du tableau de bord
+   (planches 1 et 3) — il lui faut donc un chemin, et un chemin de retour.
+
+   Deux PORTES, branchées par `onglets.js` exactement comme un onglet :
+     - « ⚙️ Réglages », dans l'en-tête, à droite, avant le compte ;
+     - « ← Retour au tableau de bord », en tête de l'écran Réglages.
+
+   Masquées sous 900 px : la barre du bas porte déjà « Réglages », et le
+   retour y serait un second chemin vers le même écran, sur la largeur où la
+   place se compte au pixel.
+
+   `screen` et pas la seule largeur : une page imprimée assez large tomberait
+   sous la règle qui masque Réglages, et « à l'impression, tout se montre ».
+*/
+.porte-reglages,
+.reglages-entete {
+  display: none;
+}
+
+@media screen and (min-width: 900px) {
+  /* L'écran Réglages REMPLACE le tableau de bord : les deux ne se montrent
+     jamais ensemble. Ailleurs, c'est lui qui s'efface ; sur lui, ce sont les
+     deux colonnes. `:has` lit l'état que `onglets.js` pose déjà — aucune
+     classe de plus à tenir en accord avec `panneau--actif`. */
+  .col-reglages:not(.panneau--actif) {
+    display: none;
+  }
+
+  #mainApp:has(> .col-reglages.panneau--actif) > .col-bilan,
+  #mainApp:has(> .col-reglages.panneau--actif) > .col-listes {
+    display: none;
+  }
+
+  /* L'en-tête sur une ligne : la marque à gauche, la porte et le compte à
+     droite (planche 1). Il était centré sur deux rangées ; la porte y aurait
+     flotté au milieu, sans rapport avec rien. */
+  #mainApp > header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    text-align: left;
+  }
+
+  #mainApp > header h1 {
+    margin: 0 auto 0 0;
+  }
+
+  #mainApp > header .user-info-bar {
+    margin-top: 0;
+  }
+
+  .porte {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 44px;
+    padding: 0 var(--space-md);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .porte:hover,
+  .porte[aria-current="true"] {
+    color: var(--text-primary);
+    background: var(--hover-bg);
+  }
+
+  .reglages-entete {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+
+  .reglages-titre {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+}
+
 /*
    À l'impression, tout se montre.
 
@@ -497,9 +591,9 @@
 
 /* ===== LES ACCÈS QUOTIDIENS DU BILAN ===== */
 /*
-   Ce qui reste sur l'écran d'accueil : les enveloppes, ce qui est privé, et
-   la carte quand des dépenses sont localisées. Trois lectures du mois, à
-   côté du solde qu'elles complètent.
+   Ce qui reste sur l'écran d'accueil : les enveloppes. « Privé » est devenu
+   une portée le 2026-09-08, et la carte a sa propre carte depuis le lot E,
+   « Où vous dépensez ». La rangée vit dans la carte « Enveloppes à deux ».
 */
 .acces-rapides {
   margin-top: var(--space-md);

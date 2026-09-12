@@ -564,11 +564,18 @@ test.describe('Le solde du couple', () => {
   test('une dépense privée n\'y entre pas', async ({ page }) => {
     // Elle vit hors de `household` : le bilan ne peut pas la voir. Le vérifier
     // quand même, parce que c'est la propriété que tout le dispositif protège.
+    //
+    // Les salaires vivent dans Réglages — un écran à part au bureau depuis le
+    // lot E. Le retour au bilan précède la lecture d'`avant` : `innerText`
+    // d'un panneau non rendu rend le texte brut, et la comparaison finale,
+    // faite bilan affiché, tomberait sur une différence de rendu, pas de solde.
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('3000');
     await page.locator('#salaireConjointe').blur();
     await page.waitForTimeout(500);
+    await allerAuPanneau(page, 'panneauBilan');
 
     const avant = await page.locator('#summarySection').innerText();
 

@@ -122,13 +122,28 @@ rend 0 est un lot qui ment.**
 | **D** | la fabrique et le gabarit des trois têtes | `@(Select-String -Pattern "export function (teteDuBilan\|gabaritDeTete)" -Path public/js/utils/tete-du-bilan.js).Count` | 2 | **2** | *en attente* |
 | **D** | les têtes de « Moi » et de « Privé » (planches 12 à 16) | `@(Select-String -Pattern "function suiteDeMoi\|function teteDuPrive\|function faceDeLAutre" -Path public/js/modules/summary.js, public/js/modules/prive.js).Count` | 3 | **3** | *en attente* |
 | ~~**E**~~ | ~~le grand-livre selon la largeur~~ — **absorbé par D**, décision du foyer du 2026-09-11 | *compté par la commande de D* | — | — | — |
-| **F** | deux colonnes, Réglages sort | `@(Select-String -Pattern "ouvrirReglages" -Path public/FairSplit.html, public/js/modules/*.js).Count` | ≥ 2 | **0** | — |
+| ~~**F**~~ **E** | deux colonnes, Réglages sort — *lettré F jusqu'au 2026-09-11 ; le foyer l'appelle E, la lettre que l'absorption de l'ancien E a libérée* | ~~`@(Select-String -Pattern "ouvrirReglages" -Path public/FairSplit.html, public/js/modules/*.js).Count`~~ `@(Select-String -Pattern 'class="porte' -Path public/FairSplit.html).Count` | ~~≥ 2~~ 2 | **2** *(0 sur `main` avant le lot)* | *en attente* |
+| **E** | la silhouette : tête pleine largeur, charges à gauche, cartes à droite | `@(Select-String -Pattern 'grid-area: tete' -Path public/css/responsive.css).Count` | 1 | **1** *(0 sur `main`)* | *en attente* |
+| **E** | les deux cartes neuves du rang 3 — « Où vous dépensez », « Enveloppes à deux » | `@(Select-String -Pattern '<section class="carte-rang3' -Path public/FairSplit.html).Count` | 2 | **2** *(0 sur `main`)* | *en attente* |
+| **E** | le bandeau du partage et « Modifier les revenus » | `@(Select-String -Pattern 'function bandeauDuPartage' -Path public/js/modules/summary.js).Count` | 1 | **1** *(0 sur `main`)* | *en attente* |
 | **G** | l'écran Réglages | `@(Select-String -Pattern "reglages-grille" -Path public/FairSplit.html, public/css/*.css).Count` | ≥ 1 | **0** | — |
 
 *Dans les motifs, `\|` est l'échappement du tableau Markdown : à la saisie,
 c'est un `|` simple.* Le motif de `A−` exige une **déclaration** : sa première
 version comptait un commentaire de `variables.css:303` et rendait 1 au lieu de
 0 — le témoin a dit que la sonde était fausse avant qu'on s'en serve.
+
+**La commande du lot E a changé avec son code — et voici pourquoi.** Elle
+cherchait `ouvrirReglages`, un nom fixé ici avant le code. Le lot n'ouvre pas
+Réglages par une fonction à lui : la porte « ⚙️ Réglages » est une commande
+`.porte[data-panneau]` qui emprunte **le chemin même d'un onglet**,
+`ouvrirPanneau` (`utils/onglets.js`). Une fonction propre à Réglages aurait
+été un second chemin vers le même écran, et la règle 2 dit comment finissent
+deux chemins vers une même grandeur. Ajouter le nom au code pour que
+l'ancienne commande rende son chiffre aurait été fabriquer la preuve après
+coup. La commande neuve compte les deux portes du balisage — celle de
+l'en-tête, et « ← Retour » en tête de Réglages ; rejouée sur `main` avant le
+lot, elle rend 0.
 
 ### Les lots restants
 
@@ -141,9 +156,68 @@ code**, avec sa raison — jamais après.
 | **D** | ~~Solo : un total en encre neutre. Privé : aucun chiffre.~~ **Trois têtes, les rangs 1 des planches** (reprise du 2026-09-11) : « Tu dois 66,94 € à Cindy » en ambre sur À deux — 54 / 40 / 32 px —, les trois cartes de tête, le grand-livre ouvert au-dessus de 900 px ; « Il te reste » et son grand-livre sur Moi ; sur Privé, un titre selon le réglage et les deux faces | 1, 2, 4 |
 | *à lettrer* | Moi, rangs 2 et 3 : part du commun et dépenses solo en cartes, liste solo, enveloppes solo | — |
 | *à lettrer* | Le réglage de partage déménage dans Réglages ; la tête Privé en porte alors le rappel, avec « Changer » | — |
+| ~~*à lettrer*~~ | ~~**La silhouette exacte de la planche 1** : la tête du bilan et son grand-livre en section pleine largeur au-dessus des colonnes (`tableau-de-bord.html:131`) ; dessous, les charges à gauche en colonne large et les cartes d'analyse à droite — budgets, « Où part votre argent », la carte (`:202`, `1.4fr 1fr`). Relevé en écrivant le lot E, qui pose bilan \| charges~~ — **absorbée par le lot E**, décision du foyer du 2026-09-11 : « E sans les cartes, c'est vivre un lot avec une colonne vide » | ~~3 *(fin)*~~ |
+| *à lettrer — lot de MESURE* | **Combien de recouvrements entre cartes existe-t-il aujourd'hui ?** Aux quatre largeurs du bureau, entre toutes les cartes du bilan et des charges — pas seulement entre frères d'une même pile, ce que `blocs-du-bilan.spec.js` tient déjà. **Le compte décide de la suite** : zéro ou un, la propriété est tenable et devient un contrôle ; vingt, elle est mal formulée et c'est elle qu'il faut réécrire. **On mesure AVANT d'écrire le contrôle** — un contrôle dont on ignore s'il sera vert est un contrôle qu'on écrira, puis qu'on affaiblira pour le faire passer. Décision du foyer du 2026-09-12 | — |
+| *à lettrer* | **Le sélecteur de portée ne filtre pas la liste des charges.** « À deux » montre le commun ET le solo, avec un badge `perso` et un total « + X € perso » : les trois segments se recouvrent, et la commande promet un filtre qu'elle n'applique pas. **Attendu** : « À deux » → commun seul ; « Moi ce mois » → solo seul ; Privé est déjà correct. **À conserver** : la ligne de renvoi en pied — « Ta dépense solo de X € est rangée dans Solo », avec « Voir Solo » —, sans quoi une dépense saisie devient introuvable, ce que `totauxParPerimetre` (`utils/perimetre.js:154`, lue par `utils/totaux-liste.js:46`, tenue par `perimetre.test.js`) existe précisément pour éviter. **Mesuré le 2026-09-12, avant d'écrire** : ni `variable-charges.js` ni `fixed-charges.js` ne lit `porteeCourante` — ils ne consultent `estSolo` que pour le badge (`variable-charges.js:773`) et pour le formulaire ; et **le tweak `soloDansLaListe` n'existe nulle part** (0 occurrence dans tout le dépôt). Ce n'est donc pas un réglage désactivé, c'est un lot. **Motif** : le badge et le total séparé sont un contournement du défaut, pas une décision | — |
+| *à lettrer — après E* | **Un seul sélecteur de portée, sous le sélecteur de mois.** La portée gouverne l'écran entier et n'appartient à aucun panneau : deux copies existent parce qu'elle a été posée dans chaque panneau — juste tant qu'un seul s'affichait, faux à deux colonnes simultanées. Mesuré : le lot E ne règle PAS le doublon, deux sélecteurs restent visibles au bureau à toutes les largeurs — et la silhouette change leur forme : avant elle, côte à côte (centres à 446 px d'écart à 900, 556 à 1280, 776 à 1600, 1 116 à 2560) ; après elle, **l'un au-dessus de l'autre**, celui du Bilan au-dessus de la tête (y = 288), celui des Charges en tête de leur colonne (y = 596), aux quatre largeurs. La planche 1 en montre un seul (`tableau-de-bord.html:107-126`), entre l'en-tête et « Solde du mois ». Décision du foyer du 2026-09-11 | 11 *(habillage)* |
 | ~~**E**~~ | ~~le grand-livre ouvert au-dessus de 900 px, replié en dessous~~ — **absorbé par D** le 2026-09-11 | — |
-| **F** | **deux colonnes** — bilan et charges ; Salaires et Rappels quittent le tableau de bord pour Réglages, atteint par ⚙️ dans l'en-tête | 3, 5, et l'entrée de 13 |
+| ~~**F**~~ **E** | **la silhouette des planches 1 et 2** — ~~deux colonnes, bilan et charges~~ la tête du bilan en pleine largeur ; dessous, les charges à gauche et **les quatre cartes du rang 3 à droite, dans l'ordre des planches** — 🎯 Où part votre argent, 📍 Où vous dépensez, 📈 Tendances, 🧳 Enveloppes à deux —, fermées par « Le mois en un coup d'œil » et le récap des virements ; ~~Salaires et Rappels quittent~~ **Rappels, Salaires et Outils — tout le panneau Réglages — quittent** le tableau de bord pour un écran à part, atteint par ⚙️ dans l'en-tête et refermé par « ← Retour au tableau de bord » ; **le bandeau du partage** porte « Modifier les revenus » | 3, 4 *(le bandeau)*, 5 *(en partie)*, 9 *(placement ; contenu inchangé)*, et l'entrée de 13 |
 | **G** | l'écran Réglages restructuré | 13 à 18 |
+
+**Ce que le lot E a tranché sur pièce, et qu'il faut savoir en le regardant :**
+
+- **L'ordre des cartes est celui des PLANCHES, pas celui cité par le foyer.**
+  Le foyer a cité « Où part votre argent → Enveloppes → Tendances → Carte »
+  en posant que la maquette est la source ; les planches 1, 2 et 4 disent
+  toutes les trois « Où part votre argent → Où vous dépensez (la carte) →
+  Tendances → Enveloppes à deux ». La source a été suivie ; changer l'ordre
+  est un déplacement dans le balisage.
+- **« L'insight de destination » a été lu comme le récap des virements par
+  destination** — le seul bloc de l'application qui parle de destination.
+- **La tête n'est PAS coupée en deux moitiés comme sur la planche** (le
+  héros et le grand-livre à gauche, les cartes à droite). `previsionnel:135`
+  tient une décision prise — le prévisionnel se place sous le solde — que
+  cette coupe défairait. En pleine largeur, la tête reste empilée.
+- **Le bandeau dit la RÈGLE**, pas les parts des charges : celles-ci s'en
+  écartent dès qu'une charge porte une répartition dérogatoire, et le
+  grand-livre les donne déjà. L'assiette n'est nommée qu'au prorata.
+- **« Les cartes sont réduites à des boutons » était un écart de DONNÉES, pas
+  d'implémentation** — et c'est le foyer qui l'a redressé après la mesure :
+  l'écran regardé ne portait aucune dépense localisée ni aucune enveloppe.
+  Semé, le même code écrit les montants. La leçon est consignée dans
+  `CLAUDE.md`, règle 5 : *avant de conclure qu'un rendu manque, semer ce qu'il
+  devrait montrer*. Le contenu, lui, manquait bel et bien et a été écrit.
+- **Les deux cartes neuves parlent sans clic** (2026-09-12, après le retour du
+  foyer). « Où vous dépensez » nommait un bouton et rien d'autre ; elle nomme
+  désormais les lieux du mois, leur total et le montant par passage, par
+  `utils/lieux.js` — la donnée existait dans le `location` des charges, dont
+  `map.js` tire déjà ses marqueurs. « Enveloppes à deux » nomme les enveloppes
+  ouvertes du foyer et ce qu'elles portent, par `totalEnveloppe`, la fabrique
+  de l'écran de gestion. Les dépenses solo sont écartées de la première, les
+  enveloppes solo de la seconde : ces cartes disent le foyer.
+- **Le prévisionnel escaladait la barre de partage de 8 px** — mesuré à 390,
+  900 et 1280 px. `.summary-previsionnel` porte une marge haute négative pour
+  se coller au solde ; le bandeau s'est glissé entre les deux. **Aucun contrôle
+  ne pouvait le voir** : `coherence-visuelle` ne compare que des commandes, et
+  le prévisionnel n'en porte aucune — limite écrite dans son propre
+  commentaire, et resservie telle quelle. D'où `blocs-du-bilan.spec.js` :
+  *deux blocs frères d'une colonne du bilan ne se recouvrent jamais*, avec son
+  témoin positif (des paires ont bien été comparées).
+- **La portée gouverne tout le panneau Bilan** (décision du foyer du
+  2026-09-11). Elle a été prise sur une prémisse que la mesure a RÉFUTÉE —
+  « les cartes ont déjà leur équivalent solo ou se taisent proprement ».
+  Relevé à 1280 px, avant la règle :
+
+  | Portée | Cartes visibles | Chiffres du foyer affichés |
+  |---|---|---|
+  | À deux | les 4, + coup d'œil et récap | oui |
+  | Moi | **les 4** | **oui** — « Maison 800,00 € · Courses 777,77 € » |
+  | Privé | **les 4** | **oui**, les mêmes |
+
+  Aucune carte ne lit la portée ; le coup d'œil et le récap, eux, se
+  taisaient déjà. La règle est un refus par défaut porté par le panneau :
+  **la colonne des cartes est vide sous Moi ET sous Privé**, pas seulement
+  sous Privé comme le foyer l'anticipait.
 
 **Sans lot à ce jour** : 6 (recherche), 7 (le reste — balisage), 8 (pied de
 liste), 9 (budgets, lieux, enveloppes), 10 (FAB en pastille), 11 (habillage du
@@ -217,9 +291,13 @@ trois portées.** Les trois têtes sont conformes aux planches. Deux corrections
    12 cas unitaires et 6 de bout en bout, tombés sur une MAUVAISE COULEUR —
    ambre `rgb(157, 81, 10)` ou neutre — et non sur un élément absent.
 
-**Le protocole de chaque lot, sans exception** : le code ; la branche poussée ;
-« poussé sur `<branche>`, tire et regarde » ; **le foyer ouvre l'application et
-dit ce qu'il voit** ; on fusionne ou on corrige. Pas de fusion avant le regard,
+**Le protocole de chaque lot, sans exception** : le code ; **commité dès qu'il
+est vert** ; la branche poussée ; **l'arbre vérifié propre (`git status
+--short` vide) et le SHA dit** ; « poussé sur `<branche>` @ `<SHA>`, tire et
+regarde » ; **le foyer ouvre l'application et dit ce qu'il voit** ; on fusionne
+ou on corrige. *(Le geste de l'arbre propre est né le 2026-09-11 : une couleur
+validée à l'écran n'était commitée nulle part — `CLAUDE.md`, règle 3,
+neuvième forme.)* Pas de fusion avant le regard,
 pas de lot suivant préparé pendant l'attente : **attendre veut dire s'arrêter.**
 
 ---
@@ -1328,13 +1406,13 @@ pourcentages qui circulaient — **un pourcentage estimé n'est pas une mesure**
 |---|---|---|
 | 1 | Le héros « Tu dois … à X » au rang 1 | ⬜ **ouvert, et impossible tel quel sous 360 px** — 54 px demandent 306 px pour 272 disponibles, montant insécable. Réalisable à taille réduite ; la valeur n'est pas tranchée. **→ lot D, 2026-09-11 : paliers 54 / 40 / 32 px, la phrase s'enroule entre ses trois morceaux, le montant reste insécable — code présent, non constaté** |
 | 2 | Le grand-livre visible, non replié | ⬜ ouvert. Réalisable, mais **entre en conflit** avec `previsionnel.spec.js:148` s'il est placé dans la carte du héros. **→ lot D : placé dans la carte du héros, ouvert au-dessus de 900 px ; `previsionnel:148` réécrit avec son argument, pas supprimé — code présent, non constaté** |
-| 3 | « Deux colonnes au lieu de trois » | ~~📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4~~ **❌ FAUX (2026-09-11) — c'est un écart.** Le compte de colonnes est juste de 900 à 1599 px ; leur contenu ne l'est pas : `.col-reglages` — Salaires, Rappels — s'empile **sous le bilan**, dans la colonne de gauche (`responsive.css:241-244`), et devient une troisième colonne au-delà de 1600 (`:270`). La planche ne pose que bilan et charges (`tableau-de-bord.html:202`, `1.4fr 1fr`), Réglages étant un écran à part. ⬜ **ouvert → lot F** |
-| 4 | Les trois cartes de tête + bandeau prorata | ⬜ ouvert, réalisable — les trois chiffres existent (`resteAVivre`, `tauxEffort`, `totalCharges`). **→ lot D : les trois cartes ; le bandeau prorata n'est PAS fait — code présent, non constaté** |
-| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`). **→ lot F** |
+| 3 | « Deux colonnes au lieu de trois » | ~~📌 **N'EST PAS UN ÉCART** — l'application rend déjà deux colonnes de 900 à 1599 px (`responsive.css:226`). Le trois-colonnes n'existe qu'au-delà de 1600, que la maquette ne dessine pas. Ce qui reste est le rapport et le héros pleine largeur, c'est-à-dire l'écart 4~~ **❌ FAUX (2026-09-11) — c'est un écart.** Le compte de colonnes est juste de 900 à 1599 px ; leur contenu ne l'est pas : `.col-reglages` — Salaires, Rappels — s'empile **sous le bilan**, dans la colonne de gauche (`responsive.css:241-244`), et devient une troisième colonne au-delà de 1600 (`:270`). La planche ne pose que bilan et charges (`tableau-de-bord.html:202`, `1.4fr 1fr`), Réglages étant un écran à part. ~~⬜ **ouvert → lot F**~~ **→ lot E, 2026-09-11 : deux colonnes à toute largeur au-delà de 900 px, la troisième retirée ; Réglages est un écran à part qui remplace le tableau de bord — code présent, non constaté.** **Et ce que la planche montre en plus, relu bloc par bloc en écrivant le lot — le lot E ne le fait pas :** la tête du bilan — « Solde du mois », « Tu dois 66,94 € à Cindy » et le grand-livre — est une section **pleine largeur au-dessus** de la grille (`:131`) ; la grille `1.4fr 1fr` (`:202`) met ensuite **les charges à gauche, en large**, et **les cartes d'analyse à droite** — budgets par catégorie, « Où part votre argent », la carte. Le lot E pose bilan \| charges, que l'application rendait déjà entre 900 et 1599 px ; la silhouette exacte demande un déplacement de plus, laissé « à lettrer » |
+| 4 | Les trois cartes de tête + bandeau prorata | ⬜ ouvert, réalisable — les trois chiffres existent (`resteAVivre`, `tauxEffort`, `totalCharges`). **→ lot D : les trois cartes ; le bandeau prorata n'est PAS fait — code présent, non constaté** **→ lot E : le bandeau du partage est posé sous les cartes de tête — la règle, les parts, l'assiette au prorata, et « Modifier les revenus », par le chemin de la porte. Code présent, non constaté** |
+| 5 | En-tête à trois cellules, mois centré, ⚙️ Réglages | 🚫 **impossible sans le lot Réglages-écran** : aucune commande Réglages n'existe au-dessus de 899 px, `.onglets` est `display: none` par défaut (`onglets.css:34`). ~~**→ lot F**~~ **→ lot E, 🟡 en partie** : la porte « ⚙️ Réglages » est dans l'en-tête, qui tient désormais sur une ligne — la marque à gauche, la porte et le compte à droite. **Le mois n'y est PAS centré** : il reste dans son bandeau collé, sous l'en-tête. Code présent, non constaté |
 | 6 | Barre de recherche avec « Tous les mois » intégré | ⬜ ouvert — non mesuré |
 | 7 | Lignes de charge `1fr auto 44px` + bandeaux de catégorie | 🟡 **partiel** — le lot B a posé les lignes à plat, les filets, le survol et le montant 15/600. Restent le montant en enfant direct de la grille, le bouton `⋯` unique et les bandeaux : **balisage**. — **Code présent, non constaté à l'écran (2026-09-11)** |
 | 8 | Pied de liste à deux totaux | ⬜ ouvert — balisage |
-| 9 | Cartes de droite | 🟡 **partiel** — le lot C a réduit Tendances à une carte de 56 px, les barres à 7 px, les titres à 15 px. Restent budgets, lieux, enveloppes. — **Code présent, non constaté à l'écran (2026-09-11)** |
+| 9 | Cartes de droite | 🟡 **partiel** — le lot C a réduit Tendances à une carte de 56 px, les barres à 7 px, les titres à 15 px. Restent budgets, lieux, enveloppes. — **Code présent, non constaté à l'écran (2026-09-11)** **→ lot E : les quatre cartes sont dans la colonne de droite, dans l'ordre des planches, et la première dit son état (« Où part votre argent » / « Budgets par catégorie »). Leur CONTENU n'a pas changé : « Où vous dépensez » ne porte encore que le bouton de la carte, « Enveloppes à deux » que celui qui les ouvre** |
 | 10 | FAB en pastille avec libellé | ⬜ ouvert — non mesuré |
 | 11 | Sélecteur de portée | ⬜ ouvert — CSS |
 | 12 | Ombre du thème clair | ~~✅ **fermé**~~ (lot A, `--carte-ombre`) — **code présent, non constaté à l'écran (2026-09-11)**. Invisible en thème sombre par construction ; et `#trendsSection`, qui n'est pas une `.card`, n'en porte pas |

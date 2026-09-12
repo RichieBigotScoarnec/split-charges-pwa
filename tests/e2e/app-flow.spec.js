@@ -154,6 +154,10 @@ test.describe('Application post-auth', () => {
   });
 
   test('affiche les sections principales', async ({ page }) => {
+    // Les salaires et les modes vivent dans Réglages : l'onglet sous 900 px,
+    // l'écran qu'ouvre la porte ⚙️ de l'en-tête au-delà (lot E).
+    await allerAuPanneau(page, 'panneauReglages');
+
     // Salaires
     const salaireVous = page.locator('#salaireVous');
     await expect(salaireVous).toBeVisible();
@@ -175,6 +179,7 @@ test.describe('Saisie des salaires', () => {
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
     await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
+    await allerAuPanneau(page, 'panneauReglages');
   });
 
   test('accepte les salaires numériques', async ({ page }) => {
@@ -195,6 +200,7 @@ test.describe('Modes de partage', () => {
     await page.goto('/FairSplit.html');
     await page.waitForSelector('#mainApp', { state: 'visible', timeout: 10000 });
     await page.waitForSelector('body[data-app-ready="true"]', { timeout: 10000 });
+    await allerAuPanneau(page, 'panneauReglages');
   });
 
   test('le mode prorata est sélectionné par défaut', async ({ page }) => {
