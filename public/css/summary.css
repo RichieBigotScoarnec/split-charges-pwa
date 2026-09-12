@@ -800,7 +800,47 @@
   display: none;
 }
 
-/* Dans une carte, la rangée n'a plus à se détacher du fond : la carte le fait. */
+/* Ce que les cartes du rang 3 disent sans qu'on clique : un nom à gauche, son
+   montant à droite, et sous le premier, la phrase qui le met en perspective
+   (« 92,02 € par passage, sur 2 passages »). Les planches 1, 2 et 4 rendent
+   ces lignes ; l'application avait la donnée et n'en montrait rien. */
+.carte-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.carte-liste:empty {
+  display: none;
+}
+
+.carte-liste-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* Le nom peut être long — « Saint-Thégonnec Loc-Eguiner » — et rien n'oblige
+   un nom de lieu à porter une coupure : il se coupe plutôt que de pousser sa
+   ligne, comme le bandeau du partage. */
+.carte-liste-nom {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.carte-liste-montant {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.carte-liste-precision {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 .carte-rang3 .acces-rapides {
   margin-top: 0;
   padding: 0;
@@ -902,6 +942,19 @@
 
 .bandeau-partage-lien:hover {
   text-decoration: underline;
+}
+
+/* LE PRÉVISIONNEL SE COLLE AU SOLDE, PAS AU BANDEAU.
+   `.summary-previsionnel` porte une marge haute négative de −8 px, posée pour
+   qu'il touche la carte du solde dont il précise le montant. Le bandeau du
+   partage s'est glissé entre les deux (lot E) : le prévisionnel a escaladé la
+   barre de 8 px, mesuré à 390, 900 et 1280 px, avec un prénom court comme avec
+   un prénom de trente caractères. Tenu par `blocs-du-bilan.spec.js`, qui
+   mesure le recouvrement de deux FRÈRES — ce que le contrôle de cohérence
+   visuelle ne pouvait pas voir : il ne compare que des commandes, et le
+   prévisionnel n'en porte aucune. */
+.bandeau-partage + .summary-previsionnel {
+  margin-top: 0;
 }
 
 .category-chart-container {

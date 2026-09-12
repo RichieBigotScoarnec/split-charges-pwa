@@ -1696,6 +1696,19 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   `<details>` fermé garde sa géométrie et passe donc pour visible.
   `checkVisibility()` dit la vérité — 6 specs l'utilisent, **une trentaine sont
   encore sur `toBeVisible`**.
+- **Un contrôle de recouvrement qui ne collecte que des COMMANDES laisse
+  passer tout le reste — et sa limite était écrite dans son commentaire.**
+  `coherence-visuelle`, « aucune commande du contenu n'en recouvre une
+  autre », compare `button, a[href], select, input`. Le 2026-09-12, le bandeau
+  du partage (qui porte un bouton) et le prévisionnel (qui n'en porte aucun)
+  se chevauchaient de 8 px à 390, 900 et 1280 px : la paire n'a jamais été
+  comparée, et la suite entière est restée verte. Le commentaire du contrôle
+  disait déjà, à propos d'un dépliant : *« ce contrôle ne collecte que des
+  commandes, et une division n'en est pas une »*. **Une limite consignée dans
+  un commentaire n'est pas un contrôle.** `blocs-du-bilan.spec.js` tient
+  désormais la propriété sur des FRÈRES de pile, quels qu'ils soient — le
+  défaut venait d'une marge négative (`.summary-previsionnel`, −8 px) qui a
+  trouvé un voisin qu'elle n'attendait pas.
 - **Fermer une modale RESTITUE le défilement de son ouverture — c'est le
   navigateur, pas le code.** `showModal` pousse une entrée d'historique
   (`empilerCouche`), `closeModal` la consomme par `history.back()`, et
@@ -2090,6 +2103,17 @@ reprend faute de savoir qu'elle a été prise coûte plus cher qu'un gotcha.**
   période est mensuelle, le jour ne vit que dans le champ `date`, donc une
   charge semée le 05 est lue tout le mois. Figer partout coûterait 24 réécritures
   pour un risque nul dans la plupart des cas.
+  **Elles sont SIX depuis le 2026-09-12** : `recherche-montant` a rejoint la
+  liste, et il a fallu 20 chutes sur 20 pour le voir. Son semis effaçait le
+  champ date, avec sa raison écrite — *« une date vide est la seule valeur qui
+  ne puisse contenir aucun chiffre »*. **Elle est fausse** :
+  `variable-charges.js:425` fait `date = champ.value || dateDuJour()`, donc
+  vider le champ enregistre la date DU JOUR, que la recherche couvre. Le 12 du
+  mois, « 12 » ramenait les trois charges semées, et le cas « 12 ne ramène pas
+  120 » tombait — un cas qui passait la veille et serait repassé le lendemain.
+  **Neutraliser une SAISIE ne neutralise pas le calendrier tant que le code
+  porte un repli** : c'est l'horloge qu'il faut figer, à une date choisie pour
+  ne porter aucun des chiffres que le fichier cherche.
   **✅ L'angle qu'on croyait exposé ne l'est pas — MESURÉ le 2026-09-10, après
   deux jours passés en ⚠️.** `data-flow`, `regles-donnees`, `renommage` et
   `vues` sèment bien des **mois absolus sans figer l'horloge** : la description

@@ -21,7 +21,7 @@ import { grouperParCategorie } from '../utils/tri.js';
 import { afficherTotalDeListe } from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
-import { populateEnvelopeSelect, etiquetteEnveloppe } from './envelopes.js';
+import { populateEnvelopeSelect, etiquetteEnveloppe, renderCarteEnveloppes } from './envelopes.js';
 import { initChoixLieu, lieuChoisi, poserLieu, reinitialiserLieu } from './choix-lieu.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -364,6 +364,8 @@ export async function loadVariableCharges(instantaneDuMois) {
     // périmé. Ces vues se raccordent ici plutôt qu'au bilan : celui-ci sort
     // par anticipation quand aucun salaire n'est saisi.
     refreshMapButton();
+    // Et ce que les enveloppes portent ce mois-ci, pour la même raison.
+    renderCarteEnveloppes();
     invalidateTrends();
   } catch (error) {
     logError('❌ Erreur chargement charges variables :', error);

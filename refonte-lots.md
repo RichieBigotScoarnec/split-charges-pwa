@@ -179,6 +179,22 @@ code**, avec sa raison — jamais après.
 - **Le bandeau dit la RÈGLE**, pas les parts des charges : celles-ci s'en
   écartent dès qu'une charge porte une répartition dérogatoire, et le
   grand-livre les donne déjà. L'assiette n'est nommée qu'au prorata.
+- **Les deux cartes neuves parlent sans clic** (2026-09-12, après le retour du
+  foyer). « Où vous dépensez » nommait un bouton et rien d'autre ; elle nomme
+  désormais les lieux du mois, leur total et le montant par passage, par
+  `utils/lieux.js` — la donnée existait dans le `location` des charges, dont
+  `map.js` tire déjà ses marqueurs. « Enveloppes à deux » nomme les enveloppes
+  ouvertes du foyer et ce qu'elles portent, par `totalEnveloppe`, la fabrique
+  de l'écran de gestion. Les dépenses solo sont écartées de la première, les
+  enveloppes solo de la seconde : ces cartes disent le foyer.
+- **Le prévisionnel escaladait la barre de partage de 8 px** — mesuré à 390,
+  900 et 1280 px. `.summary-previsionnel` porte une marge haute négative pour
+  se coller au solde ; le bandeau s'est glissé entre les deux. **Aucun contrôle
+  ne pouvait le voir** : `coherence-visuelle` ne compare que des commandes, et
+  le prévisionnel n'en porte aucune — limite écrite dans son propre
+  commentaire, et resservie telle quelle. D'où `blocs-du-bilan.spec.js` :
+  *deux blocs frères d'une colonne du bilan ne se recouvrent jamais*, avec son
+  témoin positif (des paires ont bien été comparées).
 - **La portée gouverne tout le panneau Bilan** (décision du foyer du
   2026-09-11). Elle a été prise sur une prémisse que la mesure a RÉFUTÉE —
   « les cartes ont déjà leur équivalent solo ou se taisent proprement ».

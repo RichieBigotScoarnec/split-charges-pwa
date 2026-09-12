@@ -356,6 +356,10 @@
            elle suit son bouton, que map.js révèle. -->
       <section class="carte-rang3 carte-lieux" aria-labelledby="titreLieux">
         <h2 class="carte-rang3-titre" id="titreLieux"><span aria-hidden="true">📍</span> Où vous dépensez</h2>
+        <!-- Ce que le mois dit des lieux, sans qu'on clique : map.js le remplit
+             depuis `utils/lieux.js`. La carte n'affichait qu'un bouton, et son
+             contenu attendait une modale. -->
+        <div class="carte-liste" id="lieuxDuMois"></div>
         <!-- Le seul accès à la carte se trouvait jadis dans un panneau en
              display:none, ce qui la rendait inatteignable. Elle reste avec les
              lectures du mois : la ranger dans les réglages la rendrait
@@ -394,6 +398,10 @@
            dans la rangée que ce qui ouvre les enveloppes. -->
       <section class="carte-rang3" aria-labelledby="titreEnveloppes">
         <h2 class="carte-rang3-titre" id="titreEnveloppes"><span aria-hidden="true">🧳</span> Enveloppes à deux</h2>
+        <!-- Les enveloppes ouvertes du foyer et ce qu'elles portent ce mois-ci ;
+             envelopes.js le remplit avec `totalEnveloppe`, la fabrique qui sert
+             déjà à l'écran de gestion. -->
+        <div class="carte-liste" id="enveloppesDuMois"></div>
         <div class="acces-rapides">
           <!-- Les enveloppes transversales : un séjour, un déménagement, un
                chantier. Elles regroupent des dépenses par-delà les catégories
