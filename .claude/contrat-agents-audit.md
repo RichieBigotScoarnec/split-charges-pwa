@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '1.7'
+version: '1.8'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,20 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 1.7 — 2026-09-12.**
+> **Version 1.8 — 2026-09-12.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v1.7 → v1.8** — seconde passe sur le dépôt réel. Elle valide les fichiers
+`PERIMETRE-*` (les huit produits, distinguant au fichier près le lu du parcouru) et
+**invalide une mesure** : les six références manquées de la passe précédente ont été
+trouvées, mais leur motif vivait dans le fichier de l'agent et dans ce changelog. **L'agent
+avait la réponse.** D'où le §15, et `journal-passes.md`, qui ne se déploie pas.
+
+Quatre autres corrections : le disque fait foi contre le compte rendu d'un agent (§11),
+pas de répertoire créé sans y écrire (§7), le nom du fichier de périmètre est celui de
+l'agent (§11), et les sorties de la chaîne s'ignorent dans git (§7).
 
 **Changements v1.6 → v1.7** — première passe sur un **dépôt réel** : 446 fichiers,
 117 000 lignes, 31 constats. Ce que la passe valide, et ce qu'elle casse.
@@ -30,8 +40,8 @@ l'exécution que les motifs par défaut ne prévoyaient pas.
 ✅ **Le mode de défaillance visé est trouvé** : huit des dix constats `REPO` sont des
 divergences entre ce qu'un document déclare et ce que le dépôt contient.
 
-❌ **Six chemins morts dans trois prompts d'audit, en plein périmètre, non trouvés.**
-Manque réel, non expliqué.
+❌ **Un manque de couverture réel sur une famille de références**, diagnostiqué et
+corrigé. Détail : `journal-passes.md`, qui ne se déploie pas.
 
 ❌ **Densité quinze fois moindre que sur le témoin.** Le rapport dit lui-même que les 70
 utilitaires et les 31 modules ont été *inventoriés, pas lus*, et qu'**aucun agent n'a
@@ -142,9 +152,9 @@ autre** et s'audite.
 
 ⚠️ Motif : la commande excluait `.claude/` en bloc. Sur la passe du 2026-09-12, ça a mis
 hors champ deux artefacts qui étaient précisément ceux qu'on voulait voir retrouver — un
-prompt d'audit ciblant des fichiers disparus, et un rapport d'audit daté rangé dans le
-répertoire des commandes, donc invocable. Une exclusion posée pour une bonne raison a
-emporté bien plus que sa raison.
+deux artefacts hérités qui étaient précisément ceux qu'on voulait voir retrouver. Une
+exclusion posée pour une bonne raison emporte bien plus que sa raison si elle est prise
+en bloc.
 
 **Sortie de `/security-review`** : elle s'écrit dans
 `.claude/audit/security-review-output.md`. La commande ne suit pas le schéma du §3 et le
@@ -450,6 +460,13 @@ seule parade à la collision d'identifiants du §4.
 
 **Aucun agent d'audit n'écrit ailleurs que là.** Aucun ne touche au code.
 
+⛔ **Tu ne crées aucun répertoire dans lequel tu n'écris pas.** Un répertoire vide apparu
+en cours de passe n'est attribuable à personne et ne se distingue pas d'un agent qui a
+échoué au milieu.
+
+ℹ️ **`.claude/audit/` s'ajoute au `.gitignore` du dépôt audité.** Ces sorties citent du
+contenu applicatif, sont propres à un commit, et n'ont rien à faire dans l'historique.
+
 ⛔ **Un agent d'audit ne lit pas les fiches des autres agents.** Ni pour se situer, ni
 pour éviter un doublon, ni pour s'appuyer dessus. Son indépendance est ce qui rend les
 recoupements informatifs : deux agents qui convergent sans s'être lus valent une preuve,
@@ -533,11 +550,10 @@ chaîne ne doit en dépendre de façon bloquante. Un finding reste actionnable s
 **Audit ≠ exécution.** Un agent d'audit **n'exécute pas le code du dépôt** : ni suite de
 tests, ni script, ni point d'entrée, ni commande de construction. Il lit.
 
-⚠️ Motif mesuré le 2026-09-11 : un agent a lancé la suite de tests d'un dépôt témoin. Les
-simulacres posés dans les tests ne s'appliquaient pas à la commande appelée depuis
-l'intérieur du module, et le code réel a émis un **appel réseau sortant authentifié**,
-portant les identifiants en clair du dépôt. Aucune consigne ne l'interdisait ; personne
-ne l'avait prévu.
+⚠️ Le mode de défaillance : les simulacres posés dans une suite de tests ne s'appliquent
+pas toujours à ce qu'ils prétendent intercepter. Exécuter une suite peut donc faire
+partir du trafic réel, authentifié, sans que le test le signale. Personne ne l'avait
+prévu avant que ça arrive.
 
 Ce qui reste permis : les outils de lecture et d'inspection qui n'exécutent pas le code
 audité — recherche, listage, `git log`, calculs faits par l'agent sur des valeurs qu'il a
@@ -566,6 +582,10 @@ Sans les deux, on ne sait pas de quel état il parle, et il vieillit sans le dir
 - **Ne pas émettre de prescription négative** — « pas de problème sur X », « laisser en
   l'état » — sans avoir cherché activement la preuve du contraire. Une absence de
   recherche s'y déguise en absence de preuve.
+- **Le disque fait foi, pas ton compte rendu.** Ce que tu annonces dans ta réponse doit
+  correspondre à ce que tu as écrit — nombre de fiches, commandes exécutées, fichiers
+  réécrits. Un écart entre les deux rend tes deux sorties suspectes, et c'est le disque
+  qui est lu.
 - **Ne jamais produire de chiffre non mesuré.** Ni décompte de composants revus, ni
   projection d'amélioration, ni score sans instrument. Les catalogues d'agents publics
   en sont pleins : c'est de la mise en scène de rigueur, et ça contamine la confiance
@@ -581,7 +601,8 @@ Sans les deux, on ne sait pas de quel état il parle, et il vieillit sans le dir
   partagé en écriture de toute la chaîne, et il est en ajout seul : on y ajoute une
   ligne, on n'y réécrit jamais.
 - **Écrire son périmètre non couvert sur le disque**, dans
-  `findings/PERIMETRE-<nom-de-l-agent>.md`. Ce qui n'a pas été regardé se déclare ; c'est
+  `findings/PERIMETRE-<nom-de-l-agent>.md`, où `<nom-de-l-agent>` est **exactement** la
+  valeur du champ `name` de ton propre fichier — pas un nom de rôle, pas une variante. Ce qui n'a pas été regardé se déclare ; c'est
   la seule façon de distinguer « rien » de « pas regardé ».
   ⚠️ Jusqu'au 2026-09-12, cette déclaration ne vivait que dans la réponse de l'agent.
   Le §7 fait passer toute corrélation par le disque, le gabarit ne lui donnait pas de
@@ -630,6 +651,25 @@ que son silence n'est pas un constat.
 ℹ️ Le dépôt `anthropics/claude-code-security-review` embarque un moteur d'évaluation
 avec gestion de worktrees et une infrastructure de tests. À examiner avant de fabriquer
 le dépôt témoin de zéro.
+
+## 15. Où vivent les motifs mesurés
+
+Chaque règle de ce contrat porte le motif qui l'a produite — sans quoi elle sera retirée
+un jour par quelqu'un qui ignore ce qu'elle protège.
+
+⚠️ **Mais un motif qui nomme un défaut d'un dépôt auditable est la réponse à un test en
+cours.** Les deux exigences se contredisent, et la seconde l'emporte.
+
+| Le motif nomme… | Où il vit |
+|---|---|
+| une défaillance de la bibliothèque | dans le fichier concerné, déployé |
+| un **défaut d'un dépôt auditable** | dans `journal-passes.md`, qui **ne se déploie jamais** |
+
+Un fichier déployé garde la **règle** et le **mode** de défaillance ; jamais l'instance,
+jamais sa localisation, jamais son décompte.
+
+Dans le doute, le motif va au journal : perdre un peu de mémoire coûte moins cher que
+perdre la capacité de mesurer.
 
 ## 14. La couche référentielle
 

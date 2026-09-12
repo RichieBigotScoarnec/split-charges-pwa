@@ -173,7 +173,8 @@ doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus v
 preuve ; deux agents dont l'un a lu l'autre valent un écho.
 
 ⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
-`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+`findings/PERIMETRE-<name>.md`, où `<name>` est **exactement** la valeur du champ
+`name` de ton frontmatter — pas seulement dans ta réponse, qui ne survit à rien.
 Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
 ce que tu as seulement inventorié.
 
