@@ -1285,6 +1285,24 @@ changement.
 fausse est **pire** que le laisser ouvert : on cesse de le surveiller en croyant
 l'avoir compris. Un contrôle tombé une fois et non reproduit reste ouvert.
 
+> **UN ÉCART RELEVÉ SUR UN JEU DE DONNÉES PAUVRE PEUT ÊTRE UN ÉCART DE
+> DONNÉES.** Le 2026-09-12, l'écran rendait « Où vous dépensez » et
+> « Enveloppes à deux » réduites à un bouton. Le constat était juste, sa cause
+> ne l'était pas : le mois affiché ne portait **aucune dépense localisée ni
+> aucune enveloppe**. Semé — deux passages à Landivisiau, un à Saint-Goazec,
+> une enveloppe alimentée —, le même code écrit les montants, le total et le
+> nombre de passages.
+>
+> Ce qui l'avait rendu invisible est que **les deux lectures sont vraies** :
+> « la carte ne montre qu'un bouton » décrit exactement l'écran, et
+> « l'implémentation est incomplète » en est une explication plausible. Le
+> désaccord ne porte pas sur ce qu'on voit, mais sur ce qui le produit — et
+> c'est précisément ce qu'un écran vide ne peut pas dire.
+>
+> **Le geste : avant de conclure qu'un rendu manque, SEMER ce qu'il devrait
+> montrer.** Si l'écran parle alors, l'écart est de données. S'il se tait
+> encore, il est d'implémentation — et on sait lequel des deux on répare.
+
 ## Les gotchas vivants
 
 Pièges **encore actifs**, vérifiés contre le code le 2026-09-05 — pas déduits de
