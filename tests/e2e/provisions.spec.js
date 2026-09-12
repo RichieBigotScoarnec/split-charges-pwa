@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Ce qu'il faut mettre de côté ce mois-ci
@@ -121,11 +121,13 @@ test.describe('La provision annuelle', () => {
 
   test('la provision ne touche pas au solde du couple', async ({ page }) => {
     // Mettre de côté n'est pas dépenser : c'est une lecture, pas un mouvement.
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2500');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('1800');
     await page.locator('#salaireConjointe').blur();
     await page.waitForTimeout(600);
+    await allerAuPanneau(page, 'panneauBilan');
 
     const avant = await page.locator('#summarySection').innerText();
 

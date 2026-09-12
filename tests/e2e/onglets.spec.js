@@ -644,15 +644,22 @@ test.describe('Sur grand écran — la barre s\'efface', () => {
     await expect(page.locator('#onglets')).toBeHidden();
   });
 
-  test('les trois panneaux sont affichés ensemble', async ({ page }) => {
+  test('le bilan et les charges sont affichés ensemble', async ({ page }) => {
     // La régression qu'on veut empêcher : appliquer le découpage mobile à un
-    // écran de 1280 px reviendrait à cacher les deux tiers du contenu alors
-    // qu'il y a la place de tout montrer.
+    // écran de 1280 px reviendrait à cacher la moitié du tableau de bord alors
+    // qu'il y a la place de le montrer.
+    //
+    // Ce cas exigeait les TROIS panneaux jusqu'au lot E (2026-09-11). Réglages
+    // a quitté le tableau de bord : c'est un écran à part, qui le remplace —
+    // `deux-colonnes.spec.js` tient cette propriété-là. L'argument, lui, reste :
+    // ce qui a sa place au bureau ne se cache pas derrière un onglet.
     expect((await panneauxVisibles(page)).sort())
-      .toEqual(['panneauBilan', 'panneauCharges', 'panneauReglages']);
+      .toEqual(['panneauBilan', 'panneauCharges']);
   });
 
   test('les salaires restent joignables sans toucher un onglet', async ({ page }) => {
+    // Sans onglet, mais par un geste : la porte ⚙️ de l'en-tête.
+    await page.locator('#mainApp > header [data-panneau="panneauReglages"]').click();
     await expect(page.locator('#salaireVous')).toBeVisible();
     await page.locator('#salaireVous').fill('2500');
     expect(await page.locator('#salaireVous').inputValue()).toBe('2500');
@@ -674,6 +681,26 @@ test.describe('À l\'impression, tout se montre', () => {
     expect((await panneauxVisibles(page)).sort())
       .toEqual(['panneauBilan', 'panneauCharges', 'panneauReglages']);
     await expect(page.locator('#onglets')).toBeHidden();
+  });
+});
+
+test.describe('À l\'impression, tout se montre — au bureau aussi', () => {
+  test.use({ viewport: ORDINATEUR });
+
+  test('Réglages paraît à l\'impression, et la porte non', async ({ page }) => {
+    // Au bureau, Réglages est masqué hors de son écran (lot E). La règle qui
+    // le masque est bornée à `screen`, et c'est ce cas qui tient la borne :
+    // la page imprimée d'un écran large tombe sous la même requête de
+    // largeur, et un Ctrl+P rendrait une feuille de comptes sans les
+    // salaires ni la règle de partage. Le cas voisin, à 390 px, ne peut pas
+    // le voir — la requête du bureau ne s'y applique jamais.
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await page.emulateMedia({ media: 'print' });
+
+    expect((await panneauxVisibles(page)).sort())
+      .toEqual(['panneauBilan', 'panneauCharges', 'panneauReglages']);
+    await expect(page.locator('#mainApp > header [data-panneau="panneauReglages"]')).toBeHidden();
   });
 });
 

@@ -203,9 +203,17 @@ importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 ### CSS
 - Tokens dans `public/css/variables.css` via `var(--xxx)`, jamais de valeurs en dur ailleurs
 - Mobile-first. **Rupture principale : 900 px** — sous 899 px, les trois panneaux
-  deviennent trois onglets (`onglets.css:38` et `:225`) ; au-delà, ils sont trois
-  colonnes simultanées et la barre d'onglets disparaît (`responsive.css:222`).
-  C'est le même balisage des deux côtés.
+  deviennent trois onglets (`onglets.css:38`) ; au-delà, la barre disparaît, la
+  tête du bilan tient toute la largeur, et dessous les charges (1,4fr, à
+  gauche) et la colonne des cartes (1fr) se partagent la rangée — zones
+  nommées et sous-grille, `responsive.css`, « La silhouette des planches » ; le
+  panneau Bilan y garde sa boîte, ce que `display: contents` lui aurait
+  retiré. Réglages
+  est un écran à part, ouvert par la porte « ⚙️ Réglages » de l'en-tête et
+  refermé par « ← Retour au tableau de bord » (`onglets.css`, « Les portes du
+  bureau »). Jusqu'au lot E (2026-09-11), Réglages était empilé sous le bilan,
+  puis troisième colonne au-delà de 1600 px. C'est le même balisage des deux
+  côtés.
 - Ruptures secondaires : 600 px (densité des listes — `responsive.css:72`,
   `summary.css:611`), 1600 px et 2000 px (largeur maximale), `pointer: coarse`
   (agrandit les cibles tactiles sur un vrai doigt)
@@ -399,6 +407,17 @@ Principes UX :
   porte aucune créance. Déclaré par `porteeRappelleLeSolde` (`utils/portee.js`),
   tenu par `portee.test.js` et `tests/e2e/barre-par-portee.spec.js`, rouge avant
   le correctif.
+- **La portée gouverne TOUT le panneau Bilan** (2026-09-11, décision du
+  foyer) : sous « Moi » et « Privé », aucune carte du bilan n'affiche de
+  chiffre du foyer. **Refus par défaut, porté par le panneau** —
+  `porteeMontreLeFoyer` (`utils/portee.js`) déclare, summary.js pose
+  `data-lecture` sur `#panneauBilan`, et `summary.css` fait taire toute carte
+  qui ne se déclare pas `data-lecture="personnelle"`. Aucune ne se déclare :
+  mesuré, les quatre affichaient les catégories du foyer sous Moi et Privé,
+  aucune n'a de version personnelle. **La colonne des cartes est donc vide sur
+  ces deux portées**, et le foyer a demandé à la voir avant de la figer. Tenu
+  par `portee.test.js` et `tests/e2e/portee-du-panneau.spec.js`, qui ne
+  nomme aucune carte — rouge avant la règle.
 - Cibles tactiles minimum 44×44px
 - Contrastes WCAG AA (4.5:1 texte, 3:1 grand texte), **mesurés sur le RENDU** et
   pas seulement sur les jetons : `tests/contraste.test.js` tient les jetons,
@@ -948,7 +967,7 @@ courait le plus ne disait pas qu'une saisie était refusée.
 
 ### 3. On croit avoir mesuré, on n'a rien mesuré
 
-**8 formes recensées — détail en archive.** Un jar d'émulateur qui garde son
+**9 formes recensées — détail en archive, la neuvième ci-dessous.** Un jar d'émulateur qui garde son
 port, un `--reporter=basic` qui n'existe pas, un `| tail -45` qui coupe le
 rapport — et un `--reporter=line` prescrit par cette règle même, qui n'existe pas
 davantage sous Vitest. **Aucune n'est la même commande, et deux n'impliquent
@@ -990,6 +1009,45 @@ cinquième forme, à l'envers.
 gh run list --branch main --limit 3 --json databaseId,conclusion -q '.[]|[.databaseId,.conclusion]|@tsv'
 gh run view <id> --log-failed
 ```
+
+**Et la neuvième n'est pas une mesure de code : c'est un écran — « vu à l'écran »
+n'est pas « commité ».** Le 2026-09-11, la couleur du héros a été validée à
+l'écran par le foyer, puis #198 a été fusionnée sur `686f3e0` : le travail
+validé n'était commité nulle part, il vivait dans l'arbre de travail.
+
+Trois conditions s'y sont composées, aucune ne suffisait seule :
+
+- le serveur local (`http-server public -p 3333`) sert **l'arbre de travail**,
+  pas une branche : on voit du non-commité sans rien tirer, donc voir ne prouve
+  rien de ce qui est commité ;
+- le commit avait été lié à la suite complète (« je commite quand elle aura
+  rendu son verdict ») — or un commit est local, gratuit et réversible ; c'est
+  la FUSION qui a besoin de la suite complète, pas le commit ;
+- la PR ouverte ne portait aucun signal du travail en vol — ni brouillon, ni
+  commentaire : elle avait l'air finie. C'est le point 4 ci-dessous, en pire :
+  rien n'étant commité, même `merge-base --is-ancestor` ne pouvait le voir.
+
+**Le protocole supposait que « je pousse » et « tu regardes » portaient sur la
+même chose, et rien ne le vérifiait. Le retour visuel porte sur un SHA, pas sur
+un écran.**
+
+**Le geste, avant CHAQUE « poussé, regarde » :**
+
+```bash
+git status --short          # VIDE, ou l'on s'apprête à faire regarder du non-commité
+git rev-parse --short HEAD  # le SHA qu'on nomme dans le message
+```
+
+Et ses deux compléments : **commiter dès qu'un état est vert** — la suite
+complète garde la fusion, pas le commit — et **mettre la PR en brouillon**
+(`gh pr ready --undo`) dès qu'un travail est en vol pour elle.
+
+> **C'était la seconde fois ce jour-là qu'un travail validé a failli
+> disparaître.** La première : une branche qui portait un commit unique et en
+> détruisait 1 500 lignes (voir *Livraison et commandes*, « `git log` et
+> `git diff` ne répondent pas à la même question »). Les deux fois, ce qui a
+> sauvé est d'avoir **mesuré avant d'agir** — le `--stat` là, le `git status`
+> ici.
 
 **Et la cinquième n'est même pas une commande.** Le 2026-09-06, une PR a été
 mergée sur un head **périmé** : ses deux derniers commits étaient bien poussés,
@@ -1227,6 +1285,24 @@ changement.
 fausse est **pire** que le laisser ouvert : on cesse de le surveiller en croyant
 l'avoir compris. Un contrôle tombé une fois et non reproduit reste ouvert.
 
+> **UN ÉCART RELEVÉ SUR UN JEU DE DONNÉES PAUVRE PEUT ÊTRE UN ÉCART DE
+> DONNÉES.** Le 2026-09-12, l'écran rendait « Où vous dépensez » et
+> « Enveloppes à deux » réduites à un bouton. Le constat était juste, sa cause
+> ne l'était pas : le mois affiché ne portait **aucune dépense localisée ni
+> aucune enveloppe**. Semé — deux passages à Landivisiau, un à Saint-Goazec,
+> une enveloppe alimentée —, le même code écrit les montants, le total et le
+> nombre de passages.
+>
+> Ce qui l'avait rendu invisible est que **les deux lectures sont vraies** :
+> « la carte ne montre qu'un bouton » décrit exactement l'écran, et
+> « l'implémentation est incomplète » en est une explication plausible. Le
+> désaccord ne porte pas sur ce qu'on voit, mais sur ce qui le produit — et
+> c'est précisément ce qu'un écran vide ne peut pas dire.
+>
+> **Le geste : avant de conclure qu'un rendu manque, SEMER ce qu'il devrait
+> montrer.** Si l'écran parle alors, l'écart est de données. S'il se tait
+> encore, il est d'implémentation — et on sait lequel des deux on répare.
+
 ## Les gotchas vivants
 
 Pièges **encore actifs**, vérifiés contre le code le 2026-09-05 — pas déduits de
@@ -1278,6 +1354,13 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   le conteneur reçoit `tabindex="-1"` pour cela.
 - **`changePeriod()` ne prend aucun argument** — elle lit le sélecteur. Lui
   passer une période ne fait rien du tout.
+- **Une classe neuve se vérifie contre `main` avant d'être posée.** Le
+  2026-09-11, la section de tête du bilan a été nommée `.bilan-tete` — nom
+  déjà pris par l'étiquette « Solde du mois », en `text-transform:
+  uppercase` (`summary.css:553`). Toute la tête s'est affichée en capitales,
+  et c'est un test sur le texte du bandeau qui l'a vu, pas la relecture. Le
+  geste, avec son témoin positif (un nom connu doit rendre plus de zéro) :
+  `git grep -nE "(\.|class=\"[^\"]*\b|id=\")NOM\b" origin/main -- public/`.
 - **`formatCurrency` produit une espace fine insécable** (U+202F). Tout test qui
   lit un montant doit l'échapper (` `, ` `, ` `) : l'écrire en
   clair a fait rougir la CI deux fois.
@@ -1631,6 +1714,31 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   `<details>` fermé garde sa géométrie et passe donc pour visible.
   `checkVisibility()` dit la vérité — 6 specs l'utilisent, **une trentaine sont
   encore sur `toBeVisible`**.
+- **Un contrôle de recouvrement qui ne collecte que des COMMANDES laisse
+  passer tout le reste — et sa limite était écrite dans son commentaire.**
+  `coherence-visuelle`, « aucune commande du contenu n'en recouvre une
+  autre », compare `button, a[href], select, input`. Le 2026-09-12, le bandeau
+  du partage (qui porte un bouton) et le prévisionnel (qui n'en porte aucun)
+  se chevauchaient de 8 px à 390, 900 et 1280 px : la paire n'a jamais été
+  comparée, et la suite entière est restée verte. Le commentaire du contrôle
+  disait déjà, à propos d'un dépliant : *« ce contrôle ne collecte que des
+  commandes, et une division n'en est pas une »*. **Une limite consignée dans
+  un commentaire n'est pas un contrôle.** `blocs-du-bilan.spec.js` tient
+  désormais la propriété sur des FRÈRES de pile, quels qu'ils soient — le
+  défaut venait d'une marge négative (`.summary-previsionnel`, −8 px) qui a
+  trouvé un voisin qu'elle n'attendait pas.
+- **Fermer une modale RESTITUE le défilement de son ouverture — c'est le
+  navigateur, pas le code.** `showModal` pousse une entrée d'historique
+  (`empilerCouche`), `closeModal` la consomme par `history.back()`, et
+  `history.scrollRestoration` vaut `'auto'` : la page revient, **de façon
+  asynchrone**, là où elle était à l'ouverture. Mesuré le 2026-09-11 à
+  1280 × 720 : 831 px à l'ouverture, 891 après la fermeture malgré un
+  `scrollTo(0, 0)` posé entre-temps ; 0 avec `'manual'`. Pour la personne,
+  c'est juste — on revient où l'on était. Pour le banc d'essai, un `scrollTo`
+  posé avant une assertion de géométrie est défait sous ses yeux : remettre la
+  position **dans** un `expect.poll`, à chaque essai (`data-flow:827`). Deux
+  hypothèses sont tombées avant celle-ci — le focus rendu au déclencheur, le
+  bouton recréé par le rendu.
 - **Le double Firebase de `_harness.js` diverge de Realtime Database.** Deux
   divergences corrigées, aucune garde automatique : `set(null)` doit effacer, et
   `push().set()` doit écrire un chemin plat sous peine d'avaler les semences. En
@@ -1643,6 +1751,13 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   (voir *Décisions*) : `true` = on a navigué, `false` = la surface était déjà là,
   et une surface **inatteignable lève**. Ne pas rétablir un `return false`
   silencieux — c'est ce qui faisait mesurer trois fois le même panneau.
+  **Depuis le lot E (2026-09-11), « on a navigué » a deux chemins** : une
+  commande visible qui NOMME le panneau — l'onglet sous 900 px, une porte au
+  bureau (`.porte[data-panneau]`) —, ou une destination voisine qui le fait
+  paraître. Le second existe parce qu'au bureau, sur l'écran Réglages, aucune
+  commande ne nomme les charges : « ← Retour au tableau de bord » nomme le
+  bilan, et montre les charges avec lui. `garde-du-panneau.spec.js` tient les
+  quatre issues.
 - **`detail-depenses.spec.js` : DEUX défauts, pas un — et l'affirmation « un
   seul point de chute » est réfutée par les artefacts (2026-09-07).**
   Elle a tenu deux jours. Les deux artefacts CI ont été **téléchargés et
@@ -2006,6 +2121,17 @@ reprend faute de savoir qu'elle a été prise coûte plus cher qu'un gotcha.**
   période est mensuelle, le jour ne vit que dans le champ `date`, donc une
   charge semée le 05 est lue tout le mois. Figer partout coûterait 24 réécritures
   pour un risque nul dans la plupart des cas.
+  **Elles sont SIX depuis le 2026-09-12** : `recherche-montant` a rejoint la
+  liste, et il a fallu 20 chutes sur 20 pour le voir. Son semis effaçait le
+  champ date, avec sa raison écrite — *« une date vide est la seule valeur qui
+  ne puisse contenir aucun chiffre »*. **Elle est fausse** :
+  `variable-charges.js:425` fait `date = champ.value || dateDuJour()`, donc
+  vider le champ enregistre la date DU JOUR, que la recherche couvre. Le 12 du
+  mois, « 12 » ramenait les trois charges semées, et le cas « 12 ne ramène pas
+  120 » tombait — un cas qui passait la veille et serait repassé le lendemain.
+  **Neutraliser une SAISIE ne neutralise pas le calendrier tant que le code
+  porte un repli** : c'est l'horloge qu'il faut figer, à une date choisie pour
+  ne porter aucun des chiffres que le fichier cherche.
   **✅ L'angle qu'on croyait exposé ne l'est pas — MESURÉ le 2026-09-10, après
   deux jours passés en ⚠️.** `data-flow`, `regles-donnees`, `renommage` et
   `vues` sèment bien des **mois absolus sans figer l'horloge** : la description

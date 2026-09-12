@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Alimenter une cagnotte, du versement jusqu'à la jauge
@@ -21,11 +21,15 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
 
 /** Renseigne les deux salaires : sans eux, le prorata ne rend aucun bilan */
 async function poserLesSalaires(page) {
+  // Les salaires vivent dans Réglages, qui au bureau REMPLACE le tableau de
+  // bord (lot E) : on y va, puis on revient où le reste du cas se joue.
+  await allerAuPanneau(page, 'panneauReglages');
   await page.locator('#salaireVous').fill('2000');
   await page.locator('#salaireVous').blur();
   await page.locator('#salaireConjointe').fill('3000');
   await page.locator('#salaireConjointe').blur();
   await page.waitForTimeout(500);
+  await allerAuPanneau(page, 'panneauBilan');
 }
 
 /** Le solde net affiché, en nombre */

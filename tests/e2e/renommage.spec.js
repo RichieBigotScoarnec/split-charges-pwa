@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Renommer une catégorie doit emporter ses charges
@@ -16,10 +16,13 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
  */
 
 async function poserDeuxCharges(page, categorie) {
+  // Les salaires vivent dans Réglages ; les charges, sur le tableau de bord.
+  await allerAuPanneau(page, 'panneauReglages');
   await page.locator('#salaireVous').fill('2500');
   await page.locator('#salaireConjointe').fill('1800');
   await page.locator('#salaireVous').blur();
   await page.waitForTimeout(200);
+  await allerAuPanneau(page, 'panneauBilan');
 
   for (const [description, montant] of [['Midi crêperie', '18'], ['Pizza', '24']]) {
     await page.locator('#addVariableChargeBtn').click();

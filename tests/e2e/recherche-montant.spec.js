@@ -13,6 +13,16 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
  * affiche — ni « 12.50 » ne la trouvaient.
  */
 
+/**
+ * Le jour où ce fichier vit — et il est CHOISI, pas subi.
+ *
+ * Aucune de ses formes ne porte « 12 » ni « 17 », les deux nombres que ces cas
+ * cherchent : ni l'ISO « 2026-03-05 » que la recherche couvre, ni « 5 mars
+ * 2026 » que l'écran affiche. Sans cette horloge, le contrôle rougissait le
+ * 12 de chaque mois — mesuré le 2026-09-12, 20 chutes sur 20.
+ */
+const LE_5_MARS = new Date('2026-03-05T09:00:00').getTime();
+
 async function poser(page, description, montant, categorie = 'Courses') {
   await page.locator('#addVariableChargeBtn').click();
   await page.locator('#variableChargeDescription').fill(description);
@@ -30,18 +40,20 @@ async function poser(page, description, montant, categorie = 'Courses') {
   // et elle a mis un passage complet à se manifester.
   await page.locator('#variableChargeHeure').fill('');
 
-  // LA DATE EST EFFACÉE POUR LA MÊME RAISON, ET ELLE DOIT L'ÊTRE EN ENTIER.
+  // LA DATE EST EFFACÉE, MAIS ELLE NE RESTE PAS VIDE — ET C'EST MESURÉ.
   //
-  // La première version datait la charge du PREMIER du mois, pour neutraliser
-  // le jour. Elle ne neutralisait ni le mois ni l'année : en décembre les trois
-  // charges auraient porté « AAAA-12-01 », et le contrôle « 12 ne ramène pas
-  // 120 » serait tombé tout le mois — la date portant les deux chiffres
-  // cherchés. Le job E2E aurait viré au rouge chaque décembre, et `deploy.yml`
-  // aurait sauté la publication.
+  // ~~Une date vide est un cas que l'application porte : c'est la seule valeur
+  // qui ne puisse contenir aucun chiffre.~~ **C'est faux**, et le contrôle l'a
+  // payé le 2026-09-12 : `variable-charges.js:425` fait
+  // `date = champ.value || dateDuJour()`. Vider le champ enregistre donc la
+  // date DU JOUR, que la recherche couvre (`search.js`, « la date sous les
+  // deux formes »). Le 12 du mois, « 12 » trouvait les trois charges :
+  // 20 chutes sur 20, et le cas passait la veille.
   //
-  // Un an après le contrôle qui dépendait de l'heure qu'il était, le même
-  // piège d'un cran plus large. Une date vide est un cas que l'application
-  // porte : c'est la seule valeur qui ne puisse contenir aucun chiffre.
+  // C'est l'horloge qu'il faut neutraliser, pas le champ — et le beforeEach
+  // la fige à une date dont aucune forme ne porte « 12 » ni « 17 », les deux
+  // nombres que ce fichier cherche. Le champ reste vidé : il sert encore à ne
+  // pas dépendre du préremplissage du formulaire.
   await page.locator('#variableChargeDate').fill('');
 
   await page.locator('#saveVariableCharge').click();
@@ -57,6 +69,9 @@ async function chercher(page, requete) {
 
 test.describe('Rechercher par montant', () => {
   test.beforeEach(async ({ page }) => {
+    // Avant le chargement : la page lit la date à l'ouverture, et le
+    // formulaire préremplit son champ avec elle.
+    await page.clock.setFixedTime(LE_5_MARS);
     await setupFirebaseMock(page);
     await waitForApp(page);
 

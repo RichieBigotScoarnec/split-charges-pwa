@@ -151,6 +151,13 @@ export function renderCategoryBudgets() {
   contenu.replaceChildren();
 
   const resume = summarizeBudgets(lignes);
+
+  // Le titre dit l'état de la carte (planche 1, `budgetsAbsents` /
+  // `budgetsDefinis`) : tant qu'aucun budget n'est fixé, elle montre où part
+  // l'argent ; ensuite, ce que les budgets en retiennent.
+  const titre = document.getElementById('titreCategories');
+  if (titre) titre.textContent = resume.budgeted > 0 ? 'Budgets par catégorie' : 'Où part votre argent';
+
   if (resume.budgeted > 0) {
     const total = el('div', 'budget-total',
       `${formatCurrency(resume.spent)} dépensés sur ${formatCurrency(resume.budgeted)} budgétés`);
