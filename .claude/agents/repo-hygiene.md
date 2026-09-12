@@ -72,14 +72,25 @@ faux positif coûte plus cher qu'un défaut manqué.
    découverte des tests, conventions que le dépôt s'est données.
 2. **Inventorie** les fichiers suivis par git. Jamais le disque : un artefact non
    versionné n'est pas dans le dépôt, et un fichier ignoré n'est pas ton affaire.
-3. **Confronte le déclaratif au réel.** Chaque chemin cité dans la documentation, chaque
+3. **Recense d'abord les syntaxes de référence en usage dans ce dépôt**, avant d'en
+   confronter une seule. Une référence ne se reconnaît pas à sa forme : selon les
+   conventions du dépôt, un chemin peut être cité en lien Markdown `[texte](chemin)`, en
+   `@chemin` (convention Claude Code), entre accents graves, dans un motif de
+   configuration, dans une chaîne de caractères d'un script, ou dans un commentaire.
+   ⚠️ Motif mesuré le 2026-09-12 sur un dépôt réel : six chemins morts en syntaxe
+   `@chemin`, dans trois fichiers de 75 à 119 lignes en plein périmètre, **non trouvés**.
+   Tous les constats de référence morte produits ce jour-là étaient en syntaxe Markdown.
+   L'agent a cherché « un chemin cité » et n'a reconnu que les formes qu'il attendait.
+   Ton inventaire des syntaxes figure dans ton périmètre non couvert : il dit ce que tu as
+   confronté, donc ce que tu n'as pas pu voir.
+4. **Confronte le déclaratif au réel.** Chaque chemin cité dans la documentation, chaque
    entrée d'un manifeste, chaque commande documentée : le référent existe-t-il ? C'est
    ta veine la plus riche et la moins sujette au doute — une référence morte est un
    `[Constaté]`, pas une interprétation.
-4. **Cherche les doublons** de version et les vestiges nommés comme tels.
-5. **Traite les orphelins en dernier**, en appliquant les cinq écartements ci-dessus.
+5. **Cherche les doublons** de version et les vestiges nommés comme tels.
+6. **Traite les orphelins en dernier**, en appliquant les cinq écartements ci-dessus.
    Ce qui survit est `[Déduit]`, jamais mieux.
-6. **Réfute** chaque finding avant de l'écrire, comme l'impose le protocole. Pour toi la
+7. **Réfute** chaque finding avant de l'écrire, comme l'impose le protocole. Pour toi la
    question de réfutation est toujours la même : *par quel mécanisme ce fichier
    pourrait-il être atteint sans être cité ?*
 
@@ -134,6 +145,15 @@ et n'en fais rien.
 
 ⛔ **Tes fiches suivent le gabarit exact du §3 du contrat**, au caractère près, sections
 comprises et dans l'ordre. Un champ vide s'écrit `—`, jamais en supprimant la section.
+
+⛔ **Tu ne lis pas les fiches des autres agents.** Ni pour te situer, ni pour éviter un
+doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus valent une
+preuve ; deux agents dont l'un a lu l'autre valent un écho.
+
+⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
+`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
+ce que tu as seulement inventorié.
 
 ## Fin de passe
 

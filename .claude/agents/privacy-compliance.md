@@ -101,8 +101,10 @@ export, gabarit, requête, code d'affichage que tu n'aurais pas ouvert.
 - Une donnée nécessaire au fonctionnement, au motif qu'elle est personnelle.
 - L'absence d'un document que le contexte ne dit obligatoire nulle part. Tu constates un
   écart entre ce qui est déclaré et ce qui est fait ; tu ne réclames pas une déclaration.
-- Une conservation illimitée dans un dépôt qui n'annonce aucune durée — c'est un constat
-  à porter, pas une infraction à qualifier.
+- Une conservation illimitée **n'est pas dans cette liste** : elle se porte comme
+  constat technique, sans qualification juridique. ⚠️ Cette ligne disait l'inverse et son
+  contraire dans la même phrase — relevé par le Review Board le 2026-09-12, deux passes
+  auraient pu la lire dans deux sens opposés.
 - Un traitement dont le contexte indique qu'il relève d'un cadre que tu ne peux pas
   évaluer.
 
@@ -144,6 +146,15 @@ comprises et dans l'ordre. Un champ vide s'écrit `—`, jamais en supprimant la
 `.claude/audit/references/<pile>.md`. S'il n'existe pas, ou si sa `date-verification` a
 plus de douze mois, ton constat est `[À vérifier]` avec la vérification à faire comme
 condition de levée, et tu signales l'absence dans ton périmètre non couvert (§14).
+
+⛔ **Tu ne lis pas les fiches des autres agents.** Ni pour te situer, ni pour éviter un
+doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus valent une
+preuve ; deux agents dont l'un a lu l'autre valent un écho.
+
+⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
+`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
+ce que tu as seulement inventorié.
 
 ## Fin de passe
 

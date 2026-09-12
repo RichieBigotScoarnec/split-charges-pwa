@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '1.6'
+version: '1.7'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,34 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 1.6 — 2026-09-12.**
+> **Version 1.7 — 2026-09-12.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v1.6 → v1.7** — première passe sur un **dépôt réel** : 446 fichiers,
+117 000 lignes, 31 constats. Ce que la passe valide, et ce qu'elle casse.
+
+✅ **Zéro faux positif sur 242 fichiers de test.** Aucun n'a été signalé comme orphelin.
+L'écartement n° 1 du §6 ter tient à l'échelle — c'était le risque qui fait abandonner un
+outil. Le Project Analyst a même trouvé un troisième mécanisme de résolution à
+l'exécution que les motifs par défaut ne prévoyaient pas.
+
+✅ **Le mode de défaillance visé est trouvé** : huit des dix constats `REPO` sont des
+divergences entre ce qu'un document déclare et ce que le dépôt contient.
+
+❌ **Six chemins morts dans trois prompts d'audit, en plein périmètre, non trouvés.**
+Manque réel, non expliqué.
+
+❌ **Densité quinze fois moindre que sur le témoin.** Le rapport dit lui-même que les 70
+utilitaires et les 31 modules ont été *inventoriés, pas lus*, et qu'**aucun agent n'a
+déclaré sur disque ce qu'il a réellement ouvert**. Un audit qui échantillonne sans le
+dire est indiscernable d'un audit exhaustif.
+
+Sept corrections : périmètre par défaut (§0), support disque du périmètre non couvert
+(§11), indépendance des passes (§7), place de la Red Team dans l'index (§7), champs
+`effort` et `risque-de-regression` au gabarit (§3), sortie de `/security-review` (§0),
+et retrait d'une heuristique chiffrée du Review Board.
 
 **Changements v1.5 → v1.6** — la couche référentielle existe (§14). C'était le dernier
 chantier de fond, et l'axe par lequel une pile non encore utilisée devient auditable sans
@@ -110,6 +134,23 @@ partie — Claude Code embarque une commande `/security-review` native, et le d�
 `anthropics/claude-code-security-review` publie un `security-review.md` prévu pour être
 copié dans `.claude/commands/` puis personnalisé. On l'adopte et on le spécialise. Un
 composant maintenu par l'éditeur vaut mieux qu'un équivalent local à maintenir seul.
+
+**Périmètre par défaut** — corrigé le 2026-09-12. Seule **la bibliothèque elle-même**
+s'exclut : `.claude/agents/`, `.claude/commands/audit.md`, `.claude/contrat-agents-audit.md`
+et `.claude/audit/`. **Tout le reste de `.claude/` est du contenu de projet comme un
+autre** et s'audite.
+
+⚠️ Motif : la commande excluait `.claude/` en bloc. Sur la passe du 2026-09-12, ça a mis
+hors champ deux artefacts qui étaient précisément ceux qu'on voulait voir retrouver — un
+prompt d'audit ciblant des fichiers disparus, et un rapport d'audit daté rangé dans le
+répertoire des commandes, donc invocable. Une exclusion posée pour une bonne raison a
+emporté bien plus que sa raison.
+
+**Sortie de `/security-review`** : elle s'écrit dans
+`.claude/audit/security-review-output.md`. La commande ne suit pas le schéma du §3 et le
+Board la transcrit depuis ce fichier. Sans emplacement fixé, la sortie a dû transiter par
+un dossier temporaire de session le 2026-09-12, et son chemin par une ligne ajoutée au
+message du Board — hors de la formule prescrite.
 
 **Son branchement dans la séquence** — dernier point ouvert du contrat, tranché le
 2026-09-12 après deux passes où le préfixe `SEC` n'a produit aucun fichier.
@@ -214,6 +255,8 @@ date: AAAA-MM-JJ
 severite: Critique | Haute | Moyenne | Basse | Info
 certitude: Constaté | Déduit | À vérifier
 preuve-de-cloture: Code | Test | Visuel
+effort: Faible | Moyen | Élevé
+risque-de-regression: Faible | Moyen | Élevé
 statut: ouvert
 ---
 
@@ -407,11 +450,25 @@ seule parade à la collision d'identifiants du §4.
 
 **Aucun agent d'audit n'écrit ailleurs que là.** Aucun ne touche au code.
 
+⛔ **Un agent d'audit ne lit pas les fiches des autres agents.** Ni pour se situer, ni
+pour éviter un doublon, ni pour s'appuyer dessus. Son indépendance est ce qui rend les
+recoupements informatifs : deux agents qui convergent sans s'être lus valent une preuve,
+deux agents dont l'un a lu l'autre valent un écho.
+⚠️ Le 2026-09-12, un agent a cité dix fiches de deux agents **encore en cours**. Rien ne
+le lui interdisait : la règle existait dans l'intention, nulle part dans le texte.
+Le Project Analyst et le Review Board sont les seuls à lire ce que d'autres ont produit,
+et à des moments où personne n'écrit.
+
 ⛔ **Trois interdits d'écriture, à répercuter dans chaque fichier d'agent** — mesurés le
 2026-09-11, où les trois ont été violés en une seule passe :
 
 - **`findings/INDEX.md` n'est jamais écrit par un agent d'audit.** Il est reconstruit
   depuis les fichiers de constat **par le Review Board**, et par lui seul.
+  **Exception pour la Red Team** : elle s'exécute après la consolidation, donc après la
+  reconstruction. Elle ajoute ses propres lignes à la fin de `INDEX.md`, en **ajout
+  seul**, sous un intertitre `## Chaînes (passe adversariale)`. Elle ne réécrit rien.
+  ⚠️ Sans cette exception, ses fiches existent sur le disque et ne figurent ni à l'index
+  ni au rapport — constaté le 2026-09-12.
   ⚠️ Tranché le 2026-09-12 : ce paragraphe l'attribuait à l'orchestrateur, le fichier du
   Review Board se l'attribuait, et la commande `/audit` interdit à l'orchestrateur
   d'écrire sous `.claude/audit/`. Trois textes, trois versions. L'index n'a existé que
@@ -523,9 +580,17 @@ Sans les deux, on ne sait pas de quel état il parle, et il vieillit sans le dir
   non couvert — d'où **rien ne le récupère à la passe suivante**. Le seul fichier
   partagé en écriture de toute la chaîne, et il est en ajout seul : on y ajoute une
   ligne, on n'y réécrit jamais.
-- Rendre le périmètre non couvert, explicitement, à la fin de chaque rapport. Ce qui n'a
-  pas été regardé se déclare ; c'est la seule façon de distinguer « rien » de « pas
-  regardé ».
+- **Écrire son périmètre non couvert sur le disque**, dans
+  `findings/PERIMETRE-<nom-de-l-agent>.md`. Ce qui n'a pas été regardé se déclare ; c'est
+  la seule façon de distinguer « rien » de « pas regardé ».
+  ⚠️ Jusqu'au 2026-09-12, cette déclaration ne vivait que dans la réponse de l'agent.
+  Le §7 fait passer toute corrélation par le disque, le gabarit ne lui donnait pas de
+  section, et le Review Board a dû **reconstruire par déduction** ce que personne n'avait
+  couvert, à partir des fiches. Une obligation sans support est une obligation perdue.
+  Ce fichier porte deux choses, et la seconde est la plus importante :
+  **ce que tu n'as pas regardé**, et **ce que tu as ouvert pour de bon par rapport à ce
+  que tu as seulement inventorié**. Sur 446 fichiers, un agent échantillonne ; un
+  échantillonnage non déclaré est indiscernable d'un audit exhaustif.
 
 ## 12. Validation du contrat lui-même
 

@@ -11,7 +11,14 @@ tu rends compte de ce qui s'est passé.
 
 Contrat : `.claude/contrat-agents-audit.md`. Agents : `.claude/agents/`.
 
-Périmètre demandé : $ARGUMENTS — à défaut, l'ensemble du dépôt hors `.claude/`.
+Périmètre demandé : $ARGUMENTS — à défaut, **l'ensemble du dépôt sauf la bibliothèque
+elle-même** : `.claude/agents/`, `.claude/commands/audit.md`,
+`.claude/contrat-agents-audit.md`, `.claude/audit/`.
+
+⚠️ Tout le reste de `.claude/` **s'audite** : c'est du contenu de projet comme un autre.
+Le 2026-09-12, exclure `.claude/` en bloc a mis hors champ un prompt d'audit ciblant des
+fichiers disparus et un rapport daté rangé dans le répertoire des commandes, donc
+invocable — précisément les deux artefacts qu'on voulait voir retrouver.
 
 ## La règle qui prime sur toutes les autres
 
@@ -79,6 +86,9 @@ pour son volet `DATA`, mais il en a besoin pour son volet `PERF`.
 
 Par défaut, lance-les tous. Écarter un agent demande une justification tirée du contexte,
 et cette justification figure dans ton compte rendu.
+
+Sa sortie s'écrit dans `.claude/audit/security-review-output.md` — emplacement fixé au
+contrat, plus de dossier temporaire ni de chemin ajouté au message du Board.
 
 Lance **aussi `/security-review`** dans cette étape : le préfixe `SEC` n'a produit aucune
 fiche sur les deux premières passes, faute d'être branché. C'est une commande et non un
