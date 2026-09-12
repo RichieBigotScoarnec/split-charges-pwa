@@ -169,6 +169,21 @@ d'une couverture (§16).
 Si le répertoire est absent, dis-le dans ton périmètre non couvert : une part de ce que
 tu n'as pas ouvert aurait pu être atteinte par là.
 
+**Empreinte stable** (§18) — chaque fiche porte une `empreinte` calculée sur le chemin
+normalisé et la **nature canonique** du défaut, pas sur ton titre : « appel sortant sans
+borne de temps », pas « les trois appels vers X n'ont aucune borne ». Deux passes qui
+décrivent le même défaut au même endroit doivent rendre la même empreinte, quels que
+soient leurs mots. C'est ce qui permet de distinguer un défaut corrigé d'un défaut manqué.
+
+**Ordre de travail** (§19) — si `.claude/audit/tooling/risque.json` existe, traite les
+fichiers de ton domaine **dans son ordre**, et dis dans ton périmètre où tu t'es arrêté
+dans le classement. S'être arrêté au rang 40 sur 130 ne dit pas la même chose selon qu'on
+a commencé par le haut ou au hasard.
+
+**Risques acceptés** (§21) — lis `.claude/audit/risques-acceptes.md` s'il existe. Un
+constat dont l'empreinte y figure se produit quand même, avec `statut: accepté`. Tu ne le
+supprimes pas : la décision disparaîtrait avec lui.
+
 ## Fin de passe
 
 Termine par le **périmètre non couvert** : fichiers non ouverts, parcours non suivis,

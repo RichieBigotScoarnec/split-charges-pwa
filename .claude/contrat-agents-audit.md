@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '2.0'
+version: '2.1'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,27 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 2.0 — 2026-09-12.**
+> **Version 2.1 — 2026-09-12.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v2.0 → v2.1** — quatre manques structurels comblés d'un coup, tous
+identifiés en répondant à « je veux un audit qui approche la perfection » :
+
+- **§18 identité des constats** — chaque passe repartait à `001`. Impossible de dire ce
+  qui est nouveau, corrigé, ou revenu. Trois passes existaient, aucune n'était comparable.
+- **§19 pondération par le risque** — la fréquence de modification et la couverture de
+  test sont deux signaux déterministes et gratuits que rien n'exploitait. Ils ne trouvent
+  rien ; ils décident **où regarder** quand on ne peut pas tout ouvrir.
+- **§20 barrière de couverture** — la couverture était déclarée, pas verrouillée.
+- **§21 boucle de retour** — rien de ce que l'humain décide ne revenait dans le système.
+
+⚠️ Ce que ces quatre sections ne font pas : rendre l'audit exhaustif. **Le rappel — la
+part des défauts réels effectivement trouvés — n'est pas mesurable sur un dépôt vivant**,
+faute d'en connaître le dénominateur. Le témoin est le seul endroit où il se mesure, et
+il est synthétique. On peut rendre cette chaîne très bonne et savoir de combien ; pas
+parfaite.
 
 **Changements v1.9 → v2.0** — la chaîne cesse d'être uniquement statique (§17). Elle
 lisait du code sans jamais observer ce qu'il produit, et se fermait ainsi une classe
@@ -279,6 +296,7 @@ sans en publier la forme. Un schéma décrit n'est pas un schéma imposé.
 ```markdown
 ---
 id: <PREFIXE>-<NNN>
+empreinte: <PREFIXE>-<sha1 court de chemin+nature>   # §18, stable entre passes
 agent: <nom>
 commit: <sha court>
 date: AAAA-MM-JJ
@@ -672,6 +690,94 @@ que son silence n'est pas un constat.
 avec gestion de worktrees et une infrastructure de tests. À examiner avant de fabriquer
 le dépôt témoin de zéro.
 
+## 21. La boucle de retour
+
+Rien de ce que l'humain décide ne revient dans le système. Un risque accepté
+délibérément, un faux positif écarté, une convention assumée ressortent à chaque passe —
+et c'est ainsi qu'un outil meurt : on apprend à ignorer ses rapports.
+
+Deux fichiers portent cette mémoire, et **seul l'humain les écrit** :
+
+- `false-positives.md` (§6 ter) — ce qui ne doit plus remonter, avec sa raison.
+- `risques-acceptes.md` — un constat réel, compris, et **assumé**. Il porte l'identifiant
+  stable du §18, la date de la décision, et ce qui la ferait réexaminer.
+
+Un agent lit les deux et n'en écrit aucun. Un constat dont l'identifiant figure dans
+`risques-acceptes.md` se produit quand même, avec `statut: accepté` — **il n'est pas
+supprimé**, sinon la décision disparaît avec lui et personne ne saura pourquoi ce défaut
+ne remonte plus.
+
+## 20. La barrière de couverture
+
+La couverture était déclarée (§11) ; elle devient un **verrou**.
+
+Le Review Board calcule, depuis les `PERIMETRE-*` et les indices vérifiés, la part du
+périmètre réellement atteinte. Il l'inscrit en tête de rapport, avant tout constat.
+
+⛔ **Un rapport dont la couverture est inférieure au seuil ne conclut pas.** Il rend ce
+qu'il a trouvé et déclare explicitement qu'il ne couvre pas le périmètre demandé, avec la
+liste des lots restants. Seuil par défaut : **80 % des fichiers du périmètre**, atteints
+par ouverture ou par indice vérifié.
+
+⚠️ Un audit qui trouve peu sur un cinquième d'un dépôt et un audit qui trouve peu sur un
+dépôt sain **se ressemblent exactement**. Cette barrière est ce qui les distingue, et
+c'est la seule chose qui empêche de lire un rapport comme un quitus.
+
+**Comment on monte la couverture** : en découpant. L'orchestrateur enchaîne des vagues sur
+des lots dimensionnés pour tenir dans une fenêtre, et l'union des passes couvre le
+périmètre. Un agent ne peut pas ouvrir 130 fichiers ; cinq agents sur cinq lots le
+peuvent.
+
+## 19. La pondération par le risque
+
+Quand on ne peut pas tout ouvrir, ce qui compte n'est plus combien mais **lesquels**.
+
+Deux signaux déterministes, gratuits, et que rien n'exploitait :
+
+- la **fréquence de modification** d'un fichier, depuis `git log` ;
+- sa **couverture de test**, depuis la couverture fusionnée.
+
+Un fichier souvent modifié et peu couvert est l'endroit où les défauts vivent. Un fichier
+inchangé depuis deux ans est calme. Le produit des deux donne un classement, déposé en
+`.claude/audit/tooling/risque.json`.
+
+⛔ **Ce classement ne produit aucun constat et n'en justifie aucun.** Il dirige
+l'attention, rien d'autre. Un fichier en tête de liste n'est pas suspect ; il est
+prioritaire à ouvrir.
+
+Chaque agent traite les fichiers de son domaine **dans cet ordre**, et son fichier de
+périmètre dit où il s'est arrêté dans le classement — ce qui rend son arrêt lisible :
+s'être arrêté au rang 40 sur 130 ne dit pas la même chose selon qu'on a commencé par le
+haut ou au hasard.
+
+⚠️ Un classement sans mesure de couverture ne reflète que la fréquence de modification, et
+le fichier produit doit le déclarer. **Non couvert** et **non mesuré** ne sont pas la même
+chose.
+
+## 18. L'identité des constats
+
+Chaque passe repart à `001`. Un `REPO-003` de mardi et un `REPO-003` de mercredi n'ont
+aucun rapport. Impossible de dire ce qui est **nouveau**, ce qui est **corrigé**, ce qui
+**revient** — et donc impossible de lire une tendance ou de vérifier une correction.
+
+Tout constat porte donc, en plus de son identifiant de passe, une **empreinte stable** :
+
+```
+empreinte: <prefixe>-<sha1 court de (chemin normalisé + nature du défaut)>
+```
+
+La nature est la formulation canonique du défaut, pas son titre : *« appel sortant sans
+borne de temps »*, pas *« Les trois appels vers Nominatim n'ont aucune borne »*. Deux
+passes qui décrivent le même défaut au même endroit doivent rendre la même empreinte,
+quels que soient leurs mots.
+
+Le Review Board compare les empreintes de la passe à celles du dernier rapport et classe :
+**nouveau**, **persistant**, **disparu**.
+
+⛔ **« Disparu » ne veut pas dire « corrigé ».** La variance du §12 bis fait qu'un constat
+peut disparaître parce qu'il a été manqué. Un constat n'est déclaré corrigé que par le
+`verification` (§22), jamais par son absence.
+
 ## 17. La preuve dynamique
 
 Lire du code ne dit pas ce qu'il produit. Le contraste après superposition, l'ordre de
@@ -773,6 +879,29 @@ faux — **plus personne ne sait s'il est vrai**, ce qui suffit à le sortir du 
 `accessibilite-wcag.md` porte ses seuils avec la mention explicite qu'ils n'ont pas été
 confirmés à la source : un agent qui s'en sert écrit `[Déduit]`, pas `[Constaté]`. C'est
 la couche qui s'applique sa propre discipline.
+
+## 22. La vérification d'une correction
+
+Un constat se ferme aujourd'hui sur rien. On corrige, et personne ne dit si c'est fermé.
+
+L'agent `verification` prend un constat au statut `corrigé-à-vérifier` et répond à une
+seule question : **le défaut est-il réellement parti ?**
+
+Il ne relit pas la recommandation, il éprouve le constat d'origine — par le moyen que
+déclare son champ `PREUVE DE CLÔTURE` :
+
+| Preuve de clôture | Ce qui ferme |
+|---|---|
+| `Code` | la preuve d'origine, rejouée, ne tient plus |
+| `Test` | un test existe, et **il échouait contre le code d'origine** |
+| `Visuel` | une mesure sur le rendu (§17), au commit courant |
+
+⛔ **Un test qui n'a jamais été vu rouge ne ferme rien.** C'est la seule exigence de cette
+section qui ne se contourne pas : un test écrit après la correction et qui passe du
+premier coup ne démontre pas que le défaut est parti.
+
+Trois verdicts : **fermé**, **partiel** — le défaut a changé de forme —, **toujours
+ouvert**. Jamais « probablement corrigé ».
 
 ## 13. Antécédents
 

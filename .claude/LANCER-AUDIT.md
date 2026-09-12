@@ -1,67 +1,60 @@
-# Passe d'audit — mode opératoire
+# Chaîne d'audit — mode opératoire
 
-Bibliothèque déployée sur la branche `audit/bibliotheque`, qui contient désormais la
-fusion de `main` (lot E inclus). Contrat v1.6.
+Contrat v2.1. Onze agents, deux commandes.
 
-⛔ **Ne change pas de branche pendant une passe.** Les agents ne vivent que sur cette
-branche : basculer sur `main` les fait disparaître au milieu de la séquence. C'est ce qui
-a interrompu la tentative du 2026-09-12. L'orchestrateur relève maintenant le commit et
-la branche au départ et les revérifie avant chaque étape — il s'arrêtera si l'arbre
-bouge, mais mieux vaut qu'il ne bouge pas.
+## Avant toute passe : produire les indices
+
+La chaîne lit des sorties d'outils qu'**elle ne produit pas elle-même** — un agent n'a
+pas le droit d'exécuter le code du dépôt. Sans ces sorties, elle tourne quand même, avec
+une couverture nettement moindre, et l'orchestrateur le signale.
 
 ```bash
-git fetch origin
-git checkout audit/bibliotheque
-claude
+npm install
+
+mkdir -p .claude/audit/tooling
+
+# statique
+npx eslint . --format json -o .claude/audit/tooling/eslint.json
+npx knip --reporter json > .claude/audit/tooling/knip.json
+npx madge --circular --json public/js > .claude/audit/tooling/madge.json
+npm audit --json > .claude/audit/tooling/npm-audit.json
+
+# dynamique
+npm run couverture
+npx playwright test tests/audit/axe.spec.js
+npm run regles
+
+# priorisation
+node tools/risque.mjs > .claude/audit/tooling/risque.json
 ```
 
-⚠️ **Relance `claude` après le checkout.** Les fichiers d'agents sont lus au démarrage de
-session ; ceux arrivés pendant qu'une session tourne sont invisibles.
+⚠️ `node tools/risque.mjs` **après** `npm run couverture` : sans la couverture, le
+classement ne reflète que la fréquence de modification, et il le déclare.
 
-## Lancer
+## Les deux commandes
 
 ```
-/audit
+/audit            balayage profond — périodique, coûteux, seul à trouver ce qui dort
+/audit-diff       changements seulement — continu, court, à chaque modification
 ```
 
-Sans argument, le périmètre est l'ensemble du dépôt hors `.claude/`.
+⚠️ Une revue de diff propre **ne déclare pas le dépôt sain**. Aucune accumulation de
+passes courtes ne trouve un défaut qui n'apparaît dans aucun diff.
 
-## Ce que ce dépôt a de particulier
+## Ce que la passe ne fera pas
 
-**446 fichiers suivis, contre 44 sur le dépôt témoin.**
-Dix fois le volume sur lequel la bibliothèque a été mesurée. Les durées observées sur le
-témoin — 9 min 36 pour la vague de sept, 15 min pour la consolidation — n'ont aucune
-raison de tenir.
+Elle ne conclura pas sous 80 % de couverture du périmètre. Elle rendra ses constats et
+dira quels lots restent. C'est voulu : un audit qui trouve peu sur un cinquième d'un
+dépôt et un audit qui trouve peu sur un dépôt sain se ressemblent exactement.
 
-**236 fichiers de test sur 423.** Plus de la moitié du dépôt. C'est le cas idéal pour
-`qa-tests` et le cas piège pour `repo-hygiene` : aucun n'est importé par le code, tous
-sont découverts par motif de nom. C'est le leurre L1 du témoin, à l'échelle réelle.
+Pour monter la couverture, découpe : `/audit public/js/modules`, puis
+`/audit public/js/utils`, puis `/audit tests`. L'union des passes couvre le périmètre.
 
-**Deux prompts d'audit préexistants** dans `.claude/commands/` :
-`audit-web-fairsplit.md` et `audit-design-fairsplit.md`. **Laissés en place
-délibérément.** Le second n'est pas une commande mais un rapport d'audit daté de mars
-2026 ; le premier cible deux fichiers qui n'existent plus et décrit une architecture
-morte. `repo-hygiene` devrait les trouver.
+## Les deux fichiers que toi seul écris
 
-C'est la comparaison qui vaut cette passe : ces défauts ont été relevés à la main le
-2026-09-11 et consignés dans
-`60-Lessons-Learned/2026-09-11-todo-fairsplit-prompts-audit-derive.md` du vault. **Si
-l'instrument les retrouve seul, il est validé sur du réel. S'il les rate, on sait quoi
-corriger.**
+- `.claude/audit/false-positives.md` — ce qui ne doit plus remonter, avec sa raison.
+- `.claude/audit/risques-acceptes.md` — un constat réel, compris et assumé. Il porte
+  l'empreinte stable du constat, la date, et ce qui ferait le réexaminer.
 
-## Si ça dure trop longtemps
-
-La séquence est arrêtable entre les étapes. Si la vague d'audits dépasse la demi-heure,
-laisse finir — c'est une mesure utile en soi. Si un agent se bloque sans rien écrire,
-l'orchestrateur le relance une fois, à l'identique.
-
-## Ce que je veux en retour
-
-`.claude/audit/` en entier, et les durées par agent. Le nombre de constats m'intéresse
-moins que **le temps et le volume** : c'est ce qui décidera si la chaîne est utilisable
-sur le monorepo pro, qui est encore plus gros.
-
-## Ce que la passe ne modifiera pas
-
-Aucun agent n'écrit hors de `.claude/audit/`, aucun n'exécute le code du dépôt, aucun ne
-touche à git. `git status` doit ne montrer que `.claude/audit/` à la fin.
+Sans eux, ce que tu décides ne revient jamais dans le système, et tu apprendras à ignorer
+les rapports.

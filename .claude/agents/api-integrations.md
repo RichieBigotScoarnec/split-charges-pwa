@@ -176,6 +176,21 @@ qu'elle établit s'écrit `[Constaté]`. Sans elle, le même constat plafonne à
 et tu **nommes la mesure qui le trancherait** — la liste de tes `[Déduit]` est la liste
 des mesures à lancer avant la passe suivante (§17).
 
+**Empreinte stable** (§18) — chaque fiche porte une `empreinte` calculée sur le chemin
+normalisé et la **nature canonique** du défaut, pas sur ton titre : « appel sortant sans
+borne de temps », pas « les trois appels vers X n'ont aucune borne ». Deux passes qui
+décrivent le même défaut au même endroit doivent rendre la même empreinte, quels que
+soient leurs mots. C'est ce qui permet de distinguer un défaut corrigé d'un défaut manqué.
+
+**Ordre de travail** (§19) — si `.claude/audit/tooling/risque.json` existe, traite les
+fichiers de ton domaine **dans son ordre**, et dis dans ton périmètre où tu t'es arrêté
+dans le classement. S'être arrêté au rang 40 sur 130 ne dit pas la même chose selon qu'on
+a commencé par le haut ou au hasard.
+
+**Risques acceptés** (§21) — lis `.claude/audit/risques-acceptes.md` s'il existe. Un
+constat dont l'empreinte y figure se produit quand même, avec `statut: accepté`. Tu ne le
+supprimes pas : la décision disparaîtrait avec lui.
+
 ## Fin de passe
 
 Termine par le **périmètre non couvert**, et fais-le porter l'inventaire de l'étape 2 :

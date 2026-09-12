@@ -1,6 +1,6 @@
 ---
 nom-canonique: outillage-deterministe
-version: '1.0'
+version: '2.0'
 created: '2026-09-12'
 projet: Prompt-Engineer
 type: kb
@@ -11,64 +11,94 @@ type: kb
 ## Pourquoi
 
 Combiner un LLM à de l'analyse statique fait nettement mieux que l'un ou l'autre seul, et
-injecter les constats de l'analyse statique **comme indices à vérifier** récupère près de
-la moitié des manques. C'est le levier le mieux documenté du domaine, et le moins cher
-ici : les outils sont déjà installés.
+injecter les constats de l'analyse statique **comme indices à vérifier** récupère une part
+importante de ce qu'une passe manque.
 
 Un analyseur voit ce qu'un agent survole — la ligne 1 400 d'un fichier qu'il n'ouvrira
-jamais. Un agent voit ce qu'un analyseur ne peut pas voir — l'intention, le contexte,
-l'enchaînement. Les deux ne se remplacent pas.
+jamais, sur **100 % des fichiers**. Un agent voit ce qu'un analyseur ne peut pas voir :
+l'intention, le contexte, l'enchaînement, l'écart entre ce qu'un document déclare et ce
+que le code fait. Les deux ne se remplacent pas — ils se partagent le travail.
 
 ## Qui les lance
 
-**L'humain, ou la CI. Jamais un agent.** Faire tourner un analyseur demande d'installer
-des dépendances et d'exécuter une chaîne d'outillage, ce que le §10 interdit aux agents —
-et pour une bonne raison, mesurée.
+**L'humain ou la CI. Jamais un agent** (§10, §16). Sorties dans `.claude/audit/tooling/`.
 
-Les sorties se déposent dans `.claude/audit/tooling/`, un fichier par outil.
+## Pile web
+
+| Outil | Ce qu'il rend | Ce qu'il dispense de chercher à la main |
+|---|---|---|
+| **ESLint** + `no-unsanitized` | défauts intra-fichier, injections DOM | variables mortes, `innerHTML` non assaini |
+| **Knip** | fichiers, exports et dépendances inutilisés ; **dépendances importées non déclarées** | l'essentiel des constats `CQ` et une partie des `REPO` |
+| **Madge** | cycles de dépendance | ce que Knip ne fait pas et le dit |
+| **npm audit** | vulnérabilités des dépendances | la veille de sécurité des paquets |
+| **couverture fusionnée** | quels fichiers ne sont exercés par aucun test | ce que l'agent QA devine aujourd'hui |
+| **axe-core** (§17) | accessibilité sur le DOM rendu | le contraste après composition, le focus, la tabulation |
 
 ```bash
-# pile web
-npx eslint public/ --format json -o .claude/audit/tooling/eslint.json
+npx eslint . --format json -o .claude/audit/tooling/eslint.json
+npx knip --reporter json > .claude/audit/tooling/knip.json
+npx madge --circular --json public/js > .claude/audit/tooling/madge.json
 npm audit --json > .claude/audit/tooling/npm-audit.json
-
-# pile PowerShell
-Invoke-ScriptAnalyzer -Path . -Recurse | ConvertTo-Json -Depth 5 |
-  Out-File .claude/audit/tooling/psscriptanalyzer.json
+npm run couverture   # produit la couverture fusionnée
 ```
 
-Si le répertoire est vide ou absent, la passe tourne quand même — **et l'orchestrateur le
-signale comme une lacune de couverture**, pas comme un détail.
+⚠️ Knip connaît les conventions des lanceurs de tests : il ne signale pas une suite
+découverte par motif de nom. C'est le leurre le plus coûteux de la chaîne, traité ici de
+façon déterministe.
+
+## Pile PowerShell
+
+| Outil | Ce qu'il rend |
+|---|---|
+| **PSScriptAnalyzer** | variables non initialisées, `Invoke-Expression`, `catch` vides, usage de `PSCredential`, conventions |
+| **InjectionHunter** | règles personnalisées de l'équipe PowerShell de Microsoft, dédiées à la détection d'injection |
+| **jeux de règles livrés** | `ScriptSecurity.psd1`, `CmdletDesign.psd1` — visables directement |
+| **Pester + couverture** | quels chemins ne sont exercés par aucun test |
+
+```powershell
+Install-Module PSScriptAnalyzer, InjectionHunter -Scope CurrentUser
+
+# settings.psd1 : @{ IncludeDefaultRules = $true; CustomRulePath = "<chemin InjectionHunter>" }
+Invoke-ScriptAnalyzer -Path . -Recurse -Settings .\PSScriptAnalyzerSettings.psd1 |
+  ConvertTo-Json -Depth 5 | Out-File .claude/audit/tooling/psscriptanalyzer.json
+```
+
+⚠️ InjectionHunter est le seul outil de cette liste qui vise la classe de défaut la plus
+grave du domaine — un filtre ou une commande construits par concaténation d'une entrée non
+maîtrisée. Sans lui, PSScriptAnalyzer seul ne la voit pas.
+
+## Pondération par le risque
+
+Deux signaux déterministes et gratuits, que rien n'exploitait :
+
+- **la fréquence de modification** d'un fichier, depuis `git log` ;
+- **sa couverture de test**, depuis la couverture fusionnée.
+
+Un fichier souvent modifié et peu couvert est l'endroit où les défauts vivent. Un fichier
+inchangé depuis deux ans est calme.
+
+```bash
+node tools/risque.mjs > .claude/audit/tooling/risque.json
+```
+
+Ce classement ne produit aucun constat. Il **dirige l'attention** : quand un agent ne peut
+ouvrir qu'un cinquième des fichiers, il décide lequel.
 
 ## Ce qu'un agent en fait
 
-⛔ **Une sortie d'outil n'est pas un constat.** Elle n'a ni impact, ni cause, ni
-localisation vérifiée dans son contexte. La reprendre telle quelle reviendrait à recopier
-un rapport de linter en prétendant l'avoir audité.
+⛔ **Une sortie d'outil n'est pas un constat.** Deux issues et deux seulement :
 
-Pour chaque indice qui relève de ton préfixe, deux issues et deux seulement :
-
-- **Vérifié** → tu ouvres le fichier, tu établis le fait toi-même, et tu écris une fiche
-  au schéma du §3 **avec ta propre preuve**. L'indice est cité en `LIÉS`, jamais comme
-  preuve.
-- **Écarté** → tu ajoutes une ligne à `findings/INDICES-ECARTES.md` : l'indice, la règle
-  qui l'a produit, et pourquoi il ne tient pas ici. En ajout seul.
+- **Vérifié** → fiche au schéma du §3, **avec sa propre preuve**. L'indice en `LIÉS`.
+- **Écarté** → une ligne dans `findings/INDICES-ECARTES.md`, en ajout seul, avec la raison.
 
 ⚠️ **Un indice non traité est pire qu'un indice absent** : il donne l'illusion d'une
-couverture. Tout indice relevant de ton préfixe repart dans l'une des deux colonnes.
-
-## Ce que ça change sur la couverture
-
-Un agent ne peut pas ouvrir 130 fichiers. Un analyseur les parcourt tous. Les indices
-sont donc le seul canal par lequel un fichier **non ouvert** peut quand même produire un
-constat — et c'est ce qui fait remonter la couverture réelle sans multiplier les passes.
-
-Ton fichier `PERIMETRE-<name>.md` distingue en conséquence trois catégories, pas deux :
-**ouvert**, **atteint par un indice vérifié**, **non couvert**.
+couverture.
 
 ## Ce que l'outillage ne remplace pas
 
-Un analyseur ne voit ni les enchaînements, ni l'écart entre ce qu'un document déclare et
-ce que le code fait, ni une donnée collectée sans finalité, ni une information portée par
-la seule couleur. Tous les constats les plus graves des passes conduites jusqu'ici sont
-de ce genre. L'outillage élargit la couverture ; il ne déplace pas le centre de gravité.
+Ni les enchaînements, ni l'écart entre ce qu'un document déclare et ce que le code fait,
+ni une donnée collectée sans finalité, ni une information portée par la seule couleur, ni
+une alerte conditionnée à un échec qui ne se produit jamais. Tous les constats les plus
+graves produits jusqu'ici sont de ce genre.
+
+**L'outillage élargit la couverture ; il ne déplace pas le centre de gravité.**
