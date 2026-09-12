@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Journal de diagnostic, de bout en bout.
@@ -105,6 +105,7 @@ test.describe('Journal de diagnostic', () => {
     });
 
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2500');
     await page.locator('#salaireVous').blur();
     await page.waitForTimeout(1500);
@@ -129,10 +130,12 @@ test.describe('Journal de diagnostic', () => {
     await waitForApp(page);
 
     // Un parcours qui manipule des données nommées et chiffrées.
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#prenomVous').fill('Richard');
     await page.locator('#prenomVous').blur();
     await page.locator('#salaireVous').fill('2600');
     await page.locator('#salaireVous').blur();
+    await allerAuPanneau(page, 'panneauBilan');
 
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Pharmacie du centre');

@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Ce qui reste à passer ce mois-ci
@@ -18,10 +18,12 @@ test.describe('Le prévisionnel du mois', () => {
   test.beforeEach(async ({ page }) => {
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2000');
     await page.locator('#salaireVous').blur();
     await page.locator('#salaireConjointe').fill('2000');
     await page.locator('#salaireConjointe').blur();
+    await allerAuPanneau(page, 'panneauBilan');
   });
 
   /**

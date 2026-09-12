@@ -209,3 +209,37 @@ const PORTEES_QUI_RAPPELLENT_LE_SOLDE = Object.freeze([PORTEES.DEUX, PORTEES.SOL
 export function porteeRappelleLeSolde(portee) {
   return PORTEES_QUI_RAPPELLENT_LE_SOLDE.includes(porteeRetenue(portee));
 }
+
+/** Les portées sous lesquelles le panneau Bilan montre les chiffres du foyer */
+const PORTEES_QUI_MONTRENT_LE_FOYER = Object.freeze([PORTEES.DEUX]);
+
+/**
+ * Le panneau Bilan montre-t-il le foyer sous cette portée ?
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * « À DEUX » SEULEMENT — décision du foyer, 2026-09-11
+ *
+ * La portée gouverne TOUT le panneau, pas seulement sa tête. « Moi ce mois »
+ * veut dire « cet écran parle de moi » : une carte qui affiche les chiffres du
+ * couple dessous fait mentir le segment — le défaut même que la barre
+ * collante avait sur « Privé ». Et sur « Privé », une carte du couple serait
+ * une fuite de contexte.
+ *
+ * Mesuré avant la règle : sous « Moi » comme sous « Privé », les quatre
+ * cartes du bilan affichaient les catégories du FOYER. Aucune n'avait
+ * d'équivalent personnel ; aucune ne se taisait.
+ *
+ * Le panneau lit cette déclaration et la porte (`data-lecture`) ; la feuille
+ * de style fait taire toute carte qui ne se déclare pas personnelle. C'est
+ * un refus PAR DÉFAUT : une carte ajoutée demain n'a rien à faire pour être
+ * protégée, seulement quelque chose à déclarer pour paraître.
+ *
+ * Une valeur inconnue suit `porteeRetenue` — « à deux » : l'écran s'ouvre
+ * alors sur le foyer, et ses cartes le suivent.
+ *
+ * @param {*} portee
+ * @returns {boolean}
+ */
+export function porteeMontreLeFoyer(portee) {
+  return PORTEES_QUI_MONTRENT_LE_FOYER.includes(porteeRetenue(portee));
+}

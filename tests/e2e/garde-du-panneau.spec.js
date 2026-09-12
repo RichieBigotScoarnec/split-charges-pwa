@@ -38,48 +38,83 @@ import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
  * où 900 est écrit, et il mentirait le jour où la mise en page change de point
  * de rupture. La question honnête est : LA SURFACE EST-ELLE DÉJÀ LÀ ?
  *
- *   - l'onglet répond          → on le touche, c'est le chemin nominal ;
+ *   - une commande le nomme    → on la touche, c'est le chemin nominal ;
  *   - sinon le panneau est visible → il n'y avait rien à faire, absence légitime ;
+ *   - sinon un voisin le fait paraître → le chemin existe sans porter son nom ;
  *   - sinon                    → la surface est inatteignable, et il faut le dire.
  *
  * Relevé sur l'application réelle, et c'est ce qui fonde la règle :
  *
- *   1280 px         barre absente, onglet absent, panneau VISIBLE
- *   390 px intact   barre présente, onglet visible, panneau caché
- *   390 px sabordé  barre présente, onglet ABSENT, panneau CACHÉ
+ *   1280 px, tableau de bord    aucune commande, charges VISIBLES
+ *   1280 px, écran Réglages     aucune commande ne nomme les charges ;
+ *                               « Retour » les fait paraître
+ *   390 px intact               barre présente, onglet visible, panneau caché
+ *   390 px sabordé              barre présente, onglet ABSENT, panneau CACHÉ
  *
  * ─────────────────────────────────────────────────────────────────────
- * POURQUOI TROIS CAS ET NON UN SEUL
+ * POURQUOI QUATRE CAS ET NON UN SEUL
  *
- * Le cas qui tombe sur le code actuel est le troisième. Les deux premiers sont
- * ses témoins : sans eux, une garde qui lèverait TOUJOURS les satisferait, et
- * les 24 suites qui appellent la garde à 1280 px deviendraient rouges pour
- * rien. On mesure ici une DISTINCTION, pas une sévérité.
+ * Le cas décisif est le dernier. Les autres sont ses témoins : sans eux, une
+ * garde qui lèverait TOUJOURS les satisferait, et les suites qui appellent la
+ * garde à 1280 px deviendraient rouges pour rien. On mesure ici une
+ * DISTINCTION, pas une sévérité.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE QUE LE LOT E A CHANGÉ ICI — 2026-09-11
+ *
+ * Le premier témoin exigeait qu'à 1280 px Réglages soit « bien à l'écran »
+ * sans onglet. C'était vrai tant qu'il avait une colonne ; le lot E l'a sorti
+ * du tableau de bord. La prémisse est devenue fausse, l'ARGUMENT non : il
+ * existe au bureau un panneau visible qu'aucune commande ne nomme, et la
+ * garde doit se taire devant lui. Ce panneau est désormais celui des charges.
  */
 
 /** L'onglet visé pour le sabordage : celui que la maquette sort de la barre. */
 const PANNEAU = 'panneauReglages';
 
+/** Au bureau, un panneau du tableau de bord qu'aucune commande ne nomme. */
+const PANNEAU_DU_TABLEAU = 'panneauCharges';
+
 test('la barre absente d\'un grand écran reste une absence légitime', async ({ page }) => {
-  // Témoin n° 1 — au-delà de 900 px les trois panneaux ont leurs colonnes.
-  // La garde doit se taire : c'est la raison pour laquelle elle existe, et
-  // aucune correction ne doit la lui retirer.
+  // Témoin n° 1 — au-delà de 900 px, le bilan et les charges ont leurs
+  // colonnes. La garde doit se taire : c'est la raison pour laquelle elle
+  // existe, et aucune correction ne doit la lui retirer.
   await page.setViewportSize({ width: 1280, height: 900 });
   await setupFirebaseMock(page);
   await waitForApp(page);
 
   await expect(
-    page.locator(`.onglet[data-panneau="${PANNEAU}"]`),
+    page.locator(`.onglet[data-panneau="${PANNEAU_DU_TABLEAU}"]`),
     'prémisse : la barre n\'est pas rendue à cette largeur'
   ).toBeHidden();
 
   await expect(
-    page.locator(`#${PANNEAU}`),
+    page.locator(`#${PANNEAU_DU_TABLEAU}`),
     'prémisse : le panneau, lui, est bien à l\'écran'
   ).toBeVisible();
 
-  const bouge = await allerAuPanneau(page, PANNEAU);
-  expect(bouge, 'aucun onglet n\'a été touché, et c\'est normal').toBe(false);
+  const bouge = await allerAuPanneau(page, PANNEAU_DU_TABLEAU);
+  expect(bouge, 'aucune commande n\'a été touchée, et c\'est normal').toBe(false);
+});
+
+test('au bureau, un chemin qui ne porte pas le nom du panneau reste un chemin', async ({ page }) => {
+  // Témoin n° 3 — né avec le lot E. Réglages s'ouvre par sa porte ; depuis
+  // lui, aucune commande ne nomme les charges, et « Retour au tableau de
+  // bord » les fait pourtant paraître. Une garde qui ne suivrait que les
+  // commandes nommées lèverait ici sur un écran parfaitement atteignable.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await setupFirebaseMock(page);
+  await waitForApp(page);
+
+  expect(await allerAuPanneau(page, PANNEAU), 'la porte ⚙️ nomme Réglages').toBe(true);
+  await expect(page.locator(`#${PANNEAU}`)).toBeVisible();
+  await expect(
+    page.locator(`#${PANNEAU_DU_TABLEAU}`),
+    'prémisse : sur l\'écran Réglages, les charges ne sont pas rendues'
+  ).toBeHidden();
+
+  expect(await allerAuPanneau(page, PANNEAU_DU_TABLEAU), 'le retour les a fait paraître').toBe(true);
+  await expect(page.locator(`#${PANNEAU_DU_TABLEAU}`)).toBeVisible();
 });
 
 test('l\'onglet présent mène bien au panneau', async ({ page }) => {

@@ -259,11 +259,14 @@ export async function loadEnvelopes() {
     const { dbGet } = await import('../db.js');
     setState('envelopes', normaliserEnveloppes(await dbGet(CHEMIN)));
     log(`📊 ${getEnveloppes().length} enveloppe(s) chargée(s)`);
+    renderCarteEnveloppes();
   } catch (error) {
     logError('❌ Erreur chargement enveloppes :', error);
     // Une lecture qui échoue ne doit pas laisser l'état précédent en place :
     // il appartiendrait éventuellement à un autre compte.
     setState('envelopes', []);
+    // Et la carte du bilan non plus : elle montrerait les enveloppes d'avant.
+    renderCarteEnveloppes();
   }
 }
 
@@ -272,6 +275,62 @@ export async function loadEnvelopes() {
  */
 export function getEnveloppes() {
   return getState('envelopes') || [];
+}
+
+/**
+ * Combien d'enveloppes la carte du bilan nomme
+ *
+ * Elle résume : au-delà, elle redeviendrait l'écran de gestion, en plus petit
+ * et sans ses gestes. Celui-ci reste à un bouton.
+ */
+const ENVELOPPES_MONTREES = 3;
+
+/**
+ * Écrit dans la carte « Enveloppes à deux » ce qu'elles portent ce mois-ci
+ *
+ * La carte n'affichait qu'un bouton : son contenu attendait un clic, alors que
+ * la donnée est dans l'état depuis le chargement. Le total passe par
+ * `totalEnveloppe`, la fabrique que l'écran de gestion emploie déjà — un
+ * second calcul ici aurait fini par donner deux chiffres pour la même
+ * enveloppe.
+ *
+ * **Les enveloppes solo n'y figurent pas** : la carte dit « à deux », et une
+ * enveloppe solo appartient à une personne. Les closes non plus — c'est ce que
+ * `enveloppesOuvertes` déclare.
+ *
+ * En nœuds DOM plutôt qu'en `innerHTML` : le libellé est saisi par une
+ * personne, et `textContent` écarte la question de l'échappement.
+ */
+export function renderCarteEnveloppes() {
+  const liste = document.getElementById('enveloppesDuMois');
+  if (!liste) return;
+
+  liste.replaceChildren();
+
+  const charges = [
+    ...(getState('fixedCharges') || []),
+    ...(getState('variableCharges') || [])
+  ];
+
+  const ouvertes = enveloppesOuvertes(getEnveloppes())
+    .filter(enveloppe => enveloppe && enveloppe.perimetre !== 'solo')
+    .slice(0, ENVELOPPES_MONTREES);
+
+  for (const enveloppe of ouvertes) {
+    const ligne = document.createElement('div');
+    ligne.className = 'carte-liste-ligne';
+
+    const nom = document.createElement('span');
+    nom.className = 'carte-liste-nom';
+    nom.textContent = enveloppe.label;
+
+    const montant = document.createElement('span');
+    montant.className = 'carte-liste-montant';
+    montant.textContent = formatCurrency(totalEnveloppe(charges, enveloppe.id));
+
+    ligne.append(nom, montant);
+    liste.appendChild(ligne);
+  }
 }
 
 /**
@@ -300,6 +359,7 @@ export function etiquetteEnveloppe(charge) {
 async function enregistrer(voulue, base) {
   try {
     setState('envelopes', normaliserEnveloppes(await fusionnerListe(CHEMIN, voulue, base)));
+    renderCarteEnveloppes();
     return true;
   } catch (error) {
     logError('❌ Erreur sauvegarde enveloppes :', error);

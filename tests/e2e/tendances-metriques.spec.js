@@ -1,5 +1,5 @@
 import { test, expect } from './_couverture.js';
-import { setupFirebaseMock, waitForApp } from './_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 /**
  * Ce que le panneau répond
@@ -76,9 +76,11 @@ test.describe('Les quatre mesures', () => {
     await page.clock.setFixedTime(LE_15_AOUT);
     await setupFirebaseMock(page);
     await waitForApp(page);
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('2500');
     await page.locator('#salaireConjointe').fill('1800');
     await page.locator('#salaireVous').blur();
+    await allerAuPanneau(page, 'panneauBilan');
     await poser(page, MOIS);
     await page.locator('#trendsToggle').click();
     await page.waitForTimeout(900);

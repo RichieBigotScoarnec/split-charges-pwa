@@ -4,6 +4,8 @@
 import { getState } from '../state.js';
 import { getCategories, getCategoryIcon } from './custom-lists.js';
 import { formatCurrency, formatPaidBy, escapeHtml } from '../utils/format.js';
+import { depensesParLieu } from '../utils/lieux.js';
+import { estSolo } from '../utils/perimetre.js';
 import { formatDate } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -35,6 +37,71 @@ function setupMapUI() {
 }
 
 /**
+ * Combien de lieux la carte du bilan nomme
+ *
+ * Elle résume, elle n'inventorie pas : au-delà, elle deviendrait une seconde
+ * liste de charges dans la colonne d'à côté de la vraie. La carte, elle, les
+ * porte tous.
+ */
+const LIEUX_MONTRES = 3;
+
+/**
+ * Écrit dans la carte « Où vous dépensez » ce que le mois dit des lieux
+ *
+ * La planche 1 rend « 184,04 € à Landivisiau · 92,02 € par passage, sur
+ * 2 passages », puis « Saint-Goazec · 45,00 € ». La donnée était là — c'est le
+ * `location` que porte chaque charge, celui-là même dont cette fonction tire
+ * ses marqueurs — et la carte n'affichait qu'un bouton : son contenu attendait
+ * un clic.
+ *
+ * **Les dépenses solo sont écartées**, comme `trends.js` le fait pour ses
+ * totaux : une dépense solo appartient à une personne, et cette carte parle du
+ * foyer. La fabrique `depensesParLieu`, elle, ne sait rien du périmètre — le
+ * filtre est ici, chez l'appelant, pour qu'il n'y ait pas deux définitions de
+ * « ce qui pèse sur le commun ».
+ *
+ * En nœuds DOM plutôt qu'en `innerHTML` : un nom de lieu vient d'un service
+ * de géocodage, donc de l'extérieur, et `textContent` écarte la question de
+ * l'échappement. Le plafond des sites d'injection est par ailleurs à 24 sur 24.
+ *
+ * @param {Array<Object>} localisees - Charges du mois portant des coordonnées
+ */
+function rendreLesLieux(localisees) {
+  const liste = document.getElementById('lieuxDuMois');
+  if (!liste) return;
+
+  liste.replaceChildren();
+
+  const lieux = depensesParLieu(localisees.filter(charge => !estSolo(charge)))
+    .slice(0, LIEUX_MONTRES);
+
+  for (const { lieu, total, passages, parPassage } of lieux) {
+    const ligne = document.createElement('div');
+    ligne.className = 'carte-liste-ligne';
+
+    const nom = document.createElement('span');
+    nom.className = 'carte-liste-nom';
+    nom.textContent = lieu;
+
+    const montant = document.createElement('span');
+    montant.className = 'carte-liste-montant';
+    montant.textContent = formatCurrency(total);
+
+    ligne.append(nom, montant);
+    liste.appendChild(ligne);
+
+    // Un passage unique n'a pas de moyenne à donner : « 45,00 € par passage,
+    // sur 1 passage » répète la ligne du dessus.
+    if (passages > 1) {
+      const precision = document.createElement('div');
+      precision.className = 'carte-liste-precision';
+      precision.textContent = `${formatCurrency(parPassage)} par passage, sur ${passages} passages`;
+      liste.appendChild(precision);
+    }
+  }
+}
+
+/**
  * Affiche le bouton d'accès si au moins une dépense porte des coordonnées
  *
  * Le seul accès à la carte se trouvait dans un panneau maintenu en
@@ -49,6 +116,8 @@ export function refreshMapButton() {
     .filter(c => c && !c.deleted && estLocalisee(c));
 
   bouton.hidden = localisees.length === 0;
+
+  rendreLesLieux(localisees);
 
   // Cette fonction ne fait que montrer ou cacher le bouton d'accès. Elle
   // posait aussi des écouteurs sur le bouton de fermeture et sur les cases de

@@ -1,6 +1,7 @@
 import { test, expect } from './_couverture.js';
 
 import { ALLOWED_EMAILS, DATA_ROOT } from '../../public/js/config.js';
+import { allerAuPanneau } from './_harness.js';
 
 // L'application refuse tout compte hors liste blanche (js/modules/auth.js).
 // Dériver l'adresse de la vraie liste plutôt que de la figer : sinon les tests
@@ -203,7 +204,9 @@ test.describe('Firebase Emulator Integration', () => {
     // effective des modules avant toute interaction.
     await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
-    // Saisir les salaires et déclencher change event
+    // Saisir les salaires et déclencher change event — ils vivent dans
+    // Réglages, l'écran qu'ouvre la porte ⚙️ au bureau (lot E).
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('3500');
     await page.locator('#salaireVous').dispatchEvent('change');
     await page.locator('#salaireConjointe').fill('2800');
@@ -245,6 +248,7 @@ test.describe('Firebase Emulator Integration', () => {
     await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Saisir des salaires
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#salaireVous').fill('4000');
     await page.locator('#salaireVous').dispatchEvent('change');
     await page.locator('#salaireConjointe').fill('3000');
@@ -285,6 +289,7 @@ test.describe('Firebase Emulator Integration', () => {
     await page.waitForSelector('body[data-app-ready="true"]', { timeout: 15000 });
 
     // Basculer en mode 50-50
+    await allerAuPanneau(page, 'panneauReglages');
     await page.locator('#mode5050').click();
     await page.waitForTimeout(500);
 
