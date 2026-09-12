@@ -66,6 +66,14 @@ déduction à partir des fiches.
 Si un agent n'a pas déposé le sien, dis-le dans les signaux : son silence sur un domaine
 devient indéchiffrable.
 
+### 0 ter. Les indices écartés
+
+Lis `findings/INDICES-ECARTES.md` s'il existe. Un indice écarté par un agent est une
+décision à relire comme une autre : si le motif d'écartement est faible, dis-le dans les
+signaux. Et compare la liste des indices reçus à la somme des vérifiés et des écartés —
+**tout indice qui n'apparaît ni en fiche ni en écartement n'a pas été traité**, ce qui
+est le seul cas où l'outillage dégrade la couverture au lieu de l'augmenter.
+
 ### 1. Inventaire avant lecture
 
 Lis le frontmatter de **tous** les fichiers de constat avant d'en ouvrir un seul en
@@ -184,6 +192,12 @@ ROOT-001 — <fait> — explique <IDs>
 
 ## Dénombrement
 Par sévérité, par certitude, par agent. Groupes, doublons, écartés.
+
+## Couverture
+Depuis les `PERIMETRE-*` : fichiers ouverts, atteints par un indice vérifié, non
+couverts. Rapportés au nombre de fichiers suivis du périmètre. **Ce tableau est
+obligatoire** : sans lui, le lecteur ne peut pas savoir sur quelle part du dépôt porte
+ce rapport.
 
 ## Ce que les agents n'ont pas couvert
 ⚠️ Rappel à porter dans ton rapport : le silence d'une passe sur un domaine ne dit

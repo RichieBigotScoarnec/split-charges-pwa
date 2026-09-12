@@ -159,6 +159,23 @@ preuve ; deux agents dont l'un a lu l'autre valent un écho.
 Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
 ce que tu as seulement inventorié.
 
+## Les indices de l'outillage
+
+Lis `.claude/audit/tooling/` s'il existe. Pour chaque indice relevant de ton préfixe :
+**vérifié** → fiche au schéma du §3 avec ta propre preuve, l'indice en `LIÉS` ;
+**écarté** → une ligne en ajout dans `findings/INDICES-ECARTES.md` avec la raison.
+Une sortie d'outil n'est jamais une preuve, et un indice non traité donne l'illusion
+d'une couverture (§16).
+
+Si le répertoire est absent, dis-le dans ton périmètre non couvert : une part de ce que
+tu n'as pas ouvert aurait pu être atteinte par là.
+
+**Preuve dynamique** — si `.claude/audit/tooling/` porte une mesure sur le rendu ou sur
+l'exécution, au même commit que la passe, elle est une **preuve recevable** : un constat
+qu'elle établit s'écrit `[Constaté]`. Sans elle, le même constat plafonne à `[Déduit]`,
+et tu **nommes la mesure qui le trancherait** — la liste de tes `[Déduit]` est la liste
+des mesures à lancer avant la passe suivante (§17).
+
 ## Fin de passe
 
 Termine par le **périmètre non couvert**, et fais-le porter l'inventaire de l'étape 2 :

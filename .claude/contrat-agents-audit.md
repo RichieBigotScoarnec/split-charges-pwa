@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '1.8'
+version: '2.0'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,30 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 1.8 — 2026-09-12.**
+> **Version 2.0 — 2026-09-12.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v1.9 → v2.0** — la chaîne cesse d'être uniquement statique (§17). Elle
+lisait du code sans jamais observer ce qu'il produit, et se fermait ainsi une classe
+entière de défauts : contraste réel après composition, ordre de tabulation effectif,
+focus piégé, et surtout **ce qu'une règle d'accès autorise réellement** par opposition à
+ce qu'on lit dans le fichier de règles.
+
+Changement de numéro majeur parce que ça déplace une frontière du contrat : une mesure
+sur le rendu est une **preuve recevable**, et c'est le seul moyen de lever les conditions
+des constats `[Déduit]` qui plafonnaient faute d'observation.
+
+**Changements v1.8 → v1.9** — réponse à un chiffre mesuré : **22 % du dépôt réellement
+ouvert** sur une passe complète (97 fichiers sur 428, et seulement 8 % de la suite de
+tests). Les agents butent sur leur fenêtre, et rien ne distinguait « j'ai fini » de « je
+n'ai plus de place ».
+
+Recherche d'antécédents conduite le 2026-09-12 : personne ne fait d'audit exhaustif en
+une passe. La forme retenue par le domaine est un **balayage profond périodique à
+couverture mesurée**, plus une revue continue sur les diffs. Trois leviers en sortent ;
+le §16 pose le premier, le mieux documenté et le moins cher.
 
 **Changements v1.7 → v1.8** — seconde passe sur le dépôt réel. Elle valide les fichiers
 `PERIMETRE-*` (les huit produits, distinguant au fichier près le lu du parcouru) et
@@ -651,6 +671,62 @@ que son silence n'est pas un constat.
 ℹ️ Le dépôt `anthropics/claude-code-security-review` embarque un moteur d'évaluation
 avec gestion de worktrees et une infrastructure de tests. À examiner avant de fabriquer
 le dépôt témoin de zéro.
+
+## 17. La preuve dynamique
+
+Lire du code ne dit pas ce qu'il produit. Le contraste après superposition, l'ordre de
+tabulation effectif, le focus piégé dans une modale, ce qu'une règle d'accès autorise
+réellement : rien de tout cela ne se déduit d'une lecture.
+
+**Qui l'exécute** : l'humain ou la CI, **jamais un agent**. Exécuter, c'est faire tourner
+le code du dépôt (§10). Les sorties vont dans `.claude/audit/tooling/`.
+
+**Ce que ça change à la certitude** — c'est l'apport principal :
+
+| Établi par | Certitude plafond |
+|---|---|
+| lecture de code seule | `[Déduit]`, avec la mesure comme condition de levée |
+| mesure sur le rendu, au même commit | `[Constaté]` |
+
+Un agent qui laisse un constat en `[Déduit]` faute d'observation **nomme la mesure qui le
+trancherait** — c'est ce qui rend la boucle utilisable : la liste des `[Déduit]` d'une
+passe est la liste des mesures à lancer avant la suivante.
+
+⛔ **Une sortie dynamique dont le commit ne correspond pas à celui de la passe ne
+s'utilise pas.** Elle est plus périssable qu'une sortie statique : elle dépend aussi de
+la version du navigateur, de l'émulateur et du jeu de données. Elle porte donc sa date,
+son commit et la version de l'outil.
+
+Détail des outils et des commandes : `preuve-dynamique.md`.
+
+## 16. Les indices de l'outillage déterministe
+
+Un analyseur statique voit ce qu'un agent survole — la ligne 1 400 d'un fichier qu'il
+n'ouvrira jamais. Un agent voit ce qu'un analyseur ne peut pas voir. Les deux se
+combinent nettement mieux que chacun seul, et les constats d'un analyseur injectés
+**comme indices à vérifier** récupèrent une part importante de ce qu'une passe manque.
+
+**Qui les lance** : l'humain ou la CI, **jamais un agent** — faire tourner un analyseur
+suppose d'installer des dépendances et d'exécuter une chaîne d'outillage, ce que le §10
+interdit. Les sorties se déposent dans `.claude/audit/tooling/`.
+
+**Ce qu'un agent en fait** — deux issues, et deux seulement, pour tout indice relevant de
+son préfixe :
+
+- **Vérifié** → fiche au schéma du §3, **avec sa propre preuve**. L'indice est cité en
+  `LIÉS`, jamais comme preuve. ⛔ Une sortie d'outil n'est pas un constat : elle n'a ni
+  impact, ni cause, ni localisation vérifiée dans son contexte.
+- **Écarté** → une ligne dans `findings/INDICES-ECARTES.md`, en ajout seul : l'indice, la
+  règle qui l'a produit, pourquoi il ne tient pas ici.
+
+⚠️ **Un indice non traité est pire qu'un indice absent** : il donne l'illusion d'une
+couverture.
+
+**Effet sur la couverture** : les indices sont le seul canal par lequel un fichier **non
+ouvert** produit quand même un constat. Les fichiers `PERIMETRE-*` distinguent donc trois
+catégories : **ouvert**, **atteint par un indice vérifié**, **non couvert**.
+
+Détail des outils et des commandes : `outillage-deterministe.md`.
 
 ## 15. Où vivent les motifs mesurés
 
