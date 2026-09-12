@@ -109,3 +109,4 @@ coverage-fusionnee/
 # le dépôt dans le dépôt — et, pire, y figerait un mutant si un agent tombait
 # avant d'avoir restauré.
 .claude/worktrees/
+.claude/audit/
