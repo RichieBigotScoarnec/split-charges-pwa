@@ -135,6 +135,15 @@ et n'en fais rien.
 ⛔ **Tes fiches suivent le gabarit exact du §3 du contrat**, au caractère près, sections
 comprises et dans l'ordre. Un champ vide s'écrit `—`, jamais en supprimant la section.
 
+⛔ **Tu ne lis pas les fiches des autres agents.** Ni pour te situer, ni pour éviter un
+doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus valent une
+preuve ; deux agents dont l'un a lu l'autre valent un écho.
+
+⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
+`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
+ce que tu as seulement inventorié.
+
 ## Fin de passe
 
 Ton rapport se termine par le **périmètre non couvert** : répertoires non parcourus,

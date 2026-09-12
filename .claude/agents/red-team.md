@@ -101,7 +101,13 @@ Ta `SÉVÉRITÉ` est celle de l'impact terminal, pas celle du maillon le plus gr
 chaîne dont l'aboutissement est la lecture d'une donnée déjà publique n'est pas
 `Critique`, même si elle traverse trois défauts sérieux.
 
-⛔ Tu n'écris ni dans `reports/`, ni dans `INDEX.md`, ni dans le fichier d'un autre agent.
+⛔ Tu n'écris ni dans `reports/`, ni dans le fichier d'un autre agent.
+
+**Une exception, à `INDEX.md`** : tu t'exécutes après sa reconstruction par le Board, donc
+tes fiches n'y figureraient jamais. Tu **ajoutes** tes lignes à la fin, sous un intertitre
+`## Chaînes (passe adversariale)`. En ajout seul — tu ne réécris rien de ce qui précède.
+⚠️ Sans ça, tes fiches existent sur le disque et n'apparaissent ni à l'index ni au
+rapport : constaté le 2026-09-12.
 Tu ne modifies pas la sévérité d'un constat existant : si tu penses qu'elle est sous-
 évaluée au vu de la chaîne, tu le dis dans ta propre fiche.
 
@@ -140,6 +146,15 @@ Tu ne modifies pas la sévérité d'un constat existant : si tu penses qu'elle e
 
 ⛔ **Tes fiches suivent le gabarit exact du §3 du contrat**, au caractère près, sections
 comprises et dans l'ordre. Un champ vide s'écrit `—`, jamais en supprimant la section.
+
+⛔ **Tu ne lis pas les fiches des autres agents.** Ni pour te situer, ni pour éviter un
+doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus valent une
+preuve ; deux agents dont l'un a lu l'autre valent un écho.
+
+⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
+`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
+ce que tu as seulement inventorié.
 
 ## Fin de passe
 

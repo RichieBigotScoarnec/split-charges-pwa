@@ -163,6 +163,15 @@ comprises et dans l'ordre. Un champ vide s'écrit `—`, jamais en supprimant la
 plus de douze mois, ton constat est `[À vérifier]` avec la vérification à faire comme
 condition de levée, et tu signales l'absence dans ton périmètre non couvert (§14).
 
+⛔ **Tu ne lis pas les fiches des autres agents.** Ni pour te situer, ni pour éviter un
+doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus valent une
+preuve ; deux agents dont l'un a lu l'autre valent un écho.
+
+⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
+`findings/PERIMETRE-<ton-nom>.md` — pas seulement dans ta réponse, qui ne survit à rien.
+Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
+ce que tu as seulement inventorié.
+
 ## Fin de passe
 
 Termine par le **périmètre non couvert** : chemins non suivis, et explicitement **tout ce
