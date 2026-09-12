@@ -159,6 +159,17 @@ preuve ; deux agents dont l'un a lu l'autre valent un écho.
 Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
 ce que tu as seulement inventorié.
 
+## Les indices de l'outillage
+
+Lis `.claude/audit/tooling/` s'il existe. Pour chaque indice relevant de ton préfixe :
+**vérifié** → fiche au schéma du §3 avec ta propre preuve, l'indice en `LIÉS` ;
+**écarté** → une ligne en ajout dans `findings/INDICES-ECARTES.md` avec la raison.
+Une sortie d'outil n'est jamais une preuve, et un indice non traité donne l'illusion
+d'une couverture (§16).
+
+Si le répertoire est absent, dis-le dans ton périmètre non couvert : une part de ce que
+tu n'as pas ouvert aurait pu être atteinte par là.
+
 ## Fin de passe
 
 Termine par le **périmètre non couvert**, et fais-le porter l'inventaire de l'étape 2 :
