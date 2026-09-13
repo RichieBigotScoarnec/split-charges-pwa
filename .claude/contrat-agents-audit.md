@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '3.0'
+version: '3.1'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,35 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 3.0 — 2026-09-13.**
+> **Version 3.1 — 2026-09-13.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v3.0 → v3.1** — première vague réelle de la passe partitionnée. **Neuf lots
+couverts sur dix, 86 fichiers, en une vague** : la partition fonctionne. Mais la mécanique
+d'écriture ne suivait pas, et la vague a été arrêtée volontairement.
+
+**Le défaut le plus grave n'était pas dans ce contrat.** Le cadre d'exécution de Claude
+Code porte une consigne bloquante qui interdit aux sous-agents d'écrire des fichiers de
+constats, pour qu'ils *retournent* leurs résultats à l'agent principal. Trois agents sur
+dix l'ont appliquée ; relancés, deux ont cédé, un a refusé — ses deux constats n'existent
+que dans une réponse que personne ne relira.
+
+Le déclencheur est un **nom de fichier** : la consigne vise `report`, `summary`,
+`findings`, `analysis`. Le répertoire de sortie s'appelait `findings/`. D'où les deux
+corrections du §26 : renommage en `constats/`, et un recours quand un agent refuse quand
+même.
+
+Quatre autres corrections, toutes de ce contrat ou de sa commande :
+- **numéro de fiche dérivé du lot** (§4) — quatre écrasements en une vague, détectés
+  uniquement parce que les agents les ont signalés ;
+- **registre créé à la partition** (§24), plus en fin de vague : arrêté avant la première
+  clôture, il n'existait pas ;
+- **droits d'écriture de l'orchestrateur nommés** — trois interdictions générales
+  successives ont emporté plus que leur raison ;
+- **indices d'outillage régénérés dans la séquence** : ils dataient du commit précédent,
+  et aucun agent ne l'a signalé.
 
 **Changements v2.1 → v3.0** — refonte de l'orchestration. La barrière du §20 a
 fonctionné : le Board a refusé de conclure sur **13,9 % de couverture**. Mais le chiffre
@@ -133,7 +158,7 @@ par l'orchestrateur. Sept corrections, issues du compte rendu de l'orchestrateur
 2. **Responsabilité de `INDEX.md`** (§7). Trois textes s'en attribuaient la charge ou
    l'interdisaient. Tranché : le Review Board.
 3. **`false-positives.md` sans auteur** (§6 ter). Prescrit, sans rôle désigné, et les
-   agents ont l'interdiction d'écrire hors `findings/`. Résultat : aucun filtrage de
+   agents ont l'interdiction d'écrire hors `constats/`. Résultat : aucun filtrage de
    toute la passe. Tranché : le Project Analyst l'initialise.
 4. **Exception à l'inviolabilité des fiches** (§7), qui n'était énoncée qu'ailleurs.
 5. **Panne muette** (§2), non couverte : l'arrêt bruyant ne prévoit que l'arrêt volontaire.
@@ -163,7 +188,7 @@ effectivement cassé, aucune anticipée :
    lance rien.
 2. **Écriture sérialisée portée par les agents** (§7). La règle existait déjà ici et n'a
    pas tenu : rien dans les fichiers d'agents ne l'empêchait. Sept écritures
-   concurrentes sur `findings/INDEX.md` ont laissé les constats de trois agents sur sept.
+   concurrentes sur `constats/INDEX.md` ont laissé les constats de trois agents sur sept.
    Les identifiants, eux, ne se sont pas collisionnés — le préfixe par domaine du §4 a
    tenu.
 3. **Fichier d'un autre agent inviolable** (§7). Un agent a supprimé le rapport d'un
@@ -383,9 +408,18 @@ condition de levée — qui lit ce fichier, et comment le vérifier. Son
 `RISQUE DE RÉGRESSION` est `Élevé` par défaut : la suppression est destructive et un faux
 positif y coûte plus cher qu'ailleurs.
 
-**Allocation** : l'agent lit `findings/INDEX.md` avant d'écrire et prend le premier
-numéro libre de son préfixe. Un agent n'alloue jamais un numéro d'un préfixe qui n'est
-pas le sien.
+**Allocation — le numéro vient du lot, pas d'un compteur partagé** :
+`<PREFIXE>-<LOT>-<NN>`, par exemple `CQ-L07-01`. Le lot est unique par construction
+(§23), donc deux agents ne peuvent plus se disputer un numéro, sans aucune coordination.
+
+⚠️ Mesuré le 2026-09-13 : **quatre écrasements en une seule vague**. Deux agents du même
+préfixe, lancés ensemble, prenaient le même numéro à treize secondes d'intervalle ; le
+second écrasait le premier. Détectés uniquement parce que les agents l'ont dit — rien
+dans le dispositif ne signale un écrasement.
+La règle précédente se contredisait elle-même : elle disait de lire l'index avant
+d'allouer, et interdisait par ailleurs d'écrire cet index.
+
+Hors partition, l'agent prend le premier numéro libre de son préfixe, et lui seul.
 
 **Stabilité** : un identifiant est attribué une fois et ne se réattribue jamais. Un
 finding corrigé passe en `status: résolu` dans l'index, son numéro reste consommé. Un
@@ -460,7 +494,7 @@ Chaque dépôt porte un `audit/false-positives.md`, en trois sections :
    avec la raison.
 
 **Qui l'écrit** : le **Project Analyst**, à la première passe, avec les motifs par défaut
-ci-dessous. Il est le seul agent autorisé à écrire hors `findings/`, et il passe en
+ci-dessous. Il est le seul agent autorisé à écrire hors `constats/`, et il passe en
 premier. Ensuite le fichier est amendé **par l'humain**, au fil des faux positifs
 rencontrés, chaque exclusion documentant son motif. Aucun agent d'audit ne le modifie.
 
@@ -504,7 +538,7 @@ et rend son résultat à l'agent principal. Toute corrélation passe donc par le
 .claude/audit/
 ├── PROJECT_CONTEXT.md          écrit par le Project Analyst, réécrit à chaque passe
 ├── false-positives.md          voir §6 ter
-├── findings/
+├── constats/
 │   ├── INDEX.md                une ligne par finding : ID, titre, sévérité, certitude, statut
 │   └── <ID>.md                 un fichier par finding, schéma §3
 ├── reports/
@@ -513,12 +547,12 @@ et rend son résultat à l'agent principal. Toute corrélation passe donc par le
     └── <ID>-brief.md           cadrage UI, voir §9
 ```
 
-**Qui écrit quoi** : un agent n'écrit que sous `findings/` et que ses propres préfixes.
+**Qui écrit quoi** : un agent n'écrit que sous `constats/` et que ses propres préfixes.
 Seul le Review Board écrit sous `reports/` et renseigne les champs `CAUSE RACINE`. Seul
 le Project Analyst écrit `PROJECT_CONTEXT.md`.
 
 **Quand** : les agents d'audit s'exécutent en parallèle, mais **l'écriture dans
-`findings/` est séquentielle** — l'orchestrateur collecte les rapports et écrit. C'est la
+`constats/` est séquentielle** — l'orchestrateur collecte les rapports et écrit. C'est la
 seule parade à la collision d'identifiants du §4.
 
 **Aucun agent d'audit n'écrit ailleurs que là.** Aucun ne touche au code.
@@ -542,7 +576,7 @@ et à des moments où personne n'écrit.
 ⛔ **Trois interdits d'écriture, à répercuter dans chaque fichier d'agent** — mesurés le
 2026-09-11, où les trois ont été violés en une seule passe :
 
-- **`findings/INDEX.md` n'est jamais écrit par un agent d'audit.** Il est reconstruit
+- **`constats/INDEX.md` n'est jamais écrit par un agent d'audit.** Il est reconstruit
   depuis les fichiers de constat **par le Review Board**, et par lui seul.
   **Exception pour la Red Team** : elle s'exécute après la consolidation, donc après la
   reconstruction. Elle ajoute ses propres lignes à la fin de `INDEX.md`, en **ajout
@@ -655,7 +689,7 @@ Sans les deux, on ne sait pas de quel état il parle, et il vieillit sans le dir
   accordée aux chiffres qui, eux, sont mesurés.
 - **Un constat hors de ton préfixe se remonte, il ne se jette pas.** Quand tu vois un
   fait réel qui appartient au domaine d'un autre agent, écris-le dans
-  `findings/HORS-PERIMETRE.md` — une ligne : le fait, sa localisation, le préfixe
+  `constats/HORS-PERIMETRE.md` — une ligne : le fait, sa localisation, le préfixe
   présumé. Tu n'ouvres pas de fiche, tu ne juges pas, tu n'empiètes pas. Le Review Board
   lit ce fichier et l'arbitre.
   ⚠️ Motif mesuré le 2026-09-12 : trois agents ont chacun trouvé un fait hors de leur
@@ -664,7 +698,7 @@ Sans les deux, on ne sait pas de quel état il parle, et il vieillit sans le dir
   partagé en écriture de toute la chaîne, et il est en ajout seul : on y ajoute une
   ligne, on n'y réécrit jamais.
 - **Écrire son périmètre non couvert sur le disque**, dans
-  `findings/PERIMETRE-<nom-de-l-agent>.md`, où `<nom-de-l-agent>` est **exactement** la
+  `constats/PERIMETRE-<nom-de-l-agent>.md`, où `<nom-de-l-agent>` est **exactement** la
   valeur du champ `name` de ton propre fichier — pas un nom de rôle, pas une variante. Ce qui n'a pas été regardé se déclare ; c'est
   la seule façon de distinguer « rien » de « pas regardé ».
   ⚠️ Jusqu'au 2026-09-12, cette déclaration ne vivait que dans la réponse de l'agent.
@@ -847,7 +881,7 @@ son préfixe :
 - **Vérifié** → fiche au schéma du §3, **avec sa propre preuve**. L'indice est cité en
   `LIÉS`, jamais comme preuve. ⛔ Une sortie d'outil n'est pas un constat : elle n'a ni
   impact, ni cause, ni localisation vérifiée dans son contexte.
-- **Écarté** → une ligne dans `findings/INDICES-ECARTES.md`, en ajout seul : l'indice, la
+- **Écarté** → une ligne dans `constats/INDICES-ECARTES.md`, en ajout seul : l'indice, la
   règle qui l'a produit, pourquoi il ne tient pas ici.
 
 ⚠️ **Un indice non traité est pire qu'un indice absent** : il donne l'illusion d'une
@@ -905,6 +939,26 @@ faux — **plus personne ne sait s'il est vrai**, ce qui suffit à le sortir du 
 confirmés à la source : un agent qui s'en sert écrit `[Déduit]`, pas `[Constaté]`. C'est
 la couche qui s'applique sa propre discipline.
 
+## 26. Ce que le cadre d'exécution interdit
+
+Claude Code porte une consigne bloquante qui **interdit aux sous-agents d'écrire des
+fichiers de constats** — sa philosophie veut qu'un sous-agent retourne ses résultats à
+l'agent principal plutôt que de les déposer sur disque.
+
+Elle se déclenche sur des **noms de fichiers en anglais** : `report`, `summary`,
+`findings`, `analysis`. D'où deux règles :
+
+- **Le répertoire de sortie s'appelle `constats/`**, et les fiches portent un nom qui
+  n'emprunte rien à cette liste. Ce n'est pas une préférence de langue : c'est ce qui
+  permet à la chaîne d'exister.
+- **Recours** : si un agent refuse malgré tout d'écrire et rend ses constats dans sa
+  réponse, **l'orchestrateur les écrit à sa place**, sans les reformuler, et l'inscrit au
+  registre. Un constat qui ne vit que dans une réponse est perdu pour le Review Board.
+
+⚠️ Mesuré le 2026-09-13 : trois agents sur dix ont appliqué la consigne au premier
+passage. Relancés avec un rappel, deux ont cédé et un a refusé. **Le comportement dépend
+de l'agent** — donc une règle qui compte dessus est une loterie, et il faut le recours.
+
 ## 25. La réduction hiérarchique
 
 Le Review Board ne lit pas de code. Il reçoit des **résumés** : une ligne par constat
@@ -925,6 +979,12 @@ Un fichier unique, `.claude/audit/REGISTRE.md`, **en ajout seul**. Une ligne par
 ```
 L07 | design | 1 fichier | agent=repo-hygiene | statut=couvert | 3 constats | 2026-09-13
 ```
+
+**Il est créé au moment de la partition**, avec une ligne par lot en `statut=a_traiter`,
+et chaque ligne bascule **au retour de son agent** — jamais en fin de vague.
+⚠️ Mesuré le 2026-09-13 : la consigne disait « après chaque vague ». Une passe arrêtée
+avant la première clôture n'avait donc écrit aucune ligne. Un registre qui n'existe qu'
+après le premier succès complet n'est pas un registre de progression.
 
 Il est écrit **par l'orchestrateur**, pas par les agents — l'écriture concurrente sur un
 fichier partagé a déjà détruit `INDEX.md` puis écrasé quatre fois `INDICES-ECARTES.md`.
@@ -1027,5 +1087,5 @@ système. **Le nombre de rôles n'est pas la variable. Le protocole l'est.**
    s'adosser à du dénombrable.
 4. **Red Team** — positionné en passe adversariale sur findings consolidés, pas en
    auditeur de première passe. À spécifier après le Review Board.
-5. **Articulation avec `/security-review`** — l'agent adopté écrit-il dans `findings/`
+5. **Articulation avec `/security-review`** — l'agent adopté écrit-il dans `constats/`
    au schéma §3, ou faut-il un adaptateur de sortie ? À trancher en l'exécutant.

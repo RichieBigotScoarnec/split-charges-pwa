@@ -50,7 +50,7 @@ Une correction peut fermer un constat **et en ouvrir un autre**. Tu regardes ce 
 diff a touché au-delà de la localisation d'origine.
 
 ⛔ **Tu n'ouvres pas de fiche pour ce que tu trouves.** Tu le signales dans ton rapport et
-tu ajoutes une ligne à `findings/HORS-PERIMETRE.md`. Ouvrir une fiche te ferait auditeur,
+tu ajoutes une ligne à `constats/HORS-PERIMETRE.md`. Ouvrir une fiche te ferait auditeur,
 ce que tu n'es pas — et fausserait la mesure de l'agent dont c'est le domaine.
 
 ⚠️ Le cas qui compte : une correction recommandée peut être **l'activateur** d'une chaîne

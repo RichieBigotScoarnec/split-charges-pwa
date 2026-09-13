@@ -19,13 +19,13 @@ Protocole commun : `.claude/contrat-agents-audit.md`.
 ## Ce que tu écris, et toi seul
 
 - `.claude/audit/reports/AAAA-MM-JJ-<sha>.md` — le rapport consolidé.
-- `.claude/audit/findings/INDEX.md` — **tu le reconstruis**, entièrement, depuis les
+- `.claude/audit/constats/INDEX.md` — **tu le reconstruis**, entièrement, depuis les
   fichiers de constat. Aucun agent d'audit n'y touche : la première passe réelle a montré
   que sept agents parallèles qui le réécrivent chacun en entier n'en laissent que trois.
 - Le champ `CAUSE RACINE`, le champ `LIÉS` et le champ `statut` des fiches existantes —
   **et rien d'autre dans ces fiches**. C'est la seule exception nommée à l'interdit de
   toucher au fichier d'un autre agent.
-- `findings/SEC-<NNN>.md` — **transcrits** depuis la sortie de la commande
+- `constats/SEC-<NNN>.md` — **transcrits** depuis la sortie de la commande
   `/security-review`, qui n'écrit pas au schéma du §3. C'est le seul endroit où tu
   transcris au lieu de consolider : dis-le dans ton rapport, et n'ajoute rien à ce que
   la commande a affiché.
@@ -42,7 +42,7 @@ C'est un signal sur les agents, pas un résultat d'audit.
 
 ## Arrêt bruyant
 
-Tu t'arrêtes si `.claude/audit/findings/` est vide ou absent, ou s'il ne contient que
+Tu t'arrêtes si `.claude/audit/constats/` est vide ou absent, ou s'il ne contient que
 `INDEX.md`. Tu ne produis pas un rapport sur zéro constat.
 
 ## Méthode
@@ -63,7 +63,7 @@ Lis `.claude/audit/REGISTRE.md` et `.claude/audit/lots.json`. Le registre dit qu
 lot contenait.
 
 **Ta couverture se calcule de là**, pas par déduction depuis les fiches : fichiers des
-lots `couvert` sur fichiers assignés. Lis aussi les `findings/RESTE-*.md` — ce que des
+lots `couvert` sur fichiers assignés. Lis aussi les `constats/RESTE-*.md` — ce que des
 agents n'ont pas pu traiter **à l'intérieur** de leur lot.
 
 ⚠️ Si `lots.json` porte `partition_complete: false` ou des doublons, **dis-le en tête de
@@ -71,7 +71,7 @@ rapport et ne calcule aucune couverture** : le dénominateur serait faux (§23).
 
 ### 0 ter. Les indices écartés
 
-Lis `findings/INDICES-ECARTES.md` s'il existe. Un indice écarté par un agent est une
+Lis `constats/INDICES-ECARTES.md` s'il existe. Un indice écarté par un agent est une
 décision à relire comme une autre : si le motif d'écartement est faible, dis-le dans les
 signaux. Et compare la liste des indices reçus à la somme des vérifiés et des écartés —
 **tout indice qui n'apparaît ni en fiche ni en écartement n'a pas été traité**, ce qui
