@@ -30,7 +30,7 @@ const suivis = execSync('git ls-files', { encoding: 'utf8' })
   .filter((f) => !EXCLUS.some((r) => r.test(f)));
 
 // Ordre de traitement : le classement par risque s'il existe, sinon la taille.
-let ordre = new Map();
+const ordre = new Map();
 if (existsSync(RISQUE)) {
   const r = JSON.parse(readFileSync(RISQUE, 'utf8'));
   r.fichiers.forEach((f, i) => ordre.set(f.fichier, i));
