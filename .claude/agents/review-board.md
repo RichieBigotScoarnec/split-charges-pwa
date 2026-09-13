@@ -56,15 +56,18 @@ couvert par une fiche et tu le notes, soit il ne l'est pas et il va dans ta sect
 
 Tu n'ouvres pas de fiche à leur place.
 
-### 0 bis. Les périmètres non couverts
+### 0 bis. Le registre de progression
 
-Lis tous les `findings/PERIMETRE-*.md`. Ils portent ce que chaque agent n'a pas regardé,
-et ce qu'il a réellement ouvert par rapport à ce qu'il a seulement inventorié. Ta section
-« Ce que les agents n'ont pas couvert » se construit **depuis ces fichiers**, pas par
-déduction à partir des fiches.
+Lis `.claude/audit/REGISTRE.md` et `.claude/audit/lots.json`. Le registre dit quel lot a
+été couvert, par qui, avec combien de constats ; la partition dit quels fichiers chaque
+lot contenait.
 
-Si un agent n'a pas déposé le sien, dis-le dans les signaux : son silence sur un domaine
-devient indéchiffrable.
+**Ta couverture se calcule de là**, pas par déduction depuis les fiches : fichiers des
+lots `couvert` sur fichiers assignés. Lis aussi les `findings/RESTE-*.md` — ce que des
+agents n'ont pas pu traiter **à l'intérieur** de leur lot.
+
+⚠️ Si `lots.json` porte `partition_complete: false` ou des doublons, **dis-le en tête de
+rapport et ne calcule aucune couverture** : le dénominateur serait faux (§23).
 
 ### 0 ter. Les indices écartés
 
@@ -75,6 +78,10 @@ signaux. Et compare la liste des indices reçus à la somme des vérifiés et de
 est le seul cas où l'outillage dégrade la couverture au lieu de l'augmenter.
 
 ### 1. Inventaire avant lecture
+
+⛔ **Tu ne lis pas de code.** Tu consolides des constats. Ouvrir les fichiers audités te
+ferait refaire le travail des agents avec moins de contexte qu'eux, et c'est ce qui a fait
+durer une consolidation 34 minutes sur 1 h 30 de passe (§25).
 
 Lis le frontmatter de **tous** les fichiers de constat avant d'en ouvrir un seul en
 entier : identifiant, titre, préfixe, sévérité, certitude, localisation. Cinquante-cinq
@@ -194,8 +201,8 @@ ROOT-001 — <fait> — explique <IDs>
 Par sévérité, par certitude, par agent. Groupes, doublons, écartés.
 
 ## Couverture — en tête de rapport, avant tout constat
-Depuis les `PERIMETRE-*` et les indices vérifiés : fichiers ouverts, atteints par un
-indice, non couverts, rapportés au périmètre demandé.
+Depuis `REGISTRE.md` et `lots.json` : fichiers des lots couverts, plus ceux atteints par
+un indice vérifié, rapportés aux fichiers assignés par la partition.
 
 ⛔ **Sous 80 %, tu ne conclus pas.** Tu rends ce que tu as trouvé et tu déclares que le
 rapport ne couvre pas le périmètre, avec la liste des lots restants (§20). Un audit qui

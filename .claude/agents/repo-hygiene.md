@@ -148,11 +148,16 @@ comprises et dans l'ordre. Un champ vide s'écrit `—`, jamais en supprimant la
 doublon, ni pour t'appuyer dessus. Deux agents qui convergent sans s'être lus valent une
 preuve ; deux agents dont l'un a lu l'autre valent un écho.
 
-⛔ **Tu écris ton périmètre non couvert sur le disque**, dans
-`findings/PERIMETRE-<name>.md`, où `<name>` est **exactement** la valeur du champ
-`name` de ton frontmatter — pas seulement dans ta réponse, qui ne survit à rien.
-Il porte ce que tu n'as pas regardé **et** ce que tu as réellement ouvert par rapport à
-ce que tu as seulement inventorié.
+⛔ **Quand on te donne une liste de fichiers, tu les traites tous, et tu ne sors pas de
+la liste.** Elle a été calculée pour tenir dans ta fenêtre avec de la place pour
+raisonner, et chaque fichier du dépôt est assigné à exactement un agent (§23). Ouvrir un
+fichier hors liste, c'est le lire deux fois pendant que personne ne lit le tien.
+Tu peux consulter la **signature** d'un fichier hors lot pour suivre une dépendance ; tu
+ne l'audites pas.
+
+⛔ **Ce que tu n'as pas pu traiter dans ta liste, tu l'écris** dans
+`findings/RESTE-<name>-<lot>.md` : le fichier, et pourquoi. C'est la seule chose que tu
+déclares sur ton périmètre — le reste est dans le registre, tenu par l'orchestrateur.
 
 ## Les indices de l'outillage
 

@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '2.1'
+version: '3.0'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,35 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 2.1 — 2026-09-12.**
+> **Version 3.0 — 2026-09-13.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v2.1 → v3.0** — refonte de l'orchestration. La barrière du §20 a
+fonctionné : le Board a refusé de conclure sur **13,9 % de couverture**. Mais le chiffre
+avait *baissé* par rapport à la passe précédente, et l'outillage déterministe (§16) n'y
+avait rien changé — trois constats sur vingt-sept citaient un indice.
+
+Recherche d'antécédents conduite le 2026-09-13. **Le levier n'est ni le modèle, ni la
+taille de la fenêtre, ni l'outillage : c'est le partitionnement.** Onze agents libres de
+choisir leurs fichiers ouvrent tous les mêmes fichiers centraux et laissent des zones que
+personne ne regarde. Trois sections nouvelles :
+
+- **§23 partition déterministe** — chaque fichier assigné à exactement un lot, avant
+  qu'un agent ne démarre.
+- **§24 registre de progression** — écrit sur disque, il remplace les `PERIMETRE-*` et
+  permet la reprise. Le patron est documenté : sur un système multi-agents de référence,
+  retirer les registres fait chuter la performance de 31 %.
+- **§25 réduction hiérarchique** — le Board consolide des résumés, jamais du code. Il
+  avait pris 34 minutes sur 1 h 30.
+
+⚠️ Deux résultats de la recherche qui corrigent des idées reçues :
+**la dégradation du contexte commence bien avant sa limite** — un modèle à 200 K jetons
+décroche dès 50 K, continûment. Viser le remplissage de la fenêtre, c'est auditer avec un
+modèle dégradé. Et **la récupération par similarité dégrade un audit** (jusqu'à 15 %) :
+pour un balayage exhaustif on veut une partition, pas un classement par pertinence — sinon
+on manque précisément ce qui ne ressemble à rien.
 
 **Changements v2.0 → v2.1** — quatre manques structurels comblés d'un coup, tous
 identifiés en répondant à « je veux un audit qui approche la perfection » :
@@ -879,6 +904,72 @@ faux — **plus personne ne sait s'il est vrai**, ce qui suffit à le sortir du 
 `accessibilite-wcag.md` porte ses seuils avec la mention explicite qu'ils n'ont pas été
 confirmés à la source : un agent qui s'en sert écrit `[Déduit]`, pas `[Constaté]`. C'est
 la couche qui s'applique sa propre discipline.
+
+## 25. La réduction hiérarchique
+
+Le Review Board ne lit pas de code. Il reçoit des **résumés** : une ligne par constat
+depuis l'index, et le détail d'une fiche seulement quand il l'ouvre pour arbitrer.
+
+Les agents thématiques, quand la passe est partitionnée, ne lisent pas non plus le code
+une seconde fois : ils reçoivent les constats produits par les agents de lot dans leur
+domaine et les consolident.
+
+⚠️ Motif mesuré le 2026-09-13 : la consolidation a pris **34 minutes sur 1 h 30 de passe**,
+sur 27 constats. Multipliée par une partition à 49 lots, elle deviendrait le poste
+dominant. Un réducteur qui reçoit du contexte brut passe son temps à le relire.
+
+## 24. Le registre de progression
+
+Un fichier unique, `.claude/audit/REGISTRE.md`, **en ajout seul**. Une ligne par lot :
+
+```
+L07 | design | 1 fichier | agent=repo-hygiene | statut=couvert | 3 constats | 2026-09-13
+```
+
+Il est écrit **par l'orchestrateur**, pas par les agents — l'écriture concurrente sur un
+fichier partagé a déjà détruit `INDEX.md` puis écrasé quatre fois `INDICES-ECARTES.md`.
+
+**Ce qu'il permet** : la reprise. Une passe interrompue reprend aux lots
+`statut != couvert`. Une passe qui plafonne relance une vague sur ce qui reste. La
+couverture cesse d'être un constat de fin de passe pour devenir un **compteur qui monte**.
+
+⚠️ Le patron est documenté et sa valeur mesurée : sur un système multi-agents de
+référence, retirer les registres de l'orchestrateur fait chuter la performance de 31 %.
+Ce n'est pas un accessoire de confort.
+
+Le registre **remplace les fichiers `PERIMETRE-*`**. Un agent qui reçoit un lot fini n'a
+plus de périmètre à déclarer : son lot *est* son périmètre. Il déclare seulement ce qu'il
+n'a pas pu traiter **dans** son lot, et pourquoi.
+
+## 23. La partition déterministe
+
+**Chaque fichier est assigné à exactement un lot, avant qu'un agent ne démarre.**
+
+C'est la correction la plus importante de ce contrat. Jusqu'ici, les agents choisissaient
+librement quels fichiers ouvrir. Conséquence mesurée sur un dépôt de 446 fichiers :
+recouvrement massif sur les fichiers centraux, zones entières que personne n'ouvrait, et
+une union qui plafonne autour de **14 %** quel que soit le nombre d'agents.
+
+**La partition est produite par un outil, pas par un agent** — un agent qui découperait
+lui-même reproduirait ses propres biais. L'outil lit les fichiers suivis par git, les
+ordonne par le classement de risque du §19, et les groupe par zone sous un double
+plafond : un budget de jetons et un nombre de fichiers.
+
+**Deux contrôles rendent la partition vérifiable, et ils figurent dans sa sortie :**
+
+- `partition_complete` — aucun fichier suivi n'est laissé hors lot ;
+- `doublons` — aucun fichier n'appartient à deux lots.
+
+⛔ **Si l'un des deux est faux, la couverture annoncée en fin de passe ne veut rien
+dire.** L'orchestrateur le vérifie avant de lancer quoi que ce soit.
+
+**Dimensionnement.** Le budget par lot vise **largement en dessous** de la fenêtre du
+modèle. Ce n'est pas de la prudence : la dégradation commence bien avant la limite, et
+un agent qui remplit sa fenêtre audite avec un modèle affaibli. Un fichier plus gros que
+le budget forme son propre lot — le découper ferait perdre le fil.
+
+**Les lots les plus à risque passent en premier**, pour qu'une passe interrompue ait
+couvert ce qui comptait le plus.
 
 ## 22. La vérification d'une correction
 
