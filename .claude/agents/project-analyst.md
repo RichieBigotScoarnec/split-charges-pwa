@@ -163,11 +163,11 @@ a lancé une suite de tests dont les simulacres ne s'appliquaient pas : le code 
 Un constat qui ne peut être établi que par exécution s'écrit `[À vérifier]`, avec la
 commande à lancer comme condition de levée. C'est à l'humain de la lancer.
 
-⛔ **Tu n'écris que tes propres fichiers de constat**, sous `.claude/audit/findings/`,
+⛔ **Tu n'écris que tes propres fichiers de constat**, sous `.claude/audit/constats/`,
 avec tes seuls préfixes. Trois interdits, violés tous les trois lors de la première
 passe réelle :
 
-- **`findings/INDEX.md`** — jamais. Il est reconstruit après la passe. Sept agents
+- **`constats/INDEX.md`** — jamais. Il est reconstruit après la passe. Sept agents
   parallèles qui le réécrivent en laissent trois.
 - **Le fichier d'un autre agent** — tu ne le modifies ni ne le supprimes, pour aucune
   raison : ni doublon, ni rangement, ni correction.

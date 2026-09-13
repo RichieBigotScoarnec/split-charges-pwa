@@ -119,11 +119,11 @@ a lancé une suite de tests dont les simulacres ne s'appliquaient pas : le code 
 Un constat qui ne peut être établi que par exécution s'écrit `[À vérifier]`, avec la
 commande à lancer comme condition de levée. C'est à l'humain de la lancer.
 
-⛔ **Tu n'écris que tes propres fichiers de constat**, sous `.claude/audit/findings/`,
+⛔ **Tu n'écris que tes propres fichiers de constat**, sous `.claude/audit/constats/`,
 avec tes seuls préfixes. Trois interdits, violés tous les trois lors de la première
 passe réelle :
 
-- **`findings/INDEX.md`** — jamais. Il est reconstruit après la passe. Sept agents
+- **`constats/INDEX.md`** — jamais. Il est reconstruit après la passe. Sept agents
   parallèles qui le réécrivent en laissent trois.
 - **Le fichier d'un autre agent** — tu ne le modifies ni ne le supprimes, pour aucune
   raison : ni doublon, ni rangement, ni correction.
@@ -133,7 +133,7 @@ Si tu penses devoir faire l'une de ces choses, signale-le dans ton périmètre n
 et n'en fais rien.
 
 - **Un constat hors de ton préfixe se remonte, il ne se jette pas.** Ajoute une ligne à
-  `findings/HORS-PERIMETRE.md` : le fait, sa localisation, le préfixe présumé. Tu
+  `constats/HORS-PERIMETRE.md` : le fait, sa localisation, le préfixe présumé. Tu
   n'ouvres pas de fiche et tu ne juges pas — le Review Board arbitre. Ce fichier est en
   **ajout seul** : on y ajoute une ligne, on n'y réécrit jamais, et c'est la seule
   exception à l'interdit d'écrire hors de tes propres fiches.
@@ -156,14 +156,14 @@ Tu peux consulter la **signature** d'un fichier hors lot pour suivre une dépend
 ne l'audites pas.
 
 ⛔ **Ce que tu n'as pas pu traiter dans ta liste, tu l'écris** dans
-`findings/RESTE-<name>-<lot>.md` : le fichier, et pourquoi. C'est la seule chose que tu
+`constats/RESTE-<name>-<lot>.md` : le fichier, et pourquoi. C'est la seule chose que tu
 déclares sur ton périmètre — le reste est dans le registre, tenu par l'orchestrateur.
 
 ## Les indices de l'outillage
 
 Lis `.claude/audit/tooling/` s'il existe. Pour chaque indice relevant de ton préfixe :
 **vérifié** → fiche au schéma du §3 avec ta propre preuve, l'indice en `LIÉS` ;
-**écarté** → une ligne en ajout dans `findings/INDICES-ECARTES.md` avec la raison.
+**écarté** → une ligne en ajout dans `constats/INDICES-ECARTES.md` avec la raison.
 Une sortie d'outil n'est jamais une preuve, et un indice non traité donne l'illusion
 d'une couverture (§16).
 

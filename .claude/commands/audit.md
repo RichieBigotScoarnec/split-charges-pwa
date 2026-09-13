@@ -42,11 +42,27 @@ Utilise le sous-agent project-analyst pour analyser ce dépôt et écrire
 **Condition de passage** : le fichier existe et porte sa section « Chargements non
 statiques ». Sans elle, la suite prendra du code vivant pour du code mort.
 
+### 1 bis. Les indices, pour CE commit
+
+Vérifie la date des fichiers de `.claude/audit/tooling/` contre le commit audité. **S'ils
+datent d'un commit antérieur, ils ne valent rien** : ils décrivent un autre état.
+
+Tu ne lances aucun analyseur toi-même (§10, §16). Tu **rappelles à l'humain** les
+commandes de `outillage-deterministe.md` et tu inscris la lacune à ton compte rendu.
+
+⚠️ Mesuré le 2026-09-13 : les sorties d'ESLint, Knip, Madge et npm audit dataient du
+commit précédent et sont parties en archive. Les agents ont travaillé sans indices, et
+**aucun ne l'a signalé**.
+
 ### 2. Partition — l'étape qui décide de la couverture
 
 ```bash
-node tools/lots.mjs > .claude/audit/lots.json
+node tools/lots.mjs
 ```
+
+⛔ **Sans redirection.** Le script écrit `.claude/audit/lots.json` lui-même ; un `>`
+l'écraserait avec son message de console — et sous PowerShell produirait de l'UTF-16 que
+le script suivant ne saurait pas relire. Même chose pour `tools/risque.mjs`.
 
 ⛔ **Vérifie `partition_complete` et `doublons` avant d'aller plus loin.** Complète à
 faux, ou doublons non nul : arrête. Une couverture calculée sur une partition trouée ne
@@ -80,7 +96,9 @@ changements de la branche. Écris sa sortie brute, sans la reformuler, dans
 .claude/audit/security-review-output.md.
 ```
 
-**Après chaque vague**, ajoute une ligne par lot à `.claude/audit/REGISTRE.md` :
+**Dès la partition validée**, crée `.claude/audit/REGISTRE.md` avec une ligne par lot en
+`statut=a_traiter`. Bascule chaque ligne **au retour de son agent**, pas en fin de vague :
+une passe arrêtée en cours de vague doit laisser une trace.
 
 ```
 L07 | design | 1 fichier | agent=repo-hygiene | statut=couvert | 3 constats | AAAA-MM-JJ
@@ -98,7 +116,7 @@ relance **une fois, à l'identique**, puis son lot passe `non_couvert` avec la r
 Quand tous les lots portent un statut :
 
 ```
-Utilise le sous-agent review-board pour consolider les constats de .claude/audit/findings/.
+Utilise le sous-agent review-board pour consolider les constats de .claude/audit/constats/.
 Le registre de progression est dans .claude/audit/REGISTRE.md.
 ```
 
@@ -119,7 +137,13 @@ et repars.
 
 ## Ce que tu ne fais pas
 
-- **Tu n'écris rien sous `.claude/audit/`**, à l'exception du registre et de `lots.json`.
+- **Tu n'écris sous `.claude/audit/` que trois choses, nommément** : `REGISTRE.md`,
+  `lots.json`, et **une fiche à la place d'un agent qui a refusé de l'écrire** (§26) —
+  sans la reformuler. Rien d'autre.
+  ⚠️ Trois interdictions générales successives de ce contrat ont emporté plus que leur
+  raison : `.claude/` exclu en bloc, `INDEX.md` interdit à tout le monde, puis
+  `.claude/audit/` fermé à l'orchestrateur. Une interdiction se nomme, elle ne se
+  généralise pas.
 - **Tu ne résumes pas les constats.** Le rapport consolidé est le livrable.
 - **Tu ne juges aucun constat**, et tu ne dis jamais à un agent ce qu'un autre a trouvé.
 - **Tu ne touches pas à git.**

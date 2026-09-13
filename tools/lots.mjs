@@ -21,8 +21,16 @@ const BUDGET = Number(process.env.LOT_BUDGET || 60000);   // jetons de lecture p
 const PLAFOND = Number(process.env.LOT_PLAFOND || 14);    // fichiers par lot
 const RISQUE = '.claude/audit/tooling/risque.json';
 
+// Seule LA BIBLIOTHÈQUE s'exclut, pas tout `.claude/` : le reste y est du contenu
+// de projet comme un autre, et une exclusion en bloc emporte plus que sa raison —
+// des commandes héritées échappaient à la partition (mesuré le 2026-09-13).
 const EXCLUS = [
-  /^\.claude\//, /^package-lock\.json$/, /\.(png|jpe?g|gif|svg|webp|woff2?|ico|zip)$/i
+  /^\.claude\/agents\//,
+  /^\.claude\/commands\/audit(-diff)?\.md$/,
+  /^\.claude\/contrat-agents-audit\.md$/,
+  /^\.claude\/audit\//,
+  /^package-lock\.json$/,
+  /\.(png|jpe?g|gif|svg|webp|woff2?|ico|zip)$/i
 ];
 
 const suivis = execSync('git ls-files', { encoding: 'utf8' })

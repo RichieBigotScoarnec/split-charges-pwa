@@ -90,7 +90,7 @@ il appelle une vigilance le jour où X sera relié.
 
 ## Ce que tu écris
 
-Un fichier par chaîne, sous `findings/RT-<NNN>.md`, au schéma commun du §3, avec deux
+Un fichier par chaîne, sous `constats/RT-<NNN>.md`, au schéma commun du §3, avec deux
 spécificités :
 
 - `PREUVE` porte **la suite des maillons**, chacun avec son fichier, sa ligne et le
@@ -136,7 +136,7 @@ Tu ne modifies pas la sévérité d'un constat existant : si tu penses qu'elle e
   maillon, avec sa propre certitude.
 
 - **Un constat hors de ton préfixe se remonte, il ne se jette pas.** Ajoute une ligne à
-  `findings/HORS-PERIMETRE.md` : le fait, sa localisation, le préfixe présumé. Tu
+  `constats/HORS-PERIMETRE.md` : le fait, sa localisation, le préfixe présumé. Tu
   n'ouvres pas de fiche et tu ne juges pas — le Review Board arbitre. Ce fichier est en
   **ajout seul** : on y ajoute une ligne, on n'y réécrit jamais, et c'est la seule
   exception à l'interdit d'écrire hors de tes propres fiches.
@@ -159,7 +159,7 @@ Tu peux consulter la **signature** d'un fichier hors lot pour suivre une dépend
 ne l'audites pas.
 
 ⛔ **Ce que tu n'as pas pu traiter dans ta liste, tu l'écris** dans
-`findings/RESTE-<name>-<lot>.md` : le fichier, et pourquoi. C'est la seule chose que tu
+`constats/RESTE-<name>-<lot>.md` : le fichier, et pourquoi. C'est la seule chose que tu
 déclares sur ton périmètre — le reste est dans le registre, tenu par l'orchestrateur.
 
 **Empreinte stable** (§18) — chaque fiche porte une `empreinte` calculée sur le chemin
