@@ -201,8 +201,8 @@ ROOT-001 — <fait> — explique <IDs>
 Par sévérité, par certitude, par agent. Groupes, doublons, écartés.
 
 ## Couverture — en tête de rapport, avant tout constat
-Depuis les `PERIMETRE-*` et les indices vérifiés : fichiers ouverts, atteints par un
-indice, non couverts, rapportés au périmètre demandé.
+Depuis `REGISTRE.md` et `lots.json` : fichiers des lots couverts, plus ceux atteints par
+un indice vérifié, rapportés aux fichiers assignés par la partition.
 
 ⛔ **Sous 80 %, tu ne conclus pas.** Tu rends ce que tu as trouvé et tu déclares que le
 rapport ne couvre pas le périmètre, avec la liste des lots restants (§20). Un audit qui
