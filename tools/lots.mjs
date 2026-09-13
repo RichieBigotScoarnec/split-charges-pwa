@@ -8,14 +8,14 @@
  * La parade : chaque fichier est assigné à EXACTEMENT UN lot, avant que le
  * moindre agent ne démarre. Un agent reçoit un lot fini et n'en sort pas.
  *
- *   node tools/lots.mjs > .claude/audit/lots.json
+ *   node tools/lots.mjs      → écrit .claude/audit/lots.json lui-même, en UTF-8
  *
  * Dimensionnement : chaque lot vise un budget de jetons qui laisse à l'agent
  * de la place pour raisonner. La dégradation du contexte commence bien avant
  * sa limite — viser 100 % de la fenêtre, c'est auditer avec un modèle dégradé.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 
 const BUDGET = Number(process.env.LOT_BUDGET || 60000);   // jetons de lecture par lot
 const PLAFOND = Number(process.env.LOT_PLAFOND || 14);    // fichiers par lot
@@ -32,7 +32,10 @@ const suivis = execSync('git ls-files', { encoding: 'utf8' })
 // Ordre de traitement : le classement par risque s'il existe, sinon la taille.
 const ordre = new Map();
 if (existsSync(RISQUE)) {
-  const r = JSON.parse(readFileSync(RISQUE, 'utf8'));
+  // ⚠️ PowerShell écrit ses redirections `>` en UTF-16 avec un BOM : `JSON.parse`
+  // bute alors sur le marqueur d'octets. Mesuré le 2026-09-13 sur Windows.
+  // On lit en tolérant le BOM, et on écrit soi-même en UTF-8 (voir plus bas).
+  const r = JSON.parse(readFileSync(RISQUE, 'utf8').replace(/^\uFEFF/, ''));
   r.fichiers.forEach((f, i) => ordre.set(f.fichier, i));
 }
 const rang = (f) => (ordre.has(f) ? ordre.get(f) : 99999);
@@ -91,7 +94,7 @@ lots.forEach((l, i) => { l.id = `L${String(i + 1).padStart(2, '0')}`; });
 const total = suivis.length;
 const assignes = lots.reduce((n, l) => n + l.fichiers.length, 0);
 
-console.log(JSON.stringify({
+const sortie = JSON.stringify({
   outil: 'tools/lots.mjs',
   date: new Date().toISOString().slice(0, 10),
   commit: execSync('git rev-parse --short HEAD').toString().trim(),
@@ -107,4 +110,11 @@ console.log(JSON.stringify({
   doublons: assignes - new Set(lots.flatMap((l) => l.fichiers)).size,
   lots_total: lots.length,
   lots
-}, null, 2));
+}, null, 2);
+
+// Le script écrit son fichier lui-même plutôt que de compter sur une
+// redirection du shell : `>` produit de l'UTF-16 avec BOM sous PowerShell,
+// illisible par le script suivant.
+mkdirSync('.claude/audit', { recursive: true });
+writeFileSync('.claude/audit/lots.json', sortie, 'utf8');
+console.log(`lots.json écrit — ${assignes}/${total} fichiers, ${lots.length} lots, complet=${assignes === total}`);

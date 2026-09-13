@@ -26,9 +26,12 @@ npx playwright test --project=axe   # exige `npx playwright install chromium`
 npm run regles
 
 # priorisation
-node tools/risque.mjs > .claude/audit/tooling/risque.json
-node tools/lots.mjs > .claude/audit/lots.json   # la partition, apres le classement par risque
+node tools/risque.mjs
+node tools/lots.mjs
 ```
+
+⚠️ Ces deux scripts écrivent leur fichier eux-mêmes — **pas de redirection `>`**. Sous
+PowerShell, `>` produit de l'UTF-16 avec BOM, que le script suivant ne sait pas relire.
 
 ⚠️ `node tools/risque.mjs` **après** `npm run couverture` : sans la couverture, le
 classement ne reflète que la fréquence de modification, et il le déclare.
