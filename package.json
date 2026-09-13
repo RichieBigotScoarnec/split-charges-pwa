@@ -21,7 +21,7 @@
     "deploy:hosting": "npx firebase deploy --only hosting --project fairsplit-foyer",
     "couverture": "npm run couverture:unitaire && npm run couverture:e2e && npm run couverture:fusion",
     "couverture:unitaire": "vitest run --coverage --coverage.reporter=json --coverage.include=\"public/js/**\"",
-    "couverture:e2e": "COUVERTURE=1 npx firebase emulators:exec --only auth,database \"npx playwright test\"",
+    "couverture:e2e": "npx cross-env COUVERTURE=1 npx firebase emulators:exec --only auth,database \"npx playwright test --project=chromium\"",
     "couverture:fusion": "node tools/fusionner-couverture.mjs",
     "artefacts": "node tools/garder-artefacts.mjs",
     "ports": "node tools/liberer-les-ports.mjs",
@@ -29,7 +29,7 @@
     "preemulators": "npm run ports",
     "preemulators:test": "npm run ports",
     "precouverture:e2e": "npm run ports",
-    "regles": "npx firebase emulators:exec --only database \"npx vitest run tests/regles/\""
+    "regles": "npx firebase emulators:exec --only database \"npx vitest run --config vitest.regles.config.mjs\""
   },
   "repository": {
     "type": "git",
@@ -49,6 +49,7 @@
     "@firebase/rules-unit-testing": "^5.0.0",
     "@playwright/test": "1.63.0",
     "@vitest/coverage-v8": "^5.0.0",
+    "cross-env": "^7.0.3",
     "eslint": "^10.10.0",
     "eslint-plugin-no-unsanitized": "^4.1.5",
     "firebase-tools": "^15.29.0",

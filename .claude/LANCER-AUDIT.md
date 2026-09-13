@@ -10,6 +10,7 @@ une couverture nettement moindre, et l'orchestrateur le signale.
 
 ```bash
 npm install
+npx playwright install chromium   # les navigateurs ne viennent pas avec npm install
 
 mkdir -p .claude/audit/tooling
 
@@ -21,7 +22,7 @@ npm audit --json > .claude/audit/tooling/npm-audit.json
 
 # dynamique
 npm run couverture
-npx playwright test --project=axe
+npx playwright test --project=axe   # exige `npx playwright install chromium`
 npm run regles
 
 # priorisation
