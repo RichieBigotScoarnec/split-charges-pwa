@@ -110,12 +110,21 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { browserName: 'chromium' },
-      testIgnore: /(scenario-reel|bouclier-navigateur)\.spec\.js/
+      testIgnore: /(scenario-reel|bouclier-navigateur|audit-axe)\.spec\.js/
     },
     {
       name: 'reel',
       use: { browserName: 'chromium' },
       testMatch: /(scenario-reel|bouclier-navigateur)\.spec\.js/
+    },
+    // Le balayage d'accessibilite n'est pas un test de non-regression : il ne
+    // fait echouer personne, il depose une mesure dans `.claude/audit/tooling/`
+    // que la chaine d'audit consomme. Il a donc son projet, exclu des deux
+    // autres, et se lance par `npx playwright test --project=axe`.
+    {
+      name: 'axe',
+      use: { browserName: 'chromium' },
+      testMatch: /audit-axe\.spec\.js/
     },
   ],
   webServer: {

@@ -20,7 +20,7 @@ import { test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { setupFirebaseMock, waitForApp, allerAuPanneau } from '../e2e/_harness.js';
+import { setupFirebaseMock, waitForApp, allerAuPanneau } from './_harness.js';
 
 const PANNEAUX = ['panneauBilan', 'panneauCharges', 'panneauReglages'];
 const resultats = [];

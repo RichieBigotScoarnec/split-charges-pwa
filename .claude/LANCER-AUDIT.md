@@ -21,7 +21,7 @@ npm audit --json > .claude/audit/tooling/npm-audit.json
 
 # dynamique
 npm run couverture
-npx playwright test tests/audit/axe.spec.js
+npx playwright test --project=axe
 npm run regles
 
 # priorisation

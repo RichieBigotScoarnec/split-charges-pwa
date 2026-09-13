@@ -31,6 +31,11 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/tests/e2e/**',
+      // `tests/regles/` interroge le moteur de regles Firebase : sans emulateur,
+      // chaque cas echoue pour une raison qui n'a rien a voir avec le code.
+      // Ils sont lances par `npm run regles`, qui les enveloppe dans
+      // `firebase emulators:exec`.
+      '**/tests/regles/**',
       // Les copies de travail de Claude Code : un worktree est le depot entier,
       // ses tests appartiennent a la session qui l'a cree, pas a celle-ci.
       '.claude/**'

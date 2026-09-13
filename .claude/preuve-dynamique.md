@@ -44,7 +44,7 @@ que l'arbre d'accessibilité les expose.
 
 ```bash
 npm i -D @axe-core/playwright
-npx playwright test tests/audit/axe.spec.js
+npx playwright test --project=axe
 # → .claude/audit/tooling/axe.json
 ```
 
