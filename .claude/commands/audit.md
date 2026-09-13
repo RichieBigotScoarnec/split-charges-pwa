@@ -1,70 +1,36 @@
 ---
-description: Lance une passe d'audit complète sur ce dépôt — sélection des agents, séquencement, consolidation.
-argument-hint: [chemin ou périmètre, facultatif]
+description: Passe d'audit complète, partitionnée en lots — chaque fichier assigné à exactement un agent.
+argument-hint: [chemin ou zone, facultatif — restreint la partition]
 ---
 
 # Passe d'audit
 
-Tu pilotes la bibliothèque d'agents d'audit. Tu ne lis pas le code, tu ne juges aucun
-constat, tu ne résumes pas les rapports : tu choisis qui intervient, dans quel ordre, et
-tu rends compte de ce qui s'est passé.
+Tu pilotes la bibliothèque. Tu ne lis pas le code, tu ne juges aucun constat, tu ne
+résumes pas les rapports : tu partitionnes, tu assignes, tu tiens le registre.
 
 Contrat : `.claude/contrat-agents-audit.md`. Agents : `.claude/agents/`.
+Périmètre : $ARGUMENTS — à défaut, tout le dépôt sauf la bibliothèque
+(`.claude/agents/`, `.claude/commands/audit*.md`, `.claude/contrat-agents-audit.md`,
+`.claude/audit/`).
 
-Périmètre demandé : $ARGUMENTS — à défaut, **l'ensemble du dépôt sauf la bibliothèque
-elle-même** : `.claude/agents/`, `.claude/commands/audit.md`,
-`.claude/contrat-agents-audit.md`, `.claude/audit/`.
+## La règle qui prime
 
-⚠️ Tout le reste de `.claude/` **s'audite** : c'est du contenu de projet comme un autre.
-Une exclusion posée pour une bonne raison — empêcher la bibliothèque de s'auditer
-elle-même — emporte bien plus que sa raison si elle est prise en bloc.
+**Tu transmets le lot, et rien d'autre.** Chaque agent porte son contrat : domaine,
+exclusions, méthode. Ton message contient le dépôt, la liste de fichiers du lot, et
+l'emplacement du contexte partagé.
 
-## La règle qui prime sur toutes les autres
+⛔ Aucune consigne de domaine ajoutée. ⛔ Aucun périmètre restreint au-delà du lot. Si une
+consigne manque, c'est le fichier de l'agent qu'il faut corriger, et tu le signales en fin
+de passe.
+⚠️ Une consigne donnée à un agent sur sept n'est pas un garde-fou, c'est une loterie.
 
-**Tu transmets le périmètre, et rien d'autre.**
+## Ancrage
 
-Chaque agent porte son propre contrat : son domaine, ses exclusions, sa méthode, ce qu'il
-doit écarter. Ton message de délégation ne contient que le dépôt et le périmètre.
-
-⛔ **Tu n'ajoutes aucune consigne de domaine à un agent.** Ni « fais attention à… », ni
-« ignore… », ni « analyse sans… ». Si tu juges qu'une consigne manque, c'est le fichier
-de l'agent qu'il faut corriger, et tu le signales en fin de passe au lieu de le rattraper
-à la volée.
-
-⛔ **Tu ne restreins pas le périmètre d'un agent.** Lui dire d'ignorer un répertoire le
-prive d'un cas qu'il devait traiter, et fausse la mesure de son comportement.
-
-⚠️ Motif mesuré le 2026-09-11 : lors de la première passe réelle, l'orchestrateur a
-ajouté des consignes de son cru à trois agents et a dit à un quatrième d'ignorer
-`.claude/`. Les consignes étaient de bonne foi et l'une d'elles tombait juste — mais
-elles étaient réparties au hasard : l'interdiction d'appeler un service externe n'avait
-été donnée qu'à un seul agent, et c'est un autre qui a déclenché un appel réseau
-authentifié sortant.
-
-**Une consigne donnée à un agent sur sept n'est pas un garde-fou, c'est une loterie.**
-
-## Ancrage au commit — avant toute chose
-
-Relève `git rev-parse HEAD` et le nom de la branche **au tout début**, et inscris-les dans
-ton compte rendu. **Avant chaque étape**, relève-les à nouveau et compare.
-
-Si l'un des deux a changé : **arrête la passe et rends la main.** Ne continue pas, ne
-relance pas, ne recompose pas. Dis ce qui a changé, et laisse `.claude/audit/` intact.
-
-Une seule commande git t'est permise, en lecture : `git rev-parse HEAD` et
-`git rev-parse --abbrev-ref HEAD`. Tu ne bascules pas, tu ne tires pas, tu ne fusionnes
-pas — même pour réparer.
-
-⚠️ Motif mesuré le 2026-09-12 sur un dépôt réel : l'arbre de travail a changé de branche
-pendant que le Project Analyst tournait, et le dépôt a avancé de huit commits. Deux choses
-ont cassé d'un coup — **les agents ont disparu**, parce qu'ils ne vivaient que sur la
-branche quittée, et **le contexte est devenu faux**, parce qu'il décrivait un commit qui
-n'était plus celui du disque. Seule la première a été visible. Sans ce contrôle, une passe
-aurait pu se poursuivre sur un contexte périmé sans que rien ne le signale.
+Relève `git rev-parse HEAD` et la branche au départ. Revérifie **avant chaque vague**.
+S'ils changent : arrête, rends la main, laisse `.claude/audit/` intact. Deux commandes git
+te sont permises, en lecture seule ; tu ne bascules pas, ne tires pas, ne fusionnes pas.
 
 ## Séquence
-
-Trois étapes, dans cet ordre, avec des conditions de passage strictes.
 
 ### 1. Contexte
 
@@ -73,34 +39,40 @@ Utilise le sous-agent project-analyst pour analyser ce dépôt et écrire
 .claude/audit/PROJECT_CONTEXT.md. Le périmètre est <périmètre>.
 ```
 
-**Condition de passage** : `.claude/audit/PROJECT_CONTEXT.md` existe et porte une section
-« Chargements non statiques ». Sans elle, les agents suivants prendront du code vivant
-pour du code mort — n'enchaîne pas, rends la main.
+**Condition de passage** : le fichier existe et porte sa section « Chargements non
+statiques ». Sans elle, la suite prendra du code vivant pour du code mort.
 
-### 1 bis. Les indices de l'outillage
+### 2. Partition — l'étape qui décide de la couverture
 
-Vérifie la présence de `.claude/audit/tooling/`. Tu ne lances **aucun** analyseur
-toi-même : ni `npx eslint`, ni `Invoke-ScriptAnalyzer`, ni installation de dépendances.
+```bash
+node tools/lots.mjs > .claude/audit/lots.json
+```
 
-**S'il est absent ou vide**, tu continues — et tu l'inscris dans ton compte rendu comme
-une **lacune de couverture**, pas comme un détail. Les commandes à lancer figurent dans
-`outillage-deterministe.md` ; rappelle à l'humain qu'il peut les exécuter et relancer.
+⛔ **Vérifie `partition_complete` et `doublons` avant d'aller plus loin.** Complète à
+faux, ou doublons non nul : arrête. Une couverture calculée sur une partition trouée ne
+veut rien dire (§23).
 
-**S'il est présent**, tu ne le lis pas et tu n'en parles à personne : chaque agent y va
-lui-même, pour son préfixe (§16).
+Si `tools/lots.mjs` n'existe pas dans ce dépôt, dis-le et rends la main. **N'improvise
+aucun découpage** : un découpage improvisé par toi reproduit tes biais, et c'est
+exactement le défaut que la partition corrige.
 
-### 2. Audits
+Inscris le nombre de lots et le total de fichiers assignés dans ton compte rendu.
 
-Lis `PROJECT_CONTEXT.md` et sélectionne les agents. **Sur ce que le contexte établit, pas
-sur une étiquette de domaine** : un dépôt sans stockage n'a pas besoin de l'agent données
-pour son volet `DATA`, mais il en a besoin pour son volet `PERF`.
+### 3. Vagues
 
-Par défaut, lance-les tous. Écarter un agent demande une justification tirée du contexte,
-et cette justification figure dans ton compte rendu.
+Les lots sont déjà ordonnés par risque : traite-les **dans l'ordre**, par vagues de
+**dix au plus** — c'est ce que Claude Code exécute réellement en parallèle.
 
-**Formule exacte, à ne pas improviser** — c'est la seule exception nommée à la règle du
-périmètre et rien d'autre, parce que cette commande n'est pas un agent de la bibliothèque
-et ne connaît ni le schéma des fiches ni l'emplacement des sorties :
+Pour chaque lot, un agent, choisi sur la nature des fichiers du lot d'après
+`PROJECT_CONTEXT.md`. Message type, à ne pas enrichir :
+
+```
+Utilise le sous-agent <agent> pour auditer ces fichiers, et eux seuls :
+<liste des fichiers du lot>
+Le contexte partagé est dans .claude/audit/PROJECT_CONTEXT.md.
+```
+
+Lance aussi `/security-review` **une fois pour la passe**, pas par lot :
 
 ```
 Lance la commande /security-review sur l'ensemble du dépôt, pas seulement sur les
@@ -108,34 +80,26 @@ changements de la branche. Écris sa sortie brute, sans la reformuler, dans
 .claude/audit/security-review-output.md.
 ```
 
-⚠️ Telle quelle, la commande native n'examine que les changements par rapport à la
-branche par défaut. Sur une branche sans changement de code, elle ne voit rien. La
-première ligne de la formule est donc obligatoire.
+**Après chaque vague**, ajoute une ligne par lot à `.claude/audit/REGISTRE.md` :
 
-Sa sortie s'écrit dans `.claude/audit/security-review-output.md` — emplacement fixé au
-contrat, plus de dossier temporaire ni de chemin ajouté au message du Board.
+```
+L07 | design | 1 fichier | agent=repo-hygiene | statut=couvert | 3 constats | AAAA-MM-JJ
+```
 
-Lance **aussi `/security-review`** dans cette étape : le préfixe `SEC` n'a produit aucune
-fiche sur les deux premières passes, faute d'être branché. C'est une commande et non un
-sous-agent, sa sortie ne suit pas le schéma des fiches — le Review Board la transcrira.
+⛔ **Toi seul écris le registre.** L'écriture concurrente sur un fichier partagé a déjà
+détruit un index et écrasé quatre fois un fichier d'indices (§24).
 
-Lance-les **en parallèle**, en une seule vague. Claude Code met en file et exécute
-jusqu'à dix tâches simultanées ; huit agents passent donc d'un coup.
+Un agent qui rend sans avoir écrit de fiche **n'est pas en échec** : un lot peut être
+sain. Statut `couvert`, zéro constat. Un agent bloqué sans rien écrire ni rien dire se
+relance **une fois, à l'identique**, puis son lot passe `non_couvert` avec la raison.
 
-**Condition de passage** : tous les agents lancés ont rendu. Un agent arrêté en chemin est
-une information, pas un échec — note son message d'arrêt et continue.
+### 4. Consolidation
 
-⚠️ **Un agent peut aussi se bloquer sans rien écrire ni rien dire.** C'est arrivé au
-Review Board le 2026-09-12, stoppé par un chien de garde après dix minutes sans
-progression. Vérifie la condition de passage **sur l'état du disque**, jamais sur ce
-qu'un agent a déclaré. Un agent muet se relance **une fois, à l'identique** — sans rien
-ajouter à son message, la règle de non-ingérence valant aussi pour une reprise. S'il
-échoue deux fois, rends la main.
-
-### 3. Consolidation
+Quand tous les lots portent un statut :
 
 ```
 Utilise le sous-agent review-board pour consolider les constats de .claude/audit/findings/.
+Le registre de progression est dans .claude/audit/REGISTRE.md.
 ```
 
 Puis, **seulement si un rapport consolidé existe** :
@@ -144,44 +108,35 @@ Puis, **seulement si un rapport consolidé existe** :
 Utilise le sous-agent red-team pour chercher les enchaînements dans les constats consolidés.
 ```
 
+## Reprise
+
+`.claude/audit/REGISTRE.md` existe et le commit n'a pas changé → propose de **reprendre**
+les lots `statut != couvert` plutôt que de tout relancer. C'est le principal apport du
+registre : la couverture devient un compteur qui monte d'une passe à l'autre.
+
+Le commit a changé → la reprise est impossible, les lots décrivent un autre état. Archive
+et repars.
+
 ## Ce que tu ne fais pas
 
-- **Tu n'écris rien sous `.claude/audit/`.** Ni index, ni rapport, ni correction. Un
-  agent qui a mal écrit se corrige dans son fichier, pas dans sa sortie.
-  L'index est reconstruit par le Review Board — tranché le 2026-09-12, trois textes se
-  l'attribuant ou se l'interdisant.
-- **Tu ne résumes pas les constats.** Le rapport consolidé est le livrable ; le
-  paraphraser en dégrade la précision et donne l'illusion qu'il a été lu.
-- **Tu ne juges aucun constat**, ni ne signales à un agent ce qu'un autre a trouvé.
-  L'indépendance des passes est ce qui rend les recoupements informatifs.
-- **Tu ne touches pas à git.** Ni commit, ni pull, ni bascule de branche.
+- **Tu n'écris rien sous `.claude/audit/`**, à l'exception du registre et de `lots.json`.
+- **Tu ne résumes pas les constats.** Le rapport consolidé est le livrable.
+- **Tu ne juges aucun constat**, et tu ne dis jamais à un agent ce qu'un autre a trouvé.
+- **Tu ne touches pas à git.**
+- ⛔ **Aucun score, aucune note de santé.** Tu peux recopier un dénombrement.
 
 ## Compte rendu
 
-À la fin, et seulement à la fin :
-
 | | |
 |---|---|
-| Agents lancés | lesquels |
-| Agents écartés | lesquels, et sur quel élément du contexte |
-| Agents arrêtés | lesquels, avec leur message |
+| Commit et branche | relevés au départ, revérifiés à chaque vague |
+| Partition | lots, fichiers assignés, `partition_complete`, `doublons` |
+| Vagues | combien, durée de chacune |
+| Lots couverts / total | le chiffre de couverture réel |
+| Lots non couverts | lesquels, et pourquoi |
 | Durée et tokens | par agent |
 | Chemin du rapport | `.claude/audit/reports/…` |
-| Commit et branche | relevés au départ, revérifiés à chaque étape |
-| Indices d'outillage | présents ou absents ; si absents, lacune de couverture |
-| Couverture déclarée | ce que les `PERIMETRE-*` rapportent : ouvert, atteint par indice, non couvert |
 
-Puis une section **Signaux sur la bibliothèque** : consignes qui t'ont manqué, agents
-dont le comportement t'a surpris, règles du contrat qu'un agent n'a pas tenues. C'est ce
-qui fait progresser les fichiers d'agents, et personne d'autre que toi n'est placé pour
-l'observer.
-
-⛔ **Aucun score, aucune note de santé.** Tu peux dénombrer les constats par sévérité en
-recopiant le dénombrement du rapport. Tu n'en produis pas d'autre.
-
-## Reprise
-
-Si `.claude/audit/` contient déjà une passe, dis-le et demande : reprendre là où elle
-s'est arrêtée, ou repartir de zéro. Ne mélange jamais les constats de deux passes — leurs
-identifiants se recoupent, et le rapport qui en sortirait ne décrirait aucun état réel du
-dépôt.
+Puis **Signaux sur la bibliothèque** : consignes qui t'ont manqué, agents dont le
+comportement t'a surpris, règles du contrat qu'un agent n'a pas tenues. Personne d'autre
+que toi n'est placé pour l'observer.
