@@ -28,7 +28,8 @@
     "e2e": "npm run ports && npx firebase emulators:exec --only auth,database \"npx playwright test --project=chromium --workers=4 --reporter=line\"",
     "preemulators": "npm run ports",
     "preemulators:test": "npm run ports",
-    "precouverture:e2e": "npm run ports"
+    "precouverture:e2e": "npm run ports",
+    "regles": "npx firebase emulators:exec --only database \"npx vitest run tests/regles/\""
   },
   "repository": {
     "type": "git",
@@ -43,7 +44,9 @@
   },
   "homepage": "https://github.com/RichieBigotScoarnec/split-charges-pwa#readme",
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@playwright/test": "1.63.0",
     "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.10.0",

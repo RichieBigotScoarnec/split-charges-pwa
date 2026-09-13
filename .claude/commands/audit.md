@@ -77,6 +77,18 @@ Utilise le sous-agent project-analyst pour analyser ce dépôt et écrire
 « Chargements non statiques ». Sans elle, les agents suivants prendront du code vivant
 pour du code mort — n'enchaîne pas, rends la main.
 
+### 1 bis. Les indices de l'outillage
+
+Vérifie la présence de `.claude/audit/tooling/`. Tu ne lances **aucun** analyseur
+toi-même : ni `npx eslint`, ni `Invoke-ScriptAnalyzer`, ni installation de dépendances.
+
+**S'il est absent ou vide**, tu continues — et tu l'inscris dans ton compte rendu comme
+une **lacune de couverture**, pas comme un détail. Les commandes à lancer figurent dans
+`outillage-deterministe.md` ; rappelle à l'humain qu'il peut les exécuter et relancer.
+
+**S'il est présent**, tu ne le lis pas et tu n'en parles à personne : chaque agent y va
+lui-même, pour son préfixe (§16).
+
 ### 2. Audits
 
 Lis `PROJECT_CONTEXT.md` et sélectionne les agents. **Sur ce que le contexte établit, pas
@@ -156,6 +168,8 @@ Utilise le sous-agent red-team pour chercher les enchaînements dans les constat
 | Durée et tokens | par agent |
 | Chemin du rapport | `.claude/audit/reports/…` |
 | Commit et branche | relevés au départ, revérifiés à chaque étape |
+| Indices d'outillage | présents ou absents ; si absents, lacune de couverture |
+| Couverture déclarée | ce que les `PERIMETRE-*` rapportent : ouvert, atteint par indice, non couvert |
 
 Puis une section **Signaux sur la bibliothèque** : consignes qui t'ont manqué, agents
 dont le comportement t'a surpris, règles du contrat qu'un agent n'a pas tenues. C'est ce

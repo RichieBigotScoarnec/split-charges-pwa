@@ -66,6 +66,14 @@ déduction à partir des fiches.
 Si un agent n'a pas déposé le sien, dis-le dans les signaux : son silence sur un domaine
 devient indéchiffrable.
 
+### 0 ter. Les indices écartés
+
+Lis `findings/INDICES-ECARTES.md` s'il existe. Un indice écarté par un agent est une
+décision à relire comme une autre : si le motif d'écartement est faible, dis-le dans les
+signaux. Et compare la liste des indices reçus à la somme des vérifiés et des écartés —
+**tout indice qui n'apparaît ni en fiche ni en écartement n'a pas été traité**, ce qui
+est le seul cas où l'outillage dégrade la couverture au lieu de l'augmenter.
+
 ### 1. Inventaire avant lecture
 
 Lis le frontmatter de **tous** les fichiers de constat avant d'en ouvrir un seul en
@@ -184,6 +192,21 @@ ROOT-001 — <fait> — explique <IDs>
 
 ## Dénombrement
 Par sévérité, par certitude, par agent. Groupes, doublons, écartés.
+
+## Couverture — en tête de rapport, avant tout constat
+Depuis les `PERIMETRE-*` et les indices vérifiés : fichiers ouverts, atteints par un
+indice, non couverts, rapportés au périmètre demandé.
+
+⛔ **Sous 80 %, tu ne conclus pas.** Tu rends ce que tu as trouvé et tu déclares que le
+rapport ne couvre pas le périmètre, avec la liste des lots restants (§20). Un audit qui
+trouve peu sur un cinquième d'un dépôt et un audit qui trouve peu sur un dépôt sain se
+ressemblent exactement ; cette barrière est la seule chose qui les distingue.
+
+## Évolution depuis la passe précédente
+Compare les empreintes (§18) à celles du dernier rapport de `reports/` : **nouveau**,
+**persistant**, **disparu**.
+⛔ « Disparu » ne veut pas dire « corrigé » — la variance du §12 bis fait qu'un constat
+peut disparaître parce qu'il a été manqué. Seul `verification` (§22) ferme un constat.
 
 ## Ce que les agents n'ont pas couvert
 ⚠️ Rappel à porter dans ton rapport : le silence d'une passe sur un domaine ne dit
