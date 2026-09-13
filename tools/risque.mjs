@@ -10,10 +10,13 @@
  *
  * Un fichier souvent modifié et peu couvert est l'endroit où les défauts vivent.
  *
- *   node tools/risque.mjs > .claude/audit/tooling/risque.json
+ *   node tools/risque.mjs    → écrit .claude/audit/tooling/risque.json en UTF-8
+ *
+ * ⚠️ Le script écrit son fichier lui-même : sous PowerShell, une redirection `>`
+ * produit de l'UTF-16 avec BOM, que le script suivant ne sait pas relire.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const DEPUIS = process.env.RISQUE_DEPUIS || '6 months ago';
 const COUVERTURE = 'coverage/coverage-final.json';
@@ -35,7 +38,7 @@ for (const f of journal) modifications[f] = (modifications[f] || 0) + 1;
 // Couverture, si elle a été produite
 const couverture = {};
 if (existsSync(COUVERTURE)) {
-  const brut = JSON.parse(readFileSync(COUVERTURE, 'utf8'));
+  const brut = JSON.parse(readFileSync(COUVERTURE, 'utf8').replace(/^\uFEFF/, ''));
   for (const [chemin, d] of Object.entries(brut)) {
     const total = Object.keys(d.statementMap || {}).length;
     const vus = Object.values(d.s || {}).filter((n) => n > 0).length;
@@ -62,7 +65,7 @@ const fichiers = suivis.map((f) => {
 
 fichiers.sort((a, b) => b.score - a.score);
 
-console.log(JSON.stringify({
+const sortie = JSON.stringify({
   outil: 'tools/risque.mjs',
   date: new Date().toISOString().slice(0, 10),
   commit: execSync('git rev-parse --short HEAD').toString().trim(),
@@ -72,4 +75,8 @@ console.log(JSON.stringify({
     ? null
     : 'Aucune couverture trouvée : le score ne reflète que la fréquence de modification.',
   fichiers
-}, null, 2));
+}, null, 2);
+
+mkdirSync('.claude/audit/tooling', { recursive: true });
+writeFileSync('.claude/audit/tooling/risque.json', sortie, 'utf8');
+console.log(`risque.json écrit — ${fichiers.length} fichiers classés, couverture disponible : ${Object.keys(couverture).length > 0}`);
