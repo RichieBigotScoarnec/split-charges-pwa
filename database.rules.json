@@ -490,7 +490,7 @@
     },
     "sandbox": {
       ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
-      ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com') && newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()",
+      ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com') && (!newData.exists() || (newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()))",
       "salaries": {
         "vous": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"

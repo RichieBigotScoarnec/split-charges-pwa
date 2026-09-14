@@ -31,10 +31,16 @@ import {
 import { readFileSync } from 'node:fs';
 
 const VOUS = 'bigot.richard@gmail.com';
+const COMPTE_TEST = 'testfairsplit@gmail.com';
 
 let env;
 const session = () =>
   env.authenticatedContext('vous', { email: VOUS, email_verified: true }).database();
+
+// Le compte de test n'a pas besoin d'adresse vérifiée : c'est la règle du bac
+// à sable, pas un raccourci de banc d'essai.
+const sessionBac = () =>
+  env.authenticatedContext('test', { email: COMPTE_TEST, email_verified: false }).database();
 
 const semer = (chemin, valeur) =>
   env.withSecurityRulesDisabled((ctx) => ctx.database().ref(chemin).set(valeur));
@@ -148,5 +154,44 @@ describe('LE TÉMOIN — ce que la correction casserait', () => {
     const base = 'household/periods/2026-09/variableCharges';
     await semer(base, { a: CHARGE });
     await assertSucceeds(session().ref(`${base}/a`).remove());
+  });
+});
+
+/**
+ * L'effacement d'un nœud entier — le versant que la correction a failli casser
+ *
+ * Ces trois cas existent en e2e depuis le 2026-08-27, où une garde
+ * `newData.exists()` posée sur `sandbox` « par symétrie, non par besoin » avait
+ * fermé l'unique opération dont ce nœud a la charge. Le 2026-09-14, le
+ * déplacement du `.write` vers la feuille a refait la même chose par un autre
+ * chemin : la clause de restauration exigeait `restaureLe`, qu'un effacement
+ * ne porte évidemment pas.
+ *
+ * Ils sont recopiés ici parce que la suite e2e demande un navigateur, donc ne
+ * tourne pas partout. Un témoin qu'on ne peut pas jouer au moment où l'on
+ * écrit la règle ne protège pas de l'erreur qu'on est en train de commettre.
+ */
+describe("L'effacement d'un nœud entier", () => {
+  it("le bac à sable peut être vidé — c'est sa fonction", async () => {
+    await semer('sandbox/periods/2026-08/variableCharges/c1', CHARGE);
+    await assertSucceeds(sessionBac().ref('sandbox').remove());
+  });
+
+  it("le foyer, lui, ne peut pas être effacé en une requête", async () => {
+    await semer('household/periods/2026-08/variableCharges/c1', CHARGE);
+    await assertFails(session().ref('household').remove());
+  });
+
+  it("rouvrir le vidage du bac à sable n'y rouvre pas l'écrasement de conteneur", async () => {
+    // Le témoin négatif du premier cas. `!newData.exists()` n'autorise que
+    // l'effacement TOTAL : un `set` qui laisse l'espace debout reste jugé sur
+    // le marqueur, donc refusé.
+    const base = 'sandbox/periods/2026-08/variableCharges';
+    await semer(base, { a: CHARGE, b: { ...CHARGE, description: 'Essence' } });
+
+    await assertFails(sessionBac().ref(base).set({ c: CHARGE }));
+
+    const apres = await lire(base);
+    expect(Object.keys(apres || {}), 'a et b doivent survivre').toEqual(['a', 'b']);
   });
 });
