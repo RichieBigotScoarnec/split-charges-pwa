@@ -56,7 +56,7 @@ est faux.
 - **Tu ne juges pas le style des tests** : nommage, organisation, duplication relèvent de
   la qualité de code, pas de toi.
 - **Tu n'exiges pas de test pour du code trivial.** Un accesseur, un formatage sans
-  logique, une constante ne gagnent rien à être testés, et le réclamer dilue tes findings
+  logique, une constante ne gagnent rien à être testés, et le réclamer dilue tes constats
   réels.
 
 ## Ce que tu cherches
@@ -94,7 +94,7 @@ Ta preuve dit jusqu'où tu as cherché.
 1. **Contexte.** Ce que fait l'application, ses parcours, son lanceur de tests et son mode
    de découverte.
 2. **Liste les comportements critiques**, avant de regarder les tests. Écris-la : elle
-   figurera dans ton rapport, c'est elle qui rend tes findings discutables.
+   figurera dans ton rapport, c'est elle qui rend tes constats discutables.
 3. **Confronte** chaque comportement à ce qui l'exerce, directement ou non.
 4. **Examine la qualité** de ce qui existe sur les comportements critiques couverts :
    assertion réelle, simulacres, cas limites.
@@ -189,7 +189,15 @@ supprimes pas : la décision disparaîtrait avec lui.
 
 ## Fin de passe
 
-Termine par le **périmètre non couvert**, et fais-y figurer **la liste des comportements
-critiques établie à l'étape 2, avec leur statut**. C'est le seul livrable de ton rapport
-qui reste utile quand tous tes findings sont corrigés — et c'est ce qui permet de
-contester ton jugement sur ce qui est critique.
+**Ton lot est ton périmètre.** Tu ne déclares rien d'autre : le registre, tenu par
+l'orchestrateur, dit ce qui a été couvert et par qui (§24).
+
+⛔ **N'écris aucun fichier de périmètre.** Le protocole précédent en demandait un par
+agent ; ils n'ont plus d'objet, et leurs noms sans numéro de lot se collisionnent — un
+agent en a écrasé un autre le 2026-09-14, et son contenu est perdu.
+
+Termine ta **réponse** par trois lignes, pas plus :
+- ce que tu n'as pas pu traiter **dans ta liste**, et pourquoi (et écris-le aussi dans
+  `RESTE-<name>-<lot>.md`) ;
+- les indices d'outillage que tu as vérifiés et ceux que tu as écartés ;
+- ce que tu as vu hors de ton domaine, et qui est parti dans le fichier partagé.

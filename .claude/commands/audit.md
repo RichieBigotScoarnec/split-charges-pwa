@@ -83,10 +83,22 @@ Pour chaque lot, un agent, choisi sur la nature des fichiers du lot d'après
 `PROJECT_CONTEXT.md`. Message type, à ne pas enrichir :
 
 ```
-Utilise le sous-agent <agent> pour auditer ces fichiers, et eux seuls :
+Utilise le sous-agent <agent> pour auditer le lot <Lxx>, ces fichiers et eux seuls :
 <liste des fichiers du lot>
+Numérote tes fiches <PREFIXE>-<Lxx>-<NN>, par exemple CQ-<Lxx>-01.
 Le contexte partagé est dans .claude/audit/PROJECT_CONTEXT.md.
 ```
+
+⚠️ **Le numéro de lot doit figurer dans le message.** Mesuré le 2026-09-14 : sans lui,
+des agents ont produit `QA-001`, `A11Y-01`, `A11Y-DESIGN-01` ou littéralement
+`QA-<LOT>-NN`, et il a fallu les renuméroter à la main. Certains retombaient sur
+l'ancien compteur partagé, qui écrase.
+
+⚠️ **Les indices d'outillage n'ont pas de destinataire dans une passe partitionnée.**
+Mesuré le 2026-09-14 : 24 alertes ESLint et 3 vulnérabilités npm n'ont été ni vérifiées
+ni écartées, parce qu'aucun agent de lot ne porte la sécurité. Quand tu assignes un lot,
+**transmets à l'agent les lignes d'indices qui portent sur ses fichiers**, extraites des
+sorties. Ce qui ne tombe dans aucun lot revient au Review Board.
 
 Lance aussi `/security-review` **une fois pour la passe**, pas par lot :
 
