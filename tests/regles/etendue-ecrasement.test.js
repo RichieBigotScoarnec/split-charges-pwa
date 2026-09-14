@@ -102,12 +102,33 @@ describe('LE TÉMOIN — ce que la correction casserait', () => {
    * AVANT d'écrire la correction, pas après.
    */
   it('une restauration de sauvegarde écrit tout un espace, et doit rester possible', async () => {
+    // Charge utile reprise de `tests/e2e/regles-donnees.spec.js` : `shareMode`
+    // est un OBJET au niveau du foyer et une chaîne au niveau de la période.
+    // La version précédente de ce témoin avait pris la forme du mauvais niveau
+    // et échouait pour cette seule raison — pas parce que la restauration
+    // serait cassée.
     await assertSucceeds(
       session().ref('household').set({
+        restaureLe: Date.now(),
         periods: { '2026-09': { variableCharges: { a: CHARGE } } },
         salaries: { vous: 2000, conjointe: 1800 },
-        shareMode: 'prorata'
+        shareMode: { mode: 'prorata' }
       })
+    );
+  });
+
+  it('le marqueur de restauration ne rouvre pas le trou pour les écritures suivantes', async () => {
+    // `restaureLe` PERSISTE en base. Une règle qui se contenterait de sa
+    // présence redeviendrait vraie pour toute écriture ultérieure, et le trou
+    // rouvrirait définitivement dès la première restauration. La condition
+    // porte donc sur le CHANGEMENT du marqueur.
+    await semer('household', {
+      restaureLe: 1757000000000,
+      periods: { '2026-09': { variableCharges: { a: CHARGE, b: { ...CHARGE, description: 'Essence' } } } }
+    });
+
+    await assertFails(
+      session().ref('household/periods/2026-09/variableCharges').set({ c: CHARGE })
     );
   });
 

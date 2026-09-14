@@ -123,8 +123,15 @@ describe('Les règles déployées couvrent le compte de test', () => {
     // autre chose que la règle. Même raisonnement que
     // `tests/utils/service-worker-*.test.js`, qui exécutent le source du
     // service worker plutôt que d'en décrire le comportement.
-    new Function('auth', 'newData', `return (${expression});`)(
-      { uid: 'u1', token }, { exists: () => true }
+    // Les doubles accordent tout ce qui n'est pas l'authentification — le
+    // marqueur de restauration de `household/.write` est donc vu comme
+    // CHANGEANT. Seule la liste blanche décide du verdict, ce que ces cas
+    // mesurent. Un double qui refuserait ailleurs ferait passer ces cas pour
+    // une raison étrangère à leur objet.
+    new Function('auth', 'newData', 'data', `return (${expression});`)(
+      { uid: 'u1', token },
+      { exists: () => true, hasChild: () => true, child: () => ({ val: () => 1 }) },
+      { exists: () => true, hasChild: () => false, child: () => ({ val: () => 0 }) }
     ) === true;
 
   const VERIFIE = (email) => ({ email, email_verified: true });
@@ -188,14 +195,47 @@ describe('Les règles déployées couvrent le compte de test', () => {
     // compte — nettement moins lisible. La duplication est donc assumée, mais
     // elle dérive dès qu'on l'oublie : un bac à sable plus permissif que le
     // foyer n'éprouverait plus rien de ce que le foyer subira.
-    const schema = (espace) => {
-      const copie = { ...regles[espace] };
-      delete copie['.read'];
-      delete copie['.write'];
+    //
+    // L'accès est retiré à TOUS les niveaux, pas seulement à la racine : depuis
+    // que le `.write` descend jusqu'aux feuilles, les deux espaces portent
+    // légitimement des clauses différentes — celle du bac à sable admet le
+    // compte de test. Ce qui doit rester identique, c'est le schéma de
+    // validation. Le cas suivant tient l'autre bout : aucune de ces clauses ne
+    // s'écarte de la liste blanche de son espace.
+    const schema = (noeud) => {
+      if (!noeud || typeof noeud !== 'object') return noeud;
+      const copie = {};
+      for (const [cle, valeur] of Object.entries(noeud)) {
+        if (cle === '.read' || cle === '.write') continue;
+        copie[cle] = schema(valeur);
+      }
       return copie;
     };
 
-    expect(schema('sandbox')).toEqual(schema('household'));
+    expect(schema(regles.sandbox)).toEqual(schema(regles.household));
+  });
+
+  it("aucune clause d'écriture n'échappe à la liste blanche de son espace", () => {
+    // Le pendant du cas précédent. Retirer les `.write` de la comparaison de
+    // schéma les sortirait de toute surveillance : une clause posée à une
+    // feuille et plus permissive que la racine ne se verrait nulle part.
+    const clauses = (noeud, trouvees = []) => {
+      if (!noeud || typeof noeud !== 'object') return trouvees;
+      for (const [cle, valeur] of Object.entries(noeud)) {
+        if (cle === '.write') trouvees.push(valeur);
+        else clauses(valeur, trouvees);
+      }
+      return trouvees;
+    };
+
+    for (const espace of ['household', 'sandbox']) {
+      const toutes = clauses(regles[espace]);
+      expect(toutes.length).toBeGreaterThan(1);
+      for (const clause of toutes) {
+        expect(accorde(clause, VERIFIE('inconnu@example.com')), clause).toBe(false);
+        expect(accorde(clause, NON_VERIFIE('inconnu@example.com')), clause).toBe(false);
+      }
+    }
   });
 
   it('chaque espace borne ce qu\'il accepte', () => {
