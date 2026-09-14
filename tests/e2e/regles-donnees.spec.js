@@ -229,6 +229,9 @@ test.describe('Ce que l\'application écrit reste accepté', () => {
     const jeton = await jetonVerifiePour(request, EMAIL_FOYER);
 
     const code = await ecrire(request, 'household', {
+      // Le marqueur de restauration : seul un `set` qui le CHANGE peut écrire
+      // un conteneur entier. Voir `database.rules.json`, `household/.write`.
+      restaureLe: Date.now(),
       salaries: { vous: 3200, conjointe: 2400 },
       members: { vous: 'Richard', conjointe: 'Cindy' },
       shareMode: { mode: 'prorata' },

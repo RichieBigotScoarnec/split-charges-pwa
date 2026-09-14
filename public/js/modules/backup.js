@@ -154,7 +154,13 @@ const NOEUDS_CONNUS = [
   // côté sans l'autre.
   'versements',
   'reminders',
-  'periods'
+  'periods',
+  // Le marqueur de restauration, arrivé avec le déplacement du `.write` vers la
+  // feuille. Il PERSISTE en base après une restauration : toute sauvegarde prise
+  // ensuite le contient, et sans cette ligne elle serait refusée à la
+  // restauration — la panne que les deux commentaires ci-dessus racontent déjà,
+  // une troisième fois.
+  'restaureLe'
 ];
 
 /**
@@ -275,7 +281,12 @@ export async function restoreBackup(fichier) {
     telecharger(secours.contenu, `avant-restauration-${secours.nom}`);
 
     const { dbSet } = await import('../db.js');
-    await dbSet(undefined, enveloppe.data);
+    // `restaureLe` est ce qui distingue une restauration d'un écrasement
+    // accidentel : `household/.write` n'autorise l'écriture d'un conteneur
+    // entier qu'à un `set` qui CHANGE ce marqueur. Sans lui, la restauration
+    // est refusée — et sans la condition de changement, le marqueur laissé en
+    // base rouvrirait le trou pour toutes les écritures suivantes.
+    await dbSet(undefined, { ...enveloppe.data, restaureLe: Date.now() });
 
     closeModal('modalBackup', false);
     toast.success('Sauvegarde restaurée — rechargement…');
