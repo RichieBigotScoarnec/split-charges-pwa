@@ -54,7 +54,7 @@ Relève les deux couleurs dans le code, résous les variables jusqu'à leur vale
 littérale, puis calcule le rapport par une commande dont tu reportes la sortie. Le seuil
 retenu et sa source figurent dans le finding.
 
-**Le tableau des contrastes est un livrable, pas un sous-produit des findings.** Ton
+**Le tableau des contrastes est un livrable, pas un sous-produit des constats.** Ton
 rapport porte, systématiquement, la liste de **toutes** les paires texte/fond que tu as
 résolues, avec leur rapport calculé et leur verdict — y compris celles qui passent, y
 compris celles que tu n'as pas pu résoudre.
@@ -217,6 +217,15 @@ supprimes pas : la décision disparaîtrait avec lui.
 
 ## Fin de passe
 
-Termine par le **périmètre non couvert** : documents non examinés, absence de fichier de
-référence pour la pile, et surtout **ce qui aurait demandé un rendu** — chaque point
-laissé en `[Déduit]` faute d'avoir pu observer l'interface réelle.
+**Ton lot est ton périmètre.** Tu ne déclares rien d'autre : le registre, tenu par
+l'orchestrateur, dit ce qui a été couvert et par qui (§24).
+
+⛔ **N'écris aucun fichier de périmètre.** Le protocole précédent en demandait un par
+agent ; ils n'ont plus d'objet, et leurs noms sans numéro de lot se collisionnent — un
+agent en a écrasé un autre le 2026-09-14, et son contenu est perdu.
+
+Termine ta **réponse** par trois lignes, pas plus :
+- ce que tu n'as pas pu traiter **dans ta liste**, et pourquoi (et écris-le aussi dans
+  `RESTE-<name>-<lot>.md`) ;
+- les indices d'outillage que tu as vérifiés et ceux que tu as écartés ;
+- ce que tu as vu hors de ton domaine, et qui est parti dans le fichier partagé.

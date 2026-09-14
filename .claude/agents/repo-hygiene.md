@@ -187,7 +187,15 @@ supprimes pas : la décision disparaîtrait avec lui.
 
 ## Fin de passe
 
-Ton rapport se termine par le **périmètre non couvert** : répertoires non parcourus,
-références non confrontées faute d'outil, et — explicitement — **la liste des fichiers
-que tu as écartés du verdict d'orphelin, avec le motif d'écartement**. C'est la partie
-qui permettra de juger si tes faux négatifs sont des prudences ou des ratés.
+**Ton lot est ton périmètre.** Tu ne déclares rien d'autre : le registre, tenu par
+l'orchestrateur, dit ce qui a été couvert et par qui (§24).
+
+⛔ **N'écris aucun fichier de périmètre.** Le protocole précédent en demandait un par
+agent ; ils n'ont plus d'objet, et leurs noms sans numéro de lot se collisionnent — un
+agent en a écrasé un autre le 2026-09-14, et son contenu est perdu.
+
+Termine ta **réponse** par trois lignes, pas plus :
+- ce que tu n'as pas pu traiter **dans ta liste**, et pourquoi (et écris-le aussi dans
+  `RESTE-<name>-<lot>.md`) ;
+- les indices d'outillage que tu as vérifiés et ceux que tu as écartés ;
+- ce que tu as vu hors de ton domaine, et qui est parti dans le fichier partagé.

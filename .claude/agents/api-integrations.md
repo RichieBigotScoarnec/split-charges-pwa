@@ -18,7 +18,7 @@ arrête-toi.
 ## Les deux sens comptent, et ils ne s'auditent pas pareil
 
 **Ce que le dépôt expose** — tu vois les deux côtés du contrat : la définition et son
-implémentation. Tes findings peuvent être `[Constaté]`.
+implémentation. Tes constats peuvent être `[Constaté]`.
 
 **Ce que le dépôt consomme** — tu ne vois qu'un côté. La forme réelle de la réponse
 distante, ses codes d'erreur, ses limites de débit, sa pagination, ses garanties : tu ne
@@ -198,7 +198,15 @@ supprimes pas : la décision disparaîtrait avec lui.
 
 ## Fin de passe
 
-Termine par le **périmètre non couvert**, et fais-le porter l'inventaire de l'étape 2 :
-les frontières trouvées, celles que tu as auditées, celles que tu n'as pas pu. Une
-intégration oubliée à l'inventaire est un angle mort que personne ne verra ; une
-intégration listée et non auditée est une information.
+**Ton lot est ton périmètre.** Tu ne déclares rien d'autre : le registre, tenu par
+l'orchestrateur, dit ce qui a été couvert et par qui (§24).
+
+⛔ **N'écris aucun fichier de périmètre.** Le protocole précédent en demandait un par
+agent ; ils n'ont plus d'objet, et leurs noms sans numéro de lot se collisionnent — un
+agent en a écrasé un autre le 2026-09-14, et son contenu est perdu.
+
+Termine ta **réponse** par trois lignes, pas plus :
+- ce que tu n'as pas pu traiter **dans ta liste**, et pourquoi (et écris-le aussi dans
+  `RESTE-<name>-<lot>.md`) ;
+- les indices d'outillage que tu as vérifiés et ceux que tu as écartés ;
+- ce que tu as vu hors de ton domaine, et qui est parti dans le fichier partagé.

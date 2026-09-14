@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '3.1'
+version: '3.2'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,10 +14,26 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 3.1 — 2026-09-13.**
+> **Version 3.2 — 2026-09-14.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v3.1 → v3.2** — première passe complète. **51 lots sur 51, 426 fichiers sur
+426, 100 % de couverture**, 161 constats, 12,8 M jetons, 1 h 51. La question posée depuis
+trois jours est tranchée : **le levier était le partitionnement**, pas le modèle, pas la
+fenêtre, pas l'outillage. De 14 % à 100 % sans changer un seul agent de domaine.
+
+⚠️ **Mais la couverture par fichier n'est pas la couverture par domaine**, et c'est le
+prix que je n'avais pas anticipé (§23 bis). À 14 %, sept agents regardaient les mêmes
+fichiers centraux sous sept angles. À 100 %, chaque fichier a reçu **un angle et un
+seul** : la documentation n'a été lue que par l'agent performance, les workflows que par
+l'agent API. On a échangé la redondance contre l'exhaustivité.
+
+Cinq corrections mesurées sur cette passe : fin de passe des agents de lot réécrite (les
+fichiers de périmètre se collisionnaient et l'un a écrasé l'autre), recours du §26 élargi
+à tout ce qu'un agent devait écrire, numéro de lot transmis dans le message, indices
+d'outillage sans destinataire, et la mesure honnête du §26 — **`constats/` n'a pas suffi**.
 
 **Changements v3.0 → v3.1** — première vague réelle de la passe partitionnée. **Neuf lots
 couverts sur dix, 86 fichiers, en une vague** : la partition fonctionne. Mais la mécanique
@@ -954,10 +970,16 @@ Elle se déclenche sur des **noms de fichiers en anglais** : `report`, `summary`
 - **Recours** : si un agent refuse malgré tout d'écrire et rend ses constats dans sa
   réponse, **l'orchestrateur les écrit à sa place**, sans les reformuler, et l'inscrit au
   registre. Un constat qui ne vit que dans une réponse est perdu pour le Review Board.
+  **Le recours couvre tout ce que l'agent devait écrire** — fiches, ligne de
+  `HORS-PERIMETRE.md`, ligne de `INDICES-ECARTES.md`, `RESTE-*`. ⚠️ Mesuré le
+  2026-09-14 : limité aux seules fiches, il a laissé perdre deux faits hors périmètre,
+  dont une adresse e-mail personnelle en clair dans un fichier livré.
 
-⚠️ Mesuré le 2026-09-13 : trois agents sur dix ont appliqué la consigne au premier
-passage. Relancés avec un rappel, deux ont cédé et un a refusé. **Le comportement dépend
-de l'agent** — donc une règle qui compte dessus est une loterie, et il faut le recours.
+⚠️ Mesuré sur une passe complète le 2026-09-14 : **onze lots sur cinquante-et-un**, sur
+quatre types d'agents différents. **Renommer le répertoire en `constats/` n'a pas suffi**
+— l'hypothèse tirée d'un retour d'expérience communautaire était au mieux incomplète.
+Seul le recours a sauvé ces 37 fiches. Le comportement dépend de l'agent : une règle qui
+compte dessus est une loterie, le recours n'est pas un filet mais le mécanisme principal.
 
 ## 25. La réduction hiérarchique
 
@@ -1000,6 +1022,32 @@ Ce n'est pas un accessoire de confort.
 Le registre **remplace les fichiers `PERIMETRE-*`**. Un agent qui reçoit un lot fini n'a
 plus de périmètre à déclarer : son lot *est* son périmètre. Il déclare seulement ce qu'il
 n'a pas pu traiter **dans** son lot, et pourquoi.
+
+## 23 bis. Ce que la partition coûte
+
+**Couvert par fichier ne veut pas dire couvert par domaine.**
+
+Chaque lot reçoit un agent, donc chaque fichier est regardé sous **un angle et un seul**.
+Mesuré le 2026-09-14 : la documentation du dépôt n'a été lue que par l'agent performance,
+les workflows que par l'agent API, les maquettes que par l'agent accessibilité.
+
+C'est l'exact inverse du défaut d'avant. Sans partition, sept agents lisaient les mêmes
+fichiers centraux sous sept angles et n'atteignaient que 14 % du dépôt. Avec, on atteint
+100 % et on perd le croisement. **Les deux régimes ont un angle mort, à l'opposé l'un de
+l'autre.**
+
+⛔ **Le rapport doit dire, pour chaque zone, quel angle elle a reçu.** Un lecteur qui voit
+« 100 % couvert » et ignore que `SECURITY.md` n'a été lu que sous l'angle de la
+performance tire une conclusion fausse.
+
+**Ce qui atténue, sans supprimer** : le préfixe d'un constat ne dépend pas de l'agent qui
+l'émet. Un agent sorti de son domaine sur un fait réel l'écrit dans le fichier partagé
+(§11), et le Review Board l'arbitre. Mesuré : des constats de sécurité ont été produits
+par les agents données, API et QA.
+
+**Ce qui supprimerait**, et qui n'est pas fait : une seconde passe avec une assignation
+d'agents différente sur la même partition. Elle doublerait le coût — 12,8 M jetons
+deviendraient 25 — et c'est un arbitrage à poser explicitement, pas à décider ici.
 
 ## 23. La partition déterministe
 
