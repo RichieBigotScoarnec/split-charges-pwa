@@ -49,6 +49,9 @@ FairSplit/
 │       ├── firebase-init.js    # Init Firebase, providers, émulateurs
 │       ├── db.js               # Abstraction DB (préfixage DATA_ROOT) + les
 │       │                       # quatre accès absolus du détail privé
+│       │                       # + `cheminDuPersonnel` (où vit la poche
+│       │                       # personnelle — la connaissance de l'arbre est
+│       │                       # ici, pas dans `perimetre.js`, qui est pur)
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
 │       ├── modules/            # 31 modules fonctionnels — dont trash (rétablir
@@ -174,14 +177,14 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
 | `utils/debug.js` | 36 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 32 | 1 | Critique — état global |
-| `utils/format.js` | 27 | 0 | Critique — affichage monétaire |
+| `state.js` | 33 | 1 | Critique — état global |
+| `utils/format.js` | 28 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
 | `db.js` | 25 | **22** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
-| `utils/members.js` | 17 | 0 | Important — qui doit à qui |
-| `utils/perimetre.js` | 17 | 0 | Important — ce qui pèse sur le solde |
+| `utils/members.js` | 18 | 0 | Important — qui doit à qui |
+| `utils/perimetre.js` | 18 | 0 | Important — ce qui pèse sur le solde |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
@@ -194,6 +197,28 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > autres s'étaient accumulés sur les lots précédents sans que personne ne
 > recompte. C'est le défaut que ce tableau documente déjà pour lui-même :
 > **le rejouer coûte une seconde, le croire coûte une décision.**
+
+> **CINQUIÈME DÉRIVE, relevée le 2026-09-16 — et il y en avait DEUX, pas une.**
+> `utils/perimetre.js` 17 → 18 avait motivé le recompte ; rejouer
+> `node tools/adherences.mjs` **sans argument** a montré que `utils/format.js`
+> était à 28 pour 27 annoncés, sur `main`, depuis un lot antérieur que
+> personne n'a identifié.
+>
+> **C'est la leçon de ce recompte, et elle est plus large que le chiffre :
+> vérifier UNE ligne ne dit rien des treize autres.** On corrige celle qui a
+> attiré l'attention, on referme, et les voisines continuent de dériver — c'est
+> le défaut que ce dépôt a déjà payé sur `encre-sur-surface.test.js`, où une
+> leçon écrite trois cas plus haut n'avait été appliquée qu'à la garde qui
+> avait rougi. **Le classement complet coûte une seconde.**
+>
+> Les deux autres écarts du jour viennent du lot P1a et sont les siens :
+> `state.js` 32 → 33 et `utils/members.js` 17 → 18, tous deux parce que
+> `backup.js` doit savoir QUI est connecté pour ne lire que sa poche.
+>
+> **Et rien ne tient ces chiffres.** `adherences-declarees.test.js` tient
+> l'appartenance au tableau — quel module y figure —, jamais son compte : les
+> six dérives sont donc toutes passées en vert. Voir le point 0 de « Ce qui
+> reste OUVERT », dans les *Décisions de conception*.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -1319,10 +1344,38 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 
 ### Base de données et règles
 
-- **Tout nœud neuf est refusé après un toast de succès.** Les règles ferment
-  chaque objet par `$autre: false` — 52 occurrences dans `database.rules.json`.
-  Écrire un champ ou un nœud non déclaré part, paraît réussir côté client, et est
-  rejeté par le serveur. Déclarer la règle **en même temps** que le champ.
+- **Tout nœud neuf est refusé après un toast de succès.** Écrire un champ ou un
+  nœud non déclaré part, paraît réussir côté client, et est rejeté par le
+  serveur. Déclarer la règle **en même temps** que le champ.
+
+  > **⚠️ MAIS « chaque objet est fermé par `$autre: false` » EST FAUX, et le
+  > compte de 52 qui l'accompagnait n'était pas celui-là.** Corrigé le
+  > 2026-09-16, sur mesure. Les 52 étaient **tous** les `$autre` du fichier,
+  > dont **42 seulement** valaient `false` ; les 10 autres bornent un scalaire
+  > (`isBoolean() || isNumber() || (isString() && length <= 500)`).
+  >
+  > Et les 10 ouverts sont exactement ceux qui comptent ici : **l'objet CHARGE
+  > et son `location`**. Un champ inconnu sur une charge **passe**, s'il est
+  > simple et court — c'est délibéré, une sauvegarde d'une version antérieure
+  > doit pouvoir être restaurée (`SECURITY.md`, § 3). Ce sont les
+  > CONTENEURS et les objets de réglage qui sont fermés, jamais la charge.
+  >
+  > Relevé après le lot P1a : **84 `$autre`, 58 fermés par `false`, 26 bornés à
+  > un scalaire** — le personnel a recopié le schéma de charge, donc ses
+  > `$autre` ouverts avec. Le compte se refait :
+  >
+  > ```bash
+  > node -e 'const d=JSON.parse(require("fs").readFileSync("database.rules.json","utf8")).rules;
+  >   let f=0,o=0;(function w(n){if(!n||typeof n!=="object")return;
+  >   for(const[k,v]of Object.entries(n)){if(k==="$autre")
+  >     (v&&v[".validate"]===false)?f++:o++;w(v)}})(d);
+  >   console.log(f+o,"$autre —",f,"fermés,",o,"bornés")'
+  > ```
+  >
+  > **Un compte recopié sans sa définition est plus dangereux qu'un compte
+  > absent** : celui-ci a servi à généraliser « chaque objet est fermé », et
+  > c'est sur cette généralisation qu'on a failli appauvrir le schéma du
+  > personnel pour le « fermer » comme ses voisins.
 - **`fusionnerListe` réécrit le tableau ENTIER par transaction.** Un seul champ
   inconnu sur **une** enveloppe fait donc refuser **toutes** celles du foyer.
   `enveloppeNeuve` (`envelopes.js:117`) est la seule fabrique de la forme écrite,
@@ -2154,6 +2207,47 @@ paragraphes et ne dit jamais la phrase simple : *ce que tu saisis ici, l'autre
 le verra si tu ouvres le partage*. **Une garantie exacte n'est pas une
 information reçue.**
 
+> **✅ P1a APPLIQUÉ LE 2026-09-16 — le mur du personnel existe, et il est
+> ÉPROUVÉ. Aucune donnée n'a bougé.** Ce qui est en place :
+>
+> - **`household/personnel/{vous|conjointe}`**, avec le `.read` de `prive/`
+>   repris **verbatim** — propriétaire toujours, l'autre sous `aval/{qui}/actif`
+>   — et le schéma **complet** d'une charge, les 18 champs, `.write` de
+>   propriétaire à la feuille. Symétrique sous `sandbox`.
+> - **le `.read` a quitté la racine des deux espaces** et se repose sur chacun
+>   de leurs 13 enfants directs. Il le fallait : un `.read` cascade et ne se
+>   révoque nulle part en dessous, donc un sous-arbre caché sous une racine
+>   lisible était impossible. Acquitté dans `.github/regles-retirees.txt`, qui
+>   naît de ce lot — avec son prix : un client publié avant les règles voit
+>   « Télécharger une sauvegarde » échouer jusqu'à ce que le site suive.
+> - **la sauvegarde lit nœud par nœud** (`plansDeLecture`), omet ce qui n'existe
+>   pas en base, et ne lit que SA poche ; **la restauration n'écrase plus la
+>   racine d'un `set`** — elle écrit les nœuds du foyer en mise à jour
+>   multi-chemins et sa seule poche par un chemin dédié.
+> - **`cheminDuPersonnel` vit dans `db.js`**, pas dans `perimetre.js`, et la
+>   commande de `refonte-lots.md` a changé dans le même commit, avec sa raison.
+>
+> **Ce que P1a NE fait pas, et pourquoi.** Il ne déplace **aucune** charge : les
+> 3 charges `perimetre: 'solo'` (1 mois, `2026-09`, relevé sur sauvegarde le
+> 2026-09-16) restent dans la poche commune, donc lisibles par l'autre. Les
+> déplacer avant que les lecteurs sachent lire les deux poches ferait que
+> tendances, recherche, rapport mensuel, reconduction et coût annuel cessent de
+> compter le personnel **en restant verts** — 37 points de passage relevés.
+> C'est P1b, chacun avec un verdict écrit, la migration EN DERNIER.
+>
+> **⚠️ Ce qui protège la poche de l'autre à la restauration est le CLIENT, pas
+> la règle.** Le `set` de racine reste autorisé, et il efface bel et bien les
+> deux poches — mesuré, et tenu comme témoin permanent
+> (`etendue-ecrasement.test.js`, « l'ancien `set` de racine, lui, efface les
+> deux »). Le fermer demanderait de descendre le `.write` de restauration, ce
+> qui rouvrirait partiellement l'écrasement de conteneur que `4ac03f8` vient de
+> fermer. Arbitrage de Richie, écrit plutôt que subi.
+>
+> **Et un fichier de sauvegarde porte désormais les dépenses personnelles EN
+> CLAIR** — le mur est en base, pas dans le fichier. Consigné dans
+> `SECURITY.md`. Ce qui reste garanti est plus étroit et exact : une sauvegarde
+> ne peut pas contenir la poche de l'autre.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
@@ -2167,7 +2261,8 @@ information reçue.**
 - **Mais les dépenses solo vivent dans `household/`** et sont **lisibles par
   l'autre aujourd'hui, sans aucun aval**. La réalité est l'inverse de la
   crainte : ce qu'on croyait exposé est protégé, ce qu'on saisit réellement ne
-  l'est pas.
+  l'est pas. *(Toujours vrai après P1a : la structure existe, les 3 charges n'y
+  sont pas encore — voir l'encadré ci-dessus.)*
 - **Ce constat est NEUF.** `PRIV-001`, `PRIV-002`, `PRIV-003` (agent
   `privacy-compliance`, commit `b2e5622`) portent sur Nominatim absent de
   `SECURITY.md`, sur deux fabriques de géocodage dont une n'arrondit pas la
@@ -2222,6 +2317,14 @@ les relevés pris avant valent toujours.
 
 ### Ce qui reste OUVERT — à ne pas trancher par omission
 
+0. **Les chiffres du tableau des adhérences ne sont tenus par RIEN**, et c'est
+   la cinquième dérive (`perimetre.js` 17 → 18, corrigé le 2026-09-16).
+   `adherences-declarees.test.js` tient l'**appartenance** au tableau — quel
+   module y figure — jamais son compte : mesuré en lisant le fichier, ses six
+   cas comparent des listes de noms. Les rendre exacts serait un contrôle de
+   trois lignes ; le prix est qu'un import ajouté rendrait la CI rouge jusqu'à
+   ce que le tableau soit réécrit. C'est un arbitrage qui ne se prend pas en
+   passant, donc il est écrit ici plutôt qu'appliqué.
 1. **« Il te reste » compte-t-il le personnel ?** Il le soustrait aujourd'hui et
    **exclut le privé** (2026-09-11, argument de l'épaule). Les deux poches n'en
    faisant plus qu'une, la question se repose entière.

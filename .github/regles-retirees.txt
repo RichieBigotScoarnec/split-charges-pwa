@@ -1,0 +1,45 @@
+# Retraits de règles acquittés — un chemin par ligne, `#` pour la raison.
+#
+# `tools/regles-restrictives.mjs` (joué par `deploy.yml`) arrête la revue sur
+# tout chemin de règle qui DISPARAÎT, parce que le pipeline publie les règles
+# AVANT le site : une règle qui restreint, publiée d'abord, casse le client
+# déjà en ligne jusqu'à ce que le site suive.
+#
+# Ce fichier n'existait pas avant le 2026-09-16, et son absence était
+# délibérée — « un garde-fou dont l'échappatoire est déjà en place invite à
+# s'en servir ». Il naît sur le premier cas légitime : une restriction réelle,
+# correctement détectée, relue par un humain. Une ligne ici n'est pas un
+# contournement, c'est une décision écrite avec son prix.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2026-09-16 — LE DROIT DE LECTURE DESCEND D'UN CRAN (lot P1a)
+#
+# Le `.read` quitte la racine des deux espaces et se repose, à l'identique, sur
+# chacun de leurs enfants directs. Rien n'est refusé à personne : les treize
+# clauses réunies accordent exactement ce que la clause de racine accordait, et
+# `tests/regles/mur-prive.test.js` le mesure contre l'émulateur — « chaque
+# enfant direct reste lisible par les deux », avec son témoin de non-vacuité.
+#
+# Le retrait était NÉCESSAIRE, et pas cosmétique : un `.read` CASCADE et aucune
+# règle plus profonde ne le révoque. Tant que la racine était lisible, cacher
+# `personnel/{qui}` à l'autre était impossible — c'est ce que le commit
+# `4ac03f8` avait établi pour `.write`, dans l'autre sens.
+#
+# CE QU'IL COÛTE, ET IL N'EST PAS NUL. Un client déjà en ligne, publié avant
+# ces règles, lit encore la racine en une requête à un seul endroit :
+# `buildBackup` (`public/js/modules/backup.js`), pour « Télécharger une
+# sauvegarde ». Pendant la fenêtre entre la publication des règles et celle du
+# site, ce bouton échoue sur « Sauvegarde impossible ». Aucune autre lecture du
+# dépôt ne vise la racine — relevé à `0b976ba`, `dbGet()` sans argument était
+# l'unique occurrence.
+#
+# La fenêtre est donc étroite, l'effet est un refus franc, et il ne touche
+# NI l'affichage, NI la saisie, NI les données : une sauvegarde qu'on n'a pas
+# pu prendre ne casse rien, et le geste se rejoue après rechargement. C'est ce
+# qui rend l'acquittement préférable à une publication en deux temps, dont le
+# premier temps serait un client qui ne lit plus la racine alors que la racine
+# est encore lisible — donc un lot sans effet mesurable, impossible à valider
+# à l'écran.
+rules/household/.read
+rules/sandbox/.read

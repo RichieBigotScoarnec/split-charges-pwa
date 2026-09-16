@@ -92,9 +92,50 @@ d'une valeur simple et bornée. Un nœud hérité qui existerait encore en base
 doit en revanche être déclaré dans les règles avant qu'une restauration puisse
 le réécrire.
 
-Il n'y a **pas** de cloisonnement entre les deux comptes, et c'est délibéré :
-ils partagent un budget de foyer, donc le même jeu de données. Aucune
-configuration n'est requise — un compte autorisé se connecte et voit tout.
+Il n'y a **pas** de cloisonnement entre les deux comptes sur la poche
+**commune**, et c'est délibéré : ils partagent un budget de foyer, donc le même
+jeu de données. Aucune configuration n'est requise — un compte autorisé se
+connecte et voit le commun.
+
+#### La poche personnelle, elle, est cloisonnée (2026-09-16)
+
+`household/personnel/{vous|conjointe}` porte les dépenses qui n'appartiennent
+qu'à une personne. Son `.read` est celui de `prive/` — repris **verbatim**, une
+seule rédaction du mur : son propriétaire toujours, l'autre **seulement** si
+`aval/{qui}/actif` vaut `true`. L'aval ouvre la lecture, jamais l'écriture.
+
+**C'est ce qui a obligé le `.read` à descendre d'un cran.** Il vivait à la
+racine de `household` et y cascadait sur tout : un `.read` accordé plus haut ne
+se révoque nulle part en dessous — c'est ce que le commit `4ac03f8` avait
+établi pour `.write`, dans l'autre sens. Un sous-arbre caché sous une racine
+lisible était donc impossible. Le droit est désormais posé sur **chacun des
+enfants directs** des deux espaces, à l'identique de ce que portait la racine,
+et sur `personnel/{qui}` avec sa clause d'aval.
+
+Un seul cran, pas jusqu'aux feuilles : une écriture vise une feuille, une
+lecture vise un conteneur — on lit `variableCharges` en entier pour afficher
+une liste, et un `.read` aux feuilles rendrait toute liste illisible.
+
+Deux conséquences visibles, et les deux sont voulues :
+
+- **la racine d'un espace ne se lit plus en une requête.** Realtime Database
+  refuse un nœud EN ENTIER, jamais partiellement : `dbGet()` sans argument ne
+  rendait pas une lecture amputée, il ne rendait rien. La sauvegarde lit donc
+  nœud par nœud (`plansDeLecture`, `js/modules/backup.js`) ;
+- **`personnel` ne se lit pas non plus d'un coup**, puisque son droit vit sur
+  chaque moitié. Chacun ne lit que la sienne.
+
+`tests/regles/mur-prive.test.js` tient l'ensemble **contre l'émulateur** et non
+contre le fichier de règles : chacun lit son personnel, l'autre ne le lit pas
+sans aval, l'aval actif ouvre la lecture et lui seul, un aval retiré referme,
+et chaque enfant direct du foyer reste lisible par les deux.
+
+> **Ce que ce cloisonnement ne fait pas encore.** Les dépenses `perimetre:
+> 'solo'` déjà en base vivent toujours dans la poche commune, donc lisibles par
+> l'autre. Le lot P1a pose le mur, le schéma et les contrôles ; il ne déplace
+> aucune donnée — les 37 points de passage qui lisent une liste de charges
+> doivent d'abord savoir lire les deux poches, sans quoi ils cesseraient de
+> compter le personnel **en restant verts**.
 
 > **Historique.** Une architecture précédente scopait chaque nœud par UID et
 > ajoutait une table `partners` redirigeant un « Partner » vers l'espace d'un
@@ -222,6 +263,31 @@ Isolation plus stricte, si la machine dispose d'un JDK 21+ et du port 9000
 libre : `npm run emulators` puis `FairSplit.html?emulator=1`, qui n'écrit rien
 dans le cloud.
 
+### Un fichier de sauvegarde porte les dépenses personnelles EN CLAIR
+
+Le mur est en **base**, pas dans le fichier. « Télécharger une sauvegarde » lit
+la poche personnelle de celui qui la demande — il en a le droit — et l'écrit
+dans le JSON, avec ses libellés, ses catégories et ses lieux. Transmettre ce
+fichier, c'est les transmettre : à qui l'on veut, sans aval, et sans que rien
+ne le rappelle.
+
+Il n'y a pas de remède technique à cela, et il ne faut pas laisser croire le
+contraire : un fichier qu'on a le droit de produire est un fichier qu'on peut
+donner. Ce qui est garanti est plus étroit, et exact : **la sauvegarde ne peut
+pas contenir la poche de l'autre**, faute du droit de la lire.
+
+La restauration en tire sa forme. Elle n'écrase plus la racine d'un `set` —
+celui-là supprimait ce qu'il ne portait pas, donc aurait effacé la poche de
+l'autre en silence, le jour précis où l'on restaure parce que quelque chose est
+déjà cassé. Elle écrit les nœuds du foyer en une mise à jour multi-chemins, et
+**sa seule poche** par un chemin dédié. Chacun restaure la sienne.
+
+La sauvegarde automatique (`.github/workflows/sauvegarde.yml`) est un autre
+cas : elle exporte `/household` avec un jeton d'administration, qui ne passe
+pas par les règles. Son archive contient donc les **deux** poches — et c'est
+précisément pourquoi elle est chiffrée avant d'être déposée (voir *Le dépôt est
+privé*).
+
 ### Suppression logique
 
 Les suppressions sont des `deleted: true`, jamais des effacements. Une donnée
@@ -289,7 +355,13 @@ figerait des versions que plus personne ne suit.
   aussi aux jobs qui exécutent le code des dépendances.
 - Un nœud ajouté sous `household/` doit être déclaré dans `database.rules.json`
   **et** dans `NOEUDS_CONNUS` (`js/modules/backup.js`), sans quoi il ne pourra
-  ni être écrit ni être restauré.
+  ni être écrit ni être restauré. Depuis le 2026-09-16, il lui faut **en outre
+  son propre `.read`** : la racine n'en porte plus, et un enfant qui l'oublie
+  est invisible à tout le monde. Trois contrôles le tiennent —
+  `tests/sauvegarde-noeuds-declares.test.js` compare la liste aux règles et
+  vérifie que la sauvegarde lit réellement chaque nœud déclaré, et
+  `tests/regles/mur-prive.test.js` demande à l'émulateur si chaque enfant
+  direct reste lisible.
 
 ---
 
