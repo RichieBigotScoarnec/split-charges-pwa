@@ -263,6 +263,36 @@ Isolation plus stricte, si la machine dispose d'un JDK 21+ et du port 9000
 libre : `npm run emulators` puis `FairSplit.html?emulator=1`, qui n'écrit rien
 dans le cloud.
 
+### Le miroir hors ligne, et pourquoi il est ASYMÉTRIQUE (2026-09-16)
+
+`dbGet` mémorise toute lecture réussie dans `localStorage`, et les écritures y
+sont mises en file hors réseau. C'est ce que les quatre accès absolus évitent
+pour `prive/`, avec sa raison : cette origine est partagée par tous les dépôts
+Pages du compte.
+
+La poche personnelle, elle, vit **sous** l'espace de données — c'est ce qui lui
+laisse le schéma complet d'une charge —, donc elle passe par les deux. Décision
+du foyer :
+
+- **la sienne** reste mémorisée et mise en file. Même classe d'exposition que
+  ses charges communes, déjà dans ce `localStorage` — et c'est ce qui garde la
+  saisie hors réseau, qui est toujours la sienne ;
+- **celle de l'autre**, jamais. Lecture en direct, ou pas de lecture. Sinon elle
+  survivrait à la révocation de l'aval : le mur se referme en base, et le détail
+  resterait sur l'appareil.
+
+La garde est **structurelle** — `personnelDeLAutre` (`js/db.js`) lit le chemin
+et le compare à l'emplacement du compte connecté —, et non un drapeau passé par
+l'appelant : un drapeau s'oublie au prochain site d'appel, et il s'oublierait en
+silence. Elle porte sur la lecture (ni mémoire, ni repli par le miroir) **et**
+sur la file, où elle est refaite au rejeu : entre le dépôt et le retour du
+réseau, le dossier a passé du temps dans un stockage que l'application ne
+possède pas seule.
+
+`tests/modules/hors-ligne.test.js` tient les deux faces, et le témoin qui les
+sépare : sa poche est gardée hors ligne, celle de l'autre ne laisse rien, et le
+refus **dit** qu'il s'agit d'un tiers.
+
 ### Un fichier de sauvegarde porte les dépenses personnelles EN CLAIR
 
 Le mur est en **base**, pas dans le fichier. « Télécharger une sauvegarde » lit

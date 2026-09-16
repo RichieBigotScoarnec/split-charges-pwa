@@ -23,6 +23,7 @@ import {
 import { trierParDate } from '../utils/tri.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+import { lirePeriodes } from '../poches.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -348,8 +349,12 @@ function reglementPour(solde) {
  */
 async function relireLeSolde(currentPeriod) {
   const { dbGet } = await import('../db.js');
+  // L'instantané est FUSIONNÉ ici, et c'est ce qui compte : il est ensuite
+  // passé aux trois chargeurs. Le lire par `dbGet` rendrait une liste sans
+  // personnel par ce chemin d'appel, et avec par l'autre — la même grandeur,
+  // deux valeurs, selon la façon dont on y arrive.
   const [instantane, globalSalaries] = await Promise.all([
-    dbGet('periods'),
+    lirePeriodes(),
     dbGet('salaries')
   ]);
 

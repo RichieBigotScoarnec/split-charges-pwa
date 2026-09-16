@@ -52,6 +52,7 @@ const STATIC_ASSETS = [
   './js/firebase-init.js',
   './js/state.js',
   './js/db.js',
+  './js/poches.js',
   // Utilitaires — dont le moteur de calcul du solde
   './js/utils/attente-application.js',
   './js/utils/attestation.js',

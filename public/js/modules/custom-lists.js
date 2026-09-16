@@ -10,6 +10,7 @@ import { log, warn, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { categoriesQueLeGpsAttend } from '../utils/categorie-lieu.js';
 import { planRenommage, planBudget, libelleAcceptable } from '../utils/renommage.js';
+import { lirePeriodes } from '../poches.js';
 
 // Réexporté : la fabrication d'identifiant vit désormais dans `utils/`, mais
 // elle est appelée d'ici depuis toujours et testée sous ce nom.
@@ -491,7 +492,7 @@ async function budgetsCourants(dbGet) {
 async function reporterSurLesCharges(champ, ancien, nouveau) {
   try {
     const { dbGet, dbUpdate } = await import('../db.js');
-    const periods = await dbGet('periods');
+    const periods = await lirePeriodes();
 
     const { chemins, nombre } = planRenommage({ periods, champ, ancien, nouveau });
 

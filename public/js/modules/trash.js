@@ -18,6 +18,7 @@ import { formatCurrency } from '../utils/format.js';
 import { formatPeriod } from '../utils/date.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { log, error as logError } from '../utils/debug.js';
+import { lirePeriodes } from '../poches.js';
 
 /**
  * Les trois collections récupérables, et ce qu'il faut pour chacune : la clé
@@ -81,8 +82,7 @@ const CLE_FIREBASE = /^[^.$#[\]/\p{Cc}]+$/u;
  * @returns {Promise<Array<Object>>} Éléments, mois le plus récent d'abord
  */
 async function collectAll() {
-  const { dbGet } = await import('../db.js');
-  const periods = await dbGet('periods');
+  const periods = await lirePeriodes();
   if (!periods || typeof periods !== 'object') return [];
 
   const mois = Object.keys(periods).filter(k => PERIOD_KEY.test(k)).sort().reverse();

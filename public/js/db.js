@@ -19,7 +19,8 @@
  * les données du foyer.
  */
 
-import { DB_PATHS, resolveDataRoot } from './config.js';
+import { DB_PATHS, resolveDataRoot, EMPLACEMENTS_PAR_COMPTE } from './config.js';
+import { emplacementDuCompte } from './utils/members.js';
 import { EMPLACEMENTS } from './utils/confidentialite.js';
 import { log, warn } from './utils/debug.js';
 import { noter } from './utils/diagnostics.js';
@@ -49,6 +50,14 @@ let isAuthenticated = false;
 let dataRoot = resolveDataRoot(null);
 
 /**
+ * L'emplacement du compte connecté, déduit de son adresse
+ *
+ * Posé par `setAuthenticatedUser`. Le repli `vous` vaut pour la déconnexion :
+ * aucun accès n'aboutit alors de toute façon, `getDataPath` levant d'abord.
+ */
+let monEmplacement = 'vous';
+
+/**
  * Initialize database reference
  * @param {Object} db - Firebase database instance
  */
@@ -63,6 +72,13 @@ export function initDatabase(db) {
 export function setAuthenticatedUser(uid, email = null) {
   isAuthenticated = Boolean(uid);
   dataRoot = resolveDataRoot(isAuthenticated ? email : null);
+  // L'emplacement est déduit ICI, de l'adresse qu'on reçoit déjà, et non lu
+  // dans `state.js` : ce fichier est l'abstraction la plus basse de
+  // l'application, et 25 modules en dépendent. Lui donner une dépendance vers
+  // l'état lui ferait connaître l'écran.
+  monEmplacement = isAuthenticated
+    ? emplacementDuCompte(email, EMPLACEMENTS_PAR_COMPTE)
+    : 'vous';
   log(isAuthenticated
     ? `[DB] Utilisateur authentifié — espace « ${dataRoot} »`
     : '[DB] Utilisateur déconnecté');
@@ -137,6 +153,41 @@ export function cheminDuPersonnel(qui, suite = '') {
   }
   const base = `${NOEUD_PERSONNEL}/${qui}`;
   return suite ? `${base}/${suite}` : base;
+}
+
+/**
+ * Ce chemin désigne-t-il la poche personnelle de l'AUTRE ?
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE QUE CETTE GARDE FERME, ET POURQUOI ELLE EST ASYMÉTRIQUE
+ *
+ * `dbGet` mémorise toute lecture réussie dans `localStorage`, et les écritures
+ * y sont mises en file hors réseau. C'est ce que les quatre accès absolus
+ * évitent pour `prive/`, avec sa raison écrite plus bas : cette origine est
+ * partagée par tous les dépôts Pages du compte.
+ *
+ * La poche personnelle, elle, vit SOUS l'espace de données — c'est ce qui lui
+ * laisse le schéma complet d'une charge — donc elle passe par le miroir et par
+ * la file. Décision du foyer, 2026-09-16, et elle est asymétrique :
+ *
+ *   - LA SIENNE reste mémorisée et mise en file. Même classe d'exposition que
+ *     ses charges communes, déjà dans ce `localStorage` — et c'est ce qui garde
+ *     la saisie hors réseau, qui est toujours la sienne ;
+ *   - CELLE DE L'AUTRE, jamais. Lecture en direct, ou pas de lecture. Sinon
+ *     elle survivrait à la révocation de l'aval : le mur se referme en base, et
+ *     le détail resterait sur l'appareil.
+ *
+ * La garde est STRUCTURELLE — elle lit le chemin — et non un drapeau passé par
+ * l'appelant : un drapeau s'oublie au prochain site d'appel, et il s'oublierait
+ * en silence.
+ *
+ * @param {string} chemin - Chemin relatif à l'espace de données
+ * @returns {boolean}
+ */
+export function personnelDeLAutre(chemin) {
+  const segments = String(chemin || '').split('/');
+  if (segments[0] !== NOEUD_PERSONNEL) return false;
+  return EMPLACEMENTS.includes(segments[1]) && segments[1] !== monEmplacement;
 }
 
 // ===== ÉTAT DE LA LIAISON =====
@@ -589,7 +640,22 @@ function estRefusDefinitif(echec) {
 const FORMES_DIFFERABLES = [
   /^(?:salaries|shareMode|carryOverEnabled|categoryBudgets|members|reminders)$/,
   /^periods\/\d{4}-(?:0[1-9]|1[0-2])\/[A-Za-z][A-Za-z0-9]*(?:\/[^/]+)?$/,
-  /^versements\/[^/]+(?:\/[^/]+)?$/
+  /^versements\/[^/]+(?:\/[^/]+)?$/,
+  // La poche personnelle, arrivée au lot P1b. Elle a la MÊME forme que le
+  // commun, un préfixe de propriétaire en plus — c'est ce qui permet de la lire
+  // et de l'écrire comme le reste du foyer.
+  //
+  // Sans cette ligne, une dépense personnelle saisie hors réseau était refusée
+  // en silence : `mettreEnFile` rendait `false`, et l'écran annonçait « cet
+  // appareil ne peut pas garder la saisie » pour la seule poche que son
+  // propriétaire a toujours le droit d'écrire. C'est le témoin de
+  // `hors-ligne.test.js` qui l'a dit, pas la relecture.
+  //
+  // La forme n'autorise QUE des emplacements connus ; ce qui distingue la
+  // sienne de celle de l'autre est vérifié à part, par `personnelDeLAutre` —
+  // une forme ne peut pas savoir qui est connecté.
+  new RegExp(`^${NOEUD_PERSONNEL}/(?:${EMPLACEMENTS.join('|')})`
+    + '/periods/\\d{4}-(?:0[1-9]|1[0-2])/[A-Za-z][A-Za-z0-9]*(?:/[^/]+)?$')
 ];
 
 /**
@@ -628,6 +694,12 @@ export function operationRejouable(operation) {
   const chemin = operation.chemin.replace(/^\/+|\/+$/g, '');
   if (chemin === '') return false;
 
+  // Refait au REJEU comme au dépôt : entre les deux, le dossier a passé du
+  // temps dans un stockage que l'application ne possède pas seule. Une entrée
+  // forgée visant la poche de quelqu'un d'autre ne doit pas devenir une
+  // écriture au retour du réseau.
+  if (personnelDeLAutre(chemin)) return false;
+
   return FORMES_DIFFERABLES.some(forme => forme.test(chemin));
 }
 
@@ -640,6 +712,19 @@ export function operationRejouable(operation) {
  * @returns {boolean} L'appareil a-t-il accepté de la garder ?
  */
 function mettreEnFile(type, chemin, donnees) {
+  // La poche de l'autre n'entre jamais dans la file. Aucune écriture de
+  // l'application ne la vise — les règles la refuseraient —, mais la file est
+  // remplie AVANT tout contrôle serveur : une écriture accidentale hors réseau
+  // y déposerait le détail personnel de quelqu'un d'autre, sur une origine
+  // partagée, sans que le serveur ait jamais eu son mot à dire.
+  if (personnelDeLAutre(chemin)) {
+    noter('hors-ligne', 'saisie NON gardée — poche personnelle d\'un tiers', {
+      chemin,
+      type
+    });
+    return false;
+  }
+
   // Le même contrôle qu'au rejeu, mais posé ici, où l'on peut encore le dire.
   // Différer l'écrasement de tout un espace en l'annonçant comme réussi est
   // pire que de le refuser : la restauration d'une sauvegarde partait en file,
@@ -978,7 +1063,18 @@ export async function dbGet(path) {
   // Liaison rompue de façon établie : inutile d'attendre dix secondes pour
   // l'apprendre une nouvelle fois. C'est ce délai, répété à chaque étape de
   // l'initialisation, qui rendait l'application inutilisable hors réseau.
-  if (liaisonRompue()) return depuisMiroir(chemin);
+  // La poche de l'AUTRE ne laisse aucune trace sur cet appareil : ni mémoire à
+  // l'aller, ni repli au retour. Voir `personnelDeLAutre`. Hors ligne, il n'y a
+  // donc rien à servir — et c'est le bon comportement : une poche qu'on ne peut
+  // pas relire est une poche qu'on n'affiche pas.
+  const sansTrace = personnelDeLAutre(chemin);
+
+  if (liaisonRompue()) {
+    if (sansTrace) {
+      throw new Error(`Hors ligne, et « ${chemin} » n'est jamais gardé sur cet appareil`);
+    }
+    return depuisMiroir(chemin);
+  }
 
   try {
     const snapshot = await withTimeout(
@@ -987,6 +1083,7 @@ export async function dbGet(path) {
       delaiLecture()
     );
     const valeur = snapshot.val();
+    if (sansTrace) return valeur;
     memoriserLecture(dataRoot, chemin, valeur);
 
     // Les écritures encore en file s'appliquent même sur une lecture fraîche :
@@ -999,6 +1096,7 @@ export async function dbGet(path) {
     // repli.
     if (!(erreur instanceof SansReponse)) throw erreur;
     constaterCoupure();
+    if (sansTrace) throw erreur;
 
     const memoire = lectureMemorisee(dataRoot, chemin);
     if (!memoire) throw erreur;

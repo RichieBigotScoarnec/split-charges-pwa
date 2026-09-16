@@ -37,6 +37,7 @@ import { resolveSalaries } from '../utils/salaries.js';
 import { resolveShareMode, resolvePercents } from '../utils/calculations.js';
 import { partagerLeVersement, versementsAEcrire } from '../utils/versement-partage.js';
 import { planVersementMensuel, cleVersementAuto } from '../utils/versement-mensuel.js';
+import { lirePeriodes } from '../poches.js';
 
 /** Le nœud des versements, tel que `envelopes.js` le nomme */
 const CHEMIN_VERSEMENTS = 'versements';
@@ -72,7 +73,7 @@ export async function appliquerLesVersementsMensuels({ historique, salairesGloba
 
     const [tousLesVersements, periods, globaux] = await Promise.all([
       dbGet(CHEMIN_VERSEMENTS),
-      historique === undefined ? dbGet('periods') : Promise.resolve(historique),
+      historique === undefined ? lirePeriodes() : Promise.resolve(historique),
       salairesGlobaux === undefined ? dbGet('salaries') : Promise.resolve(salairesGlobaux)
     ]);
 

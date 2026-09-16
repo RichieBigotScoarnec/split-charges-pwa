@@ -25,6 +25,7 @@ import { ouvrirPanneau } from '../utils/onglets.js';
 import { apprendre } from '../utils/memoire-libelle.js';
 import { haussesDepuisLAnDernier } from '../utils/cout-annuel.js';
 import { ecartLaisseParLaCorrection } from '../utils/correction-retroactive.js';
+import { lirePeriodes } from '../poches.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -95,8 +96,7 @@ export async function chargerLesPeriodesConnues(instantane) {
   try {
     let periods = instantane;
     if (periods === undefined) {
-      const { dbGet } = await import('../db.js');
-      periods = await dbGet('periods');
+      periods = await lirePeriodes();
     }
 
     const cles = periods && typeof periods === 'object' ? Object.keys(periods) : [];
@@ -240,7 +240,7 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     // valeur. Relire à chaque geste reste correct — il a pu s'écouler une
     // heure entre deux changements de mois.
     const [instantane, globalSalaries] = await Promise.all([
-      historique === undefined ? dbGet('periods') : Promise.resolve(historique),
+      historique === undefined ? lirePeriodes() : Promise.resolve(historique),
       salairesGlobaux === undefined ? dbGet('salaries') : Promise.resolve(salairesGlobaux)
     ]);
 
@@ -534,7 +534,7 @@ export async function backfillPeriodSalaries({ historique, salairesGlobaux } = {
       return 0;
     }
 
-    const periods = historique === undefined ? await dbGet('periods') : historique;
+    const periods = historique === undefined ? await lirePeriodes() : historique;
     if (!periods || typeof periods !== 'object') return 0;
 
     const missing = Object.keys(periods).filter(p => !periods[p]?.salaries);

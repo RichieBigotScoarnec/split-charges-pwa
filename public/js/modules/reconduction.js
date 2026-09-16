@@ -23,6 +23,7 @@ import { toast } from '../components/toast.js';
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { planRecurrence } from '../utils/recurrence.js';
 import { log, error as logError } from '../utils/debug.js';
+import { lirePeriodes } from '../poches.js';
 
 let database = null;
 
@@ -64,8 +65,7 @@ export async function applyRecurringCharges({ historique } = {}) {
   if (!target) return 0;
 
   try {
-    const { dbGet } = await import('../db.js');
-    const periods = historique === undefined ? await dbGet('periods') : historique;
+    const periods = historique === undefined ? await lirePeriodes() : historique;
 
     const plan = planRecurrence({
       target,

@@ -31,6 +31,7 @@ import { ecouterUneFois } from '../utils/ecouteur.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { coutDesChargesFixes } from '../utils/cout-annuel.js';
+import { lirePeriodes } from '../poches.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -129,7 +130,7 @@ export async function declarerAbonnementsProposes(cle) {
   }
 
   const currentPeriod = getState('currentPeriod');
-  const { dbGet, dbUpdate, liaisonRompue } = await import('../db.js');
+  const { dbUpdate, liaisonRompue } = await import('../db.js');
 
   // REFUSÉ HORS LIGNE, et refusé AVANT de demander confirmation.
   //
@@ -140,7 +141,7 @@ export async function declarerAbonnementsProposes(cle) {
   // demandé « Déclarer Netflix en charge fixe ? » et reçu un oui. Poser la
   // question pour rien est pire que de dire non tout de suite.
   //
-  // Et la lecture, elle, aboutirait : `dbGet` sert le miroir hors ligne. Le
+  // Et la lecture, elle, aboutirait : `lirePeriodes` sert le miroir hors ligne. Le
   // plan serait donc calculé sur un mois peut-être périmé.
   if (liaisonRompue()) {
     toast.error('Déclaration impossible hors ligne — la base doit être joignable');
@@ -154,7 +155,7 @@ export async function declarerAbonnementsProposes(cle) {
   // la base contient à cet instant, sans quoi le mois serait compté deux fois.
   let periode;
   try {
-    periode = await dbGet(`periods/${currentPeriod}`);
+    periode = await lirePeriodes(currentPeriod);
   } catch (erreur) {
     logError('❌ Lecture du mois impossible :', erreur);
     toast.error('Impossible de lire le mois');
@@ -220,7 +221,7 @@ export async function declarerAbonnementsProposes(cle) {
   // toute la veille, et l'écran perdrait les autres observations au lieu de la
   // seule qu'on vient de traiter.
   try {
-    calculateSummary({ historique: await dbGet('periods') });
+    calculateSummary({ historique: await lirePeriodes() });
   } catch (erreur) {
     logError('❌ Rafraîchissement du bilan impossible :', erreur);
     calculateSummary();
@@ -343,10 +344,9 @@ export async function loadFixedCharges(instantaneDuMois) {
   }
 
   try {
-    // Use dbGet from db.js which handles UID-scoped paths
-    const { dbGet } = await import('../db.js');
+    // Les DEUX poches, réunies — cf. `loadVariableCharges`.
     const charges = instantaneDuMois === undefined
-      ? await dbGet(`periods/${currentPeriod}/fixedCharges`)
+      ? await lirePeriodes(`${currentPeriod}/fixedCharges`)
       : (instantaneDuMois?.fixedCharges ?? null);
 
     if (charges) {

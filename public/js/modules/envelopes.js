@@ -51,6 +51,7 @@ import {
   themesConnus,
   themeExistant
 } from '../utils/enveloppes.js';
+import { lirePeriodes } from '../poches.js';
 
 /** Nœud Firebase, sous la racine de l'espace de données */
 const CHEMIN = 'envelopes';
@@ -230,9 +231,8 @@ export async function creerEnveloppeProposee(cle) {
   // toute la veille, et l'écran perdrait les autres observations au lieu de la
   // seule qu'on vient de traiter. Une lecture pour un geste rare et délibéré.
   try {
-    const { dbGet } = await import('../db.js');
     const { calculateSummary } = await import('./summary.js');
-    calculateSummary({ historique: await dbGet('periods') });
+    calculateSummary({ historique: await lirePeriodes() });
   } catch (erreur) {
     // L'enveloppe est créée : l'écran en retard vaut mieux qu'un échec annoncé.
     logError('❌ Rafraîchissement du bilan impossible :', erreur);
@@ -1542,7 +1542,7 @@ async function ouvrirLaVueEnveloppe(id) {
     // Les deux lectures ensemble : le détail est la seule vue coûteuse du
     // module, autant n'y revenir qu'une fois.
     const [periods, noeudVersements] = await Promise.all([
-      dbGet('periods'),
+      lirePeriodes(),
       dbGet(`${CHEMIN_VERSEMENTS}/${id}`)
     ]);
     charges = chargesDeLEnveloppeTousMois(periods, id);

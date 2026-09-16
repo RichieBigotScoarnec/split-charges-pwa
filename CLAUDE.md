@@ -176,16 +176,17 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
-| `utils/debug.js` | 36 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 33 | 1 | Critique — état global |
+| `utils/debug.js` | 37 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 34 | 1 | Critique — état global |
 | `utils/format.js` | 28 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
-| `db.js` | 25 | **22** | Critique — abstraction DB |
+| `db.js` | 25 | **20** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
-| `utils/members.js` | 18 | 0 | Important — qui doit à qui |
+| `utils/members.js` | 20 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 18 | 0 | Important — ce qui pèse sur le solde |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
+| `poches.js` | 14 | 0 | Critique — les deux poches lues comme une seule |
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
@@ -219,6 +220,21 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > l'appartenance au tableau — quel module y figure —, jamais son compte : les
 > six dérives sont donc toutes passées en vert. Voir le point 0 de « Ce qui
 > reste OUVERT », dans les *Décisions de conception*.
+
+> **Relevé le 2026-09-16 pour le lot P1b** — `poches.js` entre au tableau à
+> **14 dépendants**, et quatre lignes bougent avec lui : debug 36 → 37,
+> state 33 → 34, members 18 → 20, et **`db.js` passe de 22 imports dynamiques à
+> 20**.
+>
+> Cette dernière est la seule qui DESCEND, et sa raison mérite d'être dite :
+> `poches.js` s'importe **statiquement** partout, là où `db.js` s'importe
+> presque toujours par `await import()`. Ce n'est pas une préférence de style —
+> mesuré le 2026-09-16, un `poches.js` importé dynamiquement était résolu par
+> Vitest **hors du graphe doublé** : le module recevait le VRAI `db.js` malgré
+> un double en place, et quatre cas de `saisie-rapide.test.js` échouaient sur
+> « Database not initialized » sans que rien ne désigne la cause. L'import
+> statique la referme, et il est de toute façon le bon choix pour une couche
+> qui s'intercale sous tout le reste.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.

@@ -3,6 +3,7 @@
 // Toute la logique est centralisée ici (plus de JS inline dans FairSplit.html)
 
 import { getState, setState } from '../state.js';
+import { lirePeriodes } from '../poches.js';
 import { validateChargeAmount } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
@@ -702,6 +703,26 @@ let _grilleDepliee = false;
 let _historiqueFrequentes = { periode: null, charges: null };
 
 /**
+ * Génération de l'historique : ce qui distingue une lecture encore valide
+ *
+ * `oublierHistoriqueFrequentes` remet l'historique à zéro, et c'est ce qui doit
+ * arriver à la déconnexion. Mais une lecture DÉJÀ PARTIE ne s'annule pas : elle
+ * revient après, et elle réécrivait l'historique qu'on venait d'effacer. Le
+ * compte suivant héritait alors des habitudes du précédent — sans erreur, sans
+ * trace, et avec un classement parfaitement crédible.
+ *
+ * Le compteur tranche : une lecture n'écrit que si rien n'a été oublié depuis
+ * son départ. C'est la même précaution que la période retenue à côté des
+ * charges, appliquée au TEMPS plutôt qu'au mois.
+ *
+ * Révélé par le lot P1b : une lecture de charges en vaut désormais trois — le
+ * commun et les deux poches personnelles —, donc elle revient plus tard, et la
+ * fenêtre où elle atterrissait au mauvais endroit s'est ouverte assez pour
+ * qu'on la voie.
+ */
+let _generationFrequentes = 0;
+
+/**
  * Peuple la grille de catégories
  *
  * La liste du foyer est passée de huit à dix-neuf pour suivre la table des
@@ -808,15 +829,20 @@ async function chargerHistoriqueFrequentes() {
   if (!precedente) return;
   if (_historiqueFrequentes.periode === precedente) return;
 
+  const generation = _generationFrequentes;
+  /** L'historique a-t-il été oublié depuis le départ de cette lecture ? */
+  const perimee = () => generation !== _generationFrequentes;
+
   try {
-    const { dbGet } = await import('../db.js');
-    const noeud = await dbGet(`periods/${precedente}/variableCharges`);
+    const noeud = await lirePeriodes(`${precedente}/variableCharges`);
+    if (perimee()) return;
     _historiqueFrequentes = {
       periode: precedente,
       charges: noeud && typeof noeud === 'object' ? Object.values(noeud) : []
     };
   } catch (error) {
     warn('[Fréquentes] Historique indisponible, mois en cours seul :', error?.message || error);
+    if (perimee()) return;
     _historiqueFrequentes = { periode: precedente, charges: [] };
   }
 
@@ -837,6 +863,9 @@ async function chargerHistoriqueFrequentes() {
  * @returns {void}
  */
 function oublierHistoriqueFrequentes() {
+  // Le compteur AVANT l'effacement : une lecture partie plus tôt se reconnaîtra
+  // périmée et n'écrira rien. Voir `_generationFrequentes`.
+  _generationFrequentes += 1;
   _historiqueFrequentes = { periode: null, charges: null };
 }
 

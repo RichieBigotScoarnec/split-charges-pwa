@@ -33,6 +33,7 @@ import { categorieProposee } from '../utils/memoire-libelle.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
+import { lirePeriodes } from '../poches.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -324,10 +325,12 @@ export async function loadVariableCharges(instantaneDuMois) {
   }
 
   try {
-    // Use dbGet from db.js which handles UID-scoped paths
-    const { dbGet } = await import('../db.js');
+    // Les DEUX poches, réunies : `lirePeriodes` rend ce que `dbGet` rendait
+    // avant que le personnel en sorte. L'instantané, lui, est déjà fusionné par
+    // celui qui l'a lu — sans quoi les deux chemins d'appel rendraient des
+    // listes différentes pour le même mois.
     const charges = instantaneDuMois === undefined
-      ? await dbGet(`periods/${currentPeriod}/variableCharges`)
+      ? await lirePeriodes(`${currentPeriod}/variableCharges`)
       : (instantaneDuMois?.variableCharges ?? null);
 
     if (charges) {

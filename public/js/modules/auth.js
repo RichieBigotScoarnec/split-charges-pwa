@@ -31,6 +31,7 @@ import { ecoulerLesSaisiesGardees } from '../utils/reprise.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
+import { lirePeriodes } from '../poches.js';
 
 let appInitialized = false;
 
@@ -472,7 +473,7 @@ async function initializeAppData() {
   await runStep('salaires de la période', async () => {
     const { dbGet } = await import('../db.js');
     [instantanePeriods, salairesGlobaux] = await Promise.all([
-      dbGet('periods'),
+      lirePeriodes(),
       dbGet('salaries')
     ]);
 

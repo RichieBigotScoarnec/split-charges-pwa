@@ -14,8 +14,17 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const dbGet = vi.fn(() => Promise.resolve(null));
 const dbUpdate = vi.fn(() => Promise.resolve());
 
-vi.mock('../../public/js/db.js', () => ({
-  dbGet, dbUpdate,
+// Le double de `db.js` enveloppe l'ORIGINAL plutôt que de le remplacer.
+//
+// Depuis le lot P1b, les lectures de charges passent par `poches.js`, qui
+// demande `cheminDuPersonnel` à `db.js`. Un double qui ne le porte pas fait
+// échouer la fusion ; un double qui le RÉÉCRIT en donnerait une seconde
+// rédaction, et ces cas mesureraient alors un chemin que l'application
+// n'emprunte pas. Seuls les accès sont remplacés.
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  dbGet: (...a) => dbGet(...a),
+  dbUpdate: (...a) => dbUpdate(...a),
   dbSet: vi.fn(() => Promise.resolve()),
   dbPush: vi.fn(() => Promise.resolve('cle')),
   getDataPath: vi.fn(chemin => `household/${chemin}`)

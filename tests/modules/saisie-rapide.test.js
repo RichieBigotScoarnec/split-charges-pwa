@@ -19,9 +19,19 @@ import { resolve } from 'node:path';
 const dbPush = vi.fn(() => Promise.resolve('cle'));
 const dbGet = vi.fn(() => Promise.resolve(null));
 
-vi.mock('../../public/js/db.js', () => ({
-  dbPush,
-  dbGet,
+// Le double de `db.js` enveloppe l'ORIGINAL plutôt que de le remplacer.
+//
+// Depuis le lot P1b, les lectures de charges passent par `poches.js`, qui
+// demande `cheminDuPersonnel` à `db.js`. Un double qui ne le porte pas fait
+// échouer la fusion ; un double qui le RÉÉCRIT en donnerait une seconde
+// rédaction, et ces cas mesureraient alors un chemin que l'application
+// n'emprunte pas. Seuls les accès sont remplacés.
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  // Accesseurs PARESSEUX — voir `reglement-solde.test.js` : une référence
+  // directe tombe en zone morte temporelle et Vitest sert l'original.
+  dbPush: (...a) => dbPush(...a),
+  dbGet: (...a) => dbGet(...a),
   dbSet: vi.fn(() => Promise.resolve()),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`)
@@ -803,9 +813,21 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
 
   const ORIGINE = getCategories();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Le `beforeEach` global ouvre déjà la modale, ce qui remplit le cache
     // pour la période en cours. On repart donc d'un module vierge.
+    //
+    // Et on l'ATTEND avant de nettoyer. Cette ouverture lance une lecture
+    // d'historique qui, depuis le lot P1b, vaut trois allers-retours — le
+    // commun et les deux poches. Elle atterrissait donc APRÈS ce nettoyage, et
+    // le cas suivant héritait d'un historique qu'il croyait vierge : sa propre
+    // lecture sortait tôt, `dbGet` n'était jamais appelé, et la grille
+    // proposait l'ordre du foyer au lieu des habitudes semées.
+    //
+    // Le second nettoyage encadre l'attente : ce qui est arrivé pendant est
+    // effacé, ce qui arrive après se reconnaît périmé (`_generationFrequentes`).
+    cleanupQuickAdd();
+    await new Promise((fini) => setTimeout(fini, 0));
     cleanupQuickAdd();
     dbGet.mockClear();
   });
@@ -876,12 +898,21 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
-    await vi.waitFor(() => expect(dbGet).toHaveBeenCalledTimes(1));
+
+    // Le NOMBRE d'allers-retours par chargement a changé au lot P1b : une
+    // lecture de charges en vaut trois — le commun, et les deux poches
+    // personnelles. La propriété que ce cas tient n'a pas bougé pour autant :
+    // une ouverture de plus ne relit RIEN. Elle se mesure donc par rapport à ce
+    // qu'a coûté le premier chargement, et non contre un chiffre écrit ici —
+    // qui redeviendrait faux au prochain changement de forme.
+    await vi.waitFor(() => expect(proposes()[0]).toBe('bar'));
+    const apresLePremierChargement = dbGet.mock.calls.length;
+    expect(apresLePremierChargement).toBeGreaterThan(0);
 
     window.showQuickAddModal();
     window.showQuickAddModal();
 
-    expect(dbGet).toHaveBeenCalledTimes(1);
+    expect(dbGet).toHaveBeenCalledTimes(apresLePremierChargement);
   });
 });
 
