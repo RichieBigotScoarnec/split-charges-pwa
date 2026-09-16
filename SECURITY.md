@@ -318,6 +318,33 @@ pas par les règles. Son archive contient donc les **deux** poches — et c'est
 précisément pourquoi elle est chiffrée avant d'être déposée (voir *Le dépôt est
 privé*).
 
+### Personne ne peut écrire dans la poche de l'autre — ce que ça coûte (2026-09-16)
+
+C'est la propriété centrale du mur, et elle a un prix ailleurs qu'en sécurité.
+Trois gestes du foyer ne peuvent pas être menés à bien par une seule personne :
+
+- **La migration des dépenses personnelles.** Le lot P1a a posé la poche sans
+  déplacer de donnée ; le lot P1b la remplit. Aucun compte ne peut migrer les
+  deux poches : chacun déplace les siennes à l'ouverture
+  (`modules/migration-poches.js`). Un mois où l'un des deux n'ouvre pas
+  l'application laisse ses dépenses là où elles étaient — dans le commun, donc
+  lisibles par l'autre. **C'est un état transitoire assumé, pas une garantie.**
+- **Le renommage d'une catégorie ou d'une destination.** Il suit les charges du
+  foyer et celles de qui renomme ; les dépenses personnelles de l'autre gardent
+  l'ancien libellé. Le renommage n'est pas refusé pour autant — ce serait rendre
+  une liste partagée inmodifiable par une donnée qu'on ne voit peut-être même
+  pas. Le compte concerné les reprend à sa prochaine ouverture
+  (`utils/renommage.js → planRattrapage`), et l'écran dit combien de dépenses
+  attendent.
+- **La restauration d'une sauvegarde**, déjà décrite ci-dessus.
+
+Et la reprise des libellés a une limite, dite plutôt que cachée : elle
+s'appuie sur l'identifiant de l'entrée, qui est la racine de son libellé
+d'ORIGINE. Deux renommages successifs pendant qu'une poche dort — A → B → C —
+laissent une charge à `B`, que rien ne distingue d'un libellé n'ayant jamais
+appartenu à la liste. Elle garde son nom : réécrire au hasard changerait la
+catégorie d'une dépense.
+
 ### Suppression logique
 
 Les suppressions sont des `deleted: true`, jamais des effacements. Une donnée

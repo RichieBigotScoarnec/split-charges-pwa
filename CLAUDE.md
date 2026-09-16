@@ -176,21 +176,22 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
-| `utils/debug.js` | 37 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 34 | 1 | Critique — état global |
-| `utils/format.js` | 28 | 0 | Critique — affichage monétaire |
+| `utils/debug.js` | 38 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 35 | 1 | Critique — état global |
+| `utils/format.js` | 29 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
-| `db.js` | 25 | **20** | Critique — abstraction DB |
+| `db.js` | 26 | **21** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
+| `utils/members.js` | 23 | 0 | Important — qui doit à qui |
+| `utils/perimetre.js` | 21 | 0 | Important — ce qui pèse sur le solde |
+| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
-| `utils/members.js` | 20 | 0 | Important — qui doit à qui |
-| `utils/perimetre.js` | 18 | 0 | Important — ce qui pèse sur le solde |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
-| `poches.js` | 14 | 0 | Critique — les deux poches lues comme une seule |
-| `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
+| `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
+| `utils/diagnostics.js` | 13 | 0 | Important — le journal qui survit au téléphone |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
-| `modules/auth.js` | 1 | 0 | Critique — **hub** : importe 28 modules et en initialise 26 |
+| `modules/auth.js` | 1 | 0 | Critique — **hub** : 30 imports statiques, 28 appels à `runStep` |
 
 > **Relevé le 2026-09-08 par `node tools/adherences.mjs`, et quatre lignes
 > avaient dérivé** — debug 35 → 36, state 31 → 32, date 24 → 25,
@@ -235,6 +236,34 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > « Database not initialized » sans que rien ne désigne la cause. L'import
 > statique la referme, et il est de toute façon le bon choix pour une couche
 > qui s'intercale sous tout le reste.
+
+> **SIXIÈME DÉRIVE, relevée le 2026-09-16 par le lot P1b — et le classement
+> complet a été rejoué, pas la seule ligne qui avait rougi.**
+> `adherences-declarees.test.js` a signalé `utils/diagnostics.js` à 13, absent
+> du tableau. Rejouer `node tools/adherences.mjs` **sans argument** a montré que
+> **six autres lignes** avaient bougé dans le même lot — `utils/debug.js`
+> 37 → 38, `state.js` 34 → 35, `utils/format.js` 28 → 29, `db.js` 25/20 →
+> 26/21, `utils/members.js` 20 → 23, `utils/perimetre.js` 18 → 21, `poches.js`
+> 14 → 18. Toutes viennent de ce lot : `poches.js` est devenu le point de
+> passage de la lecture, et `renommage.js`, `migration-poches.js`,
+> `bascule-poche.js` l'importent avec ses voisins.
+>
+> **Et les deux chiffres du hub étaient faux, faute de définition.** Le tableau
+> annonçait « importe 28 modules et en initialise 26 ». Mesuré sur `origin/main`
+> **avant** ce lot : 28 imports statiques — le premier chiffre était juste et
+> sans définition écrite — et **27** appels à `runStep`, non 26. Les deux
+> portent désormais le nom de ce qu'on compte, parce qu'un compte sans sa
+> définition ne se refait pas :
+>
+> ```bash
+> grep -c '^import ' public/js/modules/auth.js        # imports statiques
+> grep -c 'await runStep(' public/js/modules/auth.js  # étapes initialisées
+> ```
+>
+> C'est le point 0 de « Ce qui reste OUVERT » qui rend ces dérives possibles :
+> la garde tient l'APPARTENANCE au tableau, jamais les comptes. Elle a fait son
+> travail — elle a nommé le module qui franchissait le seuil — et elle ne
+> pouvait rien dire des six autres.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.

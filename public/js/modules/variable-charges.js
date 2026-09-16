@@ -33,7 +33,9 @@ import { categorieProposee } from '../utils/memoire-libelle.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
-import { lirePeriodes } from '../poches.js';
+import { lirePeriodes, cheminDeLaCharge, ecrituresDuDeplacement } from '../poches.js';
+import { questionDeBascule } from '../utils/bascule-poche.js';
+import { emplacementOppose } from '../utils/confidentialite.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -518,7 +520,45 @@ async function enregistrerVariableCharge() {
       // pas se subir. Pour ranger une charge ailleurs : la supprimer et la
       // ressaisir à sa date.
       key = chargeId;
-      await dbUpdate(`periods/${currentPeriod}/variableCharges/${key}`, chargeData);
+
+      // LA BASCULE « perso » CHANGE DE POCHE, ET ELLE SE DEMANDE.
+      //
+      // C'est le PREMIER changement de chemin qu'une édition produise dans
+      // cette application. Le raisonnement qui interdit déjà de déplacer une
+      // charge de MOIS s'y applique, et plus fort : ici la charge ne change pas
+      // de mois, elle change de VISIBILITÉ. Décocher « perso » par mégarde
+      // PUBLIE une dépense — et rien, à l'écran, ne le dirait.
+      //
+      // Le geste est donc nommé et confirmé, jamais un effet de bord de
+      // l'enregistrement. Refusé, RIEN n'est écrit : appliquer les autres
+      // champs en laissant la case où elle était rendrait un formulaire qui
+      // obéit à moitié.
+      const ancienne = (getState('variableCharges') || []).find(c => c.id === key);
+      const deplacement = ancienne && ecrituresDuDeplacement({
+        avant: ancienne, apres: chargeData,
+        periode: currentPeriod, collection: 'variableCharges', id: key
+      });
+
+      if (deplacement) {
+        const accepte = await showConfirmModal(questionDeBascule({
+          versLePersonnel: estSolo(chargeData),
+          autre: emplacementOppose(normaliserEmplacement(getState('emplacementCourant'))),
+          members: getState('members'),
+          description: chargeData.description,
+          montant: chargeData.amount
+        }));
+        if (!accepte) {
+          toast.info('Rien n\'a été modifié');
+          return;
+        }
+        // ATOMIQUE : en deux écritures, un échec laisserait la charge dans les
+        // deux poches — comptée deux fois — ou dans aucune.
+        await dbUpdate(undefined, deplacement);
+      } else {
+        await dbUpdate(cheminDeLaCharge(chargeData, {
+          periode: currentPeriod, collection: 'variableCharges', id: key
+        }), chargeData);
+      }
       toast.success('Charge modifiée');
     } else {
       // Ajout : la date décide du mois, pas l'écran depuis lequel on saisit.
@@ -529,7 +569,9 @@ async function enregistrerVariableCharge() {
       // en la datant du 1er septembre : total de juillet gonflé, solde faux
       // d'autant entre les deux personnes. Cf. `periodeDeLaDate`.
       const periodeCible = periodeDeLaDate(chargeData.date) || currentPeriod;
-      key = await dbPush(`periods/${periodeCible}/variableCharges`, chargeData);
+      key = await dbPush(cheminDeLaCharge(chargeData, {
+        periode: periodeCible, collection: 'variableCharges'
+      }), chargeData);
 
       // Nommer le mois d'arrivée quand ce n'est pas celui qu'on regarde : la
       // liste à l'écran est celle d'un autre mois, la charge n'y paraîtra pas,
@@ -670,14 +712,20 @@ export async function deleteVariableCharge(chargeId) {
     // Use dbUpdate from db.js which handles UID-scoped paths
     const { dbUpdate } = await import('../db.js');
 
-    // Soft delete
-    await dbUpdate(`periods/${currentPeriod}/variableCharges/${chargeId}`, { deleted: true });
+    // Soft delete, dans la poche où la charge vit RÉELLEMENT : une charge
+    // personnelle supprimée au chemin commun créerait un fantôme dans le
+    // commun — refusé par les règles, faute de montant — et laisserait
+    // l'originale en place.
+    const chemin = cheminDeLaCharge(charge, {
+      periode: currentPeriod, collection: 'variableCharges', id: chargeId
+    });
+    await dbUpdate(chemin, { deleted: true });
 
     // Mettre à jour le state local
     await loadVariableCharges();
     toast.success('Charge supprimée', {
       onUndo: async () => {
-        await dbUpdate(`periods/${currentPeriod}/variableCharges/${chargeId}`, { deleted: false });
+        await dbUpdate(chemin, { deleted: false });
         await loadVariableCharges();
         calculateSummary();
         toast.success('Suppression annulée');

@@ -9,6 +9,7 @@ import { toast } from '../components/toast.js';
 import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS, EMPLACEMENTS_PAR_COMPTE } from '../config.js';
 import { emplacementDuCompte } from '../utils/members.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries, chargerLesPeriodesConnues } from './period.js';
+import { migrerMaPoche } from './migration-poches.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 import { initSelectionCharges } from './selection-charges.js';
@@ -359,6 +360,18 @@ async function initializeAppData() {
   // même base injoignable, l'utilisateur garde sa navigation entre les mois.
   // L'ordre inverse rendait la navigation otage d'un incident de connexion.
   await runStep('sélecteur de période', () => initPeriod(), failures);
+
+  // LES DÉPENSES PERSONNELLES REJOIGNENT LEUR POCHE, avant toute lecture de
+  // charge. Le lot P1a a posé le mur sans déplacer de donnée : les dépenses
+  // `perimetre: 'solo'` vivaient encore dans le commun, donc lisibles par
+  // l'autre sans aucun aval. Chaque compte déplace les SIENNES — personne n'a
+  // le droit d'écrire dans la poche de l'autre.
+  //
+  // Avant les listes et avant les charges : tout ce qui suit lit le nœud
+  // FUSIONNÉ, et doit le lire dans son état définitif. Son échec ne bloque
+  // rien — les charges restent où elles sont, c'est-à-dire là où elles étaient
+  // hier, et la migration se retentera à la prochaine ouverture.
+  await runStep('migration des poches', () => migrerMaPoche(), failures);
 
   // Les listes personnalisées alimentent les <select> des autres modules :
   // elles restent en tête des étapes réseau, mais leur échec ne bloque plus

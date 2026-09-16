@@ -24,6 +24,7 @@ import { log, error as logError } from '../utils/debug.js';
 import { analyserCsv } from '../utils/import-csv.js';
 import { memberLabel } from '../utils/members.js';
 import { moisLisible } from './envelopes.js';
+import { cheminDeLaCharge } from '../poches.js';
 
 /** Combien de lignes l'aperçu montre avant de résumer */
 const APERCU = 8;
@@ -232,7 +233,12 @@ async function ecrireLesLignes(lignes) {
     for (const ligne of lignes) {
       const cle = database.ref().push().key;
       const noeud = ligne.type === 'fixe' ? 'fixedCharges' : 'variableCharges';
-      ecritures[`periods/${periode}/${noeud}/${cle}`] = {
+      // Un import CSV ne déclare aucun périmètre : `perimetre.js` tient qu'une
+      // charge sans ce champ est COMMUNE, et c'est la seule lecture qui
+      // préserve l'argent déjà en base. Le chemin se dérive quand même, plutôt
+      // que de se composer : le jour où le format porterait un périmètre, rien
+      // ici n'aurait à changer.
+      ecritures[cheminDeLaCharge(ligne, { periode, collection: noeud, id: cle })] = {
         description: ligne.description,
         amount: ligne.amount,
         category: ligne.category,

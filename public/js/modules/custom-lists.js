@@ -9,8 +9,11 @@ import { escapeHtml } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { identifiantDepuisLibelle } from '../utils/identifiant.js';
 import { categoriesQueLeGpsAttend } from '../utils/categorie-lieu.js';
-import { planRenommage, planBudget, libelleAcceptable } from '../utils/renommage.js';
+import {
+  planRenommage, planBudget, planRattrapage, libelleAcceptable
+} from '../utils/renommage.js';
 import { lirePeriodes } from '../poches.js';
+import { normaliserEmplacement } from '../utils/members.js';
 
 // Réexporté : la fabrication d'identifiant vit désormais dans `utils/`, mais
 // elle est appelée d'ici depuis toujours et testée sous ce nom.
@@ -59,7 +62,64 @@ const EMOJI_PICKER = [
 export async function initCustomLists() {
   log('📦 Initialisation module listes personnalisables');
   await loadCustomLists();
+  await reprendreMaPoche();
   log('✅ Module listes personnalisables initialisé');
+}
+
+/**
+ * Remet MA poche personnelle d'accord avec les listes partagées
+ *
+ * Un renommage fait par l'autre personne n'a pas pu suivre mes dépenses
+ * personnelles : elle n'a pas le droit d'écrire chez moi. Elles portent donc
+ * l'ancien libellé, et mon récapitulatif montre deux entrées pour une seule
+ * catégorie. C'est ici que ça se répare, à l'ouverture, chez le seul compte qui
+ * en a le droit.
+ *
+ * **Silencieux quand il n'y a rien à faire, et c'est le cas nominal.** Un toast
+ * à chaque ouverture pour annoncer zéro correction serait du bruit ; un toast
+ * quand il y a eu correction dit pourquoi un libellé vient de changer sous les
+ * yeux de quelqu'un qui n'a rien demandé.
+ *
+ * Une reprise qui échoue ne fait pas échouer l'ouverture : les charges gardent
+ * leur ancien libellé, ce qui est exactement l'état d'avant la tentative.
+ *
+ * @returns {Promise<number>} Nombre de charges reprises
+ */
+async function reprendreMaPoche() {
+  try {
+    const moi = normaliserEmplacement(getState('emplacementCourant'));
+    if (!moi) return 0;
+
+    const periods = await lirePeriodes();
+
+    const chemins = {
+      ...planRattrapage({
+        periods, moi, champ: 'category', entrees: getState('categories')
+      }).chemins,
+      ...planRattrapage({
+        periods, moi, champ: 'destination', entrees: getState('destinations')
+      }).chemins
+    };
+
+    const nombre = Object.keys(chemins).length;
+    if (nombre === 0) return 0;
+
+    const { dbUpdate } = await import('../db.js');
+    await dbUpdate(undefined, chemins);
+
+    log(`🧹 ${nombre} dépense(s) personnelle(s) remise(s) d'accord avec les listes`);
+    toast.info(
+      `${nombre} de vos dépenses personnelles portaient un libellé renommé `
+      + '— elles suivent la liste à présent'
+    );
+
+    return nombre;
+  } catch (erreur) {
+    // Pas un toast : personne n'a rien demandé, et l'état d'échec est celui
+    // d'avant — les libellés périmés restent, la reprise se retentera demain.
+    warn('🧹 Reprise des libellés personnels impossible :', erreur?.message || erreur);
+    return 0;
+  }
 }
 
 /**
@@ -494,7 +554,10 @@ async function reporterSurLesCharges(champ, ancien, nouveau) {
     const { dbGet, dbUpdate } = await import('../db.js');
     const periods = await lirePeriodes();
 
-    const { chemins, nombre } = planRenommage({ periods, champ, ancien, nouveau });
+    const moi = normaliserEmplacement(getState('emplacementCourant'));
+    const { chemins, nombre, horsDePortee } = planRenommage({
+      periods, champ, ancien, nouveau, moi
+    });
 
     // Une destination n'a pas de budget : ne rien lire plutôt que d'exposer le
     // renommage à l'échec d'une lecture qui ne le concerne pas.
@@ -506,6 +569,18 @@ async function reporterSurLesCharges(champ, ancien, nouveau) {
 
     await dbUpdate(undefined, tout);
     log(`✏️ ${nombre} charge(s) suivies vers « ${nouveau} »`);
+
+    // LES CHARGES HORS DE PORTÉE : celles de la poche personnelle de l'autre,
+    // lisibles sous aval et jamais inscriptibles. Le dire, parce qu'elles
+    // porteront l'ancien nom jusqu'à ce que leur propriétaire ouvre
+    // l'application — `planRattrapage` s'en charge alors.
+    if (horsDePortee > 0) {
+      toast.info(
+        `${horsDePortee} dépense(s) personnelle(s) garderont « ${ancien} » `
+        + 'jusqu\'à la prochaine ouverture de leur propriétaire'
+      );
+      log(`🔒 ${horsDePortee} charge(s) hors de portée sur « ${ancien} »`);
+    }
 
     if (budget.montant !== null) {
       // L'état est corrigé sur place plutôt que relu : `initCategoryBudgets`

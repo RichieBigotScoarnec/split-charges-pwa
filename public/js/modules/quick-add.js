@@ -3,7 +3,7 @@
 // Toute la logique est centralisée ici (plus de JS inline dans FairSplit.html)
 
 import { getState, setState } from '../state.js';
-import { lirePeriodes } from '../poches.js';
+import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
 import { validateChargeAmount } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal } from '../components/modal.js';
@@ -1316,7 +1316,14 @@ async function soumettre() {
 
   try {
     const { dbPush } = await import('../db.js');
-    await dbPush(`periods/${periodeCible}/variableCharges`, chargeData);
+    // LA POCHE, dérivée de la charge. La saisie rapide sait produire une
+    // dépense personnelle — `splitMode === 'perso'` —, et ce chemin composé
+    // l'écrivait dans le COMMUN : elle portait bien `perimetre: 'solo'`, donc
+    // elle ne pesait pas sur le solde, mais elle restait lisible par l'autre
+    // sans aucun aval. C'est le geste le plus fréquent de l'application.
+    await dbPush(cheminDeLaCharge(chargeData, {
+      periode: periodeCible, collection: 'variableCharges'
+    }), chargeData);
 
     // Les trois modes, pas deux : le ternaire annonçait « 50-50 » pour une
     // dépense perso. L'application aurait dit avoir partagé ce qu'elle venait
@@ -1609,7 +1616,12 @@ export async function addQuickCharge(chargeData) {
 
   try {
     const { dbPush } = await import('../db.js');
-    await dbPush(`periods/${periodeCible}/variableCharges`, charge);
+    // Dérivé comme partout. Cette entrée-ci ne porte aujourd'hui aucun
+    // périmètre, donc le chemin est celui du commun ; le dériver quand même
+    // évite que le jour où elle en portera un, le chemin reste muet.
+    await dbPush(cheminDeLaCharge(charge, {
+      periode: periodeCible, collection: 'variableCharges'
+    }), charge);
 
     await loadVariableCharges();
     calculateSummary();

@@ -19,7 +19,28 @@
  *
  * Les enveloppes échappent à tout ceci : une charge y renvoie par identifiant,
  * les renommer n'a donc aucune conséquence sur les charges.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * DEPUIS LE LOT P1b : DEUX POCHES, ET UN MUR ENTRE ELLES
+ *
+ * Le nœud reçu est FUSIONNÉ — le commun et les poches personnelles qu'on a le
+ * droit de lire, réunis par `poches.js`. Une charge personnelle ne vit donc
+ * plus sous `periods/…` : recomposer ce chemin écrirait un fantôme dans le
+ * commun en laissant l'original derrière. Le chemin se DÉRIVE de la charge,
+ * par la fabrique unique, et ce module ne le compose plus.
+ *
+ * Et une conséquence qu'aucun chemin ne peut lever : **on n'a pas le droit
+ * d'écrire dans la poche de l'autre.** Renommer une catégorie ne peut donc pas
+ * suivre les charges personnelles de l'autre personne. Le renommage n'est pas
+ * refusé pour autant — ce serait rendre une liste partagée inmodifiable par
+ * une donnée qu'on ne voit peut-être même pas. Les charges hors de portée sont
+ * COMPTÉES, et `planRattrapage` les reprend chez leur propriétaire, à
+ * l'ouverture de son application.
  */
+
+import { cheminDeLaCharge } from '../poches.js';
+import { proprietaireDuSolo } from './perimetre.js';
+import { racineDepuisLibelle } from './identifiant.js';
 
 /** Les deux collections de charges d'une période */
 const COLLECTIONS = ['fixedCharges', 'variableCharges'];
@@ -28,30 +49,17 @@ const COLLECTIONS = ['fixedCharges', 'variableCharges'];
 const CLE_PERIODE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
- * Les écritures qu'exige un renommage
+ * Toutes les charges du nœud, avec LE CHEMIN OÙ ELLES VIVENT
  *
- * Les charges supprimées sont réécrites elles aussi : la corbeille les affiche,
- * et l'on peut les restaurer. Les laisser derrière rendrait une charge
- * ressuscitée avec un libellé mort.
+ * La traversée rend des couples plutôt qu'une liste de chemins recomposés :
+ * le chemin vient de la fabrique unique — `poches.js → cheminDeLaCharge` —, et
+ * le propriétaire vient avec, parce que c'est lui qui dit si l'on a le droit
+ * d'écrire là.
  *
- * @param {Object} params
- * @param {Object} params.periods - Nœud `periods` complet, tel que lu en base
- * @param {'category'|'destination'} params.champ - Champ porté par les charges
- * @param {string} params.ancien - Libellé actuel
- * @param {string} params.nouveau - Libellé voulu
- * @returns {{chemins: Object<string, string>, nombre: number}} Chemins relatifs à la racine des données
+ * @param {Object} periods - Nœud `periods` fusionné, tel que `lirePeriodes` le rend
+ * @yields {{chemin: string, charge: Object, proprietaire: string|null}}
  */
-export function planRenommage({ periods, champ, ancien, nouveau }) {
-  const chemins = {};
-
-  const valide = typeof ancien === 'string' && ancien !== ''
-    && typeof nouveau === 'string' && nouveau !== ''
-    && ancien !== nouveau
-    && (champ === 'category' || champ === 'destination')
-    && periods && typeof periods === 'object';
-
-  if (!valide) return { chemins, nombre: 0 };
-
+function* chargesDuNoeud(periods) {
   for (const [periode, contenu] of Object.entries(periods)) {
     // Le nœud `periods` a hébergé des écritures accidentelles ; les suivre
     // écrirait sous des chemins qui n'ont pas de sens.
@@ -63,11 +71,140 @@ export function planRenommage({ periods, champ, ancien, nouveau }) {
 
       for (const [cle, charge] of Object.entries(charges)) {
         if (!charge || typeof charge !== 'object') continue;
-        if (charge[champ] !== ancien) continue;
 
-        chemins[`periods/${periode}/${collection}/${cle}/${champ}`] = nouveau;
+        yield {
+          chemin: cheminDeLaCharge(charge, { periode, collection, id: cle }),
+          charge,
+          proprietaire: proprietaireDuSolo(charge)
+        };
       }
     }
+  }
+}
+
+/**
+ * Les écritures qu'exige un renommage
+ *
+ * Les charges supprimées sont réécrites elles aussi : la corbeille les affiche,
+ * et l'on peut les restaurer. Les laisser derrière rendrait une charge
+ * ressuscitée avec un libellé mort.
+ *
+ * `horsDePortee` compte les charges qu'on voit et qu'on ne peut pas écrire :
+ * les personnelles de l'AUTRE, quand un aval les rend lisibles. Ce n'est pas
+ * une erreur, et ce n'est pas rien non plus — c'est ce que `planRattrapage`
+ * reprendra chez leur propriétaire.
+ *
+ * @param {Object} params
+ * @param {Object} params.periods - Nœud `periods` fusionné, tel que lu
+ * @param {'category'|'destination'} params.champ - Champ porté par les charges
+ * @param {string} params.ancien - Libellé actuel
+ * @param {string} params.nouveau - Libellé voulu
+ * @param {string} [params.moi] - Emplacement du compte connecté
+ * @returns {{chemins: Object<string, string>, nombre: number, horsDePortee: number}}
+ */
+export function planRenommage({ periods, champ, ancien, nouveau, moi }) {
+  const chemins = {};
+  let horsDePortee = 0;
+
+  const valide = typeof ancien === 'string' && ancien !== ''
+    && typeof nouveau === 'string' && nouveau !== ''
+    && ancien !== nouveau
+    && (champ === 'category' || champ === 'destination')
+    && periods && typeof periods === 'object';
+
+  if (!valide) return { chemins, nombre: 0, horsDePortee };
+
+  for (const { chemin, charge, proprietaire } of chargesDuNoeud(periods)) {
+    if (charge[champ] !== ancien) continue;
+
+    // La poche de l'autre : lisible sous aval, jamais inscriptible. Y pousser
+    // un chemin ferait échouer la mise à jour ENTIÈRE — `update` applique tout
+    // ou rien — donc le renommage échouerait pour les charges du foyer aussi.
+    if (proprietaire && proprietaire !== moi) {
+      horsDePortee += 1;
+      continue;
+    }
+
+    chemins[`${chemin}/${champ}`] = nouveau;
+  }
+
+  return { chemins, nombre: Object.keys(chemins).length, horsDePortee };
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * CE QUE CHACUN REPREND DANS SA PROPRE POCHE, À L'OUVERTURE
+ *
+ * Renommer « Courses » en « Alimentation » suit les charges du foyer et les
+ * miennes. Celles de l'autre restent derrière : je n'ai pas le droit d'écrire
+ * chez lui, et lui n'a peut-être pas ouvert l'application depuis. Sa liste
+ * affiche donc « Alimentation », et ses dépenses personnelles « Courses » — un
+ * récapitulatif à deux entrées pour une seule catégorie, chez lui seulement.
+ *
+ * ## La correspondance est DÉRIVABLE, elle n'est pas devinée
+ *
+ * Une entrée de liste garde son identifiant à travers un renommage : c'est tout
+ * l'intérêt du renommage. Et cet identifiant est la racine de son libellé
+ * d'ORIGINE (`identifiant.js → racineDepuisLibelle`). Un libellé de charge
+ * absent de la liste dont la racine désigne une entrée existante nomme donc
+ * cette entrée, sous son ancien nom.
+ *
+ * ## Sa limite, dite plutôt que cachée
+ *
+ * Deux renommages successifs pendant qu'une poche dort — A → B → C — laissent
+ * une charge à `B`, dont la racine ne vaut pas l'identifiant (resté `a`). Ce
+ * cas n'est PAS repris, et c'est le bon défaut : rien ne le distingue d'un
+ * libellé qui n'a jamais appartenu à la liste, et réécrire au hasard changerait
+ * la catégorie d'une dépense. La charge garde son libellé — exactement ce qui
+ * arrivait à toutes avant P1b.
+ *
+ * Et la reprise ne touche QUE sa propre poche. Une charge commune au libellé
+ * périmé serait un renommage qui a échoué pour les deux : ce n'est pas la même
+ * panne, et la réparer ici masquerait la première.
+ */
+
+/**
+ * Les écritures qui remettent MA poche d'accord avec la liste partagée
+ *
+ * @param {Object} params
+ * @param {Object} params.periods - Nœud `periods` fusionné, tel que lu
+ * @param {string} params.moi - Emplacement du compte connecté
+ * @param {'category'|'destination'} params.champ
+ * @param {Array<Object>} params.entrees - Liste partagée, `{ id, label }`
+ * @returns {{chemins: Object<string, string>, nombre: number}}
+ */
+export function planRattrapage({ periods, moi, champ, entrees }) {
+  const chemins = {};
+  const vide = { chemins, nombre: 0 };
+
+  if (!periods || typeof periods !== 'object') return vide;
+  if (champ !== 'category' && champ !== 'destination') return vide;
+  if (!moi || !Array.isArray(entrees)) return vide;
+
+  const libelles = new Set();
+  /** Identifiant → libellé courant, seulement quand il ne prête pas à confusion */
+  const parIdentifiant = new Map();
+
+  for (const entree of entrees) {
+    if (!entree || typeof entree.label !== 'string' || !entree.label) continue;
+    libelles.add(entree.label);
+    if (typeof entree.id !== 'string' || !entree.id) continue;
+    // Deux entrées de même identifiant ne peuvent pas exister ; par prudence,
+    // une collision fait renoncer plutôt que choisir.
+    parIdentifiant.set(entree.id, parIdentifiant.has(entree.id) ? null : entree.label);
+  }
+
+  for (const { chemin, charge, proprietaire } of chargesDuNoeud(periods)) {
+    if (proprietaire !== moi) continue;
+
+    const porte = charge[champ];
+    if (typeof porte !== 'string' || !porte) continue;
+    if (libelles.has(porte)) continue;
+
+    const courant = parIdentifiant.get(racineDepuisLibelle(porte));
+    if (!courant || courant === porte) continue;
+
+    chemins[`${chemin}/${champ}`] = courant;
   }
 
   return { chemins, nombre: Object.keys(chemins).length };

@@ -95,6 +95,7 @@ const BALISAGE = `
       <div class="quick-add-panneau" id="quickAddPanneauRepartition">
       <button type="button" id="quickSplitProrata" class="selected">Prorata</button>
       <button type="button" id="quickSplit5050">50-50</button>
+      <button type="button" id="quickSplitPerso">Perso</button>
       </div>
       <button type="button" id="btnQuickAdd">Ajouter</button>
     </div>
@@ -523,6 +524,57 @@ describe('La répartition choisie est celle qui s\'applique', () => {
     await valider();
 
     expect(derniereCharge().splitMode).toBeUndefined();
+  });
+});
+
+describe('« Perso » ÉCRIT DANS LA POCHE, et ce n\'était pas le cas', () => {
+  /**
+   * La saisie rapide sait produire une dépense personnelle — `splitMode` vaut
+   * alors `perso` et la charge part avec `perimetre: 'solo'`. Le chemin, lui,
+   * était COMPOSÉ en clair : `periods/{mois}/variableCharges`. La dépense
+   * atterrissait donc dans la poche COMMUNE, lisible par l'autre personne sans
+   * aucun aval — elle ne pesait pas sur le solde, et c'est tout ce que le
+   * périmètre lui achetait.
+   *
+   * C'est le geste le plus fréquent de l'application, et le seul écran depuis
+   * lequel une dépense personnelle se saisit en trois touches.
+   */
+  /** Le chemin visé par la dernière écriture */
+  const dernierChemin = () => dbPush.mock.calls.at(-1)[0];
+
+  beforeEach(() => {
+    setState('emplacementCourant', 'vous');
+  });
+
+  it('une dépense « Perso » part dans la poche de son payeur', async () => {
+    document.getElementById('quickSplitPerso').click();
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().perimetre).toBe('solo');
+    expect(dernierChemin()).toMatch(/^personnel\/vous\/periods\/\d{4}-\d{2}\/variableCharges$/);
+  });
+
+  it('LE TÉMOIN — une dépense ordinaire reste dans le commun', async () => {
+    // Sans lui, « part dans la poche » serait satisfait par un chemin
+    // personnel écrit pour TOUTE dépense — ce qui mettrait le commun du foyer
+    // hors de vue de l'autre, le défaut inverse et pire.
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().perimetre).toBe('commun');
+    expect(dernierChemin()).toMatch(/^periods\/\d{4}-\d{2}\/variableCharges$/);
+  });
+
+  it('et la poche suit le PAYEUR, pas le téléphone', async () => {
+    // Le chemin se dérive de la charge. Un chemin dérivé de l'emplacement
+    // courant écrirait chez moi une dépense que j'ai attribuée à l'autre — et
+    // les règles la refuseraient, sans que rien ne dise pourquoi.
+    document.getElementById('quickSplitPerso').click();
+    saisir({ montant: '20', payeur: 'conjointe' });
+    await valider();
+
+    expect(dernierChemin()).toMatch(/^personnel\/conjointe\//);
   });
 });
 

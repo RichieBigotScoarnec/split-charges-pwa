@@ -64,6 +64,7 @@
 // portent chacune son propre `catch`.
 
 import { dbGet, cheminDuPersonnel } from './db.js';
+import { proprietaireDuSolo } from './utils/perimetre.js';
 import { log, warn } from './utils/debug.js';
 import { getState } from './state.js';
 import { normaliserEmplacement } from './utils/members.js';
@@ -222,4 +223,74 @@ export async function lirePeriodes(sousChemin = '') {
   const poches = await Promise.all(promessesDesPoches);
 
   return fusionnerLesPoches(commun, poches, profondeur);
+}
+
+/**
+ * Où vit une charge — DÉDUIT de la charge, jamais d'un marqueur
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * POURQUOI LE CHEMIN SE DÉRIVE ET NE SE COMPOSE PAS
+ *
+ * Avant ce lot, chaque site d'écriture composait `periods/{mois}/{collection}/
+ * {id}` à la main — vrai tant qu'il n'y avait qu'une poche. Depuis qu'il y en a
+ * deux, une charge personnelle écrite à ce chemin-là atterrit dans le commun,
+ * c'est-à-dire sous les yeux de l'autre.
+ *
+ * La tentation est de faire porter à la charge un marqueur disant d'où elle
+ * vient. Il ne faut pas : `$id/$autre` accepte tout scalaire court — relevé au
+ * lot P1a, 26 `$autre` ouverts —, donc un marqueur posé en mémoire finirait
+ * ÉCRIT en base au premier enregistrement, accepté par le serveur, et
+ * indiscernable d'un champ légitime.
+ *
+ * `perimetre.js` sait déjà répondre : `proprietaireDuSolo` rend l'emplacement
+ * d'une charge personnelle, et `null` pour une charge commune. La question « où
+ * vit-elle » n'a donc pas besoin d'être mémorisée, seulement posée.
+ *
+ * @param {Object} charge - La charge, telle qu'elle sera écrite
+ * @param {Object} ou
+ * @param {string} ou.periode - Clé de mois, `AAAA-MM`
+ * @param {'fixedCharges'|'variableCharges'} ou.collection
+ * @param {string} [ou.id] - Omis pour le conteneur, par exemple avant un `push`
+ * @returns {string} Chemin relatif à l'espace de données
+ */
+export function cheminDeLaCharge(charge, { periode, collection, id = '' }) {
+  const suite = `periods/${periode}/${collection}${id ? `/${id}` : ''}`;
+  const proprietaire = proprietaireDuSolo(charge);
+  return proprietaire ? cheminDuPersonnel(proprietaire, suite) : suite;
+}
+
+/**
+ * Ce qu'un déplacement de poche écrit — destination posée, origine effacée
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ATOMIQUE, ET IL LE FAUT
+ *
+ * En deux écritures, l'échec de la seconde laisse la charge DEUX FOIS : une
+ * fois dans chaque poche, comptée deux fois par tout ce qui additionne. L'échec
+ * de la première la laisse zéro fois. Une mise à jour multi-chemins tranche :
+ * elle passe entière ou pas du tout.
+ *
+ * Hors réseau, elle échoue franchement — `operationRejouable` refuse de différer
+ * une écriture qui vise la racine de l'espace. C'est le bon comportement : un
+ * déplacement de poche différé changerait la visibilité d'une dépense bien plus
+ * tard, sans que personne ne le voie partir.
+ *
+ * L'identifiant est CONSERVÉ : une charge qui en changerait perdrait sa
+ * corbeille, et le geste « annuler » ne retrouverait plus rien.
+ *
+ * @param {Object} params
+ * @param {Object} params.avant - La charge telle qu'elle est en base
+ * @param {Object} params.apres - La charge telle qu'on veut l'écrire
+ * @param {string} params.periode
+ * @param {'fixedCharges'|'variableCharges'} params.collection
+ * @param {string} params.id
+ * @returns {Object|null} Écritures multi-chemins, ou `null` si rien ne bouge
+ */
+export function ecrituresDuDeplacement({ avant, apres, periode, collection, id }) {
+  const origine = cheminDeLaCharge(avant, { periode, collection, id });
+  const destination = cheminDeLaCharge(apres, { periode, collection, id });
+
+  if (origine === destination) return null;
+
+  return { [destination]: apres, [origine]: null };
 }
