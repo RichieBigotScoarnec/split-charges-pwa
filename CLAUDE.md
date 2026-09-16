@@ -2,7 +2,7 @@
 
 App web PWA de partage de charges en couple au prorata des salaires. Synchronisation temps réel Firebase, auth Google/Email, espace de données unique partagé par les comptes autorisés.
 
-> **Version** : 4.0.0 | **Mise à jour** : 2026-09-07 | **Branche unique** : main
+> **Version** : 4.0.0 | **Mise à jour** : 2026-09-16 | **Branche unique** : main
 
 ## Stack
 
@@ -57,8 +57,8 @@ FairSplit/
 │       │                       # plusieurs charges à la fois),
 │       │                       # versement-mensuel (la cagnotte qu'on alimente
 │       │                       # sans y penser), resume-prive (ce que l'autre
-│       │                       # voit d'un espace privé : un total, jamais le
-│       │                       # détail)
+│       │                       # voit d'un espace privé, selon la posture
+│       │                       # accordée : rien, un total, ou le détail)
 │       └── utils/              # 68 aides pures — dont decomposition (pourquoi
 │                               # ma part vaut ce qu'elle vaut : une ligne par
 │                               # RÈGLE appliquée, jamais par catégorie),
@@ -82,8 +82,8 @@ FairSplit/
 │                               # versements (ce qu'on met dans une cagnotte),
 │                               # confidentialite (écrire chez soi ne demande
 │                               # rien, lire chez l'autre demande son accord ;
-│                               # et le seul chiffre
-│                               # qui franchit le mur),
+│                               # les trois postures, et ce
+│                               # que chacune laisse franchir le mur),
 │                               # recherche-lieu (chercher un lieu par son nom),
 │                               # tri (ordre d'affichage des listes),
 │                               # identifiant (fabrique d'identifiants, partagée
@@ -388,6 +388,13 @@ Principes UX :
     vit en mémoire vive pour qu'un rechargement ne rouvre pas cet écran, et un
     grand chiffre en tête défait cette protection. Un titre qui dit la règle,
     selon le réglage réel, puis deux faces de permission.
+
+  > **⟲ CE CADRAGE EST SUSPENDU LE 2026-09-16 — voir « Le personnel n'a qu'une
+  > poche », en tête des *Décisions de conception*.** Privé cesse d'être une
+  > portée : il devient une fenêtre en lecture seule sur le personnel de
+  > l'autre, absente sans aval. Ce que ce point décrit reste EXACT pour le code
+  > d'aujourd'hui — il est conservé pour cela, et il ne doit plus servir de
+  > consigne. Le bloc des *Décisions* est ce qu'on applique.
   ~~Solo met un total personnel en encre neutre — « personne ne doit rien à
   personne dessus » — et Privé n'affiche aucun chiffre, sa tête est une phrase
   et son montant est masqué (`••••`).~~ Le fait symétrique, lui, ne paraît que
@@ -2111,6 +2118,118 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 Arbitrages déjà pris, qui se reposeraient à l'identique. **Une décision qu'on
 reprend faute de savoir qu'elle a été prise coûte plus cher qu'un gotcha.**
 
+## ⚠️ 2026-09-16 — LE PERSONNEL N'A QU'UNE POCHE, ET LE MUR QUI LUI MANQUE EXISTE DÉJÀ
+
+**Décision de Richie.** Elle suspend les lots d'écran en cours. Mesures prises à
+`44a5cff9b2b6`. Les lots sont dans `refonte-lots.md`, avec leurs commandes.
+
+**Le modèle cible.**
+
+| Poche | Qui saisit | Qui lit |
+|---|---|---|
+| **Commune** | les deux | les deux |
+| **Personnelle** (aujourd'hui « solo ») | son propriétaire | son propriétaire — **et l'autre seulement si un aval est actif** |
+
+**Pas de troisième poche.** Personne ne saisit dans « Privé » : la saisie
+personnelle EST la saisie solo. L'onglet « Privé » devient une **fenêtre en
+lecture seule sur le personnel de l'autre**, nommée d'après lui, et **absente
+tant qu'aucun aval n'est actif** — un onglet qui explique qu'il n'y a rien à
+voir est un onglet de trop. Le réglage du partage part dans **Réglages**.
+
+**Vocabulaire, et c'est ce qui casse un filtre écrit de mémoire** : une charge
+payée par une personne **et partagée** est COMMUNE, jamais personnelle
+(`perimetre.js:181`). Ce qui revient au propriétaire sur une charge commune est
+**sa part**, pas une dépense à lui. Un filtre qui déduit le périmètre du PAYEUR
+est faux.
+
+**« Moi ce mois-ci »** : la liste montre le **personnel seul** ; la part du
+commun y figure en **carte agrégée**, jamais en lignes communes à leur montant
+plein — une ligne à 122,07 € sur l'écran « toi » contredirait le héros, et la
+réafficher à ta part serait un second rendu de la même liste (règle 2).
+
+**Le motif du défaut, et il vaut au-delà de cet écran.** Le propriétaire de
+l'application a utilisé cet onglet quotidiennement **sans savoir ce qu'il
+faisait de ses données**. L'écran explique le mécanisme du mur en quatre
+paragraphes et ne dit jamais la phrase simple : *ce que tu saisis ici, l'autre
+le verra si tu ouvres le partage*. **Une garantie exacte n'est pas une
+information reçue.**
+
+### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
+
+- **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
+  pas les règles : il demande à l'émulateur ce qu'il **autorise**. Il tient déjà
+  la propriété du modèle cible — « l'aval actif ouvre la lecture, et lui seul »,
+  « l'aval ouvre la lecture, **jamais l'écriture** », « un aval retiré referme
+  la lecture », « un tiers ne lit rien, et une adresse non vérifiée non plus ».
+- **`database.rules.json:979` / `:1023`** conditionnent le `.read` de
+  `prive/{qui}` à `aval/{qui}/actif`. Posture « Rien » → aucun accès.
+  **Vérifié contre le moteur, pas contre un libellé d'écran.**
+- **Mais les dépenses solo vivent dans `household/`** et sont **lisibles par
+  l'autre aujourd'hui, sans aucun aval**. La réalité est l'inverse de la
+  crainte : ce qu'on croyait exposé est protégé, ce qu'on saisit réellement ne
+  l'est pas.
+- **Ce constat est NEUF.** `PRIV-001`, `PRIV-002`, `PRIV-003` (agent
+  `privacy-compliance`, commit `b2e5622`) portent sur Nominatim absent de
+  `SECURITY.md`, sur deux fabriques de géocodage dont une n'arrondit pas la
+  position, et sur l'absence de purge définitive. **Aucun ne relève la
+  visibilité du solo.** L'agent a regardé `prive/` et les tiers ; il n'a pas
+  regardé la poche réellement utilisée.
+
+### Le coût : une MIGRATION, pas un mur à inventer
+
+Rendre le personnel invisible sans aval n'est pas un filtre d'affichage —
+l'autre lit la même base. Il faut le sortir de `household/` **vers le mécanisme
+qui existe déjà**. Restent : les quatre accès absolus, `perimetre.js`, la
+migration des données existantes, `SECURITY.md`, et la place du personnel dans
+les totaux. `mur-prive.test.js` est le gabarit qui reçoit les cas neufs.
+
+**Conséquence sur les chiffres** : après migration, le total de catégorie ne
+peut plus inclure le personnel sur l'écran de l'autre — il ne peut plus le lire.
+La structure règle ce que l'affichage discutait.
+
+**⚠️ `PRIV-003` heurte une CONTRAINTE, il ne s'y ajoute pas.** La section
+*Contraintes* porte « NE JAMAIS supprimer de données Firebase sans soft-delete ».
+Une purge définitive du personnel — la seule poche dont un libellé peut nommer
+un professionnel de santé ou un avocat — serait une **exception à une contrainte
+de premier niveau**, et l'espace privé n'a même pas de corbeille
+(`prive.js:667-689`). À arbitrer, pas à écrire en passant.
+
+### Mesures de l'état actuel (2026-09-16, arbre de `44a5cff`)
+
+Le `pull` de `39efd31` à `44a5cff` ne touche, dans `public/js`, que `backup.js` :
+les relevés pris avant valent toujours.
+
+- **`utils/tri.js:101` `grouperParCategorie` est la fabrique unique** — trois
+  appelants (`variable-charges.js:729`, `fixed-charges.js:777`,
+  `totaux-liste.js:71`). **Elle ne porte aucune notion de périmètre** : zéro
+  occurrence de `solo` ou `commun` dans `tri.js`. La règle 2 n'est **pas** en
+  cause — c'est une distinction appliquée à une surface sur deux.
+- **`totaux-liste.js:46`** appelle `totauxParPerimetre` **par-dessus**, pour son
+  seul pied de liste : `commun + solo perso`.
+- **`variable-charges.js:743`** peint un scalaire muet. Vérifié à la main sur
+  capture : `122,07 + 20,64 + 20,00 + 25,00 + 80,18 + 10,00 + 103,86 = 381,75`
+  — **le total de catégorie inclut le perso sans le dire**.
+- **`:729` lit `getState('variableCharges')`** sans passer par `perimetre.js`.
+  Recoupe `41f915c` : *« ni variable-charges.js ni fixed-charges.js ne lit
+  porteeCourante »*.
+- **Le sélecteur de portée est rendu deux fois, VU à l'écran** (2026-09-16),
+  après la mesure aux quatre largeurs consignée dans `refonte-lots.md`.
+- **Sous « Privé », la liste du bas affiche les charges du foyer**, payeur et
+  lieu compris — sur l'écran qui promet que l'autre ne voit rien de cet espace.
+- **`soloDansLaListe` n'existe nulle part** — 0 occurrence, mesuré le
+  2026-09-12 (`41f915c`). Toute note qui l'annonce comme « un tweak existant,
+  désactivé » envoie chercher ce qui n'est pas là.
+
+### Ce qui reste OUVERT — à ne pas trancher par omission
+
+1. **« Il te reste » compte-t-il le personnel ?** Il le soustrait aujourd'hui et
+   **exclut le privé** (2026-09-11, argument de l'épaule). Les deux poches n'en
+   faisant plus qu'une, la question se repose entière.
+2. **Le nom de l'onglet-fenêtre** et le sort de `prive/` : renommé, ou devenu la
+   maison du personnel.
+3. **Où atterrit le personnel** dans l'arbre, et la migration des données.
+4. **La purge définitive** — `PRIV-003`, contre la contrainte ci-dessus.
+
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).
   Sur 29 specs qui manipulent des dates, **5 figent** — `heure-de-la-depense`,
@@ -2232,7 +2351,9 @@ transposable, ou une décision qui se reposerait.
 ## Prompts disponibles
 
 Commandes Claude Code (chargées automatiquement) :
+`.claude/commands/audit.md`, `.claude/commands/audit-diff.md`,
 `.claude/commands/audit-design-fairsplit.md`, `.claude/commands/audit-web-fairsplit.md`
+— les quatre relevés le 2026-09-16 à `44a5cff`
 
 Prompts d'audit locaux : `docs/claude/prompts/local/` — dette technique,
 règles Firebase, design PWA.

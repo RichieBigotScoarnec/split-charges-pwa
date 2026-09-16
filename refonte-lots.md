@@ -163,6 +163,30 @@ code**, avec sa raison — jamais après.
 | ~~**E**~~ | ~~le grand-livre ouvert au-dessus de 900 px, replié en dessous~~ — **absorbé par D** le 2026-09-11 | — |
 | ~~**F**~~ **E** | **la silhouette des planches 1 et 2** — ~~deux colonnes, bilan et charges~~ la tête du bilan en pleine largeur ; dessous, les charges à gauche et **les quatre cartes du rang 3 à droite, dans l'ordre des planches** — 🎯 Où part votre argent, 📍 Où vous dépensez, 📈 Tendances, 🧳 Enveloppes à deux —, fermées par « Le mois en un coup d'œil » et le récap des virements ; ~~Salaires et Rappels quittent~~ **Rappels, Salaires et Outils — tout le panneau Réglages — quittent** le tableau de bord pour un écran à part, atteint par ⚙️ dans l'en-tête et refermé par « ← Retour au tableau de bord » ; **le bandeau du partage** porte « Modifier les revenus » | 3, 4 *(le bandeau)*, 5 *(en partie)*, 9 *(placement ; contenu inchangé)*, et l'entrée de 13 |
 | **G** | l'écran Réglages restructuré | 13 à 18 |
+| **P1** | **Le personnel sort de `household/`.** Décision de Richie, 2026-09-16 (`CLAUDE.md`, *Décisions de conception*). Les dépenses solo passent sous le mécanisme d'aval de `prive/` : lisibles par leur propriétaire, par l'autre seulement si `aval/{qui}/actif`. Migration des données existantes comprise. **Cas neufs dans `tests/regles/mur-prive.test.js`**, qui interroge l'émulateur et non les règles | — |
+| **P2** | **Le périmètre entre dans la liste — filtrage ET total de catégorie, un seul lot.** C'est une seule lecture de `perimetre.js`. « À deux » → commun seul ; « Moi ce mois » → **personnel seul**, la part du commun restant une carte agrégée (lot « Moi, rangs 2 et 3 ») ; jamais de ligne commune à son montant plein sous « Moi ». **Le total de catégorie annonce le personnel comme le pied de liste le fait déjà** — `commun + X perso`, et seulement s'il existe. **À conserver, sous une forme adaptée** : le renvoi en pied, sans quoi une dépense saisie devient introuvable | — |
+| **P3** | **L'onglet-fenêtre et le réglage dans Réglages.** Privé cesse d'être une portée : fenêtre en lecture seule sur le personnel de l'autre, nommée d'après lui, **absente tant qu'aucun aval n'est actif**. Les trois postures et la face réciproque déménagent dans Réglages — ce qui referme la dette écrite au lot D, « la tête Privé n'affiche pas de rappel tant que la commande vit sur le même écran ». **Planche Claude Design requise** | — |
+| **P4** | **Un seul sélecteur de portée, sous le sélecteur de mois** — lettrage de l'entrée « à lettrer — après E », dont la mesure aux quatre largeurs tient. **À écrire après P3** : le nombre de segments dépend du sort de Privé | 11 *(habillage)* |
+
+**Les commandes de P1 à P4 sont fixées ici, avant le code** — même règle que pour
+D à G. Si un lot doit en changer, la commande change dans le même commit que le
+code, avec sa raison.
+
+| Lot | Commande | Attendu |
+|---|---|---:|
+| **P1** | `@(Select-String -Pattern "export function cheminDuPersonnel" -Path public/js/utils/perimetre.js).Count` | ≥ 1 |
+| **P1** | `@(Select-String -Pattern "Le mur personnel" -Path tests/regles/mur-prive.test.js).Count` | ≥ 1 |
+| **P2** | `@(Select-String -Pattern "porteeCourante" -Path public/js/modules/variable-charges.js, public/js/modules/fixed-charges.js).Count` | ≥ 2 |
+| **P2** | `@(Select-String -Pattern "totauxParPerimetre" -Path public/js/utils/tri.js).Count` | ≥ 1 |
+| **P3** | `@(Select-String -Pattern "function fenetreDeLAutre" -Path public/js/modules/prive.js).Count` | 1 |
+| **P3** | `@(Select-String -Pattern "function posturesDansReglages" -Path public/js/modules/prive.js).Count` | 1 |
+| **P4** | `@(Select-String -Pattern 'id="selecteurPortee"' -Path public/FairSplit.html).Count` | **= 1** |
+
+La commande de **P4 est la seule du fichier dont l'attendu soit une égalité
+stricte**, et c'est voulu : la propriété du lot EST l'unicité du sélecteur, qu'un
+`≥ 1` ne mesurerait pas. Comme toutes les autres, ces sept lisent la **source**,
+jamais l'**effet** — c'est la dernière colonne, « vu par le foyer », qui ferme un
+lot.
 
 **Ce que le lot E a tranché sur pièce, et qu'il faut savoir en le regardant :**
 
