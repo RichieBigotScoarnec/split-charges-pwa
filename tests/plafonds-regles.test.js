@@ -73,13 +73,45 @@ describe('Les règles ne sont pas plus permissives que les formulaires', () => {
   });
 
   it('plafonne les montants à MAX_CHARGE, charges fixes, variables et remboursements', () => {
-    const plafonds = plafondsDe('amount');
+    // ─────────────────────────────────────────────────────────────────────
+    // CE CAS PORTAIT UN COMPTE EN DUR — « deux espaces × trois collections »,
+    // soit 6 — ET LE COMPTE A DÉRIVÉ dès qu'une collection est apparue.
+    //
+    // Le 2026-09-16, la poche personnelle en a ajouté huit : deux espaces ×
+    // deux personnes × deux collections. Le contrôle est tombé en annonçant
+    // « des emplacements de montant ont disparu des règles » alors qu'il en
+    // était apparu — le message accusait l'inverse du fait.
+    //
+    // Un compte tenu à la main mesure ce que son auteur avait prévu. Ce qu'on
+    // veut tenir est plus étroit : TOUTE collection de charges déclarée par
+    // les règles doit borner son montant. Le nombre suit alors la structure,
+    // et un oubli est nommé par son chemin plutôt que par une soustraction.
+    //
+    // Ce qui reste légitimement adossé au réel est la NON-VACUITÉ du relevé.
+    const COLLECTIONS = ['fixedCharges', 'variableCharges', 'reimbursements'];
+    const trouvees = [];
 
-    // Deux espaces × trois collections.
-    expect(plafonds, 'des emplacements de montant ont disparu des règles').toHaveLength(6);
+    const parcourir = (noeud, chemin) => {
+      if (!noeud || typeof noeud !== 'object') return;
+      for (const [cle, valeur] of Object.entries(noeud)) {
+        if (COLLECTIONS.includes(cle)) {
+          trouvees.push({
+            chemin: `${chemin}/${cle}`,
+            borne: valeur?.$id?.amount?.['.validate']
+          });
+        }
+        parcourir(valeur, `${chemin}/${cle}`);
+      }
+    };
+    parcourir(REGLES.rules, 'rules');
 
-    for (const plafond of plafonds) {
-      expect(plafond, `une règle accepte ${plafond}, le formulaire refuse au-delà de ${LIMITS.MAX_CHARGE}`)
+    expect(trouvees.length, 'aucune collection de charges relevée dans les règles')
+      .toBeGreaterThan(5);
+
+    for (const { chemin, borne } of trouvees) {
+      expect(borne, `${chemin} ne borne pas son montant`).toBeDefined();
+      const plafond = Number(/isNumber\(\).*<=\s*(\d+)/.exec(borne)?.[1]);
+      expect(plafond, `${chemin} accepte ${plafond}, le formulaire refuse au-delà de ${LIMITS.MAX_CHARGE}`)
         .toBe(LIMITS.MAX_CHARGE);
     }
   });

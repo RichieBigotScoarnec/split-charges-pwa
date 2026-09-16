@@ -138,14 +138,52 @@ describe('Ce que l\'ajout ne doit pas avoir desserré', () => {
   });
 
   it('l\'espace du foyer exige toujours une adresse vérifiée de la liste', () => {
-    for (const acces of ['.read', '.write']) {
-      const regle = regles.household[acces];
-      expect(regle).toContain('email_verified === true');
-      expect(regle).toContain('bigot.richard@gmail.com');
-      expect(regle).toContain('cindypepe.cp95@gmail.com');
+    // `regles.household['.read']` n'existe plus : le droit de lecture a
+    // descendu d'un cran le 2026-09-16, sur chacun des enfants directs, pour
+    // qu'un sous-arbre puisse être caché à l'autre. Le lire à la racine
+    // rendait `undefined`, et l'assertion tombait par TypeError — en accusant
+    // la forme de la règle plutôt que ce qu'elle accorde.
+    //
+    // La propriété est inchangée. Elle est relevée sur TOUTES les clauses du
+    // foyer, à tous les niveaux, ce qui est plus large que la racine qu'elle
+    // remplace.
+    const clauses = [];
+    const parcourir = (noeud, chemin) => {
+      if (!noeud || typeof noeud !== 'object') return;
+      for (const [cle, valeur] of Object.entries(noeud)) {
+        if ((cle === '.read' || cle === '.write') && typeof valeur === 'string') {
+          clauses.push({ chemin: `${chemin}/${cle}`, clause: valeur });
+        } else parcourir(valeur, `${chemin}/${cle}`);
+      }
+    };
+    parcourir(regles.household, 'household');
+
+    // Le témoin positif : une boucle vide satisferait tout ce qui suit.
+    expect(clauses.length, 'aucune clause relevée sous household')
+      .toBeGreaterThan(10);
+
+    for (const { chemin, clause } of clauses) {
+      expect(clause, chemin).toContain('email_verified === true');
       // Le compte de test n'a jamais eu sa place ici : il vit dans le bac à
       // sable, et son mot de passe circule.
-      expect(regle).not.toContain('testfairsplit@gmail.com');
+      expect(clause, chemin).not.toContain('testfairsplit@gmail.com');
+    }
+
+    // Et personne n'est enfermé dehors d'un nœud COMMUN. Le relevé porte sur
+    // les seuls `.read` des enfants directs : `personnel` n'en a pas — le sien
+    // vit sur chaque moitié, qui a un propriétaire — donc il en sort par
+    // construction, sans qu'on ait à le nommer.
+    const communs = Object.entries(regles.household)
+      .filter(([cle]) => !cle.startsWith('.'))
+      .map(([cle, valeur]) => [cle, valeur['.read']])
+      .filter(([, clause]) => typeof clause === 'string');
+
+    expect(communs.length, 'aucun enfant direct ne porte de .read')
+      .toBeGreaterThan(10);
+
+    for (const [noeud, clause] of communs) {
+      expect(clause, noeud).toContain('bigot.richard@gmail.com');
+      expect(clause, noeud).toContain('cindypepe.cp95@gmail.com');
     }
   });
 });

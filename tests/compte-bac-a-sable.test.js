@@ -76,6 +76,30 @@ describe('Le compte de test est cantonné au bac à sable', () => {
   });
 });
 
+/**
+ * Toutes les clauses d'accès d'un sous-arbre de règles, avec leur chemin
+ *
+ * Le chemin est rendu avec la clause : une liste d'expressions anonymes ne dit
+ * pas LAQUELLE a cédé, et une clause d'accès se relit mal hors de sa place.
+ *
+ * @param {*} noeud - Sous-arbre lu depuis `database.rules.json`
+ * @param {string} [prefixe]
+ * @returns {Array<{chemin: string, clause: string}>}
+ */
+function toutesLesClauses(noeud, prefixe = '') {
+  if (!noeud || typeof noeud !== 'object') return [];
+  const trouvees = [];
+  for (const [cle, valeur] of Object.entries(noeud)) {
+    const chemin = prefixe ? `${prefixe}/${cle}` : cle;
+    if ((cle === '.read' || cle === '.write') && typeof valeur === 'string') {
+      trouvees.push({ chemin, clause: valeur });
+    } else {
+      trouvees.push(...toutesLesClauses(valeur, chemin));
+    }
+  }
+  return trouvees;
+}
+
 describe('Les règles déployées couvrent le compte de test', () => {
   const regles = JSON.parse(
     readFileSync(resolve(process.cwd(), 'database.rules.json'), 'utf8')
@@ -84,16 +108,32 @@ describe('Les règles déployées couvrent le compte de test', () => {
   it('household reste fermé au compte de test', () => {
     // La barrière qui fait autorité. Le cantonnement applicatif ne remplace
     // pas les règles : il évite seulement des requêtes vouées au refus.
+    // Balayage RÉCURSIF, et c'est plus fort que la lecture de la racine qu'il
+    // remplace : le compte de test ne doit figurer dans AUCUNE clause du
+    // foyer, y compris celles posées aux feuilles depuis `4ac03f8` et celles
+    // du personnel.
+    const clauses = toutesLesClauses(regles.household);
+    expect(clauses.length, 'aucune clause relevée sous household').toBeGreaterThan(10);
+
     for (const email of SANDBOX_ONLY_EMAILS) {
-      expect(regles.household['.read']).not.toContain(email);
-      expect(regles.household['.write']).not.toContain(email);
+      for (const { chemin, clause } of clauses) {
+        expect(clause, `${chemin} cite ${email}`).not.toContain(email);
+      }
     }
   });
 
   it('sandbox est ouvert au compte de test', () => {
+    // Sur CHAQUE clause du droit, et non sur la seule racine : depuis que le
+    // `.read` a descendu d'un cran, un enfant qui l'oublierait rendrait le bac
+    // à sable partiellement illisible au compte qui n'y a que lui.
     for (const email of SANDBOX_ONLY_EMAILS) {
-      expect(regles.sandbox['.read']).toContain(email);
-      expect(regles.sandbox['.write']).toContain(email);
+      for (const droit of ['.read', '.write']) {
+        const clauses = clausesDAcces('sandbox', droit);
+        expect(clauses.length, `aucune clause ${droit} relevée`).toBeGreaterThan(0);
+        for (const clause of clauses) {
+          expect(clause, `${droit} — ${clause}`).toContain(email);
+        }
+      }
     }
   });
 
@@ -137,13 +177,66 @@ describe('Les règles déployées couvrent le compte de test', () => {
   const VERIFIE = (email) => ({ email, email_verified: true });
   const NON_VERIFIE = (email) => ({ email, email_verified: false });
 
+  /**
+   * Les clauses qui gouvernent un droit sur un espace
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * POURQUOI CE N'EST PLUS UNE SEULE CLAUSE
+   *
+   * Le `.read` vivait à la racine de l'espace et cascadait sur tout. Il a
+   * descendu d'un cran le 2026-09-16, sur chacun des enfants directs, parce
+   * qu'un `.read` accordé plus haut ne se révoque nulle part en dessous :
+   * cacher `personnel` à l'autre était impossible tant que la racine était
+   * lisible.
+   *
+   * Ces cas lisaient `regles.household['.read']`, qui vaut désormais
+   * `undefined` — ils tombaient par TypeError, c'est-à-dire en accusant tout
+   * autre chose que leur propre propriété. Ils lisent maintenant TOUTES les
+   * clauses du droit, et la propriété qu'ils portent n'a pas changé : elle est
+   * seulement vérifiée treize fois au lieu d'une.
+   *
+   * `personnel` n'a volontairement pas de `.read` à ce niveau — le sien vit
+   * sur chaque moitié, faute d'un propriétaire commun — donc il n'entre pas
+   * dans ce relevé. Ce que ses clauses accordent est tenu par
+   * `tests/regles/mur-prive.test.js`, contre l'émulateur.
+   *
+   * @param {string} espace - `household` ou `sandbox`
+   * @param {string} droit - `.read` ou `.write`
+   * @returns {Array<string>} Les clauses trouvées
+   */
+  const clausesDAcces = (espace, droit) => {
+    const noeud = regles[espace];
+    // `.write` est resté à la racine : `4ac03f8` l'a descendu aux FEUILLES
+    // pour fermer l'écrasement de conteneur, et la clause de racine subsiste
+    // pour la restauration.
+    if (typeof noeud[droit] === 'string') return [noeud[droit]];
+    return Object.entries(noeud)
+      .filter(([cle]) => !cle.startsWith('.'))
+      .map(([, valeur]) => valeur[droit])
+      .filter((clause) => typeof clause === 'string');
+  };
+
+  it('LE TÉMOIN — le relevé des clauses n\'est pas vide', () => {
+    // Sans lui, chacun des cas ci-dessous serait satisfait par ZÉRO clause :
+    // une boucle vide ne mesure rien, et c'est exactement ce que la descente
+    // du droit aurait pu produire en oubliant des enfants.
+    for (const espace of ['household', 'sandbox']) {
+      expect(clausesDAcces(espace, '.read').length, `${espace}/.read`)
+        .toBeGreaterThan(10);
+      expect(clausesDAcces(espace, '.write').length, `${espace}/.write`)
+        .toBeGreaterThan(0);
+    }
+  });
+
   it('le foyer exige une adresse vérifiée', () => {
     // L'adresse seule décidait de l'accès, alors que `accounts:signUp` reste
     // joignable avec la clé publique du projet : un compte créé par cette API
     // et revendiquant une adresse de la liste blanche entrait dans le foyer.
     for (const droit of ['.read', '.write']) {
-      expect(accorde(regles.household[droit], VERIFIE(ALLOWED_EMAILS[0]))).toBe(true);
-      expect(accorde(regles.household[droit], NON_VERIFIE(ALLOWED_EMAILS[0]))).toBe(false);
+      for (const clause of clausesDAcces('household', droit)) {
+        expect(accorde(clause, VERIFIE(ALLOWED_EMAILS[0])), clause).toBe(true);
+        expect(accorde(clause, NON_VERIFIE(ALLOWED_EMAILS[0])), clause).toBe(false);
+      }
     }
   });
 
@@ -155,8 +248,11 @@ describe('Les règles déployées couvrent le compte de test', () => {
     // sous une identité que les règles tiennent pour légitime.
     for (const droit of ['.read', '.write']) {
       for (const email of ALLOWED_EMAILS.filter(e => !SANDBOX_ONLY_EMAILS.includes(e))) {
-        expect(accorde(regles.sandbox[droit], VERIFIE(email)), `${email} vérifié`).toBe(true);
-        expect(accorde(regles.sandbox[droit], NON_VERIFIE(email)), `${email} non vérifié`).toBe(false);
+        for (const clause of clausesDAcces('sandbox', droit)) {
+          expect(accorde(clause, VERIFIE(email)), `${email} vérifié — ${clause}`).toBe(true);
+          expect(accorde(clause, NON_VERIFIE(email)), `${email} non vérifié — ${clause}`)
+            .toBe(false);
+        }
       }
     }
   });
@@ -170,8 +266,14 @@ describe('Les règles déployées couvrent le compte de test', () => {
     // aurait donc échangé une exposition contre une panne.
     for (const droit of ['.read', '.write']) {
       for (const email of SANDBOX_ONLY_EMAILS) {
-        expect(accorde(regles.sandbox[droit], NON_VERIFIE(email)), `${email} au bac à sable`).toBe(true);
-        expect(accorde(regles.household[droit], NON_VERIFIE(email)), `${email} au foyer`).toBe(false);
+        for (const clause of clausesDAcces('sandbox', droit)) {
+          expect(accorde(clause, NON_VERIFIE(email)), `${email} au bac à sable — ${clause}`)
+            .toBe(true);
+        }
+        for (const clause of clausesDAcces('household', droit)) {
+          expect(accorde(clause, NON_VERIFIE(email)), `${email} au foyer — ${clause}`)
+            .toBe(false);
+        }
       }
     }
   });
@@ -182,8 +284,10 @@ describe('Les règles déployées couvrent le compte de test', () => {
     // ou non.
     for (const espace of ['household', 'sandbox']) {
       for (const droit of ['.read', '.write']) {
-        expect(accorde(regles[espace][droit], VERIFIE('inconnu@example.com'))).toBe(false);
-        expect(accorde(regles[espace][droit], NON_VERIFIE('inconnu@example.com'))).toBe(false);
+        for (const clause of clausesDAcces(espace, droit)) {
+          expect(accorde(clause, VERIFIE('inconnu@example.com')), clause).toBe(false);
+          expect(accorde(clause, NON_VERIFIE('inconnu@example.com')), clause).toBe(false);
+        }
       }
     }
   });
@@ -213,6 +317,51 @@ describe('Les règles déployées couvrent le compte de test', () => {
     };
 
     expect(schema(regles.sandbox)).toEqual(schema(regles.household));
+  });
+
+  it('le personnel porte EXACTEMENT le schéma de charge du foyer', () => {
+    // La seconde duplication délibérée de ce fichier, et le même argument que
+    // celle du dessus — « le contrôle qui la tient doit être joué sur les deux
+    // exemplaires ».
+    //
+    // `household/personnel/{qui}/…/variableCharges/$id` est une copie de
+    // `household/periods/$periode/variableCharges/$id`. C'est le choix du lot :
+    // le personnel garde le schéma COMPLET d'une charge — catégorie, lieu,
+    // enveloppe, répartition dérogatoire —, là où `prive/` vit sur
+    // `{montant, description, date}`. Une copie ne se dégrade pas d'un coup :
+    // elle divergera au premier champ ajouté d'un seul côté, et la charge
+    // migrée serait alors refusée par le serveur après un toast de succès.
+    //
+    // `.write` est EXCLU de la comparaison, et c'est la seule différence
+    // voulue : la charge commune s'écrit par les deux membres, la charge
+    // personnelle par son seul propriétaire. C'est ce que tient
+    // `tests/regles/mur-prive.test.js`, contre l'émulateur — « l'aval ouvre la
+    // lecture, jamais l'écriture ».
+    const sansEcriture = (noeud) => {
+      if (!noeud || typeof noeud !== 'object') return noeud;
+      return Object.fromEntries(
+        Object.entries(noeud)
+          .filter(([cle]) => cle !== '.write')
+          .map(([cle, valeur]) => [cle, sansEcriture(valeur)])
+      );
+    };
+
+    let compares = 0;
+    for (const espace of ['household', 'sandbox']) {
+      const commun = regles[espace].periods.$periode;
+      for (const qui of ['vous', 'conjointe']) {
+        const perso = regles[espace].personnel[qui].periods.$periode;
+        for (const collection of ['fixedCharges', 'variableCharges']) {
+          expect(sansEcriture(perso[collection]), `${espace}/${qui}/${collection}`)
+            .toEqual(sansEcriture(commun[collection]));
+          compares += 1;
+        }
+      }
+    }
+
+    // Le témoin positif : sans lui, une structure vide ou renommée satisferait
+    // la boucle en ne comparant rien.
+    expect(compares, 'aucun schéma comparé').toBe(8);
   });
 
   it("aucune clause d'écriture n'échappe à la liste blanche de son espace", () => {
@@ -254,8 +403,14 @@ describe('Les règles déployées couvrent le compte de test', () => {
   it('tout compte autorisé figure dans au moins une règle', () => {
     // Un compte dans ALLOWED_EMAILS mais absent des règles se connecterait
     // pour ne rien pouvoir lire — panne silencieuse difficile à diagnostiquer.
+    const clauses = [
+      ...toutesLesClauses(regles.household),
+      ...toutesLesClauses(regles.sandbox)
+    ];
+    expect(clauses.length, 'aucune clause relevée').toBeGreaterThan(20);
+
     for (const email of ALLOWED_EMAILS) {
-      const cite = regles.household['.read'].includes(email) || regles.sandbox['.read'].includes(email);
+      const cite = clauses.some(({ clause }) => clause.includes(email));
       expect(cite, `${email} n'apparaît dans aucune règle`).toBe(true);
     }
   });

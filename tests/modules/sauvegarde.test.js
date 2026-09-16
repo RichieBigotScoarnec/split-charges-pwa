@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }
@@ -12,7 +12,26 @@ vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
 
-const { validateBackup, describeBackup } = await import('../../public/js/modules/backup.js');
+/**
+ * `db.js` est mocké AUTOUR de l'original : `cheminDuPersonnel` doit être la
+ * vraie fabrique, sinon ces cas mesureraient un chemin que l'application
+ * n'emprunte pas.
+ */
+const dbGet = vi.fn(async () => null);
+const dbSet = vi.fn(async () => {});
+const dbUpdate = vi.fn(async () => {});
+
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  dbGet, dbSet, dbUpdate,
+  liaisonRompue: vi.fn(() => false)
+}));
+vi.mock('../../public/js/state.js', () => ({ getState: vi.fn(() => 'vous') }));
+
+const { toast } = await import('../../public/js/components/toast.js');
+const {
+  validateBackup, describeBackup, restoreBackup, ecrituresDeRestauration
+} = await import('../../public/js/modules/backup.js');
 
 /**
  * Restaurer écrase l'intégralité des données du foyer. Le fichier doit donc
@@ -134,5 +153,122 @@ describe('Description d\'une sauvegarde', () => {
   it('supporte une date absente', () => {
     expect(describeBackup({ data: { periods: { '2026-08': {} } } }))
       .toContain('date inconnue');
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LA RESTAURATION SE FAIT EN DEUX ÉCRITURES, ET LE MESSAGE DOIT DIRE LAQUELLE
+ * A ABOUTI
+ *
+ * Depuis le mur du 2026-09-16, un fichier de sauvegarde ne peut plus porter la
+ * poche personnelle de l'autre — on n'a pas le droit de la lire. Or un `set`
+ * de racine supprime ce qu'il ne porte pas : restaurer aurait effacé cette
+ * poche, en silence, le jour précis où l'on restaure parce que quelque chose
+ * est déjà cassé.
+ *
+ * La restauration écrit donc le foyer en une mise à jour multi-chemins, puis sa
+ * SEULE poche par un chemin dédié. Deux écritures, donc deux issues d'échec —
+ * et « vos données n'ont pas été modifiées », qui était vrai quand un seul
+ * `set` faisait tout, devient faux sur la seconde.
+ */
+describe('La restauration, en deux écritures', () => {
+  const CHARGE_PERSO = { amount: 30, description: 'Coiffeur', perimetre: 'solo' };
+
+  const fichier = (data) => ({
+    text: async () => JSON.stringify({
+      format: 'fairsplit-backup',
+      version: 1,
+      exportedAt: '2026-09-16T10:00:00.000Z',
+      data
+    })
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbGet.mockImplementation(async () => null);
+    dbSet.mockImplementation(async () => {});
+    dbUpdate.mockImplementation(async () => {});
+    // `telecharger` prend une copie de sécurité avant toute écriture.
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:x');
+    globalThis.URL.revokeObjectURL = vi.fn();
+  });
+
+  it("n'écrit JAMAIS `personnel` par la racine", async () => {
+    await restoreBackup(fichier({
+      periods: {}, personnel: { vous: { periods: { '2026-09': {} } } }
+    }));
+
+    expect(dbUpdate).toHaveBeenCalledTimes(1);
+    const [chemin, ecritures] = dbUpdate.mock.calls[0];
+    expect(chemin).toBeUndefined();
+    expect(Object.keys(ecritures)).not.toContain('personnel');
+  });
+
+  it('écrit SA poche par son chemin propre, après le foyer', async () => {
+    await restoreBackup(fichier({
+      periods: {},
+      personnel: { vous: { periods: { '2026-09': { variableCharges: { a: CHARGE_PERSO } } } } }
+    }));
+
+    expect(dbSet).toHaveBeenCalledWith('personnel/vous', expect.objectContaining({
+      periods: { '2026-09': { variableCharges: { a: CHARGE_PERSO } } }
+    }));
+    expect(dbUpdate.mock.invocationCallOrder[0])
+      .toBeLessThan(dbSet.mock.invocationCallOrder[0]);
+  });
+
+  it("un fichier sans poche personnelle n'en crée pas une vide", async () => {
+    // Sinon la sauvegarde suivante porterait un nœud `personnel` que celle
+    // d'avant n'avait pas — et l'enveloppe changerait de forme sans raison.
+    await restoreBackup(fichier({ periods: {}, salaries: { vous: 1 } }));
+
+    expect(dbSet).not.toHaveBeenCalled();
+  });
+
+  it('un échec du FOYER dit que rien n\'a bougé', async () => {
+    dbUpdate.mockRejectedValueOnce(new Error('PERMISSION_DENIED'));
+
+    await restoreBackup(fichier({ periods: {} }));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('n\'ont pas été modifiées'));
+  });
+
+  it('un échec de la POCHE dit que le foyer, lui, est restauré', async () => {
+    // Le cas que l'ancien message trahissait : il aurait annoncé « rien n'a
+    // été modifié » alors que tout le foyer venait d'être remplacé. La
+    // personne aurait relancé, ou pire, ne l'aurait pas fait.
+    dbSet.mockRejectedValueOnce(new Error('PERMISSION_DENIED'));
+
+    await restoreBackup(fichier({
+      periods: {}, personnel: { vous: { periods: { '2026-09': {} } } }
+    }));
+
+    const message = toast.error.mock.calls.at(-1)[0];
+    expect(message).toContain('Foyer restauré');
+    expect(message).not.toContain('n\'ont pas été modifiées');
+  });
+
+  it('LE TÉMOIN — une restauration qui aboutit ne signale aucune erreur', async () => {
+    // Sans lui, les deux cas ci-dessus seraient satisfaits par une
+    // restauration qui échoue TOUJOURS.
+    await restoreBackup(fichier({
+      periods: {}, personnel: { vous: { periods: { '2026-09': {} } } }
+    }));
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('restaurée'));
+  });
+
+  it('la fabrique efface ce que le fichier ne porte pas', async () => {
+    // La propriété qui rend la mise à jour multi-chemins équivalente au `set`
+    // d'avant SUR LES NŒUDS DU FOYER : un nœud présent en base et absent du
+    // fichier ne doit pas survivre à sa propre restauration.
+    const ecritures = ecrituresDeRestauration({ salaries: { vous: 1 } }, 'personnel', 7);
+
+    expect(ecritures.salaries).toEqual({ vous: 1 });
+    expect(ecritures.periods).toBeNull();
+    expect(ecritures.restaureLe).toBe(7);
   });
 });

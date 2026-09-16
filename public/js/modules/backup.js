@@ -12,6 +12,8 @@ import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { log, error as logError } from '../utils/debug.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
+import { normaliserEmplacement } from '../utils/members.js';
+import { getState } from '../state.js';
 
 /**
  * Marqueur du format, vérifié à la restauration
@@ -72,11 +74,36 @@ function telecharger(contenu, nom) {
 /**
  * Construit le contenu d'une sauvegarde à partir de la base
  *
+ * Exportée pour être ÉPROUVÉE. Depuis que la couverture des nœuds est tenue à
+ * la main (voir `plansDeLecture`), la seule façon de vérifier qu'un nœud
+ * déclaré est réellement lu est de relever les chemins que cette fonction
+ * demande — pas de relire sa boucle.
+ *
  * @returns {Promise<{contenu: string, nom: string, periodes: number}>}
  */
-async function buildBackup() {
-  const { dbGet } = await import('../db.js');
-  const donnees = await dbGet();
+export async function buildBackup() {
+  const { dbGet, cheminDuPersonnel, NOEUD_PERSONNEL } = await import('../db.js');
+  const emplacement = normaliserEmplacement(getState('emplacementCourant'));
+
+  const donnees = {};
+  const lectures = await Promise.all(
+    plansDeLecture(NOEUD_PERSONNEL, cheminDuPersonnel, emplacement)
+      .map(async (plan) => ({ plan, valeur: await dbGet(plan.chemin) }))
+  );
+
+  for (const { plan, valeur } of lectures) {
+    // Un nœud absent de la base ne produit AUCUNE clé, et ce n'est pas un
+    // détail de forme : cinq des treize n'existent pas dans le foyer réel — la
+    // lecture de racine ne les a jamais rendus, `validateBackup` ne les a
+    // jamais vus, et `tools/enveloppe-sauvegarde.mjs` produit la même
+    // enveloppe à partir du vidage de la CLI. Les écrire à `null` ferait
+    // diverger trois formes d'un seul fichier.
+    if (valeur === null || valeur === undefined) continue;
+    // La poche personnelle est rangée sous son propriétaire, comme en base :
+    // l'enveloppe garde la forme de l'arbre, et la restauration sait où
+    // retrouver la sienne.
+    donnees[plan.noeud] = plan.sous ? { [plan.sous]: valeur } : valeur;
+  }
 
   const enveloppe = {
     format: FORMAT,
@@ -155,6 +182,21 @@ const NOEUDS_CONNUS = [
   'versements',
   'reminders',
   'periods',
+  // La poche personnelle, arrivée le 2026-09-16 avec le mur. Elle est ici pour
+  // la même raison que les trois ci-dessus — les règles la déclarent, donc une
+  // restauration doit pouvoir la poser —, mais elle ne se lit ni ne s'écrit
+  // comme ses voisines, et les deux exceptions sont dans `buildBackup` et
+  // `restoreBackup` :
+  //
+  //   - à la LECTURE, on ne lit que la sienne. `personnel` en entier est
+  //     illisible par construction : son droit de lecture est posé un cran
+  //     plus bas, sur chaque moitié, parce que les deux moitiés n'ont pas le
+  //     même propriétaire ;
+  //   - à l'ÉCRITURE, elle ne passe JAMAIS par la racine. Un `set` de racine
+  //     efface ce qu'il ne porte pas : restaurer un fichier qui ne contient
+  //     pas la poche de l'autre — et il ne peut pas la contenir — l'aurait
+  //     effacée en silence.
+  'personnel',
   // Le marqueur de restauration, arrivé avec le déplacement du `.write` vers la
   // feuille. Il PERSISTE en base après une restauration : toute sauvegarde prise
   // ensuite le contient, et sans cette ligne elle serait refusée à la
@@ -162,6 +204,88 @@ const NOEUDS_CONNUS = [
   // une troisième fois.
   'restaureLe'
 ];
+
+/**
+ * Ce que la sauvegarde va lire, nœud par nœud
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * POURQUOI LA LECTURE DE RACINE A DISPARU
+ *
+ * `dbGet()` sans argument rendait la racine de l'espace en une requête. Depuis
+ * que le droit de lecture a descendu d'un cran — retiré de `household`, reposé
+ * sur chacun de ses enfants —, cette requête est refusée : Realtime Database
+ * refuse un nœud EN ENTIER, jamais partiellement. Elle ne rendait pas une
+ * sauvegarde amputée, elle ne rendait rien.
+ *
+ * La couverture change de nature avec elle. Elle était STRUCTURELLE : lire la
+ * racine emportait tout ce qui s'y trouvait, y compris un nœud dont personne
+ * ne se souvenait. Elle est désormais tenue À LA MAIN, par cette liste — et
+ * c'est exactement le genre de liste que ce dépôt paie en boucle. D'où le
+ * troisième cas de `tests/sauvegarde-noeuds-declares.test.js` : tout nœud
+ * déclaré doit être effectivement lu.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * L'ORDRE EST FIXÉ
+ *
+ * Realtime Database rend les enfants d'un objet dans l'ordre de leurs clés.
+ * Trier reproduit donc l'enveloppe que produisait la lecture de racine, et
+ * rend le fichier comparable d'une sauvegarde à l'autre. Tenu par
+ * `sauvegarde-noeuds-declares.test.js`, qui compare les deux enveloppes.
+ *
+ * @param {string} noeudPersonnel - Nom du nœud de la poche personnelle
+ * @param {Function} cheminDuPersonnel - Fabrique de chemin, depuis `db.js`
+ * @param {'vous'|'conjointe'} emplacement - Le propriétaire connecté
+ * @returns {Array<{noeud: string, chemin: string, sous: string|null}>}
+ */
+export function plansDeLecture(noeudPersonnel, cheminDuPersonnel, emplacement) {
+  return NOEUDS_CONNUS
+    .map((noeud) => (noeud === noeudPersonnel
+      // On ne lit que la sienne, et c'est structurel : `personnel` en entier
+      // n'est lisible par personne, son droit vit sur chaque moitié.
+      ? { noeud, chemin: cheminDuPersonnel(emplacement), sous: emplacement }
+      : { noeud, chemin: noeud, sous: null }))
+    .sort((a, b) => (a.noeud < b.noeud ? -1 : a.noeud > b.noeud ? 1 : 0));
+}
+
+/**
+ * Ce qu'une restauration écrit à la racine de l'espace
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * UN `set` DE RACINE AURAIT EFFACÉ LA POCHE DE L'AUTRE
+ *
+ * La restauration faisait `dbSet(undefined, …)` : un remplacement de la racine
+ * entière, autorisé par `household/.write` sans que rien n'exige que l'auteur
+ * puisse LIRE ce qu'il écrase. Un `set` supprime ce qu'il ne porte pas — et
+ * depuis le mur, un fichier de sauvegarde ne PEUT PLUS porter la poche de
+ * l'autre, faute du droit de la lire. Restaurer l'aurait donc effacée, sans un
+ * mot, le jour précis où l'on restaure parce que quelque chose est déjà cassé.
+ *
+ * D'où une mise à jour multi-chemins plutôt qu'un `set`. Elle garde la
+ * sémantique « on remplace tout » sur les nœuds du foyer — un nœud absent du
+ * fichier part à `null`, donc s'efface — et ne touche pas à `personnel`.
+ *
+ * `restaureLe` reste ce qui distingue une restauration d'un écrasement
+ * accidentel : `household/.write` n'autorise le remplacement d'un conteneur
+ * qu'à une écriture qui CHANGE ce marqueur. Il est donc porté ici aussi.
+ *
+ * @param {Object} donnees - `enveloppe.data` du fichier
+ * @param {string} noeudPersonnel - Nom du nœud à laisser de côté
+ * @param {number} maintenant - Valeur du marqueur de restauration
+ * @returns {Object} Mise à jour multi-chemins, relative à l'espace
+ */
+export function ecrituresDeRestauration(donnees, noeudPersonnel, maintenant) {
+  const ecritures = { restaureLe: maintenant };
+
+  for (const noeud of NOEUDS_CONNUS) {
+    if (noeud === noeudPersonnel || noeud === 'restaureLe') continue;
+    // `null` efface : c'est ce qui rend cette mise à jour équivalente au `set`
+    // d'avant sur les nœuds du foyer. Sans lui, un nœud présent en base et
+    // absent du fichier survivrait à sa propre restauration.
+    ecritures[noeud] = donnees[noeud] ?? null;
+  }
+
+  return ecritures;
+}
 
 /**
  * Valide l'enveloppe d'un fichier de sauvegarde
@@ -274,19 +398,41 @@ export async function restoreBackup(fichier) {
   );
   if (!confirme) return;
 
+  // Suit laquelle des deux écritures a abouti, pour que le message d'échec
+  // reste exact. Voir le `catch`.
+  let foyerEcrit = false;
+
   try {
     // Copie de sécurité d'abord : si l'écriture qui suit se révèle être une
     // erreur, c'est le seul chemin de retour.
     const secours = await buildBackup();
     telecharger(secours.contenu, `avant-restauration-${secours.nom}`);
 
-    const { dbSet } = await import('../db.js');
-    // `restaureLe` est ce qui distingue une restauration d'un écrasement
-    // accidentel : `household/.write` n'autorise l'écriture d'un conteneur
-    // entier qu'à un `set` qui CHANGE ce marqueur. Sans lui, la restauration
-    // est refusée — et sans la condition de changement, le marqueur laissé en
-    // base rouvrirait le trou pour toutes les écritures suivantes.
-    await dbSet(undefined, { ...enveloppe.data, restaureLe: Date.now() });
+    const { dbSet, dbUpdate, cheminDuPersonnel, NOEUD_PERSONNEL } =
+      await import('../db.js');
+    const maintenant = Date.now();
+
+    // Les nœuds du foyer, en une mise à jour multi-chemins. Ce n'est plus un
+    // `set` de racine : celui-là effaçait ce qu'il ne portait pas, donc la
+    // poche personnelle de l'autre, qu'un fichier ne peut plus contenir.
+    // `ecrituresDeRestauration` dit pourquoi, et porte le marqueur.
+    await dbUpdate(undefined,
+      ecrituresDeRestauration(enveloppe.data, NOEUD_PERSONNEL, maintenant));
+
+    // À partir d'ici, le foyer EST restauré. Ce qui suit peut encore échouer,
+    // et le message d'échec ne peut donc plus dire « rien n'a été modifié ».
+    foyerEcrit = true;
+
+    // Puis la sienne, et elle seule. Chacun restaure sa poche ; personne
+    // n'écrase celle de l'autre. Le fichier d'un foyer qui n'a rien de
+    // personnel n'en porte pas : on n'écrit alors rien du tout, plutôt que de
+    // créer un nœud vide qui changerait la forme des sauvegardes suivantes.
+    const emplacement = normaliserEmplacement(getState('emplacementCourant'));
+    const mienne = enveloppe.data[NOEUD_PERSONNEL]
+      && enveloppe.data[NOEUD_PERSONNEL][emplacement];
+    if (mienne) {
+      await dbSet(cheminDuPersonnel(emplacement), { ...mienne, restaureLe: maintenant });
+    }
 
     closeModal('modalBackup', false);
     toast.success('Sauvegarde restaurée — rechargement…');
@@ -296,6 +442,18 @@ export async function restoreBackup(fichier) {
     setTimeout(() => window.location.reload(), 1200);
   } catch (error) {
     logError('❌ Erreur de restauration :', error);
-    toast.error('Restauration impossible — vos données n\'ont pas été modifiées');
+
+    // La restauration se fait désormais en DEUX écritures — le foyer, puis la
+    // poche personnelle —, et le message doit dire laquelle a abouti.
+    //
+    // « Vos données n'ont pas été modifiées » était vrai tant qu'un seul `set`
+    // faisait tout : il passait ou il ne passait pas. Le laisser tel quel
+    // ferait dire à l'écran, sur un échec de la seconde écriture, que rien n'a
+    // bougé alors que tout le foyer vient d'être remplacé — et la personne
+    // relancerait, ou pire, ne relancerait pas.
+    toast.error(foyerEcrit
+      ? 'Foyer restauré, mais vos dépenses personnelles ne l\'ont pas été — '
+        + 'relancez la restauration'
+      : 'Restauration impossible — vos données n\'ont pas été modifiées');
   }
 }

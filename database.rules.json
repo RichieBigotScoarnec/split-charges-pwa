@@ -3,9 +3,9 @@
     ".read": false,
     ".write": false,
     "household": {
-      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
       ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com') && newData.exists() && newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()",
       "salaries": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "vous": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
         },
@@ -25,6 +25,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "members": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "vous": {
           ".validate": "newData.isString() && newData.val().length <= 60"
         },
@@ -38,6 +39,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "shareMode": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "mode": {
           ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
         },
@@ -63,10 +65,12 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "carryOverEnabled": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         ".validate": "newData.isBoolean()",
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "categoryBudgets": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "$categorie": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
         },
@@ -74,6 +78,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "customCategories": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "$rang": {
           ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
           "id": {
@@ -96,6 +101,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "customDestinations": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "$rang": {
           ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
           "id": {
@@ -118,6 +124,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "envelopes": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "$rang": {
           ".validate": "newData.hasChildren(['id', 'label']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.hasChild('proprietaire')) && (!newData.hasChild('proprietaire') || newData.child('perimetre').val() === 'solo')",
           "id": {
@@ -185,6 +192,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "versements": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "$enveloppe": {
           "$versement": {
             "montant": {
@@ -211,6 +219,7 @@
         }
       },
       "reminders": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "finMois": {
           ".validate": "newData.isBoolean()"
         },
@@ -230,6 +239,7 @@
         ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')"
       },
       "periods": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         "$periode": {
           ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
           "salaries": {
@@ -480,18 +490,408 @@
         },
         ".validate": "newData.hasChildren()"
       },
+      "personnel": {
+        "vous": {
+          ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || (auth.token.email === 'cindypepe.cp95@gmail.com' && root.child('aval/vous/actif').val() === true))",
+          ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' && newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()",
+          "periods": {
+            "$periode": {
+              ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
+              "fixedCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "variableCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "$autre": {
+                ".validate": false
+              }
+            },
+            ".validate": "newData.hasChildren()"
+          },
+          "$autre": {
+            ".validate": false
+          },
+          "restaureLe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+          }
+        },
+        "conjointe": {
+          ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'cindypepe.cp95@gmail.com' || (auth.token.email === 'bigot.richard@gmail.com' && root.child('aval/conjointe/actif').val() === true))",
+          ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' && newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()",
+          "periods": {
+            "$periode": {
+              ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
+              "fixedCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "variableCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "$autre": {
+                ".validate": false
+              }
+            },
+            ".validate": "newData.hasChildren()"
+          },
+          "$autre": {
+            ".validate": false
+          },
+          "restaureLe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+          }
+        }
+      },
       "$autre": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         ".validate": false
       },
       ".validate": "newData.hasChildren()",
       "restaureLe": {
+        ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')",
         ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
       }
     },
     "sandbox": {
-      ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
       ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com') && (!newData.exists() || (newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()))",
       "salaries": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "vous": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
         },
@@ -511,6 +911,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "members": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "vous": {
           ".validate": "newData.isString() && newData.val().length <= 60"
         },
@@ -524,6 +925,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "shareMode": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "mode": {
           ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
         },
@@ -549,10 +951,12 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "carryOverEnabled": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         ".validate": "newData.isBoolean()",
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "categoryBudgets": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "$categorie": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
         },
@@ -560,6 +964,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "customCategories": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "$rang": {
           ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
           "id": {
@@ -582,6 +987,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "customDestinations": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "$rang": {
           ".validate": "newData.isString() ? newData.val().length <= 100 : newData.hasChildren()",
           "id": {
@@ -604,6 +1010,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "envelopes": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "$rang": {
           ".validate": "newData.hasChildren(['id', 'label']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.hasChild('proprietaire')) && (!newData.hasChild('proprietaire') || newData.child('perimetre').val() === 'solo')",
           "id": {
@@ -671,6 +1078,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "versements": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "$enveloppe": {
           "$versement": {
             "montant": {
@@ -697,6 +1105,7 @@
         }
       },
       "reminders": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "finMois": {
           ".validate": "newData.isBoolean()"
         },
@@ -716,6 +1125,7 @@
         ".write": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')"
       },
       "periods": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         "$periode": {
           ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
           "salaries": {
@@ -966,11 +1376,401 @@
         },
         ".validate": "newData.hasChildren()"
       },
+      "personnel": {
+        "vous": {
+          ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || (auth.token.email === 'cindypepe.cp95@gmail.com' && root.child('aval/vous/actif').val() === true)) || auth.token.email === 'testfairsplit@gmail.com'",
+          ".write": "(auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' && newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()) || auth.token.email === 'testfairsplit@gmail.com'",
+          "periods": {
+            "$periode": {
+              ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
+              "fixedCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "variableCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "$autre": {
+                ".validate": false
+              }
+            },
+            ".validate": "newData.hasChildren()"
+          },
+          "$autre": {
+            ".validate": false
+          },
+          "restaureLe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+          }
+        },
+        "conjointe": {
+          ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'cindypepe.cp95@gmail.com' || (auth.token.email === 'bigot.richard@gmail.com' && root.child('aval/conjointe/actif').val() === true)) || auth.token.email === 'testfairsplit@gmail.com'",
+          ".write": "(auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' && newData.hasChild('restaureLe') && newData.child('restaureLe').val() != data.child('restaureLe').val()) || auth.token.email === 'testfairsplit@gmail.com'",
+          "periods": {
+            "$periode": {
+              ".validate": "$periode.matches(/^[0-9]{4}-(0[1-9]|1[0-2])$/) && newData.hasChildren()",
+              "fixedCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "variableCharges": {
+                "$id": {
+                  "description": {
+                    ".validate": "newData.isString() && newData.val().length <= 200"
+                  },
+                  "amount": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+                  },
+                  "category": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryId": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "categoryIcon": {
+                    ".validate": "newData.isString() && newData.val().length <= 20"
+                  },
+                  "paidBy": {
+                    ".validate": "newData.isString() && (newData.val() === 'vous' || newData.val() === 'conjointe' || newData.val() === 'partage' || newData.val() === 'both')"
+                  },
+                  "perimetre": {
+                    ".validate": "newData.isString() && (newData.val() === 'commun' || newData.val() === 'solo')"
+                  },
+                  "destination": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "envelope": {
+                    ".validate": "newData.isString() && newData.val().length <= 100"
+                  },
+                  "recurring": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "splitMode": {
+                    ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                  },
+                  "splitOverride": {
+                    "mode": {
+                      ".validate": "newData.isString() && (newData.val() === 'prorata' || newData.val() === '50-50' || newData.val() === 'custom')"
+                    },
+                    "vous": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "conjointe": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+                    },
+                    "$autre": {
+                      ".validate": false
+                    },
+                    ".validate": "!newData.hasChildren(['vous', 'conjointe']) || newData.child('vous').val() + newData.child('conjointe').val() === 100"
+                  },
+                  "date": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))"
+                  },
+                  "heure": {
+                    ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$/))"
+                  },
+                  "location": {
+                    "lat": {
+                      ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+                    },
+                    "lng": {
+                      ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+                    },
+                    "name": {
+                      ".validate": "newData.isString() && newData.val().length <= 200"
+                    },
+                    "timestamp": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                    },
+                    "$autre": {
+                      ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                    }
+                  },
+                  "timestamp": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+                  },
+                  "deleted": {
+                    ".validate": "newData.isBoolean()"
+                  },
+                  "$autre": {
+                    ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 500)"
+                  },
+                  ".validate": "newData.hasChildren(['amount']) && (!newData.hasChild('perimetre') || newData.child('perimetre').val() !== 'solo' || newData.child('paidBy').val() === 'vous' || newData.child('paidBy').val() === 'conjointe')",
+                  ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
+                },
+                ".validate": "newData.hasChildren()"
+              },
+              "$autre": {
+                ".validate": false
+              }
+            },
+            ".validate": "newData.hasChildren()"
+          },
+          "$autre": {
+            ".validate": false
+          },
+          "restaureLe": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
+          }
+        }
+      },
       "$autre": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         ".validate": false
       },
       ".validate": "newData.hasChildren()",
       "restaureLe": {
+        ".read": "auth != null && ((auth.token.email_verified === true && (auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'cindypepe.cp95@gmail.com')) || auth.token.email === 'testfairsplit@gmail.com')",
         ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000000"
       }
     },

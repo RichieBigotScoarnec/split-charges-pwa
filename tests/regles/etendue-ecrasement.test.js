@@ -30,6 +30,12 @@ import {
 } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
 
+// La forme RÉELLE de l'écriture de restauration, prise à sa source. La
+// recopier ici en donnerait une seconde rédaction : elle divergerait au
+// premier nœud ajouté, et ce fichier éprouverait alors une écriture que
+// l'application n'émet plus.
+const { ecrituresDeRestauration } = await import('../../public/js/modules/backup.js');
+
 const VOUS = 'bigot.richard@gmail.com';
 const COMPTE_TEST = 'testfairsplit@gmail.com';
 
@@ -154,6 +160,113 @@ describe('LE TÉMOIN — ce que la correction casserait', () => {
     const base = 'household/periods/2026-09/variableCharges';
     await semer(base, { a: CHARGE });
     await assertSucceeds(session().ref(`${base}/a`).remove());
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LA RESTAURATION ET LA POCHE DE L'AUTRE — le seul geste de ce lot qui
+ * pouvait DÉTRUIRE des données
+ *
+ * Depuis le 2026-09-16, `household/personnel/{qui}` n'est lisible que par son
+ * propriétaire, ou par l'autre sous aval. Un fichier de sauvegarde ne peut
+ * donc plus porter la poche de l'autre — on n'a pas le droit de la lire.
+ *
+ * Or la restauration écrivait la racine d'un `set`, et un `set` supprime ce
+ * qu'il ne porte pas. Restaurer aurait effacé la poche de l'autre, sans un
+ * mot, le jour précis où l'on restaure parce que quelque chose est déjà cassé.
+ *
+ * ⚠️ CE QUI PROTÈGE EST LE CLIENT, PAS LA RÈGLE. Le `set` de racine reste
+ * AUTORISÉ — le second cas ci-dessous le mesure, et l'efface bel et bien. Le
+ * fermer demanderait de descendre le `.write` de restauration, ce qui
+ * rouvrirait partiellement l'écrasement de conteneur que `4ac03f8` vient de
+ * fermer. L'arbitrage est écrit : la restauration n'emploie plus cette forme,
+ * et c'est la mise à jour multi-chemins qui est éprouvée ici.
+ */
+describe("La restauration n'efface pas la poche personnelle de l'autre", () => {
+  const PERSO = { amount: 30, description: 'Coiffeur', paidBy: 'conjointe', perimetre: 'solo' };
+
+  /** Ce qu'un fichier de sauvegarde de `vous` peut contenir — jamais la poche de l'autre */
+  const FICHIER = {
+    salaries: { vous: 2000, conjointe: 1800 },
+    shareMode: { mode: 'prorata' },
+    periods: { '2026-09': { variableCharges: { a: CHARGE } } }
+  };
+
+  /** L'état de la base avant restauration : les deux poches sont là */
+  const semerLesDeuxPoches = () => semer('household', {
+    restaureLe: 1757000000000,
+    salaries: { vous: 1, conjointe: 1 },
+    periods: { '2026-08': { variableCharges: { vieux: CHARGE } } },
+    personnel: {
+      vous: { periods: { '2026-09': { variableCharges: { m: { ...PERSO, paidBy: 'vous' } } } } },
+      conjointe: { periods: { '2026-09': { variableCharges: { s: PERSO } } } }
+    }
+  });
+
+  it('la mise à jour multi-chemins passe, et laisse les DEUX poches intactes', async () => {
+    await semerLesDeuxPoches();
+
+    await assertSucceeds(
+      session().ref('household').update(
+        ecrituresDeRestauration(FICHIER, 'personnel', Date.now())));
+
+    // Les nœuds du foyer ont bien été remplacés — sinon ce cas mesurerait une
+    // écriture qui n'a rien fait.
+    expect(await lire('household/salaries')).toEqual({ vous: 2000, conjointe: 1800 });
+    expect(await lire('household/periods/2026-08')).toBeNull();
+
+    // Et les deux poches personnelles sont là, celle de l'autre comprise.
+    expect(await lire('household/personnel/conjointe/periods/2026-09/variableCharges/s'))
+      .toEqual(PERSO);
+    expect(await lire('household/personnel/vous/periods/2026-09/variableCharges/m'))
+      .toEqual({ ...PERSO, paidBy: 'vous' });
+  });
+
+  it("LE TÉMOIN — l'ancien `set` de racine, lui, efface les deux", async () => {
+    // Ce cas mesure le DÉFAUT, et il doit rester vert : c'est lui qui dit que
+    // le danger était réel et non déduit. Le jour où cette écriture cesse
+    // d'effacer, la mise à jour multi-chemins n'achète plus rien et ce cas
+    // rougira pour le dire.
+    await semerLesDeuxPoches();
+
+    await assertSucceeds(
+      session().ref('household').set({ ...FICHIER, restaureLe: Date.now() }));
+
+    expect(await lire('household/personnel')).toBeNull();
+  });
+
+  it("la forme de restauration ne porte JAMAIS la poche personnelle", async () => {
+    // Le témoin de la fabrique elle-même, et il est nécessaire : les deux cas
+    // ci-dessus resteraient verts si `ecrituresDeRestauration` portait
+    // `personnel` à une valeur qui se trouve être la bonne. Un fichier peut
+    // contenir la poche de son auteur — elle est restaurée par un chemin
+    // dédié, jamais par la racine.
+    const ecritures = ecrituresDeRestauration(
+      { ...FICHIER, personnel: { vous: { periods: {} } } }, 'personnel', 1);
+
+    expect(Object.keys(ecritures)).not.toContain('personnel');
+    expect(ecritures.restaureLe).toBe(1);
+    // Un nœud absent du fichier part à `null` : c'est ce qui rend cette mise à
+    // jour équivalente au `set` sur les nœuds du foyer.
+    expect(ecritures.reminders).toBeNull();
+    expect(ecritures.salaries).toEqual(FICHIER.salaries);
+  });
+
+  it('chacun restaure SA poche, par son chemin propre', async () => {
+    await semerLesDeuxPoches();
+
+    // Ce que `restoreBackup` écrit après la mise à jour de racine. Le marqueur
+    // est exigé par la règle : sans lui, remplacer le conteneur est refusé.
+    await assertSucceeds(session().ref('household/personnel/vous').set({
+      periods: { '2026-09': { variableCharges: { neuf: { ...PERSO, paidBy: 'vous' } } } },
+      restaureLe: Date.now()
+    }));
+
+    // Et il ne peut pas restaurer celle de l'autre, même en la fabriquant.
+    await assertFails(session().ref('household/personnel/conjointe').set({
+      periods: {}, restaureLe: Date.now()
+    }));
   });
 });
 

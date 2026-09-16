@@ -20,6 +20,7 @@
  */
 
 import { DB_PATHS, resolveDataRoot } from './config.js';
+import { EMPLACEMENTS } from './utils/confidentialite.js';
 import { log, warn } from './utils/debug.js';
 import { noter } from './utils/diagnostics.js';
 import {
@@ -89,6 +90,53 @@ export function getDataPath(path) {
     throw new Error('User not authenticated. Cannot access database.');
   }
   return path ? `${dataRoot}/${path}` : dataRoot;
+}
+
+/**
+ * Le nœud qui porte les dépenses personnelles
+ *
+ * Il vit SOUS l'espace de données — `household/personnel`, ou `sandbox/…` en
+ * bac à sable — et non dans une racine sœur comme `prive`. C'est ce qui lui
+ * laisse le schéma complet d'une charge : catégorie, lieu, enveloppe,
+ * répartition dérogatoire. Il passe donc par le préfixage normal, et non par
+ * les quatre accès absolus.
+ */
+export const NOEUD_PERSONNEL = 'personnel';
+
+/**
+ * Le chemin des dépenses personnelles d'une personne
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * POURQUOI ICI, ET PAS DANS `utils/perimetre.js`
+ *
+ * `perimetre.js` se déclare « ne contient que des fonctions pures » et ne sait
+ * rien de l'arbre de la base : y mettre une fabrique de chemin l'obligerait à
+ * connaître `personnel`, `periods` et le préfixage d'espace. La connaissance
+ * de l'arbre vit ici, avec `getDataPath` et les quatre accès absolus.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * ELLE LÈVE SUR UN EMPLACEMENT INCONNU
+ *
+ * `normaliserEmplacement` (`utils/members.js`) retombe sur `vous`, et c'est
+ * juste pour un sélecteur de payeur : le pire y est un défaut d'affichage. Ici
+ * le pire serait d'écrire les dépenses de l'un dans la poche de l'autre, sur
+ * un mur de confidentialité. Un chemin qu'on ne sait pas construire doit
+ * s'arrêter là, pas se replier sur une moitié du foyer choisie par défaut.
+ *
+ * @param {'vous'|'conjointe'} qui - Emplacement propriétaire
+ * @param {string} [suite] - Chemin sous la poche (ex. `periods/2026-09`)
+ * @returns {string} Chemin relatif à l'espace de données
+ * @throws {Error} Sur un emplacement que le foyer ne connaît pas
+ */
+export function cheminDuPersonnel(qui, suite = '') {
+  if (!EMPLACEMENTS.includes(qui)) {
+    throw new Error(
+      `Emplacement inconnu (${JSON.stringify(qui)}) : le personnel d'une `
+      + 'personne ne peut pas être rangé sous une clé que le foyer ignore.'
+    );
+  }
+  const base = `${NOEUD_PERSONNEL}/${qui}`;
+  return suite ? `${base}/${suite}` : base;
 }
 
 // ===== ÉTAT DE LA LIAISON =====
