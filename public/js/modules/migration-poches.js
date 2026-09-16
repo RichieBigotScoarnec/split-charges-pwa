@@ -52,7 +52,7 @@ import { log, warn } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { EMPLACEMENTS } from '../utils/confidentialite.js';
 import { proprietaireDuSolo } from '../utils/perimetre.js';
-import { cheminDeLaCharge } from '../poches.js';
+import { cheminDeLaCharge, lireLesPoches } from '../poches.js';
 
 /** Les deux collections de charges d'une période */
 const COLLECTIONS = Object.freeze(['fixedCharges', 'variableCharges']);
@@ -117,7 +117,26 @@ export function planMigration({ commun, moi }) {
 /**
  * Déplace mes dépenses personnelles vers ma poche, si besoin
  *
- * @returns {Promise<number>} Nombre de charges déplacées
+ * ## Pourquoi elle rend AUSSI l'instantané de l'historique
+ *
+ * Elle est la première étape de l'ouverture à lire `periods`, et
+ * `lecture-unique.spec.js` tient qu'une ouverture ne lit chaque chemin qu'une
+ * fois : à douze mois de données, `periods` pèse 96 % des octets lus. Relire
+ * l'historique après la migration coûterait donc le double, pour un nœud qui
+ * n'a pas pu changer.
+ *
+ * **Et il n'a pas pu changer, c'est démontrable : le nœud FUSIONNÉ est
+ * invariant sous cette migration.** Déplacer une charge d'une poche à l'autre
+ * change son CHEMIN, jamais l'ensemble des charges que la fusion réunit — une
+ * charge quitte `periods/…` et arrive dans `personnel/{moi}/…`, et la fusion la
+ * lit dans les deux cas. L'instantané pris avant les écritures décrit donc
+ * exactement l'état d'après.
+ *
+ * C'est le raisonnement inverse pour le nœud COMMUN, qui change bel et bien —
+ * et c'est pour cela que c'est lui, et lui seul, que la migration inspecte.
+ *
+ * @returns {Promise<{nombre: number, instantane: *}>} Charges déplacées, et
+ *   l'historique fusionné — `undefined` quand rien n'a été lu.
  */
 export async function migrerMaPoche() {
   // LU SANS REPLI, et c'est délibéré. `normaliserEmplacement` rend `vous` pour
@@ -128,10 +147,10 @@ export async function migrerMaPoche() {
   const moi = getState('emplacementCourant');
   if (!EMPLACEMENTS.includes(moi)) {
     warn(`[Migration] emplacement inconnu (${JSON.stringify(moi)}) — rien n'est déplacé`);
-    return 0;
+    return { nombre: 0, instantane: undefined };
   }
 
-  const { dbGet, dbUpdate, liaisonRompue, saisiesEnAttente } = await import('../db.js');
+  const { dbUpdate, liaisonRompue, saisiesEnAttente } = await import('../db.js');
 
   if (liaisonRompue() || saisiesEnAttente() > 0) {
     // Voir « deux états où elle ne fait rien » en tête de fichier.
@@ -140,17 +159,17 @@ export async function migrerMaPoche() {
       enAttente: saisiesEnAttente()
     });
     log('📦 Migration des poches différée : l\'appareil et la base ne sont pas d\'accord');
-    return 0;
+    return { nombre: 0, instantane: undefined };
   }
 
-  const commun = await dbGet('periods');
+  const { commun, fusionne } = await lireLesPoches();
   const { ecritures, nombre, restantes } = planMigration({ commun, moi });
 
   if (nombre === 0) {
     if (restantes > 0) {
       log(`📦 ${restantes} dépense(s) personnelle(s) de l'autre encore dans le commun`);
     }
-    return 0;
+    return { nombre: 0, instantane: fusionne };
   }
 
   await dbUpdate(undefined, ecritures);
@@ -158,5 +177,5 @@ export async function migrerMaPoche() {
   log(`📦 ${nombre} dépense(s) personnelle(s) déplacée(s) dans votre poche`);
   noter('migration', 'poches personnelles migrées', { nombre, restantes });
 
-  return nombre;
+  return { nombre, instantane: fusionne };
 }

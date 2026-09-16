@@ -28,7 +28,9 @@ vi.mock('../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
 
-const { lirePeriodes, fusionnerLesPoches } = await import('../public/js/poches.js');
+const {
+  lirePeriodes, lireLesPoches, fusionnerLesPoches
+} = await import('../public/js/poches.js');
 const { setState, resetState } = await import('../public/js/state.js');
 
 /** Ce que le commun porte : un mois, deux collections */
@@ -220,5 +222,57 @@ describe('La fusion, éprouvée seule', () => {
     fusionnerLesPoches(commun, [POCHE('p1', 'Sport')], 2);
 
     expect(Object.keys(commun['2026-09'].variableCharges)).toEqual(['c1']);
+  });
+});
+
+describe('Les trois nœuds rendus ensemble, et pourquoi', () => {
+  /**
+   * `lireLesPoches` rend le commun BRUT en plus de la fusion. Un seul appelant
+   * en a besoin — la migration des poches, qui ne peut pas déduire du nœud
+   * fusionné où une charge vit physiquement : c'est exactement ce que la fusion
+   * efface. Les rendre ensemble évite une seconde lecture de l'historique
+   * entier, que `lecture-unique.spec.js` tient à une par ouverture.
+   */
+  it('rend le commun brut ET la fusion, en UNE passe de lectures', async () => {
+    servir({
+      periods: COMMUN(),
+      'personnel/vous/periods': POCHE('p1', 'Sport')
+    });
+
+    const { commun, fusionne } = await lireLesPoches();
+
+    expect(Object.keys(commun['2026-09'].variableCharges)).toEqual(['c1']);
+    expect(Object.keys(fusionne['2026-09'].variableCharges).sort()).toEqual(['c1', 'p1']);
+    expect(dbGet.mock.calls).toHaveLength(3);
+  });
+
+  it('LE TÉMOIN — les deux nœuds SE SÉPARENT sur ce jeu d\'essai', async () => {
+    // Sans lui, le cas ci-dessus serait satisfait par une fabrique qui rend le
+    // même objet deux fois : sur une poche vide, le commun et la fusion sont
+    // identiques — c'est même une propriété tenue plus haut.
+    servir({
+      periods: COMMUN(),
+      'personnel/vous/periods': POCHE('p1', 'Sport')
+    });
+
+    const { commun, fusionne } = await lireLesPoches();
+
+    expect(fusionne).not.toBe(commun);
+  });
+
+  it('`lirePeriodes` n\'en est que la fusion — une seule fabrique', async () => {
+    // Deux rédactions de la lecture divergeraient au premier correctif, et le
+    // symptôme serait le même mois lu différemment selon l'appelant.
+    servir({
+      periods: COMMUN(),
+      'personnel/vous/periods': POCHE('p1', 'Sport')
+    });
+
+    const parLaFusion = await lirePeriodes();
+    dbGet.mockClear();
+    const { fusionne } = await lireLesPoches();
+
+    expect(Object.keys(parLaFusion['2026-09'].variableCharges).sort())
+      .toEqual(Object.keys(fusionne['2026-09'].variableCharges).sort());
   });
 });

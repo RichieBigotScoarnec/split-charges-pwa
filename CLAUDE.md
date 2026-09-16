@@ -248,6 +248,13 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > passage de la lecture, et `renommage.js`, `migration-poches.js`,
 > `bascule-poche.js` l'importent avec ses voisins.
 >
+> **Rejoué une seconde fois à la fin du lot**, et deux lignes avaient encore
+> bougé en trois commits : `utils/members.js` 23 → 22 (la migration lit
+> `confidentialite.js` plutôt que `members.js`, pour n'avoir aucun repli
+> d'emplacement) et `utils/perimetre.js` 21 → 22 (`recurrence.js` a gagné le
+> périmètre). C'est la mesure de ce que coûte l'habitude de ne recompter
+> qu'une fois : un lot de trois commits déplace ces chiffres trois fois.
+>
 > **Et les deux chiffres du hub étaient faux, faute de définition.** Le tableau
 > annonçait « importe 28 modules et en initialise 26 ». Mesuré sur `origin/main`
 > **avant** ce lot : 28 imports statiques — le premier chiffre était juste et
@@ -2035,6 +2042,30 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 > aller le chercher. **Le geste est de télécharger l'artefact AVANT d'écrire ce
 > qu'il contient** ; `retention-days: 7` ne laisse pas de seconde chance.
 
+### Le prix d'une ouverture
+
+- **Une étape d'initialisation qui lit `periods` de son côté DOUBLE le coût
+  d'une ouverture, et `lecture-unique.spec.js` est le seul à le dire.** Mesuré
+  à douze mois de données : `periods` pèse **96 % des octets** téléchargés à
+  l'ouverture, et à cinq ans c'est 568 Ko par lecture. `initializeAppData` le
+  lit **une fois** — c'est l'étape de migration des poches qui le rapporte
+  depuis le lot P1b — et le passe à toutes les étapes qui en ont besoin, par un
+  paramètre `historique` toujours OPTIONNEL : l'oublier coûte une lecture,
+  jamais un chiffre faux.
+  **Le lot P1b l'a cassé deux fois d'un coup, et c'est le contrôle qui l'a
+  dit** — `periods` lu 3 fois, chaque poche 2 fois. Deux étapes neuves
+  lisaient chacune l'historique : la migration des poches et la reprise des
+  libellés personnels. Le remède n'est pas de relâcher le contrôle : la
+  migration rend son instantané, la reprise le reçoit.
+  **Et le raisonnement qui autorise à réutiliser l'instantané est écrit, parce
+  qu'il n'est pas évident : le nœud FUSIONNÉ est invariant sous la migration.**
+  Déplacer une charge d'une poche à l'autre change son chemin, jamais
+  l'ensemble que la fusion réunit. Le nœud COMMUN, lui, change bel et bien — et
+  c'est pour cela que c'est lui, et lui seul, que la migration inspecte
+  (`lireLesPoches`, qui rend les trois nœuds et leur fusion en une passe).
+  Une étape neuve qui a besoin de l'historique **reçoit** l'instantané ; elle
+  ne le lit pas.
+
 ### Livraison et commandes
 
 - **`sw.js` tient sa liste de précache à la main** (129 entrées). **Tout module
@@ -2293,6 +2324,60 @@ information reçue.**
 > `SECURITY.md`. Ce qui reste garanti est plus étroit et exact : une sauvegarde
 > ne peut pas contenir la poche de l'autre.
 
+> **✅ P1b APPLIQUÉ LE 2026-09-16, en trois commits — les 3 charges sont dans
+> leur poche.** Ce que P1a avait posé est maintenant rempli.
+>
+> - **La lecture.** Une seule fabrique de fusion, `poches.js`, lue par les 19
+>   sites de lecture. L'invariant est rétabli : `getState('variableCharges')` et
+>   `getState('fixedCharges')` portent le commun ET le personnel qu'on a le
+>   droit de lire, comme avant P1a. Les 33 `getState` ont suivi gratuitement.
+>   **Elle ne consulte JAMAIS `aval/`** : les quatre accès absolus lèvent en bac
+>   à sable, et un refus de lecture est une réponse suffisante — « pas de
+>   personnel », jamais une panne.
+> - **Le chemin se DÉRIVE de la charge, il ne se compose plus.**
+>   `cheminDeLaCharge(charge, {periode, collection, id})`, aux 19 sites
+>   d'écriture. Aucun marqueur n'est porté par l'objet : le périmètre et le
+>   payeur suffisent, et `perimetre.js` tranche.
+> - **La bascule « perso » est nommée, confirmée et atomique.** C'est le premier
+>   changement de chemin qu'une édition produise. Refusée, RIEN n'est écrit —
+>   pas même les autres champs.
+> - **La migration : chacun la sienne, à l'ouverture.** Personne n'a le droit
+>   d'écrire dans la poche de l'autre, donc aucun compte ne peut migrer les
+>   deux. `modules/migration-poches.js` lit le nœud COMMUN — jamais le fusionné,
+>   ce qui la rend idempotente — et renonce hors ligne comme quand des écritures
+>   attendent de partir.
+>
+> **UN DÉFAUT RÉEL, trouvé en balayant les sites d'écriture et absent du
+> relevé.** `quick-add.js` composait `periods/{mois}/variableCharges` pour TOUTE
+> dépense, « Perso » comprise : elle partait bien avec `perimetre: 'solo'` —
+> donc hors du solde — mais dans la poche COMMUNE, lisible par l'autre sans
+> aucun aval. C'est le geste le plus fréquent de l'application. Le relevé de
+> phase 1 avait compté les 19 sites de LECTURE et les traversées ; il n'avait
+> pas ouvert chaque `dbPush`.
+>
+> **TROIS ASYMÉTRIES ASSUMÉES, écrites plutôt que subies** — chacune est le prix
+> du mur, pas un défaut à réparer :
+>
+> - **le miroir.** Sa propre poche est mémorisée sur l'appareil et mise en file
+>   hors ligne ; celle de l'autre ne l'est **jamais** — ni mémoire à l'aller, ni
+>   repli au retour. Une poche qu'on ne peut pas relire est une poche qu'on
+>   n'affiche pas ;
+> - **le renommage.** Il suit les charges du foyer et les miennes ; les
+>   personnelles de l'autre gardent l'ancien libellé, et l'écran dit combien.
+>   Chacun reprend la sienne à l'ouverture (`planRattrapage`), par la
+>   correspondance dérivable entre le libellé d'une charge et l'identifiant
+>   d'une entrée — qui survit au renommage. **Sa limite est tenue par un cas :**
+>   deux renommages successifs pendant qu'une poche dort ne sont PAS repris,
+>   parce que rien ne les distingue d'un libellé étranger à la liste ;
+> - **la reconduction.** Elle porte **une marque par poche** — le seul nœud que
+>   P1b ajoute aux règles. La marque commune ne peut pas servir au personnel :
+>   celui des deux qui ouvre l'application le premier la réserve, et la poche de
+>   l'autre ne serait alors jamais reconduite.
+>
+> **Et le total de catégorie inclut toujours le personnel sans le dire** — c'est
+> P2, délibérément. Un lot qui change à la fois la lecture, les écritures et un
+> affichage de total ne se relit plus.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
@@ -2303,11 +2388,13 @@ information reçue.**
 - **`database.rules.json:979` / `:1023`** conditionnent le `.read` de
   `prive/{qui}` à `aval/{qui}/actif`. Posture « Rien » → aucun accès.
   **Vérifié contre le moteur, pas contre un libellé d'écran.**
-- **Mais les dépenses solo vivent dans `household/`** et sont **lisibles par
-  l'autre aujourd'hui, sans aucun aval**. La réalité est l'inverse de la
-  crainte : ce qu'on croyait exposé est protégé, ce qu'on saisit réellement ne
-  l'est pas. *(Toujours vrai après P1a : la structure existe, les 3 charges n'y
-  sont pas encore — voir l'encadré ci-dessus.)*
+- **~~Mais les dépenses solo vivent dans `household/`~~ ✅ REFERMÉ le
+  2026-09-16 par P1b.** Le constat était : elles étaient **lisibles par l'autre,
+  sans aucun aval**, et la réalité était l'inverse de la crainte — ce qu'on
+  croyait exposé était protégé, ce qu'on saisit réellement ne l'était pas. La
+  structure est venue avec P1a, les 3 charges avec P1b. Le texte reste, parce
+  que c'est lui qui rend le lot lisible : un constat effacé donne un dépôt qui
+  a l'air de n'avoir jamais eu le défaut.
 - **Ce constat est NEUF.** `PRIV-001`, `PRIV-002`, `PRIV-003` (agent
   `privacy-compliance`, commit `b2e5622`) portent sur Nominatim absent de
   `SECURITY.md`, sur deux fabriques de géocodage dont une n'arrondit pas la

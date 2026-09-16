@@ -170,12 +170,20 @@ export function planRenommage({ periods, champ, ancien, nouveau, moi }) {
  * @param {Object} params.periods - Nœud `periods` fusionné, tel que lu
  * @param {string} params.moi - Emplacement du compte connecté
  * @param {'category'|'destination'} params.champ
+ * `corrections` rend les objets de charge EUX-MÊMES, pour que l'appelant puisse
+ * remettre l'instantané d'accord avec la base après l'écriture. Sans cela le
+ * premier rendu de l'ouverture montrerait l'ancien libellé — celui qu'on vient
+ * précisément de corriger — et rien ne le referait. Ce module ne mute rien : il
+ * dit QUOI muter, comme il dit quoi écrire.
+ *
  * @param {Array<Object>} params.entrees - Liste partagée, `{ id, label }`
- * @returns {{chemins: Object<string, string>, nombre: number}}
+ * @returns {{chemins: Object<string, string>, nombre: number,
+ *   corrections: Array<{charge: Object, champ: string, valeur: string}>}}
  */
 export function planRattrapage({ periods, moi, champ, entrees }) {
   const chemins = {};
-  const vide = { chemins, nombre: 0 };
+  const corrections = [];
+  const vide = { chemins, nombre: 0, corrections };
 
   if (!periods || typeof periods !== 'object') return vide;
   if (champ !== 'category' && champ !== 'destination') return vide;
@@ -205,9 +213,10 @@ export function planRattrapage({ periods, moi, champ, entrees }) {
     if (!courant || courant === porte) continue;
 
     chemins[`${chemin}/${champ}`] = courant;
+    corrections.push({ charge, champ, valeur: courant });
   }
 
-  return { chemins, nombre: Object.keys(chemins).length };
+  return { chemins, nombre: Object.keys(chemins).length, corrections };
 }
 
 /**

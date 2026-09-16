@@ -345,6 +345,24 @@ laissent une charge à `B`, que rien ne distingue d'un libellé n'ayant jamais
 appartenu à la liste. Elle garde son nom : réécrire au hasard changerait la
 catégorie d'une dépense.
 
+### Chaque poche porte SA marque de reconduction (2026-09-16)
+
+`periods/$periode/reconductedFrom` marque le mois COMMUN comme reconduit. Elle
+ne peut pas servir au personnel : celui des deux qui ouvre l'application le
+premier la réserve, et la poche de l'autre ne serait alors **jamais**
+reconduite — son abonnement disparaîtrait du mois, en silence, tous les mois.
+
+Le lot P1b ajoute donc `personnel/{qui}/periods/$periode/reconductedFrom`, avec
+le `.write` de sa poche — son seul propriétaire — et le `.validate` de la marque
+commune. C'est le seul nœud que ce lot ajoute aux règles, et il est symétrique
+sous `sandbox`.
+
+Conséquence de déploiement, la même que pour P1a : **les règles précèdent le
+site.** Un client publié avant `npm run deploy:rules` verra la réservation de
+cette marque refusée, donc aucune charge personnelle reconduite — et la
+reconduction commune, elle, aboutira quand même : les deux marques sont
+réservées séparément.
+
 ### Suppression logique
 
 Les suppressions sont des `deleted: true`, jamais des effacements. Une donnée

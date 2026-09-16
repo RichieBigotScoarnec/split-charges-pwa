@@ -180,22 +180,30 @@ export function fusionnerLesPoches(commun, poches, profondeur) {
 }
 
 /**
- * Lit `periods{/sousChemin}`, les deux poches réunies
+ * Lit `periods{/sousChemin}` et rend LES TROIS NŒUDS, plus leur fusion
  *
- * C'est le remplaçant des lectures de `periods` pour tout ce qui touche aux
- * charges. Il rend exactement la forme que `dbGet` rendait : les appelants —
- * chargeurs, traversées, calculs — ne changent pas.
+ * `lirePeriodes` ne rend que la fusion, et c'est ce dont presque tout le monde
+ * a besoin. Deux appelants ont besoin du nœud COMMUN brut :
+ *
+ *   - la migration des poches, qui ne peut pas déduire du nœud fusionné où une
+ *     charge vit physiquement — c'est exactement ce que la fusion efface ;
+ *   - rien d'autre, et c'est volontaire : un accès au brut est un accès qui
+ *     peut composer un chemin, ce que ce lot a passé son temps à retirer.
+ *
+ * Les rendre ensemble évite une seconde lecture de l'historique entier.
+ * `lecture-unique.spec.js` tient le prix d'une ouverture : à douze mois de
+ * données, `periods` pèse 96 % des octets lus.
  *
  * @param {string} [sousChemin] - Sous `periods` : `''`, `'2026-09'`, `'2026-09/variableCharges'`
- * @returns {Promise<*>} Le nœud fusionné
+ * @returns {Promise<{commun: *, poches: Array<*>, fusionne: *}>}
  */
-export async function lirePeriodes(sousChemin = '') {
+export async function lireLesPoches(sousChemin = '') {
   const segments = String(sousChemin || '').split('/').filter(Boolean);
   if (segments.length >= PROFONDEUR_CHARGE) {
     // Personne ne lit une charge seule aujourd'hui, et la fusion n'aurait aucun
     // sens à ce niveau : deux poches ne peuvent pas porter la MÊME charge.
     throw new Error(
-      `lirePeriodes ne descend pas jusqu'à une charge (${sousChemin}) : `
+      `lireLesPoches ne descend pas jusqu'à une charge (${sousChemin}) : `
       + 'une charge vit dans une poche et une seule.'
     );
   }
@@ -222,7 +230,21 @@ export async function lirePeriodes(sousChemin = '') {
   const commun = await promesseCommun;
   const poches = await Promise.all(promessesDesPoches);
 
-  return fusionnerLesPoches(commun, poches, profondeur);
+  return { commun, poches, fusionne: fusionnerLesPoches(commun, poches, profondeur) };
+}
+
+/**
+ * Lit `periods{/sousChemin}`, les deux poches réunies
+ *
+ * C'est le remplaçant des lectures de `periods` pour tout ce qui touche aux
+ * charges. Il rend exactement la forme que `dbGet` rendait : les appelants —
+ * chargeurs, traversées, calculs — ne changent pas.
+ *
+ * @param {string} [sousChemin] - Sous `periods` : `''`, `'2026-09'`, `'2026-09/variableCharges'`
+ * @returns {Promise<*>} Le nœud fusionné
+ */
+export async function lirePeriodes(sousChemin = '') {
+  return (await lireLesPoches(sousChemin)).fusionne;
 }
 
 /**

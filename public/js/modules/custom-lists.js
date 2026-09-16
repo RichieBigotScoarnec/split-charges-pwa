@@ -62,7 +62,6 @@ const EMOJI_PICKER = [
 export async function initCustomLists() {
   log('📦 Initialisation module listes personnalisables');
   await loadCustomLists();
-  await reprendreMaPoche();
   log('✅ Module listes personnalisables initialisé');
 }
 
@@ -83,29 +82,39 @@ export async function initCustomLists() {
  * Une reprise qui échoue ne fait pas échouer l'ouverture : les charges gardent
  * leur ancien libellé, ce qui est exactement l'état d'avant la tentative.
  *
+ * L'historique est REÇU, pas relu : `lecture-unique.spec.js` tient qu'une
+ * ouverture ne lit chaque chemin qu'une fois, et `periods` pèse 96 % des
+ * octets lus à douze mois de données. Sans instantané — l'étape amont a
+ * échoué — il n'y a rien à reprendre, et c'est le bon défaut : reprendre des
+ * libellés sur une lecture qu'on n'a pas obtenue n'aurait aucun sens.
+ *
+ * @param {Object} [periods] - Nœud `periods` fusionné, tel que l'ouverture l'a lu
  * @returns {Promise<number>} Nombre de charges reprises
  */
-async function reprendreMaPoche() {
+export async function reprendreMesLibelles(periods) {
   try {
     const moi = normaliserEmplacement(getState('emplacementCourant'));
-    if (!moi) return 0;
+    if (!moi || !periods) return 0;
 
-    const periods = await lirePeriodes();
+    const plans = [
+      planRattrapage({ periods, moi, champ: 'category', entrees: getState('categories') }),
+      planRattrapage({ periods, moi, champ: 'destination', entrees: getState('destinations') })
+    ];
 
-    const chemins = {
-      ...planRattrapage({
-        periods, moi, champ: 'category', entrees: getState('categories')
-      }).chemins,
-      ...planRattrapage({
-        periods, moi, champ: 'destination', entrees: getState('destinations')
-      }).chemins
-    };
-
+    const chemins = Object.assign({}, ...plans.map(plan => plan.chemins));
     const nombre = Object.keys(chemins).length;
     if (nombre === 0) return 0;
 
     const { dbUpdate } = await import('../db.js');
     await dbUpdate(undefined, chemins);
+
+    // L'INSTANTANÉ EST REMIS D'ACCORD AVEC LA BASE, après l'écriture et
+    // seulement si elle a abouti. Il sert à tout le reste de l'ouverture :
+    // sans cela, le premier rendu montrerait l'ancien libellé — celui qu'on
+    // vient de corriger — et rien ne le referait avant un changement de mois.
+    for (const plan of plans) {
+      for (const { charge, champ, valeur } of plan.corrections) charge[champ] = valeur;
+    }
 
     log(`🧹 ${nombre} dépense(s) personnelle(s) remise(s) d'accord avec les listes`);
     toast.info(

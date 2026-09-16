@@ -160,10 +160,20 @@ describe('Le plan, éprouvé seul', () => {
 });
 
 describe('Ce que la migration fait réellement en base', () => {
+  /**
+   * Elle rend `{ nombre, instantane }` : elle est la première étape de
+   * l'ouverture à lire `periods`, et `lecture-unique.spec.js` tient qu'une
+   * ouverture ne lit chaque chemin qu'une fois — `periods` pèse 96 % des octets
+   * lus à douze mois de données. Le nœud FUSIONNÉ étant invariant sous cette
+   * migration (une charge change de chemin, jamais d'existence), l'instantané
+   * pris avant les écritures décrit l'état d'après.
+   */
+  const migrer = async () => (await migrerMaPoche()).nombre;
+
   it('lit le COMMUN et écrit tout en une seule mise à jour', async () => {
     dbGet.mockResolvedValue(COMMUN());
 
-    expect(await migrerMaPoche()).toBe(2);
+    expect(await migrer()).toBe(2);
 
     expect(dbGet).toHaveBeenCalledWith('periods');
     expect(dbUpdate).toHaveBeenCalledTimes(1);
@@ -181,7 +191,7 @@ describe('Ce que la migration fait réellement en base', () => {
     delete commun['2026-09'].fixedCharges.abo;
     dbGet.mockResolvedValue(commun);
 
-    expect(await migrerMaPoche()).toBe(0);
+    expect(await migrer()).toBe(0);
     expect(dbUpdate).not.toHaveBeenCalled();
   });
 
@@ -193,7 +203,7 @@ describe('Ce que la migration fait réellement en base', () => {
     liaisonRompue.mockReturnValue(true);
     dbGet.mockResolvedValue(COMMUN());
 
-    expect(await migrerMaPoche()).toBe(0);
+    expect(await migrer()).toBe(0);
     expect(dbGet).not.toHaveBeenCalled();
     expect(dbUpdate).not.toHaveBeenCalled();
   });
@@ -203,7 +213,7 @@ describe('Ce que la migration fait réellement en base', () => {
     saisiesEnAttente.mockReturnValue(3);
     dbGet.mockResolvedValue(COMMUN());
 
-    expect(await migrerMaPoche()).toBe(0);
+    expect(await migrer()).toBe(0);
     expect(dbGet).not.toHaveBeenCalled();
   });
 
@@ -213,8 +223,54 @@ describe('Ce que la migration fait réellement en base', () => {
     // façon, et le renoncement ne serait mesuré nulle part.
     dbGet.mockResolvedValue(COMMUN());
 
-    expect(await migrerMaPoche()).toBe(2);
+    expect(await migrer()).toBe(2);
     expect(dbUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('rend l\'instantané de l\'historique, pour que personne ne le relise', async () => {
+    // `lecture-unique.spec.js` tient qu'une ouverture ne lit chaque chemin
+    // qu'une fois : à douze mois de données, `periods` pèse 96 % des octets
+    // lus. Sans ce retour, la migration et l'étape des salaires le lisaient
+    // chacune — et les deux poches avec.
+    dbGet.mockResolvedValue(COMMUN());
+
+    const { instantane } = await migrerMaPoche();
+
+    expect(Object.keys(instantane)).toContain('2026-09');
+    expect(Object.keys(instantane['2026-09'].variableCharges).sort())
+      .toEqual(['coiffeur', 'courses', 'sport']);
+  });
+
+  it('LE TÉMOIN — l\'instantané est FUSIONNÉ, pas le seul commun', async () => {
+    // Sans lui, « rend l'instantané » serait satisfait par le nœud commun
+    // brut : sur le jeu d'essai ci-dessus il porte les mêmes charges, les 3
+    // n'étant pas encore déplacées. C'est la poche de l'autre qui sépare les
+    // deux lectures.
+    dbGet.mockImplementation(async (chemin) => {
+      if (chemin === 'periods') return { '2026-09': { variableCharges: {} } };
+      if (chemin === 'personnel/conjointe/periods') {
+        return { '2026-09': { variableCharges: { sien: { amount: 9 } } } };
+      }
+      return null;
+    });
+
+    const { instantane } = await migrerMaPoche();
+
+    expect(Object.keys(instantane['2026-09'].variableCharges)).toEqual(['sien']);
+  });
+
+  it('ne lit `periods` QU\'UNE FOIS, et chaque poche une fois', async () => {
+    dbGet.mockResolvedValue(COMMUN());
+
+    await migrerMaPoche();
+
+    const comptes = {};
+    for (const [chemin] of dbGet.mock.calls) comptes[chemin] = (comptes[chemin] || 0) + 1;
+    expect(comptes).toEqual({
+      periods: 1,
+      'personnel/vous/periods': 1,
+      'personnel/conjointe/periods': 1
+    });
   });
 
   it.each([[undefined], [''], ['quelquun']])(
@@ -229,7 +285,7 @@ describe('Ce que la migration fait réellement en base', () => {
       setState('emplacementCourant', emplacement);
       dbGet.mockResolvedValue(COMMUN());
 
-      expect(await migrerMaPoche()).toBe(0);
+      expect(await migrer()).toBe(0);
       expect(dbUpdate).not.toHaveBeenCalled();
     }
   );
