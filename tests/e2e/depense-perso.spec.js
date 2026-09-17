@@ -56,15 +56,31 @@ test.describe('La dépense perso', () => {
     await page.locator('#saveVariableCharge').click();
     await page.waitForTimeout(500);
 
-    const charges = await page.evaluate(async () => {
+    // ⚠️ LE CHEMIN A CHANGÉ AU LOT P1b, et c'est tout l'objet du lot.
+    //
+    // Ce cas lisait `periods/{mois}/variableCharges` — la poche COMMUNE — et il
+    // était vert : une dépense perso portait bien son périmètre, donc restait
+    // hors du solde, mais elle vivait dans le commun, **lisible par l'autre
+    // sans aucun aval**. Le contrat tenu ici était celui du défaut.
+    //
+    // Il porte désormais sur les deux moitiés de la propriété : elle est DANS
+    // la poche, et elle n'est PLUS dans le commun. La seconde compte autant —
+    // une écriture qui aurait laissé son origine en place ferait compter la
+    // dépense deux fois.
+    const { poche, commun } = await page.evaluate(async () => {
       const { dbGet } = await import('/js/db.js');
       const periode = window.__periodeCourante || document.getElementById('periodSelect')?.value;
-      return Object.values(await dbGet(`periods/${periode}/variableCharges`) || {});
+      return {
+        poche: Object.values(
+          await dbGet(`personnel/vous/periods/${periode}/variableCharges`) || {}),
+        commun: Object.values(await dbGet(`periods/${periode}/variableCharges`) || {})
+      };
     });
 
-    expect(charges).toHaveLength(1);
-    expect(charges[0].perimetre).toBe('solo');
-    expect(charges[0].paidBy).toBe('vous');
+    expect(poche).toHaveLength(1);
+    expect(poche[0].perimetre).toBe('solo');
+    expect(poche[0].paidBy).toBe('vous');
+    expect(commun).toHaveLength(0);
   });
 
   test('cocher « perso » ferme « Partagé » et la répartition spéciale', async ({ page }) => {
@@ -198,13 +214,24 @@ test.describe('La dépense perso', () => {
     await page.locator('#btnQuickAdd').click();
     await page.waitForTimeout(700);
 
-    const charges = await page.evaluate(async () => {
+    // Même changement de chemin qu'au cas du formulaire complet, et c'est ICI
+    // que le défaut vivait vraiment : `quick-add.js` composait
+    // `periods/{mois}/variableCharges` pour TOUTE dépense, « Perso » comprise.
+    // C'est le geste le plus fréquent de l'application, et le seul écran depuis
+    // lequel une dépense personnelle se saisit en trois touches.
+    const { poche, commun } = await page.evaluate(async () => {
       const { dbGet } = await import('/js/db.js');
       const periode = document.getElementById('periodSelect')?.value;
-      return Object.values(await dbGet(`periods/${periode}/variableCharges`) || {});
+      return {
+        poche: Object.values(
+          await dbGet(`personnel/vous/periods/${periode}/variableCharges`) || {}),
+        commun: Object.values(await dbGet(`periods/${periode}/variableCharges`) || {})
+      };
     });
 
-    expect(charges).toHaveLength(1);
+    expect(poche).toHaveLength(1);
+    expect(commun).toHaveLength(0);
+    const charges = poche;
     expect(charges[0].perimetre).toBe('solo');
     // Le payeur a basculé de lui-même sur une personne : « partage » aurait
     // été refusé par les règles.

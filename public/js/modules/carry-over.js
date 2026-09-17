@@ -13,6 +13,7 @@ import { setState, getState } from '../state.js';
 import { toast } from '../components/toast.js';
 import { computeBalanceChain } from '../utils/calculations.js';
 import { log, warn } from '../utils/debug.js';
+import { lirePeriodes } from '../poches.js';
 
 /** Chemin du réglage en base — global, hors des périodes */
 const SETTING_PATH = 'carryOverEnabled';
@@ -121,7 +122,7 @@ export async function refreshCarryOver({ historique, salairesGlobaux } = {}) {
   try {
     const { dbGet } = await import('../db.js');
     const [periods, globalSalaries] = await Promise.all([
-      historique === undefined ? dbGet('periods') : Promise.resolve(historique),
+      historique === undefined ? lirePeriodes() : Promise.resolve(historique),
       salairesGlobaux === undefined ? dbGet('salaries') : Promise.resolve(salairesGlobaux)
     ]);
 

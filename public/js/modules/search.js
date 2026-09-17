@@ -13,6 +13,7 @@ import { formatCurrency } from '../utils/format.js';
 import { afficherTotalDeListe, accorderLesSousTotaux } from '../utils/totaux-liste.js';
 import { moisLisible } from './envelopes.js';
 import { chargesDeTousLesMois, grouperParMois, moisRepresentes } from '../utils/recherche-historique.js';
+import { lirePeriodes } from '../poches.js';
 
 let searchTimeout = null;
 
@@ -152,8 +153,7 @@ async function chercherDansToutLHistorique(query) {
 
   let tout;
   try {
-    const { dbGet } = await import('../db.js');
-    tout = chargesDeTousLesMois(await dbGet('periods'));
+    tout = chargesDeTousLesMois(await lirePeriodes());
   } catch (erreur) {
     logError('❌ Lecture de l\'historique impossible :', erreur);
     panneau.innerHTML = '<p class="search-historique-attente">Historique illisible — réessayez.</p>';

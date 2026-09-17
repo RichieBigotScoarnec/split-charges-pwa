@@ -18,6 +18,7 @@ import {
 import { toast } from '../components/toast.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { estSolo } from '../utils/perimetre.js';
+import { lirePeriodes } from '../poches.js';
 
 /**
  * Les trois séries du graphique, couleur et libellé
@@ -127,7 +128,7 @@ export async function fetchHistoricalData(months = 6) {
     // longuement avoir corrigée partout ailleurs.
     const { dbGet } = await import('../db.js');
     const [allPeriods, salairesGlobaux] = await Promise.all([
-      dbGet('periods'),
+      lirePeriodes(),
       // Le repli des mois sans instantané complet. Sans lui, ce module est la
       // seule lecture d'argent du dépôt à ne pas passer par `resolveSalaries`.
       dbGet('salaries')

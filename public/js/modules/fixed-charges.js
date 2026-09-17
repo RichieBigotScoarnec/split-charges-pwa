@@ -31,6 +31,9 @@ import { ecouterUneFois } from '../utils/ecouteur.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { coutDesChargesFixes } from '../utils/cout-annuel.js';
+import { lirePeriodes, cheminDeLaCharge, ecrituresDuDeplacement } from '../poches.js';
+import { questionDeBascule } from '../utils/bascule-poche.js';
+import { emplacementOppose } from '../utils/confidentialite.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -129,7 +132,7 @@ export async function declarerAbonnementsProposes(cle) {
   }
 
   const currentPeriod = getState('currentPeriod');
-  const { dbGet, dbUpdate, liaisonRompue } = await import('../db.js');
+  const { dbUpdate, liaisonRompue } = await import('../db.js');
 
   // REFUSÉ HORS LIGNE, et refusé AVANT de demander confirmation.
   //
@@ -140,7 +143,7 @@ export async function declarerAbonnementsProposes(cle) {
   // demandé « Déclarer Netflix en charge fixe ? » et reçu un oui. Poser la
   // question pour rien est pire que de dire non tout de suite.
   //
-  // Et la lecture, elle, aboutirait : `dbGet` sert le miroir hors ligne. Le
+  // Et la lecture, elle, aboutirait : `lirePeriodes` sert le miroir hors ligne. Le
   // plan serait donc calculé sur un mois peut-être périmé.
   if (liaisonRompue()) {
     toast.error('Déclaration impossible hors ligne — la base doit être joignable');
@@ -154,7 +157,7 @@ export async function declarerAbonnementsProposes(cle) {
   // la base contient à cet instant, sans quoi le mois serait compté deux fois.
   let periode;
   try {
-    periode = await dbGet(`periods/${currentPeriod}`);
+    periode = await lirePeriodes(currentPeriod);
   } catch (erreur) {
     logError('❌ Lecture du mois impossible :', erreur);
     toast.error('Impossible de lire le mois');
@@ -182,13 +185,21 @@ export async function declarerAbonnementsProposes(cle) {
   if (!accepte) return false;
 
   const ecritures = {};
+  // Les chemins se DÉRIVENT de la charge, ici comme partout depuis P1b : une
+  // charge personnelle ne vit pas sous `periods/`, et composer ce chemin
+  // écrirait un fantôme dans le commun en laissant l'originale derrière.
   for (const charge of plan.aEcrire) {
-    ecritures[`periods/${currentPeriod}/fixedCharges/${await cleDeCharge()}`] = charge;
+    ecritures[cheminDeLaCharge(charge, {
+      periode: currentPeriod, collection: 'fixedCharges', id: await cleDeCharge()
+    })] = charge;
   }
   // La corbeille, jamais l'effacement : c'est la règle du dépôt, et elle laisse
   // au foyer de quoi revenir sur le geste.
   for (const charge of plan.aRetirer) {
-    ecritures[`periods/${currentPeriod}/variableCharges/${charge.id}/deleted`] = true;
+    const chemin = cheminDeLaCharge(charge, {
+      periode: currentPeriod, collection: 'variableCharges', id: charge.id
+    });
+    ecritures[`${chemin}/deleted`] = true;
   }
 
   try {
@@ -220,7 +231,7 @@ export async function declarerAbonnementsProposes(cle) {
   // toute la veille, et l'écran perdrait les autres observations au lieu de la
   // seule qu'on vient de traiter.
   try {
-    calculateSummary({ historique: await dbGet('periods') });
+    calculateSummary({ historique: await lirePeriodes() });
   } catch (erreur) {
     logError('❌ Rafraîchissement du bilan impossible :', erreur);
     calculateSummary();
@@ -343,10 +354,9 @@ export async function loadFixedCharges(instantaneDuMois) {
   }
 
   try {
-    // Use dbGet from db.js which handles UID-scoped paths
-    const { dbGet } = await import('../db.js');
+    // Les DEUX poches, réunies — cf. `loadVariableCharges`.
     const charges = instantaneDuMois === undefined
-      ? await dbGet(`periods/${currentPeriod}/fixedCharges`)
+      ? await lirePeriodes(`${currentPeriod}/fixedCharges`)
       : (instantaneDuMois?.fixedCharges ?? null);
 
     if (charges) {
@@ -505,7 +515,35 @@ async function enregistrerFixedCharge() {
       // Édition : la charge reste dans son mois, même si sa date change.
       // C'est un choix, pas une contrainte technique. Cf. `variable-charges.js`.
       key = chargeId;
-      await dbUpdate(`periods/${currentPeriod}/fixedCharges/${key}`, chargeData);
+
+      // LA BASCULE « perso » CHANGE DE POCHE, ET ELLE SE DEMANDE.
+      // Même geste et même raison que dans `variable-charges.js` : décocher
+      // « perso » par mégarde PUBLIE une dépense, et rien à l'écran ne le
+      // dirait. Refusé, RIEN n'est écrit.
+      const ancienne = (getState('fixedCharges') || []).find(c => c.id === key);
+      const deplacement = ancienne && ecrituresDuDeplacement({
+        avant: ancienne, apres: chargeData,
+        periode: currentPeriod, collection: 'fixedCharges', id: key
+      });
+
+      if (deplacement) {
+        const accepte = await showConfirmModal(questionDeBascule({
+          versLePersonnel: estSolo(chargeData),
+          autre: emplacementOppose(normaliserEmplacement(getState('emplacementCourant'))),
+          members: getState('members'),
+          description: chargeData.description,
+          montant: chargeData.amount
+        }));
+        if (!accepte) {
+          toast.info('Rien n\'a été modifié');
+          return;
+        }
+        await dbUpdate(undefined, deplacement);
+      } else {
+        await dbUpdate(cheminDeLaCharge(chargeData, {
+          periode: currentPeriod, collection: 'fixedCharges', id: key
+        }), chargeData);
+      }
       toast.success('Charge modifiée');
     } else {
       // La date décide du mois, ici aussi.
@@ -520,7 +558,9 @@ async function enregistrerFixedCharge() {
       // que la personne a déclaré, et la réécrire en silence pour la faire
       // entrer dans le mois affiché serait inventer à sa place.
       const periodeCible = periodeDeLaDate(chargeData.date) || currentPeriod;
-      key = await dbPush(`periods/${periodeCible}/fixedCharges`, chargeData);
+      key = await dbPush(cheminDeLaCharge(chargeData, {
+        periode: periodeCible, collection: 'fixedCharges'
+      }), chargeData);
       toast.success(
         periodeCible === currentPeriod
           ? 'Charge ajoutée'
@@ -629,13 +669,17 @@ export async function deleteFixedCharge(chargeId) {
     const { dbUpdate } = await import('../db.js');
 
     // Soft delete
-    await dbUpdate(`periods/${currentPeriod}/fixedCharges/${chargeId}`, { deleted: true });
+    // Dans la poche où la charge vit réellement — cf. `variable-charges.js`.
+    const chemin = cheminDeLaCharge(charge, {
+      periode: currentPeriod, collection: 'fixedCharges', id: chargeId
+    });
+    await dbUpdate(chemin, { deleted: true });
 
     // Mettre à jour le state local
     await loadFixedCharges();
     toast.success('Charge supprimée', {
       onUndo: async () => {
-        await dbUpdate(`periods/${currentPeriod}/fixedCharges/${chargeId}`, { deleted: false });
+        await dbUpdate(chemin, { deleted: false });
         await loadFixedCharges();
         calculateSummary();
         toast.success('Suppression annulée');

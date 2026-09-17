@@ -18,6 +18,7 @@ import { formatCurrency } from '../utils/format.js';
 import { formatPeriod } from '../utils/date.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { log, error as logError } from '../utils/debug.js';
+import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
 
 /**
  * Les trois collections récupérables, et ce qu'il faut pour chacune : la clé
@@ -68,6 +69,35 @@ const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 const CLE_FIREBASE = /^[^.$#[\]/\p{Cc}]+$/u;
 
 /**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LA POCHE D'UN ÉLÉMENT SUPPRIMÉ VIT EN MÉMOIRE, PAS EN BASE (lot P1b)
+ *
+ * Une charge personnelle supprimée doit être rétablie LÀ OÙ ELLE EST. Écrire
+ * `periods/…/deleted: false` sur elle créerait un nœud à un seul champ dans le
+ * commun — refusé par les règles, faute de montant — et laisserait l'originale
+ * à la corbeille : le bouton « Rétablir » paraîtrait inerte.
+ *
+ * Le chemin est DÉRIVÉ de la charge au moment où la corbeille la lit, puis
+ * retenu ici. Trois raisons de ne pas le faire autrement :
+ *
+ *   - **pas de marqueur en base.** La poche est déjà dite par le périmètre et
+ *     le payeur de la charge ; un champ de plus serait une seconde source pour
+ *     la même grandeur, et il faudrait une règle pour l'accueillir ;
+ *   - **pas de segment de plus dans `data-arg`.** La référence vient du DOM :
+ *     y ajouter la poche donnerait à quiconque peut écrire dans la page le
+ *     choix du chemin écrit. Les trois champs actuels sont déjà contrôlés un
+ *     par un pour cette raison ;
+ *   - **la table est refaite à chaque rendu.** Un rétablissement ne peut donc
+ *     viser que ce que la fenêtre montre — ce qui est exactement le geste.
+ *
+ * @type {Map<string, string>} `période:collection:identifiant` → chemin lu
+ */
+let _cheminsLus = new Map();
+
+/** La référence que porte `data-arg`, et qui sert de clé à la table */
+const referenceDe = (item) => `${item.periode}:${item.collection}:${item.id}`;
+
+/**
  * Rassemble les éléments supprimés de tous les mois
  *
  * La corbeille ne montrait que le mois affiché. Supprimer en juillet puis
@@ -81,12 +111,12 @@ const CLE_FIREBASE = /^[^.$#[\]/\p{Cc}]+$/u;
  * @returns {Promise<Array<Object>>} Éléments, mois le plus récent d'abord
  */
 async function collectAll() {
-  const { dbGet } = await import('../db.js');
-  const periods = await dbGet('periods');
+  const periods = await lirePeriodes();
   if (!periods || typeof periods !== 'object') return [];
 
   const mois = Object.keys(periods).filter(k => PERIOD_KEY.test(k)).sort().reverse();
   const trouves = [];
+  const chemins = new Map();
 
   for (const periode of mois) {
     // Un mois de valeur nulle est impossible en base, mais pas dans le miroir
@@ -97,10 +127,22 @@ async function collectAll() {
 
     for (const { cle, libelle } of COLLECTIONS) {
       for (const item of collectDeleted(contenu[cle])) {
-        trouves.push({ ...item, collection: cle, libelle, periode });
+        const trouve = { ...item, collection: cle, libelle, periode };
+        trouves.push(trouve);
+        // Le chemin se DÉRIVE de l'élément. Un remboursement n'a pas de
+        // périmètre — personne ne le saisit chez soi — et la fabrique lui rend
+        // donc le chemin commun, sans qu'un cas particulier soit écrit ici.
+        chemins.set(referenceDe(trouve), cheminDeLaCharge(item, {
+          periode, collection: cle, id: item.id
+        }));
       }
     }
   }
+
+  // Remplacée d'un bloc, jamais complétée : une table qui s'accumulerait
+  // garderait le chemin d'un élément qui a changé de poche entre deux
+  // ouvertures de la fenêtre.
+  _cheminsLus = chemins;
 
   return trouves;
 }
@@ -243,14 +285,26 @@ export async function restoreFromTrash(reference) {
   // format libre — c'est bien de la défense en profondeur, posée là où la
   // chaîne se compose plutôt que là où elle est reçue.
   const cible = COLLECTIONS.find(c => c.cle === collection);
-  if (!cible || !PERIOD_KEY.test(periode) || !CLE_FIREBASE.test(id)) {
+  // Le chemin n'est plus composé ici : il est celui qui a été LU, retenu au
+  // rendu. Une référence que la table ignore ne désigne rien — fenêtre jamais
+  // ouverte, liste rafraîchie depuis, ou référence forgée : les trois se
+  // traitent de la même façon, et c'est le bon défaut.
+  const chemin = _cheminsLus.get(`${periode}:${collection}:${id}`);
+
+  // Les trois champs restent contrôlés un par un, bien qu'ils ne composent
+  // plus le chemin : ils composent la CLÉ de la table, et la référence vient
+  // de `data-arg`, donc du DOM. Firebase refuse déjà les clés portant `.` `$`
+  // `#` `[` `]` `/`, et les règles refusent une période au format libre —
+  // c'est de la défense en profondeur, posée là où la chaîne se compose
+  // plutôt que là où elle est reçue.
+  if (!cible || !PERIOD_KEY.test(periode) || !CLE_FIREBASE.test(id) || !chemin) {
     toast.error('Élément introuvable');
     return;
   }
 
   try {
     const { dbUpdate } = await import('../db.js');
-    await dbUpdate(`periods/${periode}/${collection}/${id}`, { deleted: false });
+    await dbUpdate(chemin, { deleted: false });
 
     // L'élément peut appartenir à un autre mois que celui affiché : ne rejouer
     // les chargeurs que si le mois courant est concerné.
