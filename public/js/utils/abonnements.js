@@ -152,7 +152,20 @@ export function planDeclarationFixe({ charges, periode, mois, instant }) {
       deleted: false
     });
 
-    for (const charge of dejaLa) aRetirer.push({ id: charge.id, description: charge.description });
+    // Le PÉRIMÈTRE voyage avec l'entrée, et le payeur avec lui : depuis le lot
+    // P1b, c'est de là que se dérive le chemin où la charge vit réellement.
+    // `parLibelle` écarte déjà les charges personnelles, donc ces deux champs
+    // décrivent aujourd'hui toujours du commun — les porter quand même évite
+    // que le chemin d'écriture dépende d'un filtre posé deux fichiers plus
+    // loin, qu'aucun contrôle ne relie à lui.
+    for (const charge of dejaLa) {
+      aRetirer.push({
+        id: charge.id,
+        description: charge.description,
+        perimetre: charge.perimetre,
+        paidBy: charge.paidBy
+      });
+    }
     total += montant;
   }
 

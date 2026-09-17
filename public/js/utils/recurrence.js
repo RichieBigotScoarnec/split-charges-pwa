@@ -10,17 +10,103 @@
  *
  * Décider ce qui doit être reconduit est une question de données pures : ce
  * module la traite sans base ni DOM, pour qu'elle soit vérifiable.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * DEPUIS LE LOT P1b : DEUX POCHES, DEUX DÉCISIONS, UNE SEULE RÈGLE
+ *
+ * Le nœud reçu est FUSIONNÉ : ses collections portent le commun et les poches
+ * personnelles qu'on a le droit de lire. Trois conséquences, et aucune ne se
+ * déduit des deux autres.
+ *
+ * 1. **« Un mois déjà garni n'est pas un mois neuf » doit se compter par
+ *    poche.** Compté sur le nœud fusionné, un seul abonnement personnel dans
+ *    le mois cible bloquerait la reconduction du LOYER — et rien ne le dirait.
+ * 2. **Une charge personnelle se reconduit dans la poche de SON
+ *    propriétaire**, jamais dans le commun : le chemin se dérive d'elle, comme
+ *    partout depuis P1b.
+ * 3. **Jamais celle de l'autre.** On n'a aucun droit d'écriture chez lui, et
+ *    il reconduira la sienne à sa prochaine ouverture. Ses charges ne sont donc
+ *    pas « écartées » : elles ne sont pas de notre ressort.
+ *
+ * Les deux décisions sont INDÉPENDANTES — deux mois sources peuvent différer,
+ * un foyer sans charge fixe commune peut avoir un abonnement personnel
+ * mensuel — mais elles passent par la MÊME fabrique, `planDeLaPoche` : la règle
+ * de décision est une seule grandeur, et deux rédactions divergeraient au
+ * premier correctif.
+ *
+ * ## L'empreinte, elle aussi, est par poche
+ *
+ * `periods/$periode/reconductedFrom` marque le mois COMMUN. Elle ne peut pas
+ * servir pour le personnel : celui des deux qui ouvre l'application le premier
+ * la réserve, et la poche de l'autre ne serait alors jamais reconduite. Chaque
+ * poche porte donc la sienne, sous
+ * `personnel/{qui}/periods/$periode/reconductedFrom`, écrite par son seul
+ * propriétaire. Elle est passée à ce module, qui ne lit pas la base.
  */
+
+import { proprietaireDuSolo } from './perimetre.js';
 
 /** Format d'une clé de période : AAAA-MM */
 const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
+ * Ne retient d'une collection que les charges d'une poche
+ *
+ * @param {*} node - Nœud `fixedCharges` ou `variableCharges`, fusionné
+ * @param {string|null} poche - `null` pour le commun, sinon un emplacement
+ * @returns {Object} Un nœud de même forme, réduit
+ */
+function deLaPoche(node, poche) {
+  if (!node || typeof node !== 'object') return {};
+
+  const retenues = {};
+  for (const [cle, charge] of Object.entries(node)) {
+    if (!charge || typeof charge !== 'object') continue;
+    if (proprietaireDuSolo(charge) !== poche) continue;
+    retenues[cle] = charge;
+  }
+  return retenues;
+}
+
+/**
+ * Le plan d'UNE poche — la décision, appliquée à un périmètre
+ *
+ * @param {Object} params
+ * @param {Object} params.periods - Nœud `periods` fusionné
+ * @param {string} params.target - Période à remplir
+ * @param {*} params.empreinte - Marque de reconduction de CETTE poche
+ * @param {string|null} params.poche - `null` pour le commun, sinon un emplacement
+ * @returns {{source: string, charges: Array<Object>, variables: Array<Object>}|null}
+ */
+function planDeLaPoche({ periods, target, empreinte, poche }) {
+  // Déjà reconduit : l'empreinte fait foi, même si les charges ont depuis été
+  // supprimées.
+  if (empreinte) return null;
+
+  const cible = periods[target] || {};
+
+  // Un mois déjà garni n'est pas un mois neuf — compté DANS CETTE POCHE.
+  if (countActiveFixed(deLaPoche(cible.fixedCharges, poche)) > 0) return null;
+
+  const source = findSource(periods, target, poche);
+  if (!source) return null;
+
+  const charges = recurringCharges(deLaPoche(periods[source].fixedCharges, poche));
+  const variables = variablesReconductibles(
+    deLaPoche(periods[source].variableCharges, poche)
+  );
+
+  return (charges.length > 0 || variables.length > 0)
+    ? { source, charges, variables }
+    : null;
+}
+
+/**
  * Détermine les charges à reconduire dans une période
  *
- * La reconduction ne s'exécute qu'une fois par mois cible, et son empreinte
- * est écrite avec les charges : sans cela, supprimer une charge reconduite la
- * ferait réapparaître à chaque ouverture du mois.
+ * La reconduction ne s'exécute qu'une fois par mois cible et par poche, et son
+ * empreinte est écrite avec les charges : sans cela, supprimer une charge
+ * reconduite la ferait réapparaître à chaque ouverture du mois.
  *
  * Elle ne remonte jamais dans le passé. Ouvrir un mois ancien et vide est une
  * consultation, pas une reprise d'activité — y déverser les charges du mois
@@ -29,11 +115,16 @@ const PERIOD_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
  * @param {Object} params - Contexte de décision
  * @param {string} params.target - Période à remplir (AAAA-MM)
  * @param {string} params.currentMonth - Mois calendaire courant (AAAA-MM)
- * @param {Object} params.periods - Nœud `periods` complet, tel que lu en base
- * @returns {{source: string, charges: Array<Object>, variables: Array<Object>}|null}
- *   Le plan, ou null s'il n'y a rien à faire
+ * @param {Object} params.periods - Nœud `periods` fusionné, tel que `lirePeriodes` le rend
+ * @param {string} [params.moi] - Emplacement du compte connecté
+ * @param {*} [params.empreintePersonnelle] - Marque de reconduction de MA poche
+ * @returns {{commun: Object|null, personnel: Object|null}|null}
+ *   Les deux plans, ou null s'il n'y a rien à faire ni dans l'une ni dans
+ *   l'autre. Chaque plan porte son propre mois source.
  */
-export function planRecurrence({ target, currentMonth, periods }) {
+export function planRecurrence({
+  target, currentMonth, periods, moi, empreintePersonnelle
+}) {
   if (!PERIOD_KEY.test(target || '')) return null;
   if (!periods || typeof periods !== 'object') return null;
 
@@ -42,21 +133,17 @@ export function planRecurrence({ target, currentMonth, periods }) {
 
   const cible = periods[target] || {};
 
-  // Déjà reconduit : l'empreinte fait foi, même si les charges ont depuis été
-  // supprimées.
-  if (cible.reconductedFrom) return null;
+  const commun = planDeLaPoche({
+    periods, target, empreinte: cible.reconductedFrom, poche: null
+  });
 
-  // Un mois déjà garni n'est pas un mois neuf.
-  if (countActiveFixed(cible.fixedCharges) > 0) return null;
-
-  const source = findSource(periods, target);
-  if (!source) return null;
-
-  const charges = recurringCharges(periods[source].fixedCharges);
-  const variables = variablesReconductibles(periods[source].variableCharges);
-  return (charges.length > 0 || variables.length > 0)
-    ? { source, charges, variables }
+  // Sans emplacement connu, on ne sait pas de qui serait la charge : ne rien
+  // reconduire de personnel plutôt que de deviner une poche.
+  const personnel = moi
+    ? planDeLaPoche({ periods, target, empreinte: empreintePersonnelle, poche: moi })
     : null;
+
+  return (commun || personnel) ? { commun, personnel } : null;
 }
 
 /**
@@ -85,11 +172,17 @@ function variablesReconductibles(node) {
  * Le mois précédent immédiat n'est pas toujours le bon : un mois sauté ne doit
  * pas interrompre la reconduction.
  *
- * @param {Object} periods - Nœud `periods`
+ * La recherche est faite POCHE PAR POCHE, et c'est ce qui rend les deux
+ * décisions indépendantes : un foyer sans aucune charge fixe commune peut
+ * avoir un abonnement personnel mensuel, et un mois source commun peut ne rien
+ * porter de personnel.
+ *
+ * @param {Object} periods - Nœud `periods` fusionné
  * @param {string} target - Période cible
+ * @param {string|null} poche - `null` pour le commun, sinon un emplacement
  * @returns {string|null} Clé de la période source
  */
-function findSource(periods, target) {
+function findSource(periods, target, poche) {
   const anterieures = Object.keys(periods)
     .filter(key => PERIOD_KEY.test(key) && key < target)
     .sort()
@@ -99,8 +192,10 @@ function findSource(periods, target) {
     const mois = periods[key] || {};
     // Un foyer peut n'avoir aucune charge fixe et une essence mensuelle : ne
     // regarder que les fixes lui refuserait la reconduction sans rien dire.
-    if (recurringCharges(mois.fixedCharges).length > 0) return key;
-    if (variablesReconductibles(mois.variableCharges).length > 0) return key;
+    if (recurringCharges(deLaPoche(mois.fixedCharges, poche)).length > 0) return key;
+    if (variablesReconductibles(
+      deLaPoche(mois.variableCharges, poche)
+    ).length > 0) return key;
   }
   return null;
 }

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { planRenommage, planBudget, libelleAcceptable } from '../../public/js/utils/renommage.js';
+import {
+  planRenommage, planBudget, planRattrapage, libelleAcceptable
+} from '../../public/js/utils/renommage.js';
 import { computeCategoryBudgets, summarizeBudgets } from '../../public/js/utils/budgets.js';
 
 /**
@@ -84,6 +86,218 @@ describe('Les écritures qu\'exige un renommage', () => {
 
     expect(nombre).toBe(1);
     expect(chemins['periods/2026-08/fixedCharges/x/destination']).toBe('Compte commun');
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LES DEUX POCHES (lot P1b)
+ *
+ * Le nœud reçu est FUSIONNÉ : il porte le commun et les poches personnelles
+ * qu'on a le droit de lire. Deux propriétés en découlent, et elles ne se
+ * mesurent pas l'une avec l'autre.
+ */
+
+/** Un mois qui porte les trois cas : commun, ma poche, celle de l'autre */
+const TROIS_POCHES = {
+  '2026-09': {
+    variableCharges: {
+      commune: { description: 'Courses', category: 'Restaurent', amount: 40, paidBy: 'vous' },
+      amoi: {
+        description: 'Midi seul', category: 'Restaurent', amount: 14,
+        paidBy: 'vous', perimetre: 'solo'
+      },
+      aelle: {
+        description: 'Midi seule', category: 'Restaurent', amount: 16,
+        paidBy: 'conjointe', perimetre: 'solo'
+      }
+    }
+  }
+};
+
+describe('Le renommage écrit dans la poche où la charge VIT', () => {
+  const plan = () => planRenommage({
+    periods: TROIS_POCHES, champ: 'category',
+    ancien: 'Restaurent', nouveau: 'Restaurant', moi: 'vous'
+  });
+
+  it('une charge commune garde le chemin commun', () => {
+    expect(plan().chemins['periods/2026-09/variableCharges/commune/category'])
+      .toBe('Restaurant');
+  });
+
+  it('MA charge personnelle part dans MA poche, pas dans le commun', () => {
+    // Le défaut que ce cas ferme : recomposer `periods/…` pour une charge
+    // personnelle écrirait un fantôme dans le commun — un nœud à un seul champ,
+    // sans montant — et laisserait l'originale avec son ancien libellé.
+    const { chemins } = plan();
+
+    expect(chemins['personnel/vous/periods/2026-09/variableCharges/amoi/category'])
+      .toBe('Restaurant');
+    expect(chemins).not.toHaveProperty('periods/2026-09/variableCharges/amoi/category');
+  });
+
+  it('LA CHARGE DE L\'AUTRE n\'est pas écrite du tout, et elle est COMPTÉE', () => {
+    // On n'a aucun droit d'écriture chez l'autre. Pousser ce chemin ferait
+    // échouer la mise à jour ENTIÈRE — `update` applique tout ou rien — donc le
+    // renommage échouerait aussi pour les charges du foyer.
+    const { chemins, nombre, horsDePortee } = plan();
+
+    expect(Object.keys(chemins).some(c => c.includes('conjointe'))).toBe(false);
+    expect(chemins).not.toHaveProperty('periods/2026-09/variableCharges/aelle/category');
+    expect(nombre).toBe(2);
+    expect(horsDePortee).toBe(1);
+  });
+
+  it('LE TÉMOIN — les trois charges sont bien candidates', () => {
+    // Sans lui, « la charge de l'autre n'est pas écrite » serait satisfait par
+    // un jeu d'essai où aucune charge ne porte le libellé cherché : le plan
+    // serait vide, et les trois assertions ci-dessus vertes pour rien.
+    expect(Object.values(TROIS_POCHES['2026-09'].variableCharges)
+      .filter(charge => charge.category === 'Restaurent')).toHaveLength(3);
+  });
+
+  it('et le compte change de côté quand c\'est l\'autre qui renomme', () => {
+    // Le cas symétrique, sur le MÊME jeu d'essai : c'est lui qui prouve que le
+    // filtre lit `moi` et non un nom en dur.
+    const { chemins, nombre, horsDePortee } = planRenommage({
+      periods: TROIS_POCHES, champ: 'category',
+      ancien: 'Restaurent', nouveau: 'Restaurant', moi: 'conjointe'
+    });
+
+    expect(chemins['personnel/conjointe/periods/2026-09/variableCharges/aelle/category'])
+      .toBe('Restaurant');
+    expect(nombre).toBe(2);
+    expect(horsDePortee).toBe(1);
+  });
+});
+
+describe('CE QUE CHACUN REPREND DANS SA POCHE, À L\'OUVERTURE', () => {
+  /**
+   * Une entrée de liste garde son identifiant à travers un renommage : c'est
+   * tout l'intérêt du renommage. L'identifiant est la racine du libellé
+   * d'ORIGINE, donc un libellé de charge absent de la liste dont la racine
+   * désigne une entrée existante nomme cette entrée, sous son ancien nom.
+   */
+  const LISTE = [
+    { id: 'restaurent', label: 'Restaurant' },
+    { id: 'essence', label: 'Essence' }
+  ];
+
+  const MA_POCHE = {
+    '2026-09': {
+      variableCharges: {
+        amoi: { category: 'Restaurent', amount: 14, paidBy: 'vous', perimetre: 'solo' },
+        ajour: { category: 'Essence', amount: 62, paidBy: 'vous', perimetre: 'solo' },
+        aelle: { category: 'Restaurent', amount: 16, paidBy: 'conjointe', perimetre: 'solo' },
+        commune: { category: 'Restaurent', amount: 40, paidBy: 'vous' }
+      }
+    }
+  };
+
+  it('remet MA charge d\'accord avec le libellé courant de son entrée', () => {
+    const { chemins, nombre } = planRattrapage({
+      periods: MA_POCHE, moi: 'vous', champ: 'category', entrees: LISTE
+    });
+
+    expect(nombre).toBe(1);
+    expect(chemins['personnel/vous/periods/2026-09/variableCharges/amoi/category'])
+      .toBe('Restaurant');
+  });
+
+  it('ne touche NI la poche de l\'autre NI le commun', () => {
+    // Ni l'une ni l'autre pour la même raison : ce ne sont pas les miennes. Et
+    // une charge commune au libellé périmé serait un renommage qui a échoué
+    // pour les deux — une autre panne, que réparer ici masquerait.
+    const { chemins } = planRattrapage({
+      periods: MA_POCHE, moi: 'vous', champ: 'category', entrees: LISTE
+    });
+
+    expect(Object.keys(chemins)).toEqual([
+      'personnel/vous/periods/2026-09/variableCharges/amoi/category'
+    ]);
+  });
+
+  it('laisse tranquille une charge dont le libellé est déjà à jour', () => {
+    const { chemins } = planRattrapage({
+      periods: MA_POCHE, moi: 'vous', champ: 'category', entrees: LISTE
+    });
+
+    expect(chemins).not.toHaveProperty(
+      'personnel/vous/periods/2026-09/variableCharges/ajour/category'
+    );
+  });
+
+  it('SA LIMITE, dite plutôt que cachée : deux renommages de suite ne sont pas repris', () => {
+    // A → B → C pendant qu'une poche dort laisse une charge à `B`, dont la
+    // racine ne vaut pas l'identifiant (resté `a`). Rien ne la distingue d'un
+    // libellé qui n'a jamais appartenu à la liste, et réécrire au hasard
+    // changerait la catégorie d'une dépense. Elle garde son libellé.
+    const { nombre } = planRattrapage({
+      periods: {
+        '2026-09': {
+          variableCharges: {
+            x: { category: 'Bistrot', amount: 9, paidBy: 'vous', perimetre: 'solo' }
+          }
+        }
+      },
+      moi: 'vous',
+      champ: 'category',
+      entrees: [{ id: 'restaurent', label: 'Table du soir' }]
+    });
+
+    expect(nombre).toBe(0);
+  });
+
+  it('les accents ne font pas échouer la correspondance', () => {
+    // `racineDepuisLibelle` déplie les accents : « Café » donne `cafe`. Une
+    // correspondance qui les perdrait laisserait toutes les catégories
+    // accentuées derrière, c'est-à-dire la moitié d'une liste française.
+    const { chemins } = planRattrapage({
+      periods: {
+        '2026-09': {
+          fixedCharges: {
+            y: { category: 'Café', amount: 3, paidBy: 'vous', perimetre: 'solo' }
+          }
+        }
+      },
+      moi: 'vous',
+      champ: 'category',
+      entrees: [{ id: 'cafe', label: 'Bistrot' }]
+    });
+
+    expect(chemins['personnel/vous/periods/2026-09/fixedCharges/y/category'])
+      .toBe('Bistrot');
+  });
+
+  it('sait reprendre une destination aussi', () => {
+    const { chemins, nombre } = planRattrapage({
+      periods: {
+        '2026-09': {
+          fixedCharges: {
+            z: { destination: 'Compte joint', amount: 700, paidBy: 'vous', perimetre: 'solo' }
+          }
+        }
+      },
+      moi: 'vous',
+      champ: 'destination',
+      entrees: [{ id: 'compte-joint', label: 'Compte commun' }]
+    });
+
+    expect(nombre).toBe(1);
+    expect(chemins['personnel/vous/periods/2026-09/fixedCharges/z/destination'])
+      .toBe('Compte commun');
+  });
+
+  it.each([
+    ['un nœud absent', { periods: null }],
+    ['un emplacement inconnu', { moi: '' }],
+    ['un champ hors des deux', { champ: 'amount' }],
+    ['une liste qui n\'en est pas', { entrees: null }]
+  ])('ne rend aucune écriture sur %s', (_, remplacement) => {
+    expect(planRattrapage({
+      periods: MA_POCHE, moi: 'vous', champ: 'category', entrees: LISTE, ...remplacement
+    }).nombre).toBe(0);
   });
 });
 

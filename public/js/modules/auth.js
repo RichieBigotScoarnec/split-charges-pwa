@@ -9,6 +9,7 @@ import { toast } from '../components/toast.js';
 import { ALLOWED_EMAILS, SIGNUP_ENABLED, resolveDataRoot, FIREBASE_CONFIG, DB_PATHS, EMPLACEMENTS_PAR_COMPTE } from '../config.js';
 import { emplacementDuCompte } from '../utils/members.js';
 import { initPeriod, loadPeriodData, backfillPeriodSalaries, chargerLesPeriodesConnues } from './period.js';
+import { migrerMaPoche } from './migration-poches.js';
 import { initShareMode, loadShareMode } from './share-mode.js';
 import { initVariableCharges, loadVariableCharges } from './variable-charges.js';
 import { initSelectionCharges } from './selection-charges.js';
@@ -31,6 +32,7 @@ import { ecoulerLesSaisiesGardees } from '../utils/reprise.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { noter } from '../utils/diagnostics.js';
 import { messageErreurAuth, estUnGesteUtilisateur } from '../utils/auth-errors.js';
+import { lirePeriodes } from '../poches.js';
 
 let appInitialized = false;
 
@@ -353,11 +355,51 @@ async function initializeAppData() {
   log('📦 Initialisation des données utilisateur...');
   const failures = [];
 
+  // L'historique, lu UNE fois pour toute l'initialisation.
+  //
+  // Déclaré en TÊTE de la fonction depuis le lot P1b : c'est désormais l'étape
+  // de migration des poches qui le rapporte, et elle passe bien avant les
+  // étapes qui le consomment.
+  //
+  // Quatre étapes en avaient besoin et le relisaient chacune : le complément
+  // des salaires, la chaîne de report, la reconduction et le sélecteur de mois.
+  // Mesuré à douze mois de données : 4 × 113 Ko, soit 96 % de tout ce que
+  // l'ouverture télécharge — et à cinq ans, 4 × 568 Ko.
+  //
+  // Rien n'est mis en cache : cette valeur vit dans cette fonction et disparaît
+  // avec elle. Il n'y a donc aucune règle d'invalidation à écrire ni à se
+  // rappeler. Chaque destinataire garde son paramètre OPTIONNEL : l'oublier
+  // coûte une lecture, jamais un chiffre faux.
+  let instantanePeriods;
+  let salairesGlobaux;
+
   // Le sélecteur de mois se calcule à partir de la date courante, sans aucune
   // lecture en base. Il passe donc en premier et hors de toute étape réseau :
   // même base injoignable, l'utilisateur garde sa navigation entre les mois.
   // L'ordre inverse rendait la navigation otage d'un incident de connexion.
   await runStep('sélecteur de période', () => initPeriod(), failures);
+
+  // LES DÉPENSES PERSONNELLES REJOIGNENT LEUR POCHE, avant toute lecture de
+  // charge. Le lot P1a a posé le mur sans déplacer de donnée : les dépenses
+  // `perimetre: 'solo'` vivaient encore dans le commun, donc lisibles par
+  // l'autre sans aucun aval. Chaque compte déplace les SIENNES — personne n'a
+  // le droit d'écrire dans la poche de l'autre.
+  //
+  // Avant les listes et avant les charges : tout ce qui suit lit le nœud
+  // FUSIONNÉ, et doit le lire dans son état définitif. Son échec ne bloque
+  // rien — les charges restent où elles sont, c'est-à-dire là où elles étaient
+  // hier, et la migration se retentera à la prochaine ouverture.
+  //
+  // Elle rend AUSSI l'instantané de l'historique, et c'est ce qui garde le prix
+  // d'une ouverture : elle est la première à lire `periods`, qui pèse 96 % des
+  // octets lus à douze mois de données. Le nœud FUSIONNÉ est invariant sous la
+  // migration — une charge change de chemin, jamais d'existence —, donc
+  // l'instantané pris avant les écritures décrit l'état d'après. Voir
+  // `migration-poches.js`, et `lecture-unique.spec.js` qui tient le prix.
+  await runStep('migration des poches', async () => {
+    const { instantane } = await migrerMaPoche();
+    instantanePeriods = instantane;
+  }, failures);
 
   // Les listes personnalisées alimentent les <select> des autres modules :
   // elles restent en tête des étapes réseau, mais leur échec ne bloque plus
@@ -375,6 +417,15 @@ async function initializeAppData() {
     } finally {
       populateAllSelects();
     }
+  }, failures);
+
+  // Les libellés de MA poche, remis d'accord avec les listes partagées. Après
+  // les listes — il les lui faut — et après la migration, dont elle reçoit
+  // l'instantané. Un renommage fait par l'autre personne n'a pas pu suivre mes
+  // dépenses personnelles : elle n'a pas le droit d'écrire chez moi.
+  await runStep('libellés personnels', async () => {
+    const { reprendreMesLibelles } = await import('./custom-lists.js');
+    await reprendreMesLibelles(instantanePeriods);
   }, failures);
 
   // Les enveloppes étiquettent les charges à l'affichage : elles doivent être
@@ -432,20 +483,6 @@ async function initializeAppData() {
     initBackup();
   }, failures);
 
-  // L'historique, lu UNE fois pour toute l'initialisation.
-  //
-  // Quatre étapes en avaient besoin et le relisaient chacune : le complément
-  // des salaires, la chaîne de report, la reconduction et le sélecteur de mois.
-  // Mesuré à douze mois de données : 4 × 113 Ko, soit 96 % de tout ce que
-  // l'ouverture télécharge — et à cinq ans, 4 × 568 Ko.
-  //
-  // Rien n'est mis en cache : cette valeur vit dans cette fonction et disparaît
-  // avec elle. Il n'y a donc aucune règle d'invalidation à écrire ni à se
-  // rappeler. Chaque destinataire garde son paramètre OPTIONNEL : l'oublier
-  // coûte une lecture, jamais un chiffre faux.
-  let instantanePeriods;
-  let salairesGlobaux;
-
   // Les trois listes du mois sont chargées par `loadPeriodData` ; les étapes
   // suivantes les rechargeaient derrière lui. Ce drapeau les en dispense —
   // sauf si l'étape a échoué, auquel cas le filet de `runStep` doit jouer et
@@ -471,10 +508,16 @@ async function initializeAppData() {
 
   await runStep('salaires de la période', async () => {
     const { dbGet } = await import('../db.js');
-    [instantanePeriods, salairesGlobaux] = await Promise.all([
-      dbGet('periods'),
+    // L'historique est réutilisé quand l'étape de migration l'a rapporté : il
+    // n'a pas pu changer depuis, et le relire doublerait le coût d'une
+    // ouverture. Sans lui — cette étape a échoué, ou l'appareil était hors
+    // ligne — on le lit, et l'application s'ouvre quand même.
+    const [lu, salaires] = await Promise.all([
+      instantanePeriods === undefined ? lirePeriodes() : instantanePeriods,
       dbGet('salaries')
     ]);
+    instantanePeriods = lu;
+    salairesGlobaux = salaires;
 
     // Fige les salaires des périodes antérieures aux instantanés, avant tout
     // calcul : sinon le premier bilan affiché serait encore rétro-actif.

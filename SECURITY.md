@@ -263,6 +263,36 @@ Isolation plus stricte, si la machine dispose d'un JDK 21+ et du port 9000
 libre : `npm run emulators` puis `FairSplit.html?emulator=1`, qui n'écrit rien
 dans le cloud.
 
+### Le miroir hors ligne, et pourquoi il est ASYMÉTRIQUE (2026-09-16)
+
+`dbGet` mémorise toute lecture réussie dans `localStorage`, et les écritures y
+sont mises en file hors réseau. C'est ce que les quatre accès absolus évitent
+pour `prive/`, avec sa raison : cette origine est partagée par tous les dépôts
+Pages du compte.
+
+La poche personnelle, elle, vit **sous** l'espace de données — c'est ce qui lui
+laisse le schéma complet d'une charge —, donc elle passe par les deux. Décision
+du foyer :
+
+- **la sienne** reste mémorisée et mise en file. Même classe d'exposition que
+  ses charges communes, déjà dans ce `localStorage` — et c'est ce qui garde la
+  saisie hors réseau, qui est toujours la sienne ;
+- **celle de l'autre**, jamais. Lecture en direct, ou pas de lecture. Sinon elle
+  survivrait à la révocation de l'aval : le mur se referme en base, et le détail
+  resterait sur l'appareil.
+
+La garde est **structurelle** — `personnelDeLAutre` (`js/db.js`) lit le chemin
+et le compare à l'emplacement du compte connecté —, et non un drapeau passé par
+l'appelant : un drapeau s'oublie au prochain site d'appel, et il s'oublierait en
+silence. Elle porte sur la lecture (ni mémoire, ni repli par le miroir) **et**
+sur la file, où elle est refaite au rejeu : entre le dépôt et le retour du
+réseau, le dossier a passé du temps dans un stockage que l'application ne
+possède pas seule.
+
+`tests/modules/hors-ligne.test.js` tient les deux faces, et le témoin qui les
+sépare : sa poche est gardée hors ligne, celle de l'autre ne laisse rien, et le
+refus **dit** qu'il s'agit d'un tiers.
+
 ### Un fichier de sauvegarde porte les dépenses personnelles EN CLAIR
 
 Le mur est en **base**, pas dans le fichier. « Télécharger une sauvegarde » lit
@@ -287,6 +317,51 @@ cas : elle exporte `/household` avec un jeton d'administration, qui ne passe
 pas par les règles. Son archive contient donc les **deux** poches — et c'est
 précisément pourquoi elle est chiffrée avant d'être déposée (voir *Le dépôt est
 privé*).
+
+### Personne ne peut écrire dans la poche de l'autre — ce que ça coûte (2026-09-16)
+
+C'est la propriété centrale du mur, et elle a un prix ailleurs qu'en sécurité.
+Trois gestes du foyer ne peuvent pas être menés à bien par une seule personne :
+
+- **La migration des dépenses personnelles.** Le lot P1a a posé la poche sans
+  déplacer de donnée ; le lot P1b la remplit. Aucun compte ne peut migrer les
+  deux poches : chacun déplace les siennes à l'ouverture
+  (`modules/migration-poches.js`). Un mois où l'un des deux n'ouvre pas
+  l'application laisse ses dépenses là où elles étaient — dans le commun, donc
+  lisibles par l'autre. **C'est un état transitoire assumé, pas une garantie.**
+- **Le renommage d'une catégorie ou d'une destination.** Il suit les charges du
+  foyer et celles de qui renomme ; les dépenses personnelles de l'autre gardent
+  l'ancien libellé. Le renommage n'est pas refusé pour autant — ce serait rendre
+  une liste partagée inmodifiable par une donnée qu'on ne voit peut-être même
+  pas. Le compte concerné les reprend à sa prochaine ouverture
+  (`utils/renommage.js → planRattrapage`), et l'écran dit combien de dépenses
+  attendent.
+- **La restauration d'une sauvegarde**, déjà décrite ci-dessus.
+
+Et la reprise des libellés a une limite, dite plutôt que cachée : elle
+s'appuie sur l'identifiant de l'entrée, qui est la racine de son libellé
+d'ORIGINE. Deux renommages successifs pendant qu'une poche dort — A → B → C —
+laissent une charge à `B`, que rien ne distingue d'un libellé n'ayant jamais
+appartenu à la liste. Elle garde son nom : réécrire au hasard changerait la
+catégorie d'une dépense.
+
+### Chaque poche porte SA marque de reconduction (2026-09-16)
+
+`periods/$periode/reconductedFrom` marque le mois COMMUN comme reconduit. Elle
+ne peut pas servir au personnel : celui des deux qui ouvre l'application le
+premier la réserve, et la poche de l'autre ne serait alors **jamais**
+reconduite — son abonnement disparaîtrait du mois, en silence, tous les mois.
+
+Le lot P1b ajoute donc `personnel/{qui}/periods/$periode/reconductedFrom`, avec
+le `.write` de sa poche — son seul propriétaire — et le `.validate` de la marque
+commune. C'est le seul nœud que ce lot ajoute aux règles, et il est symétrique
+sous `sandbox`.
+
+Conséquence de déploiement, la même que pour P1a : **les règles précèdent le
+site.** Un client publié avant `npm run deploy:rules` verra la réservation de
+cette marque refusée, donc aucune charge personnelle reconduite — et la
+reconduction commune, elle, aboutira quand même : les deux marques sont
+réservées séparément.
 
 ### Suppression logique
 

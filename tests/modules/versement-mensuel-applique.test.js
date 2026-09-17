@@ -77,8 +77,18 @@ const contenuDe = (enveloppe) => Math.round(
 /** Une écriture a-t-elle seulement été tentée ? */
 const aTenteDEcrire = () => dbSet.mock.calls.length + dbUpdate.mock.calls.length > 0;
 
-vi.mock('../../public/js/db.js', () => ({
-  dbGet, dbSet, dbUpdate,
+// Le double de `db.js` enveloppe l'ORIGINAL plutôt que de le remplacer.
+//
+// Depuis le lot P1b, les lectures de charges passent par `poches.js`, qui
+// demande `cheminDuPersonnel` à `db.js`. Un double qui ne le porte pas fait
+// échouer la fusion ; un double qui le RÉÉCRIT en donnerait une seconde
+// rédaction, et ces cas mesureraient alors un chemin que l'application
+// n'emprunte pas. Seuls les accès sont remplacés.
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  dbGet: (...a) => dbGet(...a),
+  dbSet: (...a) => dbSet(...a),
+  dbUpdate: (...a) => dbUpdate(...a),
   dbPush: vi.fn(() => Promise.resolve('cle')),
   getDataPath: vi.fn(chemin => `household/${chemin}`)
 }));

@@ -671,6 +671,10 @@
                 },
                 ".validate": "newData.hasChildren()"
               },
+              "reconductedFrom": {
+                ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}$/)",
+                ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com'"
+              },
               "$autre": {
                 ".validate": false
               }
@@ -863,6 +867,10 @@
                   ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'"
                 },
                 ".validate": "newData.hasChildren()"
+              },
+              "reconductedFrom": {
+                ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}$/)",
+                ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com'"
               },
               "$autre": {
                 ".validate": false
@@ -1557,6 +1565,10 @@
                 },
                 ".validate": "newData.hasChildren()"
               },
+              "reconductedFrom": {
+                ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}$/)",
+                ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'bigot.richard@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
+              },
               "$autre": {
                 ".validate": false
               }
@@ -1749,6 +1761,10 @@
                   ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
                 },
                 ".validate": "newData.hasChildren()"
+              },
+              "reconductedFrom": {
+                ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}$/)",
+                ".write": "auth != null && auth.token.email_verified === true && auth.token.email === 'cindypepe.cp95@gmail.com' || auth.token.email === 'testfairsplit@gmail.com'"
               },
               "$autre": {
                 ".validate": false

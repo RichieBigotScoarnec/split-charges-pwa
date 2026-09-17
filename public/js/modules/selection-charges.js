@@ -27,6 +27,7 @@
 // passe, et le compte rendu dit les deux nombres. Cf. `compteRenduDuLot`.
 
 import { getState, setState } from '../state.js';
+import { cheminDeLaCharge } from '../poches.js';
 import { toast } from '../components/toast.js';
 import { showConfirmModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
@@ -199,7 +200,18 @@ async function ecrireSurLeLot({ ids, champs }) {
   for (const id of ids) {
     try {
       const aEcrire = typeof champs === 'function' ? champs(id) : champs;
-      await dbUpdate(`periods/${currentPeriod}/variableCharges/${id}`, aEcrire);
+      // Le chemin se dérive de la CHARGE, pas de son identifiant : une charge
+      // personnelle ne vit pas au chemin commun, et l'y écrire créerait un
+      // fantôme là où l'autre la verrait.
+      const charge = chargesAffichees().find(c => c.id === id);
+      if (!charge) {
+        echouees.push(id);
+        warn(`[Lot] Charge ${id} introuvable dans la liste affichée`);
+        continue;
+      }
+      await dbUpdate(cheminDeLaCharge(charge, {
+        periode: currentPeriod, collection: 'variableCharges', id
+      }), aEcrire);
       faites += 1;
     } catch (error) {
       echouees.push(id);
@@ -280,7 +292,13 @@ export async function supprimerLaSelection() {
         const { dbUpdate } = await import('../db.js');
         for (const id of rendues) {
           try {
-            await dbUpdate(`periods/${currentPeriod}/variableCharges/${id}`, { deleted: false });
+            // La charge est revenue dans l'état après le rechargement : son
+            // périmètre y est, donc sa poche aussi.
+            const charge = (getState('variableCharges') || []).find(c => c.id === id)
+              || (getState('deleted.variableCharges') || []).find(c => c.id === id);
+            await dbUpdate(cheminDeLaCharge(charge || {}, {
+              periode: currentPeriod, collection: 'variableCharges', id
+            }), { deleted: false });
           } catch (error) {
             warn(`[Lot] Charge ${id} non restaurée :`, error?.message || error);
           }

@@ -19,9 +19,19 @@ import { resolve } from 'node:path';
 const dbPush = vi.fn(() => Promise.resolve('cle'));
 const dbGet = vi.fn(() => Promise.resolve(null));
 
-vi.mock('../../public/js/db.js', () => ({
-  dbPush,
-  dbGet,
+// Le double de `db.js` enveloppe l'ORIGINAL plutôt que de le remplacer.
+//
+// Depuis le lot P1b, les lectures de charges passent par `poches.js`, qui
+// demande `cheminDuPersonnel` à `db.js`. Un double qui ne le porte pas fait
+// échouer la fusion ; un double qui le RÉÉCRIT en donnerait une seconde
+// rédaction, et ces cas mesureraient alors un chemin que l'application
+// n'emprunte pas. Seuls les accès sont remplacés.
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  // Accesseurs PARESSEUX — voir `reglement-solde.test.js` : une référence
+  // directe tombe en zone morte temporelle et Vitest sert l'original.
+  dbPush: (...a) => dbPush(...a),
+  dbGet: (...a) => dbGet(...a),
   dbSet: vi.fn(() => Promise.resolve()),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`)
@@ -85,6 +95,7 @@ const BALISAGE = `
       <div class="quick-add-panneau" id="quickAddPanneauRepartition">
       <button type="button" id="quickSplitProrata" class="selected">Prorata</button>
       <button type="button" id="quickSplit5050">50-50</button>
+      <button type="button" id="quickSplitPerso">Perso</button>
       </div>
       <button type="button" id="btnQuickAdd">Ajouter</button>
     </div>
@@ -516,6 +527,57 @@ describe('La répartition choisie est celle qui s\'applique', () => {
   });
 });
 
+describe('« Perso » ÉCRIT DANS LA POCHE, et ce n\'était pas le cas', () => {
+  /**
+   * La saisie rapide sait produire une dépense personnelle — `splitMode` vaut
+   * alors `perso` et la charge part avec `perimetre: 'solo'`. Le chemin, lui,
+   * était COMPOSÉ en clair : `periods/{mois}/variableCharges`. La dépense
+   * atterrissait donc dans la poche COMMUNE, lisible par l'autre personne sans
+   * aucun aval — elle ne pesait pas sur le solde, et c'est tout ce que le
+   * périmètre lui achetait.
+   *
+   * C'est le geste le plus fréquent de l'application, et le seul écran depuis
+   * lequel une dépense personnelle se saisit en trois touches.
+   */
+  /** Le chemin visé par la dernière écriture */
+  const dernierChemin = () => dbPush.mock.calls.at(-1)[0];
+
+  beforeEach(() => {
+    setState('emplacementCourant', 'vous');
+  });
+
+  it('une dépense « Perso » part dans la poche de son payeur', async () => {
+    document.getElementById('quickSplitPerso').click();
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().perimetre).toBe('solo');
+    expect(dernierChemin()).toMatch(/^personnel\/vous\/periods\/\d{4}-\d{2}\/variableCharges$/);
+  });
+
+  it('LE TÉMOIN — une dépense ordinaire reste dans le commun', async () => {
+    // Sans lui, « part dans la poche » serait satisfait par un chemin
+    // personnel écrit pour TOUTE dépense — ce qui mettrait le commun du foyer
+    // hors de vue de l'autre, le défaut inverse et pire.
+    saisir({ montant: '20' });
+    await valider();
+
+    expect(derniereCharge().perimetre).toBe('commun');
+    expect(dernierChemin()).toMatch(/^periods\/\d{4}-\d{2}\/variableCharges$/);
+  });
+
+  it('et la poche suit le PAYEUR, pas le téléphone', async () => {
+    // Le chemin se dérive de la charge. Un chemin dérivé de l'emplacement
+    // courant écrirait chez moi une dépense que j'ai attribuée à l'autre — et
+    // les règles la refuseraient, sans que rien ne dise pourquoi.
+    document.getElementById('quickSplitPerso').click();
+    saisir({ montant: '20', payeur: 'conjointe' });
+    await valider();
+
+    expect(dernierChemin()).toMatch(/^personnel\/conjointe\//);
+  });
+});
+
 describe('Le balisage livré, et non celui des tests', () => {
   /**
    * Les cas ci-dessus posent leur propre balisage, réduit à ce que le module
@@ -803,9 +865,21 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
 
   const ORIGINE = getCategories();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Le `beforeEach` global ouvre déjà la modale, ce qui remplit le cache
     // pour la période en cours. On repart donc d'un module vierge.
+    //
+    // Et on l'ATTEND avant de nettoyer. Cette ouverture lance une lecture
+    // d'historique qui, depuis le lot P1b, vaut trois allers-retours — le
+    // commun et les deux poches. Elle atterrissait donc APRÈS ce nettoyage, et
+    // le cas suivant héritait d'un historique qu'il croyait vierge : sa propre
+    // lecture sortait tôt, `dbGet` n'était jamais appelé, et la grille
+    // proposait l'ordre du foyer au lieu des habitudes semées.
+    //
+    // Le second nettoyage encadre l'attente : ce qui est arrivé pendant est
+    // effacé, ce qui arrive après se reconnaît périmé (`_generationFrequentes`).
+    cleanupQuickAdd();
+    await new Promise((fini) => setTimeout(fini, 0));
     cleanupQuickAdd();
     dbGet.mockClear();
   });
@@ -876,12 +950,21 @@ describe('L\'historique retenu ne déborde pas de son mois ni de son compte', ()
     document.body.innerHTML = BALISAGE;
     initQuickAdd();
     window.showQuickAddModal();
-    await vi.waitFor(() => expect(dbGet).toHaveBeenCalledTimes(1));
+
+    // Le NOMBRE d'allers-retours par chargement a changé au lot P1b : une
+    // lecture de charges en vaut trois — le commun, et les deux poches
+    // personnelles. La propriété que ce cas tient n'a pas bougé pour autant :
+    // une ouverture de plus ne relit RIEN. Elle se mesure donc par rapport à ce
+    // qu'a coûté le premier chargement, et non contre un chiffre écrit ici —
+    // qui redeviendrait faux au prochain changement de forme.
+    await vi.waitFor(() => expect(proposes()[0]).toBe('bar'));
+    const apresLePremierChargement = dbGet.mock.calls.length;
+    expect(apresLePremierChargement).toBeGreaterThan(0);
 
     window.showQuickAddModal();
     window.showQuickAddModal();
 
-    expect(dbGet).toHaveBeenCalledTimes(1);
+    expect(dbGet).toHaveBeenCalledTimes(apresLePremierChargement);
   });
 });
 

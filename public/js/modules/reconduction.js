@@ -17,12 +17,14 @@
 
 import { getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
-import { getDataPath } from '../db.js';
+import { getDataPath, cheminDuPersonnel, dbGet } from '../db.js';
+import { EMPLACEMENTS } from '../utils/confidentialite.js';
 import { reporterDansLaPeriode } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import { planRecurrence } from '../utils/recurrence.js';
 import { log, error as logError } from '../utils/debug.js';
+import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
 
 let database = null;
 
@@ -64,17 +66,36 @@ export async function applyRecurringCharges({ historique } = {}) {
   if (!target) return 0;
 
   try {
-    const { dbGet } = await import('../db.js');
-    const periods = historique === undefined ? await dbGet('periods') : historique;
+    const periods = historique === undefined ? await lirePeriodes() : historique;
+
+    // L'emplacement est lu SANS REPLI. `normaliserEmplacement` rendrait `vous`
+    // pour toute valeur inconnue — le bon comportement partout ailleurs, où un
+    // repli ne coûte qu'un libellé. Ici il déciderait dans quelle POCHE
+    // atterrissent des charges : ne rien reconduire de personnel vaut mieux
+    // que de le reconduire chez l'autre.
+    const brut = getState('emplacementCourant');
+    const moi = EMPLACEMENTS.includes(brut) ? brut : null;
+
+    // L'empreinte de MA poche, lue à part : la fusion ne remonte que les
+    // collections de charges, jamais les termes du mois — et celle-ci vit hors
+    // du nœud commun, par construction du mur.
+    const cheminEmpreintePersonnelle = moi
+      ? cheminDuPersonnel(moi, `periods/${target}/reconductedFrom`)
+      : null;
+    const empreintePersonnelle = cheminEmpreintePersonnelle
+      ? await dbGet(cheminEmpreintePersonnelle)
+      : null;
 
     const plan = planRecurrence({
       target,
       currentMonth: getCurrentPeriod(),
-      periods
+      periods,
+      moi,
+      empreintePersonnelle
     });
     if (!plan) return 0;
 
-    // Réserver l'empreinte avant de copier quoi que ce soit.
+    // ═══ RÉSERVER CHAQUE EMPREINTE AVANT DE COPIER QUOI QUE CE SOIT ═══
     //
     // Lire « pas encore reconduit » puis écrire n'est pas atomique : deux
     // appels concurrents passent tous deux la vérification et copient chacun
@@ -83,112 +104,168 @@ export async function applyRecurringCharges({ historique } = {}) {
     // chaque charge fixe en double.
     //
     // `transaction` tranche côté serveur : un seul appel obtient la marque.
-    const empreinte = database.ref(getDataPath(`periods/${target}/reconductedFrom`));
-    const reservation = await empreinte.transaction(
-      actuel => (actuel === null ? plan.source : undefined));
+    //
+    // DEUX empreintes, une par poche. Celle du mois commun ne peut pas servir
+    // au personnel : celui des deux qui ouvre l'application le premier la
+    // réserve, et la poche de l'autre ne serait alors jamais reconduite.
+    // LE CHEMIN EST LE MÊME POUR LES DEUX POCHES, et ce n'est pas un oubli :
+    // il se dérive de la CHARGE, pas de la poche qu'on est en train de
+    // traiter. Une fonction par poche en serait une seconde rédaction, et la
+    // moins à jour rangerait des charges au mauvais endroit.
+    const chemin = (charge, collection, id) => cheminDeLaCharge(charge, {
+      periode: target, collection, id
+    });
 
-    if (!reservation.committed) {
-      log(`🔁 Reconduction vers ${target} déjà réservée par un autre appel`);
-      return 0;
+    const poches = [];
+    if (plan.commun) {
+      poches.push({
+        nom: 'commun',
+        plan: plan.commun,
+        empreinte: database.ref(getDataPath(`periods/${target}/reconductedFrom`))
+      });
+    }
+    if (plan.personnel) {
+      poches.push({
+        nom: `poche de « ${moi} »`,
+        plan: plan.personnel,
+        empreinte: database.ref(getDataPath(cheminEmpreintePersonnelle))
+      });
     }
 
+    /** Les empreintes réellement obtenues, à rendre si la copie échoue */
+    const reservees = [];
     const updates = {};
+    let reconduites = 0;
+    const sources = new Set();
 
-    for (const charge of plan.charges) {
-      const key = database.ref().push().key;
-      // La date suit le mois, en gardant son quantième : un loyer prélevé le 5
-      // reste prélevé le 5. Recopiée telle quelle, la date de janvier ferait
-      // afficher « 5 janv. » sur la charge de février — une charge qui dit
-      // appartenir à un mois où elle ne figure pas.
-      const date = reporterDansLaPeriode(charge.date, target);
-      updates[getDataPath(`periods/${target}/fixedCharges/${key}`)] = {
-        ...charge,
-        // `null` supprimerait la clé, ce qui est le bon comportement pour une
-        // charge d'avant ce champ : mieux vaut aucune date qu'une date d'un
-        // autre mois.
-        ...(date ? { date } : { date: null }),
-        timestamp: Date.now()
-      };
-    }
+    // ═══ TOUT CE QUI SUIT UNE RÉSERVATION VIT SOUS LE MÊME FILET ═══
+    //
+    // Le `try` commence AVANT la première réservation, et c'est le lot P1b qui
+    // l'a rendu nécessaire. Avec une seule empreinte, la réservation et la
+    // copie se suivaient : rien ne pouvait lever entre les deux. Avec deux, la
+    // SECONDE réservation peut échouer — règle pas encore déployée, liaison
+    // coupée — alors que la première est déjà posée.
+    //
+    // La levée sortait alors de la boucle sans rendre ce qui avait été réservé,
+    // et le mois commun restait marqué « reconduit » sans une seule charge en
+    // face. `planRecurrence` s'y arrête pour de bon : « l'empreinte fait foi,
+    // même si les charges ont depuis été supprimées ». Le loyer disparaissait
+    // du mois, définitivement, en silence — le constat le plus cher de l'audit,
+    // réintroduit par sa propre correction.
+    try {
+      for (const poche of poches) {
+        const reservation = await poche.empreinte.transaction(
+          actuel => (actuel === null ? poche.plan.source : undefined));
 
-    // Les charges variables reconduites repartent **sans leur montant**.
-    //
-    // Une charge variable est par définition d'un montant qui change : l'essence,
-    // la cantine, le panier de la semaine. La recopier avec son chiffre
-    // inventerait de l'argent — et pas seulement à l'écran de celui qui ouvre
-    // l'application : le solde est partagé, et il serait faux pour les deux
-    // jusqu'à ce que quelqu'un corrige. Dans une application dont tout l'objet
-    // est un solde exact, c'est le défaut le plus cher qu'on puisse introduire.
-    //
-    // Zéro ne fausse rien : `calculations.js` le compte pour zéro, et la ligne
-    // se signale « à compléter » dans la liste.
-    for (const charge of plan.variables || []) {
-      const key = database.ref().push().key;
-      const date = reporterDansLaPeriode(charge.date, target);
-      updates[getDataPath(`periods/${target}/variableCharges/${key}`)] = {
-        ...charge,
-        amount: 0,
-        ...(date ? { date } : { date: null }),
-        timestamp: Date.now()
-      };
-    }
+        if (!reservation.committed) {
+          log(`🔁 Reconduction vers ${target} (${poche.nom}) déjà réservée par un autre appel`);
+          continue;
+        }
+        reservees.push(poche.empreinte);
+        sources.add(poche.plan.source);
 
-    // Le mois naissant fige le mode de partage qui lui est appliqué.
-    //
-    // `calculations.js` lit déjà `period.shareMode || shareMode` — « un mois
-    // peut avoir figé son propre mode de partage » — mais personne n'écrivait
-    // jamais ce champ, et les règles l'auraient refusé. Le repli était donc
-    // toujours pris : toute la chaîne de report se rejouait avec le mode du
-    // jour. Mesuré : un juillet réglé, remboursé et clos ressuscitait une
-    // dette de 125 € le jour où le foyer décidait de passer au 50-50 — pour
-    // l'avenir, croyait-il.
-    //
-    // L'empreinte part dans la même écriture atomique que les charges : un
-    // mois reconduit porte le mode sous lequel il l'a été.
-    const modeDuMois = getState('shareMode');
-    if (modeDuMois) {
-      updates[getDataPath(`periods/${target}/shareMode`)] = modeDuMois;
+        for (const charge of poche.plan.charges) {
+          const key = database.ref().push().key;
+          // La date suit le mois, en gardant son quantième : un loyer prélevé le
+          // 5 reste prélevé le 5. Recopiée telle quelle, la date de janvier
+          // ferait afficher « 5 janv. » sur la charge de février — une charge
+          // qui dit appartenir à un mois où elle ne figure pas.
+          const date = reporterDansLaPeriode(charge.date, target);
+          // LE CHEMIN SE DÉRIVE DE LA CHARGE, ici comme partout depuis P1b : une
+          // charge personnelle se reconduit dans la poche de son propriétaire, et
+          // composer `periods/…` la publierait.
+          updates[getDataPath(chemin(charge, 'fixedCharges', key))] = {
+            ...charge,
+            // `null` supprimerait la clé, ce qui est le bon comportement pour une
+            // charge d'avant ce champ : mieux vaut aucune date qu'une date d'un
+            // autre mois.
+            ...(date ? { date } : { date: null }),
+            timestamp: Date.now()
+          };
+          reconduites += 1;
+        }
 
-      // Les pourcentages FONT PARTIE du mode « custom ».
-      //
-      // Figer le mode seul ne protégeait rien sur celui-là : les pourcentages
-      // restaient globaux, donc au présent. Passer de 70/30 à 60/40 « pour
-      // l'avenir » rouvrait un mois déjà soldé et remboursé — 100 € mesurés,
-      // reportés ensuite de mois en mois.
-      //
-      // Le prorata n'en a pas besoin (ses paramètres sont les salaires, que
-      // `backfillPeriodSalaries` fige déjà) et le 50-50 n'a rien à figer.
-      if (modeDuMois === 'custom') {
-        const parts = getState('customPercents');
-        const vous = Number(parts?.vous);
-        const conjointe = Number(parts?.conjointe);
-        // Les règles exigent une somme de 100 : une paire hors-somme serait
-        // refusée APRÈS le toast de succès, et rendrait l'empreinte.
-        if (Number.isFinite(vous) && Number.isFinite(conjointe) && vous + conjointe === 100) {
-          updates[getDataPath(`periods/${target}/customPercents`)] = { vous, conjointe };
+        // Les charges variables reconduites repartent **sans leur montant**.
+        //
+        // Une charge variable est par définition d'un montant qui change :
+        // l'essence, la cantine, le panier de la semaine. La recopier avec son
+        // chiffre inventerait de l'argent — et pas seulement à l'écran de celui
+        // qui ouvre l'application : le solde est partagé, et il serait faux pour
+        // les deux jusqu'à ce que quelqu'un corrige. Dans une application dont
+        // tout l'objet est un solde exact, c'est le défaut le plus cher qu'on
+        // puisse introduire.
+        //
+        // Zéro ne fausse rien : `calculations.js` le compte pour zéro, et la
+        // ligne se signale « à compléter » dans la liste.
+        for (const charge of poche.plan.variables || []) {
+          const key = database.ref().push().key;
+          const date = reporterDansLaPeriode(charge.date, target);
+          updates[getDataPath(chemin(charge, 'variableCharges', key))] = {
+            ...charge,
+            amount: 0,
+            ...(date ? { date } : { date: null }),
+            timestamp: Date.now()
+          };
         }
       }
-    }
 
-    // Rendre l'empreinte si la copie échoue.
-    //
-    // L'empreinte était posée avant la copie et n'était jamais reprise. Une
-    // coupure ou un refus de règle entre les deux lignes laissait le mois
-    // marqué « reconduit » sans une seule charge — et `planRecurrence` s'y
-    // arrête pour de bon : « Déjà reconduit : l'empreinte fait foi, même si
-    // les charges ont depuis été supprimées ». Aucune réouverture ne
-    // réessayait, et rien à l'écran ne le disait : le loyer disparaissait du
-    // mois, définitivement, en silence.
-    //
-    // La rendre remet le mois dans l'état où la transaction l'a trouvé, donc
-    // reconductible à la prochaine ouverture. Si cette écriture-là échoue
-    // aussi — la liaison est coupée, c'est le cas probable — le mois reste
-    // marqué : on ne peut pas faire mieux depuis l'appareil, mais l'erreur
-    // d'origine remonte au lieu d'être avalée.
-    try {
+      if (reservees.length === 0) return 0;
+
+      // Le mois naissant fige le mode de partage qui lui est appliqué.
+      //
+      // `calculations.js` lit déjà `period.shareMode || shareMode` — « un mois
+      // peut avoir figé son propre mode de partage » — mais personne n'écrivait
+      // jamais ce champ, et les règles l'auraient refusé. Le repli était donc
+      // toujours pris : toute la chaîne de report se rejouait avec le mode du
+      // jour. Mesuré : un juillet réglé, remboursé et clos ressuscitait une
+      // dette de 125 € le jour où le foyer décidait de passer au 50-50 — pour
+      // l'avenir, croyait-il.
+      //
+      // Il ne concerne QUE le mois commun : une poche personnelle ne porte
+      // aucune répartition, personne ne doit rien à personne dessus.
+      const modeDuMois = plan.commun ? getState('shareMode') : null;
+      if (modeDuMois) {
+        updates[getDataPath(`periods/${target}/shareMode`)] = modeDuMois;
+
+        // Les pourcentages FONT PARTIE du mode « custom ».
+        //
+        // Figer le mode seul ne protégeait rien sur celui-là : les pourcentages
+        // restaient globaux, donc au présent. Passer de 70/30 à 60/40 « pour
+        // l'avenir » rouvrait un mois déjà soldé et remboursé — 100 € mesurés,
+        // reportés ensuite de mois en mois.
+        //
+        // Le prorata n'en a pas besoin (ses paramètres sont les salaires, que
+        // `backfillPeriodSalaries` fige déjà) et le 50-50 n'a rien à figer.
+        if (modeDuMois === 'custom') {
+          const parts = getState('customPercents');
+          const vous = Number(parts?.vous);
+          const conjointe = Number(parts?.conjointe);
+          // Les règles exigent une somme de 100 : une paire hors-somme serait
+          // refusée APRÈS le toast de succès, et rendrait l'empreinte.
+          if (Number.isFinite(vous) && Number.isFinite(conjointe) && vous + conjointe === 100) {
+            updates[getDataPath(`periods/${target}/customPercents`)] = { vous, conjointe };
+          }
+        }
+      }
+
+      // Rendre les empreintes si la copie échoue.
+      //
+      // L'empreinte était posée avant la copie et n'était jamais reprise. Une
+      // coupure ou un refus de règle entre les deux lignes laissait le mois
+      // marqué « reconduit » sans une seule charge — et `planRecurrence` s'y
+      // arrête pour de bon : « Déjà reconduit : l'empreinte fait foi, même si
+      // les charges ont depuis été supprimées ». Aucune réouverture ne
+      // réessayait, et rien à l'écran ne le disait : le loyer disparaissait du
+      // mois, définitivement, en silence.
+      //
+      // Les rendre remet le mois dans l'état où les transactions l'ont trouvé,
+      // donc reconductible à la prochaine ouverture. Si ces écritures-là
+      // échouent aussi — la liaison est coupée, c'est le cas probable — le mois
+      // reste marqué : on ne peut pas faire mieux depuis l'appareil, mais
+      // l'erreur d'origine remonte au lieu d'être avalée.
       await database.ref().update(updates);
     } catch (echec) {
-      await empreinte.set(null).catch(() => {});
+      for (const empreinte of reservees) await empreinte.set(null).catch(() => {});
       throw echec;
     }
 
@@ -198,9 +275,18 @@ export async function applyRecurringCharges({ historique } = {}) {
     const { calculateSummary } = await import('./summary.js');
     calculateSummary();
 
-    const nombre = plan.charges.length;
-    toast.info(`${nombre} charge${nombre > 1 ? 's' : ''} fixe${nombre > 1 ? 's' : ''} reconduite${nombre > 1 ? 's' : ''} depuis ${formatPeriod(plan.source)}`);
-    log(`🔁 ${nombre} charge(s) reconduite(s) de ${plan.source} vers ${target}`);
+    // Le message nomme LE mois source quand les deux poches viennent du même,
+    // ce qui est le cas courant. Deux sources différentes — une poche qui a
+    // sauté un mois que le commun n'a pas sauté — ne se racontent pas en une
+    // phrase : le journal les porte, l'écran dit le nombre.
+    const depuis = [...sources];
+    const nombre = reconduites;
+    toast.info(
+      `${nombre} charge${nombre > 1 ? 's' : ''} fixe${nombre > 1 ? 's' : ''} `
+      + `reconduite${nombre > 1 ? 's' : ''}`
+      + (depuis.length === 1 ? ` depuis ${formatPeriod(depuis[0])}` : '')
+    );
+    log(`🔁 ${nombre} charge(s) reconduite(s) de ${depuis.join(', ')} vers ${target}`);
 
     return nombre;
   } catch (error) {
