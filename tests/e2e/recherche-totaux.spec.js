@@ -155,6 +155,124 @@ test.describe('Les totaux suivent la recherche', () => {
   });
 });
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ET LE MÊME RELEVÉ QUAND LE MOIS PORTE DU PERSONNEL
+ *
+ * Le jeu d'essai ci-dessus n'en sème AUCUN : les six cas qui précèdent étaient
+ * donc verts par chance sur tout ce que le lot P2 déplace. `euros()` ne lit que
+ * le PREMIER montant d'un en-tête, et un en-tête qui annonce
+ * « 294,32 € + 10,00 € perso » lui rend 294,32 — la valeur juste, obtenue sans
+ * que rien n'ait mesuré le second volet.
+ *
+ * Ce bloc sème deux dépenses personnelles dans « Courses » et tient trois
+ * propriétés qu'un mois sans personnel ne peut pas séparer :
+ *
+ * 1. au rendu, le pied ne les compte pas et l'en-tête les NOMME ;
+ * 2. **la recherche ne défait pas le filtre** — chercher le libellé d'une
+ *    dépense personnelle sous « À deux » ne la fait pas réapparaître ;
+ * 3. sortir de la recherche rend l'en-tête AVEC son volet personnel, ce qui
+ *    n'est vrai que si le retour au mois entier ne passe pas par la liste
+ *    filtrée.
+ */
+async function semerAvecPerso(page) {
+  await page.evaluate(async () => {
+    const { dbUpdate, dbSet } = await import('/js/db.js');
+    const now = new Date();
+    const p = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    await dbSet('salaries', { vous: 2600, conjointe: 1900 });
+    const c = {};
+    [['Intermarché', 94.15, 'Courses'], ['Intermarché', 112.85, 'Courses'],
+      ['Intermarché', 87.32, 'Courses']]
+      .forEach(([description, amount, category], i) => {
+        c[`periods/${p}/variableCharges/v${i}`] = {
+          description, amount, category, paidBy: 'vous',
+          date: `${p}-0${i + 1}`, deleted: false };
+      });
+    // La poche personnelle, et non `periods/` avec un marqueur : depuis P1b
+    // c'est le CHEMIN qui met une dépense derrière le mur.
+    [['Coiffeur', 10, 'Courses'], ['Magazine', 5, 'Courses']]
+      .forEach(([description, amount, category], i) => {
+        c[`personnel/vous/periods/${p}/variableCharges/s${i}`] = {
+          description, amount, category, paidBy: 'vous', perimetre: 'solo',
+          date: `${p}-0${i + 4}`, deleted: false };
+      });
+    await dbUpdate(undefined, c);
+    await window.changePeriod(p);
+  });
+  await page.waitForTimeout(2500);
+}
+
+test.describe('Les totaux suivent la recherche, personnel compris', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupFirebaseMock(page);
+    await waitForApp(page);
+    await semerAvecPerso(page);
+    await allerAuPanneau(page, 'panneauCharges');
+    await page.waitForTimeout(400);
+  });
+
+  test('LE TÉMOIN POSITIF — le semis porte bien du personnel lisible', async ({ page }) => {
+    // Sans lui, les trois cas suivants seraient satisfaits par un semis dont
+    // la poche personnelle n'aurait jamais été écrite : « la liste ne montre
+    // pas le personnel » est vrai d'un mois qui n'en a pas.
+    const perso = await page.evaluate(async () => {
+      const { dbGet } = await import('/js/db.js');
+      const p = document.getElementById('periodSelect').value;
+      return Object.values(await dbGet(`personnel/vous/periods/${p}/variableCharges`) || {});
+    });
+    expect(perso).toHaveLength(2);
+    expect(perso.every(c => c.perimetre === 'solo')).toBe(true);
+  });
+
+  test('au rendu : le pied ne les compte pas, l\'en-tête les nomme', async ({ page }) => {
+    const r = await releve(page);
+
+    // Trois lignes communes, et seulement elles.
+    expect(r.lignes).toBe(3);
+    expect(euros(r.totalVariables)).toBeCloseTo(294.32, 2);
+    expect(r.totalVariables).not.toContain('perso');
+
+    // L'en-tête baisse ET le dit. Les 15,00 € y sont nommés en clair : c'est
+    // le second volet, celui qu'`euros()` ne lit pas.
+    const [[categorie, entete]] = r.enTetes;
+    expect(categorie).toBe('Courses');
+    expect(euros(entete)).toBeCloseTo(294.32, 2);
+    expect(entete.replace(/[\s\u202F\u00A0]/g, '')).toContain('15,00');
+    expect(entete).toContain('perso');
+  });
+
+  test('LA RECHERCHE NE DÉFAIT PAS LE FILTRE', async ({ page }) => {
+    // Le défaut qu'il attrape : une recherche qui parcourrait l'état brut
+    // rendrait sous « À deux » une dépense que la portée vient d'en retirer —
+    // et le total la compterait, puisqu'il compte ce qui est visible.
+    await page.locator('#searchInput').fill('coiffeur');
+    await page.waitForTimeout(900);
+
+    const r = await releve(page);
+    expect(r.lignes).toBe(0);
+    expect(euros(r.totalVariables)).toBeCloseTo(0, 2);
+    await expect(page.locator('#variableChargesList')).not.toContainText('Coiffeur');
+  });
+
+  test('sortir de la recherche rend l\'en-tête AVEC son volet personnel', async ({ page }) => {
+    const avant = await releve(page);
+    expect(avant.enTetes[0][1]).toContain('perso');
+
+    await page.locator('#searchInput').fill('intermarche');
+    await page.waitForTimeout(900);
+    await page.locator('#searchClearBtn').click();
+    await page.waitForTimeout(900);
+
+    const apres = await releve(page);
+    // Le retour au mois entier ne passe pas par la liste filtrée : sinon
+    // l'en-tête perdrait son volet personnel après le premier aller-retour,
+    // et le mois aurait changé d'apparence sans qu'une donnée ait bougé.
+    expect(apres.enTetes).toEqual(avant.enTetes);
+    expect(apres.totalVariables).toBe(avant.totalVariables);
+  });
+});
+
 test.describe('L\'action principale d\'une modale reste atteignable', () => {
   /**
    * Mesuré sur iPhone 13, avant même l'ouverture du clavier : le bouton

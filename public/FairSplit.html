@@ -499,6 +499,11 @@
         <span>Total des charges variables</span>
         <strong id="variableChargesTotal">—</strong>
       </div>
+      <!-- Où sont parties les dépenses que la portée retire de la vue. Rempli
+           par `utils/totaux-liste.js`, vide s'il n'y a rien à annoncer. Son
+           bouton est NU — aucun attribut d'état ARIA : `portee-unique.spec.js`
+           les compterait comme une seconde annonce de portée. -->
+      <p class="list-renvoi" id="variableChargesRenvoi" hidden></p>
     </div>
     </section>
 
@@ -516,6 +521,7 @@
         <span>Total des charges fixes</span>
         <strong id="fixedChargesTotal">—</strong>
       </div>
+      <p class="list-renvoi" id="fixedChargesRenvoi" hidden></p>
       <!-- Un loyer se lit par mois, un abonnement se comprend par an : 9,99 €
            ne se remarquent jamais, 119,88 € se discutent. Rempli par
            `modules/fixed-charges.js`, vide s'il n'y a rien à dire. -->

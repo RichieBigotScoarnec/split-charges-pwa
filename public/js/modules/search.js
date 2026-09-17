@@ -14,6 +14,7 @@ import { afficherTotalDeListe, accorderLesSousTotaux } from '../utils/totaux-lis
 import { moisLisible } from './envelopes.js';
 import { chargesDeTousLesMois, grouperParMois, moisRepresentes } from '../utils/recherche-historique.js';
 import { lirePeriodes } from '../poches.js';
+import { chargesDeLaPortee } from '../utils/portee.js';
 
 let searchTimeout = null;
 
@@ -294,8 +295,21 @@ function masquerLHistorique() {
  * @returns {Array} Résultats de recherche
  */
 export function searchInCharges(query) {
-  const fixedCharges = (getState('fixedCharges') || []).filter(c => !c.deleted);
-  const variableCharges = (getState('variableCharges') || []).filter(c => !c.deleted);
+  // ── LA RECHERCHE DU MOIS CHERCHE DANS CE QUI EST AFFICHÉ — lot P2 ──
+  //
+  // Elle lisait l'état ENTIER. Depuis que la portée filtre la liste, cela
+  // annoncerait « 3 résultats » avec une seule ligne à l'écran, et
+  // `refleterLesTotaux` reverserait le personnel dans le pied — le défaut des
+  // 170 € que ce fichier existe pour fermer, réintroduit par l'autre bout.
+  //
+  // La recherche « dans tous les mois », elle, n'est PAS filtrée : elle rend sa
+  // réponse dans son propre panneau, et filtrer une recherche explicite ferait
+  // disparaître sans un mot ce qu'on cherche nommément.
+  const portee = getState('porteeCourante');
+  const fixedCharges = chargesDeLaPortee(getState('fixedCharges') || [], portee)
+    .filter(c => !c.deleted);
+  const variableCharges = chargesDeLaPortee(getState('variableCharges') || [], portee)
+    .filter(c => !c.deleted);
 
   const results = [];
 
@@ -499,23 +513,42 @@ function filterChargesDisplay(results) {
  * @param {Array<Object>|null} results - Résultats, ou `null` pour tout rendre
  */
 function refleterLesTotaux(results) {
-  // `null` : on sort de la recherche, chaque liste retrouve son mois entier.
+  // ── SORTIR DE LA RECHERCHE NE DÉFAIT PAS LE FILTRE — lot P2 ──
+  //
+  // `null` rendait le mois ENTIER, ce qui ramenait les dépenses personnelles
+  // dans le pied de « À deux » au premier caractère effacé.
+  //
+  // Et les deux figures n'ont pas la même entrée, exactement comme au rendu :
+  // le pied totalise ce qui est AFFICHÉ (donc filtré), les en-têtes de
+  // catégorie annoncent le couple de la liste ENTIÈRE — c'est ce qui leur fait
+  // dire leur part personnelle. Les faire lire la même liste rendrait deux
+  // chiffres différents de ceux que le rendu vient de poser.
+  const portee = getState('porteeCourante');
+  const duMois = {
+    variable: (getState('variableCharges') || []).filter(c => !c.deleted),
+    fixed: (getState('fixedCharges') || []).filter(c => !c.deleted)
+  };
+
   const parType = results === null
     ? {
-      variable: (getState('variableCharges') || []).filter(c => !c.deleted),
-      fixed: (getState('fixedCharges') || []).filter(c => !c.deleted)
+      variable: chargesDeLaPortee(duMois.variable, portee),
+      fixed: chargesDeLaPortee(duMois.fixed, portee)
     }
     : {
       variable: results.filter(r => r.type === 'variable'),
       fixed: results.filter(r => r.type === 'fixed')
     };
 
+  // Hors recherche, les en-têtes retrouvent le couple du mois entier ; sous une
+  // recherche, ils ne peuvent annoncer que ce qu'elle a trouvé.
+  const pourLesEnTetes = results === null ? duMois : parType;
+
   for (const [type, listeId, totalId] of [
     ['variable', 'variableChargesList', 'variableChargesTotal'],
     ['fixed', 'fixedChargesList', 'fixedChargesTotal']
   ]) {
     afficherTotalDeListe(document.getElementById(totalId), parType[type]);
-    accorderLesSousTotaux(document.getElementById(listeId), parType[type]);
+    accorderLesSousTotaux(document.getElementById(listeId), pourLesEnTetes[type]);
   }
 
   // Le coût annuel parle de TOUTES les charges fixes du mois, pas du

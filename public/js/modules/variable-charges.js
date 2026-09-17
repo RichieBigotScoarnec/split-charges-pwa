@@ -18,7 +18,7 @@ import {
   periodeDeLaDate, formatPeriod
 } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
-import { afficherTotalDeListe } from '../utils/totaux-liste.js';
+import { afficherTotalDeListe, afficherLeRenvoi, libelleDuTotal } from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe, renderCarteEnveloppes } from './envelopes.js';
@@ -31,6 +31,7 @@ import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { categorieProposee } from '../utils/memoire-libelle.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { chargesDeLaPortee, renvoiDeLaPortee } from '../utils/portee.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
 import { lirePeriodes, cheminDeLaCharge, ecrituresDuDeplacement } from '../poches.js';
@@ -747,24 +748,59 @@ export function renderVariableCharges() {
   const charges = getState('variableCharges') || [];
   const listElement = document.getElementById('variableChargesList');
   const totalElement = document.getElementById('variableChargesTotal');
+  const renvoiElement = document.getElementById('variableChargesRenvoi');
 
   if (!listElement) {
     warn('⚠️ Element #variableChargesList introuvable');
     return;
   }
 
+  // ── LA PORTÉE FILTRE ENFIN LA LISTE — lot P2 ──
+  //
+  // « À deux » montrait le commun ET le personnel, avec un badge et un total
+  // séparé en pied : la commande promettait un filtre qu'elle n'appliquait pas.
+  //
+  // Le filtre lit `perimetre.js` par `chargesDeLaPortee`, et JAMAIS le payeur :
+  // une charge payée par une personne et partagée est COMMUNE. La déduire du
+  // payeur retirerait de la liste du foyer des dépenses qui pèsent sur le
+  // solde — en silence, puisque le solde continuerait de les compter.
+  const portee = getState('porteeCourante');
+  const affichees = chargesDeLaPortee(charges, portee);
+  const renvoi = renvoiDeLaPortee(charges, portee, normaliserEmplacement(getState('emplacementCourant')));
+
   // Vider la liste
   listElement.innerHTML = '';
+  afficherLeRenvoi(renvoiElement, renvoi);
 
   // Relu à chaque rendu plutôt que porté par un paramètre : la liste se
   // redessine depuis six endroits, et l'un d'eux finirait par oublier de le
   // passer — une liste sans ses cases, au milieu d'une sélection en cours.
   const enSelection = estEnModeSelection();
 
-  if (charges.length === 0) {
-    listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période'
-      + '<small>Les dépenses du quotidien, dont le montant change : courses,'
-      + ' essence, restaurant.</small></p>';
+  if (affichees.length === 0) {
+    // ── L'ÉCRAN NE PRÉTEND JAMAIS QU'UN MOIS EST VIDE QUAND IL NE L'EST PAS ──
+    //
+    // « Aucune charge variable pour cette période » devient FAUX dès que le
+    // filtre retire quelque chose : le mois en porte, elles sont ailleurs. Le
+    // renvoi est le seul endroit du lot où il corrige une affirmation au lieu
+    // de compléter l'écran — il dit qu'il n'y a rien de COMMUN, et où sont les
+    // autres.
+    //
+    // Deux branches et deux LITTÉRAUX, plutôt qu'un ternaire affecté à
+    // `innerHTML` : `tools/plafond-innerhtml.mjs` est à 24 sites sur 24, marge
+    // nulle, et `no-unsanitized` compte une affectation conditionnelle comme un
+    // site de plus — une chaîne construite, même de deux littéraux, n'est plus
+    // un littéral pour lui. Écrit en ternaire, ce lot faisait échouer la CI sur
+    // deux sites qui n'interpolent rien du tout.
+    if (renvoi.nombre > 0) {
+      listElement.innerHTML = '<p class="empty-state">Aucune dépense commune ce mois-ci'
+        + '<small>Le mois n\'est pas vide pour autant : vos dépenses perso sont'
+        + ' rangées à part.</small></p>';
+    } else {
+      listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période'
+        + '<small>Les dépenses du quotidien, dont le montant change : courses,'
+        + ' essence, restaurant.</small></p>';
+    }
     afficherTotalDeListe(totalElement, []);
     // La barre annonce un compte que cette liste vide vient de démentir.
     rafraichirLaBarre();
@@ -777,10 +813,28 @@ export function renderVariableCharges() {
   // c'est-à-dire l'ordre de création, et les catégories dans celui de la
   // première charge rencontrée. Invisible tant qu'aucune date ne s'affichait —
   // sans repère temporel, un ordre arbitraire ressemble à un ordre.
+  //
+  // ── LE GROUPEMENT REÇOIT LA LISTE ENTIÈRE, LES LIGNES SONT FILTRÉES ──
+  //
+  // Mesuré à la main sur septembre 2026 : « Courses » annonçait 381,75 € dont
+  // 10,00 de personnel, sans le dire. Un en-tête calculé sur la seule liste
+  // filtrée baisserait bien — mais se contenterait de taire ce qu'il a retiré,
+  // et le total prétendrait encore être un chiffre du foyer.
+  //
+  // Il reçoit donc tout, et annonce le couple. **Borné** : l'annotation ne
+  // paraît que sur une catégorie qui garde au moins une ligne affichée. Une
+  // catégorie entièrement personnelle disparaît de « À deux » — un en-tête sans
+  // une seule ligne dessous serait plus déroutant que son absence — et n'est
+  // couverte que par le renvoi en pied.
   const groupes = grouperParCategorie(charges);
 
   // Afficher par catégorie
-  groupes.forEach(({ categorie: category, charges: categoryCharges, total: categoryTotal }) => {
+  groupes.forEach(({ categorie: category, charges: toutesDuGroupe, commun, solo }) => {
+    // Le MÊME filtre que la liste, appliqué au groupe : un second prédicat
+    // écrit ici divergerait du premier au prochain correctif.
+    const categoryCharges = chargesDeLaPortee(toutesDuGroupe, portee);
+    if (categoryCharges.length === 0) return;
+
     const categoryDiv = document.createElement('div');
     categoryDiv.className = 'charge-category';
     // Le libellé de la catégorie, porté par l'élément plutôt que relu depuis
@@ -791,7 +845,7 @@ export function renderVariableCharges() {
     categoryDiv.innerHTML = `
       <h4 class="category-header">
         ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
-        <span class="category-total">${formatCurrency(categoryTotal)}</span>
+        <span class="category-total">${escapeHtml(libelleDuTotal({ commun, solo }))}</span>
       </h4>
     `;
 
@@ -891,8 +945,10 @@ export function renderVariableCharges() {
     listElement.appendChild(categoryDiv);
   });
 
-  // Afficher le total — commun d'abord, perso à part.
-  afficherTotalDeListe(totalElement, charges);
+  // Le pied totalise CE QUI EST AFFICHÉ, jamais la liste entière : une liste
+  // dont les lignes ne s'additionnent pas jusqu'à son propre total est le
+  // défaut que `totaux-liste.js` existe pour fermer.
+  afficherTotalDeListe(totalElement, affichees);
 
   // La barre suit la liste, et jamais l'inverse : elle annonce un compte et un
   // total qui se lisent sur les lignes qu'on vient de poser. Un changement de

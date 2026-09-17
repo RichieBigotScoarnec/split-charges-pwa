@@ -1,4 +1,5 @@
 import { dateDeLaCharge, dateDuJour, heureDeLaCharge } from './date.js';
+import { totauxParPerimetre } from './perimetre.js';
 
 /**
  * L'ordre d'affichage des listes
@@ -95,8 +96,31 @@ export function trierParDate(entrees) {
  * ne veut rien dire. Le total, lui, répond à la question qu'on se pose en
  * ouvrant l'écran : où part l'argent ?
  *
+ * ─────────────────────────────────────────────────────────────────────
+ * LE TOTAL DE CATÉGORIE INCLUAIT LE PERSONNEL SANS LE DIRE (lot P2)
+ *
+ * Mesuré à la main sur septembre 2026 :
+ * `122,07 + 20,64 + 20,00 + 25,00 + 80,18 + 10,00 + 103,86 = 381,75` pour
+ * « Courses », dont **10,00 de personnel**. Le pied de liste, lui, savait déjà
+ * dire `commun + X perso` — mais il le disait pour la liste entière, et
+ * `grouperParCategorie` ne portait AUCUNE notion de périmètre : zéro occurrence
+ * de `solo` ou `commun` dans ce fichier. La distinction était donc appliquée à
+ * une surface sur deux, et `totaux-liste.js` la recalculait PAR-DESSUS.
+ *
+ * Elle porte désormais là où le groupement vit. Un total de catégorie qui DIT
+ * sa part personnelle cesse de prétendre être un chiffre du foyer — et c'est ce
+ * qui rend lisible l'asymétrie que P1b a installée : depuis que le personnel
+ * vit derrière un mur, les deux comptes ne voient pas les mêmes chiffres sur
+ * toute surface qui le compte.
+ *
+ * **`total` reste la somme des deux, et c'est délibéré** : c'est lui qui porte
+ * le tri « la plus dépensière en tête », et une catégorie ne descend pas dans
+ * la liste parce que sa dépense est personnelle. L'ajout est ADDITIF — aucun
+ * des trois appelants ne casse.
+ *
  * @param {Array<Object>} charges
- * @returns {Array<{categorie: string, charges: Array<Object>, total: number}>}
+ * @returns {Array<{categorie: string, charges: Array<Object>,
+ *   total: number, commun: number, solo: number}>}
  */
 export function grouperParCategorie(charges) {
   const groupes = new Map();
@@ -105,14 +129,19 @@ export function grouperParCategorie(charges) {
     if (!charge) continue;
     const categorie = charge.category || 'Sans catégorie';
     if (!groupes.has(categorie)) {
-      groupes.set(categorie, { categorie, charges: [], total: 0 });
+      groupes.set(categorie, { categorie, charges: [] });
     }
-    const groupe = groupes.get(categorie);
-    groupe.charges.push(charge);
-    groupe.total += Number.isFinite(charge.amount) ? charge.amount : 0;
+    groupes.get(categorie).charges.push(charge);
   }
 
   return [...groupes.values()]
-    .map(groupe => ({ ...groupe, charges: trierParDate(groupe.charges) }))
+    .map(groupe => {
+      // Le couple vient de la fabrique unique du dépôt, jamais d'une somme
+      // écrite ici : `totauxParPerimetre` porte déjà la garde du montant
+      // illisible — `somme + undefined` donne `NaN`, et `NaN` se propage
+      // jusqu'à l'écran — et le filtre des supprimées.
+      const { commun, solo, total } = totauxParPerimetre(groupe.charges);
+      return { ...groupe, charges: trierParDate(groupe.charges), total, commun, solo };
+    })
     .sort((a, b) => b.total - a.total);
 }
