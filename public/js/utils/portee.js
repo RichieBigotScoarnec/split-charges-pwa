@@ -37,7 +37,7 @@
  * ce qu'on veut tenir.
  */
 
-import { chargesCommunes, chargesSolo, totalDesCharges } from './perimetre.js';
+import { chargesCommunes, chargesSolo, totalDesCharges, PERSONNES } from './perimetre.js';
 
 /**
  * Les trois portées, et rien d'autre
@@ -275,26 +275,21 @@ export function porteeMontreLeFoyer(portee) {
 }
 
 /**
- * Les portées qui FILTRENT la liste des charges.
- * Volontairement privée, comme les trois listes ci-dessus.
- */
-const PORTEES_QUI_FILTRENT_LA_LISTE = Object.freeze([PORTEES.DEUX]);
-
-/**
- * Les charges qu'une portée montre dans la liste
+ * CE QUE CHAQUE PORTÉE MONTRE DE LA LISTE — une seule déclaration
+ *
+ * Le lot P2 portait une LISTE de portées qui filtrent, plus un unique
+ * comportement (`chargesCommunes`) écrit dans la fonction. C'était juste tant
+ * qu'il n'y avait qu'un comportement ; à deux, la liste et les comportements
+ * seraient deux déclarations du même fait, et la première divergence serait une
+ * portée inscrite dans la liste que personne n'a câblée — filtrée par un
+ * comportement absent, donc rendue vide sans un mot.
+ *
+ * La table est donc la SEULE déclaration : `porteeFiltreLaListe` lit ses clés,
+ * `chargesDeLaPortee` lit ses valeurs. Une portée absente ne filtre pas.
  *
  * ─────────────────────────────────────────────────────────────────────
- * LA COMMANDE PROMETTAIT UN FILTRE QU'ELLE N'APPLIQUAIT PAS
- *
- * Le sélecteur existait depuis le lot 5 ; la liste, elle, montrait tout sous
- * les trois portées. « À deux » affichait le commun ET le personnel, avec un
- * badge `perso` et un total séparé en pied — un contournement du défaut, pas
- * une décision. Une commande qui ne gouverne rien enseigne que la moitié des
- * commandes ne font rien.
- *
- * ─────────────────────────────────────────────────────────────────────
- * ELLE LIT LE PÉRIMÈTRE, JAMAIS LE PAYEUR — et c'est le seul défaut de ce
- * lot qui coûterait des euros
+ * ELLE LIT LE PÉRIMÈTRE, JAMAIS LE PAYEUR — le seul défaut de ce lot qui
+ * coûterait des euros
  *
  * Une charge payée par une personne **et partagée** est COMMUNE
  * (`perimetre.js`, « `paidBy` dit qui a AVANCÉ l'argent, jamais à qui la
@@ -302,79 +297,154 @@ const PORTEES_QUI_FILTRENT_LA_LISTE = Object.freeze([PORTEES.DEUX]);
  * retirerait de la liste du foyer des dépenses qui pèsent bel et bien sur le
  * solde — en silence, puisque le solde, lui, continuerait de les compter.
  *
- * C'est pour cela que cette fonction ne connaît QUE `chargesCommunes`, et que
- * son jeu d'essai porte les quatre couples payeur × périmètre : sans les
- * quatre, il ne sépare pas les deux lectures.
+ * Les deux valeurs de la table ne connaissent donc que `chargesCommunes` et
+ * `chargesSolo`, et le jeu d'essai porte les quatre couples payeur × périmètre
+ * SOUS LES DEUX PORTÉES : trois des quatre ne séparent pas les deux lectures.
  *
  * ─────────────────────────────────────────────────────────────────────
- * « MOI CE MOIS » N'EST PAS FILTRÉE, ET C'EST UNE DÉCISION
+ * « MOI CE MOIS » EST LE PERSONNEL DE LA PERSONNE CONNECTÉE, ET `moi` EST
+ * OBLIGATOIRE
  *
- * Sa cible est « le personnel seul, la part du commun en carte agrégée ». La
- * carte appartient au lot « Moi, rangs 2 et 3 », qui n'est pas fait : filtrer
- * sans elle donnerait un écran dont le héros — « Il te reste X » — soustrait
- * une part du commun que rien à l'écran ne montre.
+ * Depuis le lot P1b, `poches.js` fusionne dans l'état le personnel de l'autre
+ * quand un aval le rend lisible. Un filtre qui ne connaîtrait pas `moi`
+ * rendrait donc `chargesSolo(liste)` — TOUT le personnel lisible —, et
+ * « Moi ce mois » afficherait les dépenses de l'autre. C'est très exactement ce
+ * que le renvoi de P2 refuse déjà : « Moi ce mois » est MON écran.
  *
- * La liste DÉCLARÉE est ce qui rend cette attente lisible : le jour où la carte
- * existe, `PORTEES.SOLO` la rejoint, et rien d'autre ne change.
+ * Sans emplacement lisible, la liste est **vide** et non complète. Ce n'est pas
+ * de la prudence décorative : un écran vide est un défaut qu'on VOIT — la
+ * personne a trois dépenses et n'en voit aucune —, la poche de l'autre affichée
+ * est une fuite que personne ne voit. Entre un défaut visible et une fuite
+ * silencieuse, on prend le visible.
+ */
+const FILTRE_DE_LA_PORTEE = Object.freeze({
+  [PORTEES.DEUX]: (charges) => chargesCommunes(charges),
+  [PORTEES.SOLO]: (charges, moi) => (PERSONNES.includes(moi) ? chargesSolo(charges, moi) : [])
+});
+
+/**
+ * Les charges qu'une portée montre dans la liste
  *
  * @param {Array<Object>} charges
  * @param {*} portee
+ * @param {'vous'|'conjointe'} [moi] - OBLIGATOIRE sous « Moi ». Voir ci-dessus.
  * @returns {Array<Object>} La liste telle quelle quand la portée ne filtre pas
  */
-export function chargesDeLaPortee(charges, portee) {
+export function chargesDeLaPortee(charges, portee, moi) {
   const liste = Array.isArray(charges) ? charges : [];
-  if (!PORTEES_QUI_FILTRENT_LA_LISTE.includes(porteeRetenue(portee))) return liste;
-  return chargesCommunes(liste);
+  const filtre = FILTRE_DE_LA_PORTEE[porteeRetenue(portee)];
+  return filtre ? filtre(liste, moi) : liste;
 }
 
 /**
  * Cette portée retire-t-elle des charges de la liste ?
  *
- * Le renvoi en pied et l'état vide en dépendent : c'est ce qui les fait
- * paraître sous « À deux » et nulle part ailleurs.
+ * Le renvoi en pied et l'état vide en dépendent. Elle lit les CLÉS de la table
+ * ci-dessus : une portée qui filtre est une portée qui a un comportement, et
+ * il n'y a pas de seconde liste à tenir d'accord avec la première.
  *
  * @param {*} portee
  * @returns {boolean}
  */
 export function porteeFiltreLaListe(portee) {
-  return PORTEES_QUI_FILTRENT_LA_LISTE.includes(porteeRetenue(portee));
+  return Boolean(FILTRE_DE_LA_PORTEE[porteeRetenue(portee)]);
 }
 
 /**
- * Ce que la portée courante MASQUE de mes dépenses, et où c'est parti
+ * LES DEUX NATURES DE RENVOI, ET POURQUOI IL EN FAUT DEUX
+ *
+ * Sous « À deux », ce que le filtre retire est MON PERSONNEL : le renvoi le
+ * compte, le chiffre, et nomme où il est rangé. Sous « Moi », ce qu'il retire
+ * est LE COMMUN — et le renvoi de P2 ne sait pas le dire. Rendu « symétrique »,
+ * il aurait annoncé « 3 dépenses perso (45,00 €) — rangées dans "Moi ce
+ * mois" » **sur l'écran « Moi ce mois »** : un compte de ce qui est affiché,
+ * et une destination qui est l'écran où l'on se trouve déjà. Mesuré, parce que
+ * la porte est mécanique : `renvoiDeLaPortee` s'ouvre sur
+ * `porteeFiltreLaListe`, donc inscrire « Moi » dans la table ci-dessus allume
+ * le renvoi tout seul.
+ *
+ * Deux natures, donc, et la nature — jamais un compte — décide de ce qui
+ * s'affiche.
  *
  * ─────────────────────────────────────────────────────────────────────
- * COMPTÉ SUR MES SEULES DÉPENSES — jamais sur tout le personnel lisible
+ * CELLE DU COMMUN NE PORTE AUCUN CHIFFRE, ET C'EST UNE DÉCISION
  *
- * Sous un aval actif, la liste du foyer portait aussi les dépenses
- * personnelles de l'autre. Le filtre les retire elles aussi, et elles n'ont
- * PAS de renvoi : elles n'appartiennent pas à « Moi ce mois », qui est mon
- * écran. Leur place est la fenêtre en lecture seule de P3, qui n'existe pas
- * encore — c'est un trou de P3, consigné plutôt que comblé ici. Aucun aval
- * n'est actif aujourd'hui, donc le cas est d'école.
+ * Le montant de ma part du commun est déjà à l'écran, deux cartes plus haut,
+ * dans le grand-livre de « Moi » (`summary.js`, `suiteDeMoi`) — ouvert en
+ * permanence, décision prise avec son prix mesuré. Le répéter en pied n'achète
+ * rien. Ce qui manquait n'était pas un chiffre : c'était une ADRESSE. Un
+ * agrégat ne répond pas à « où est passée ma course de 122,07 € ».
  *
- * `nombre` à zéro veut dire « rien à annoncer » : une liste sans dépense
- * personnelle n'a pas de renvoi, et une mention systématique ferait du bruit
- * sur la majorité des mois.
+ * Une phrase, une destination, zéro nombre.
+ */
+export const NATURES_DE_RENVOI = Object.freeze({
+  /** Rien à annoncer : la portée ne retire rien, ou rien qui m'appartienne. */
+  AUCUNE: null,
+  /** « À deux » : mes dépenses personnelles, comptées et chiffrées. */
+  MON_PERSONNEL: 'mon-personnel',
+  /** « Moi » : le commun n'est pas dans cette liste. Sans chiffre. */
+  LE_COMMUN: 'le-commun'
+});
+
+/** Ce qu'on rend quand il n'y a rien à annoncer. Aucun nombre, aucune nature. */
+const RENVOI_VIDE = Object.freeze({
+  nature: NATURES_DE_RENVOI.AUCUNE, nombre: 0, total: 0,
+  versLaPortee: PORTEES.SOLO, libelle: LIBELLES_DE_PORTEE[PORTEES.SOLO]
+});
+
+/**
+ * Ce que la portée courante retire de la liste, et où c'est parti
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * SOUS « À DEUX », COMPTÉ SUR MES SEULES DÉPENSES
+ *
+ * Sous un aval actif, la liste du foyer porte aussi les dépenses personnelles
+ * de l'autre. Le filtre les retire elles aussi, et elles n'ont PAS de renvoi :
+ * elles n'appartiennent pas à « Moi ce mois », qui est mon écran. Leur place
+ * est la fenêtre en lecture seule de P3, qui n'existe pas encore — trou de P3,
+ * consigné plutôt que comblé. Aucun aval n'est actif aujourd'hui, donc le cas
+ * est d'école.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * SOUS « MOI », SEULEMENT SI LE MOIS PORTE DU COMMUN
+ *
+ * « Les dépenses communes ne sont pas dans cette liste » sur un mois qui n'en
+ * porte aucune annonce l'absence de rien. Même discipline que le volet
+ * personnel du total — « seulement s'il existe » — et même effet : le renvoi
+ * n'est pas une constante, donc un contrôle peut le faire tomber.
  *
  * @param {Array<Object>} charges - La liste ENTIÈRE du mois, avant filtrage
  * @param {*} portee
  * @param {'vous'|'conjointe'} moi - L'emplacement du compte connecté
- * @returns {{nombre: number, total: number, versLaPortee: string, libelle: string}}
+ * @returns {{nature: string|null, nombre: number, total: number,
+ *   versLaPortee: string, libelle: string}}
  */
 export function renvoiDeLaPortee(charges, portee, moi) {
-  const vide = {
-    nombre: 0, total: 0,
-    versLaPortee: PORTEES.SOLO, libelle: LIBELLES_DE_PORTEE[PORTEES.SOLO]
-  };
-  if (!porteeFiltreLaListe(portee)) return vide;
+  const retenue = porteeRetenue(portee);
+  if (!porteeFiltreLaListe(retenue)) return RENVOI_VIDE;
 
-  const miennes = chargesSolo(
-    (Array.isArray(charges) ? charges : []).filter(charge => charge && !charge.deleted),
-    moi
-  );
+  const actives = (Array.isArray(charges) ? charges : [])
+    .filter(charge => charge && !charge.deleted);
+
+  if (retenue === PORTEES.SOLO) {
+    if (chargesCommunes(actives).length === 0) return RENVOI_VIDE;
+    return {
+      nature: NATURES_DE_RENVOI.LE_COMMUN,
+      // Zéro, et pas « le total du commun » : ce qu'on ne calcule pas ne peut
+      // pas s'afficher par accident. La décision « aucun chiffre » est dans la
+      // donnée, pas seulement dans la rédaction qui la lit.
+      nombre: 0,
+      total: 0,
+      versLaPortee: PORTEES.DEUX,
+      libelle: LIBELLES_DE_PORTEE[PORTEES.DEUX]
+    };
+  }
+
+  const miennes = chargesSolo(actives, moi);
+  if (miennes.length === 0) return RENVOI_VIDE;
 
   return {
+    nature: NATURES_DE_RENVOI.MON_PERSONNEL,
     nombre: miennes.length,
     total: totalDesCharges(miennes),
     versLaPortee: PORTEES.SOLO,

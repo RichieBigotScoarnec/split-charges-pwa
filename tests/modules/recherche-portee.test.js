@@ -166,12 +166,42 @@ describe('La recherche du mois cherche dans ce que la liste MONTRE — lot P2', 
   });
 
   it('LE TÉMOIN — sans portée qui filtre, les quatre sont trouvées', () => {
-    // « Moi ce mois » n'est pas filtrée par ce lot, délibérément. Ce cas s'en
-    // sert comme témoin positif : sans lui, les absences ci-dessous seraient
-    // satisfaites par un semis que la recherche n'atteint pas du tout.
-    setState('porteeCourante', 'solo');
+    // ⚠️ CE TÉMOIN PASSAIT PAR « MOI », qui ne filtrait pas au lot P2. Elle
+    // filtre depuis le lot « Moi », donc le témoin change de portée : « Privé »
+    // est désormais la seule qui ne filtre rien.
+    //
+    // Sa raison d'être ne bouge pas d'un mot : sans lui, les absences mesurées
+    // ci-dessous seraient satisfaites par un semis que la recherche n'atteint
+    // pas du tout.
+    setState('porteeCourante', 'prive');
     expect(trouves('courses').sort()).toEqual(
       ['conjointe-solo', 'vous-avancee', 'vous-partagee', 'vous-solo']);
+  });
+
+  it('« Moi ce mois » ne rend que MON personnel', () => {
+    // Le compte connecté est `vous` par défaut (`normaliserEmplacement`).
+    // « conjointe-solo » est le personnel de l'autre : sous un aval actif il
+    // est dans l'état, et il n'a rien à faire dans MA recherche.
+    setState('porteeCourante', 'solo');
+    expect(trouves('courses').sort()).toEqual(['vous-solo']);
+  });
+
+  it('une charge AVANCÉE par moi et partagée ne vient pas sous « Moi »', () => {
+    // Le symétrique du cas d'« À deux » : un filtre sur le payeur ramènerait
+    // « vous-solo » ET tout ce que j'ai avancé. « vous-partagee » est payée
+    // `partage`, mais le piège porte sur ce qui est avancé par une personne —
+    // « vous-avancee », payée par conjointe et COMMUNE, ne doit pas venir non
+    // plus, dans un sens comme dans l'autre.
+    setState('porteeCourante', 'solo');
+    const trouvees = trouves('courses');
+    expect(trouvees).not.toContain('vous-avancee');
+    expect(trouvees).not.toContain('vous-partagee');
+  });
+
+  it('et la recherche suit le compte qui la fait', () => {
+    setState('emplacementCourant', 'conjointe');
+    setState('porteeCourante', 'solo');
+    expect(trouves('courses').sort()).toEqual(['conjointe-solo']);
   });
 
   it('« À deux » ne rend que le commun', () => {

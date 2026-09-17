@@ -17,6 +17,23 @@ import { setupFirebaseMock, waitForApp } from './_harness.js';
  * LA PROPRIÉTÉ PORTE SUR LE PANNEAU, PAS SUR UNE CARTE. Ce fichier ne nomme
  * aucune carte : il lit ce que le panneau montre. Une carte ajoutée demain
  * sans rien déclarer y tomberait d'elle-même.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ⚠️ DEUX LIMITES QU'IL FAUT CONNAÎTRE AVANT DE LE CROIRE — relevées le
+ * 2026-09-17, en préparant la carte « Ta part du commun » (abandonnée depuis)
+ *
+ * 1. **`DU_FOYER` ne contient que des MONTANTS DE CHARGES, jamais un agrégat.**
+ *    Sur ce semis, le total commun vaut 1 577,77 € et ma part 1 183,33 € :
+ *    aucun des deux n'est dans la liste. Une carte qui afficherait le TOTAL DU
+ *    FOYER sous « Moi » passerait donc ce contrôle sans broncher. Ce qu'il
+ *    tient exactement est « aucune ligne de charge du foyer ne fuit », pas
+ *    « aucun chiffre du foyer ne fuit » — et son titre promet le second.
+ *    Une carte qui se déclare personnelle a donc besoin de SON contrôle.
+ *
+ * 2. **Il ne visite que les portées personnelles.** La règle CSS qu'il
+ *    accompagne est à sens unique : rien ne masque une carte personnelle sous
+ *    « À deux ». Ce fichier ne pourrait pas le voir — il n'y a pas de cas sur
+ *    « À deux » autre que le témoin, qui exige l'inverse.
  */
 
 /** Des chiffres et une destination qui n'existent qu'au foyer */

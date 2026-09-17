@@ -18,7 +18,9 @@ import {
   periodeDeLaDate, formatPeriod
 } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
-import { afficherTotalDeListe, afficherLeRenvoi, libelleDuTotal } from '../utils/totaux-liste.js';
+import {
+  afficherTotalDeListe, afficherLeRenvoi, afficherEtatVide, libelleDuTotal, coupleDeLaPortee
+} from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe, renderCarteEnveloppes } from './envelopes.js';
@@ -764,9 +766,18 @@ export function renderVariableCharges() {
   // une charge payée par une personne et partagée est COMMUNE. La déduire du
   // payeur retirerait de la liste du foyer des dépenses qui pèsent sur le
   // solde — en silence, puisque le solde continuerait de les compter.
+  //
+  // ── ET « MOI CE MOIS » MONTRE MON PERSONNEL — lot « Moi » ──
+  //
+  // `moi` est OBLIGATOIRE : depuis P1b, l'état porte aussi le personnel de
+  // l'autre quand un aval le rend lisible, et un filtre qui l'ignorerait
+  // afficherait ses dépenses sous « Moi ce mois ». Il est lu UNE fois par
+  // rendu et passé aux quatre lectures — la liste, le renvoi, le pied et les
+  // en-têtes doivent toutes parler de la même personne.
   const portee = getState('porteeCourante');
-  const affichees = chargesDeLaPortee(charges, portee);
-  const renvoi = renvoiDeLaPortee(charges, portee, normaliserEmplacement(getState('emplacementCourant')));
+  const moi = normaliserEmplacement(getState('emplacementCourant'));
+  const affichees = chargesDeLaPortee(charges, portee, moi);
+  const renvoi = renvoiDeLaPortee(charges, portee, moi);
 
   // Vider la liste
   listElement.innerHTML = '';
@@ -786,22 +797,14 @@ export function renderVariableCharges() {
     // de compléter l'écran — il dit qu'il n'y a rien de COMMUN, et où sont les
     // autres.
     //
-    // Deux branches et deux LITTÉRAUX, plutôt qu'un ternaire affecté à
-    // `innerHTML` : `tools/plafond-innerhtml.mjs` est à 24 sites sur 24, marge
-    // nulle, et `no-unsanitized` compte une affectation conditionnelle comme un
-    // site de plus — une chaîne construite, même de deux littéraux, n'est plus
-    // un littéral pour lui. Écrit en ternaire, ce lot faisait échouer la CI sur
-    // deux sites qui n'interpolent rien du tout.
-    if (renvoi.nombre > 0) {
-      listElement.innerHTML = '<p class="empty-state">Aucune dépense commune ce mois-ci'
-        + '<small>Le mois n\'est pas vide pour autant : vos dépenses perso sont'
-        + ' rangées à part.</small></p>';
-    } else {
-      listElement.innerHTML = '<p class="empty-state">Aucune charge variable pour cette période'
-        + '<small>Les dépenses du quotidien, dont le montant change : courses,'
-        + ' essence, restaurant.</small></p>';
-    }
-    afficherTotalDeListe(totalElement, []);
+    // Les trois rédactions vivent dans `utils/totaux-liste.js`, avec celles des
+    // charges fixes : six littéraux du même patron dans deux fichiers seraient
+    // la règle 4 à l'état pur. Et la fabrique construit le DOM plutôt que de
+    // rendre une chaîne — mesuré, une chaîne assignée à `innerHTML` ferait
+    // passer le plafond des sites d'injection de 24 à 26 sur des phrases qui
+    // n'interpolent rien.
+    afficherEtatVide(listElement, { collection: 'variableCharges', portee, renvoi });
+    afficherTotalDeListe(totalElement, [], { portee, moi });
     // La barre annonce un compte que cette liste vide vient de démentir.
     rafraichirLaBarre();
     return;
@@ -821,18 +824,24 @@ export function renderVariableCharges() {
   // filtrée baisserait bien — mais se contenterait de taire ce qu'il a retiré,
   // et le total prétendrait encore être un chiffre du foyer.
   //
-  // Il reçoit donc tout, et annonce le couple. **Borné** : l'annotation ne
-  // paraît que sur une catégorie qui garde au moins une ligne affichée. Une
-  // catégorie entièrement personnelle disparaît de « À deux » — un en-tête sans
-  // une seule ligne dessous serait plus déroutant que son absence — et n'est
-  // couverte que par le renvoi en pied.
+  // Il reçoit donc tout, et c'est `coupleDeLaPortee` qui décide de ce que
+  // l'en-tête annonce — il connaît la portée, ce que `grouperParCategorie` ne
+  // doit pas apprendre. Sous « À deux » : le commun, plus mon perso nommé.
+  // Sous « Moi » : le total affiché, sans annotation — le `commun` du groupe y
+  // serait le commun du FOYER, sur l'écran qui dit « moi ».
+  //
+  // **Borné** : l'annotation ne paraît que sur une catégorie qui garde au moins
+  // une ligne affichée. Une catégorie entièrement personnelle disparaît de « À
+  // deux », et une entièrement commune disparaît de « Moi » — un en-tête sans
+  // une seule ligne dessous serait plus déroutant que son absence, et le renvoi
+  // en pied couvre les deux cas.
   const groupes = grouperParCategorie(charges);
 
   // Afficher par catégorie
-  groupes.forEach(({ categorie: category, charges: toutesDuGroupe, commun, solo }) => {
+  groupes.forEach(({ categorie: category, charges: toutesDuGroupe }) => {
     // Le MÊME filtre que la liste, appliqué au groupe : un second prédicat
     // écrit ici divergerait du premier au prochain correctif.
-    const categoryCharges = chargesDeLaPortee(toutesDuGroupe, portee);
+    const categoryCharges = chargesDeLaPortee(toutesDuGroupe, portee, moi);
     if (categoryCharges.length === 0) return;
 
     const categoryDiv = document.createElement('div');
@@ -845,7 +854,7 @@ export function renderVariableCharges() {
     categoryDiv.innerHTML = `
       <h4 class="category-header">
         ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
-        <span class="category-total">${escapeHtml(libelleDuTotal({ commun, solo }))}</span>
+        <span class="category-total">${escapeHtml(libelleDuTotal(coupleDeLaPortee(toutesDuGroupe, portee, moi)))}</span>
       </h4>
     `;
 
@@ -948,7 +957,7 @@ export function renderVariableCharges() {
   // Le pied totalise CE QUI EST AFFICHÉ, jamais la liste entière : une liste
   // dont les lignes ne s'additionnent pas jusqu'à son propre total est le
   // défaut que `totaux-liste.js` existe pour fermer.
-  afficherTotalDeListe(totalElement, affichees);
+  afficherTotalDeListe(totalElement, affichees, { portee, moi });
 
   // La barre suit la liste, et jamais l'inverse : elle annonce un compte et un
   // total qui se lisent sur les lignes qu'on vient de poser. Un changement de

@@ -15,6 +15,11 @@ import { moisLisible } from './envelopes.js';
 import { chargesDeTousLesMois, grouperParMois, moisRepresentes } from '../utils/recherche-historique.js';
 import { lirePeriodes } from '../poches.js';
 import { chargesDeLaPortee } from '../utils/portee.js';
+// « Qui suis-je », par la fabrique unique du dépôt. La composition
+// `normaliserEmplacement(getState('emplacementCourant'))` est l'idiome employé
+// par `summary.js` et les deux modules de liste ; ce n'est pas une seconde
+// rédaction de la règle, qui vit dans `utils/members.js` et nulle part ailleurs.
+import { normaliserEmplacement } from '../utils/members.js';
 
 let searchTimeout = null;
 
@@ -305,10 +310,14 @@ export function searchInCharges(query) {
   // La recherche « dans tous les mois », elle, n'est PAS filtrée : elle rend sa
   // réponse dans son propre panneau, et filtrer une recherche explicite ferait
   // disparaître sans un mot ce qu'on cherche nommément.
+  //
+  // `moi` est obligatoire depuis le lot « Moi » : sous cette portée le filtre
+  // rend MON personnel, et l'ignorer ferait chercher dans celui de l'autre.
   const portee = getState('porteeCourante');
-  const fixedCharges = chargesDeLaPortee(getState('fixedCharges') || [], portee)
+  const moi = normaliserEmplacement(getState('emplacementCourant'));
+  const fixedCharges = chargesDeLaPortee(getState('fixedCharges') || [], portee, moi)
     .filter(c => !c.deleted);
-  const variableCharges = chargesDeLaPortee(getState('variableCharges') || [], portee)
+  const variableCharges = chargesDeLaPortee(getState('variableCharges') || [], portee, moi)
     .filter(c => !c.deleted);
 
   const results = [];
@@ -524,6 +533,7 @@ function refleterLesTotaux(results) {
   // dire leur part personnelle. Les faire lire la même liste rendrait deux
   // chiffres différents de ceux que le rendu vient de poser.
   const portee = getState('porteeCourante');
+  const moi = normaliserEmplacement(getState('emplacementCourant'));
   const duMois = {
     variable: (getState('variableCharges') || []).filter(c => !c.deleted),
     fixed: (getState('fixedCharges') || []).filter(c => !c.deleted)
@@ -531,8 +541,8 @@ function refleterLesTotaux(results) {
 
   const parType = results === null
     ? {
-      variable: chargesDeLaPortee(duMois.variable, portee),
-      fixed: chargesDeLaPortee(duMois.fixed, portee)
+      variable: chargesDeLaPortee(duMois.variable, portee, moi),
+      fixed: chargesDeLaPortee(duMois.fixed, portee, moi)
     }
     : {
       variable: results.filter(r => r.type === 'variable'),
@@ -547,8 +557,8 @@ function refleterLesTotaux(results) {
     ['variable', 'variableChargesList', 'variableChargesTotal'],
     ['fixed', 'fixedChargesList', 'fixedChargesTotal']
   ]) {
-    afficherTotalDeListe(document.getElementById(totalId), parType[type]);
-    accorderLesSousTotaux(document.getElementById(listeId), pourLesEnTetes[type]);
+    afficherTotalDeListe(document.getElementById(totalId), parType[type], { portee, moi });
+    accorderLesSousTotaux(document.getElementById(listeId), pourLesEnTetes[type], { portee, moi });
   }
 
   // Le coût annuel parle de TOUTES les charges fixes du mois, pas du

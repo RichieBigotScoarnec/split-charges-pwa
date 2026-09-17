@@ -118,6 +118,23 @@ export function trierParDate(entrees) {
  * la liste parce que sa dépense est personnelle. L'ajout est ADDITIF — aucun
  * des trois appelants ne casse.
  *
+ * ─────────────────────────────────────────────────────────────────────
+ * ⚠️ LE RENDU NE LIT PLUS `commun` NI `solo` — lot « Moi », 2026-09-17
+ *
+ * Deux portées filtrent la liste depuis ce lot, et le couple à annoncer dépend
+ * de LAQUELLE : sous « À deux » c'est « le commun, plus mon perso caché » ;
+ * sous « Moi » c'est le total affiché, sans annotation — le `commun` du groupe
+ * y serait le commun du FOYER, sur l'écran qui dit « moi ».
+ *
+ * Ce fichier ne connaît pas la portée, et ne doit pas l'apprendre : c'est un
+ * utilitaire de tri. L'en-tête passe donc par `coupleDeLaPortee`
+ * (`utils/totaux-liste.js`), qui la connaît.
+ *
+ * Le couple reste rendu ici, et ses cas restent tenus : c'est une propriété
+ * vraie de cette fonction pure, et `totauxParPerimetre` la produit de toute
+ * façon. Mais **ce n'est plus la source de l'en-tête** — l'y rebrancher
+ * ferait réapparaître le chiffre du foyer sous « Moi ».
+ *
  * @param {Array<Object>} charges
  * @returns {Array<{categorie: string, charges: Array<Object>,
  *   total: number, commun: number, solo: number}>}
