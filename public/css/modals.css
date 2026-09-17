@@ -1996,3 +1996,62 @@
 .rapport-bouge-fonde {
   flex-basis: 100%;
 }
+
+/* ===== RÉGLER LE SOLDE =====
+   Trois lignes au-dessus des boutons, et leur ORDRE est la décision : le sens
+   (qui verse à qui, non modifiable), le champ, puis ce que le versement fera.
+
+   La phrase de conséquence n'est pas une aide en petits caractères : c'est la
+   seule protection contre la faute de frappe, aucun plafond n'étant posé sur
+   le trop-versé. Elle est donc à la taille du corps de texte et collée au
+   champ — `margin-top` court, `margin-bottom` long : elle qualifie ce qui est
+   au-dessus d'elle, pas les boutons.
+*/
+.reglement-sens {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.reglement-sens strong {
+  color: var(--text-primary);
+}
+
+.reglement-consequence {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-edge);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  /* Un montant illisible n'est pas une panne : le refus se peint en ambre, la
+     couleur de ce qui attend une correction, jamais en rouge — rien n'est
+     détruit ici, et le rouge de la suppression a déjà un sens dans cet écran. */
+}
+
+.reglement-consequence[data-issue="refus"] {
+  background: var(--warning-soft);
+  border-color: var(--warning-edge);
+  color: var(--warning-ink);
+}
+
+.reglement-avertissement {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-edge);
+  color: var(--warning-ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Aucune règle d'auteur ne pose `display` sur la classe, donc `hidden` suffit.
+   Cette ligne est la garde qui le maintient vrai : le jour où la classe
+   gagnerait un `display`, elle l'emporterait sur la feuille de l'agent et
+   l'avertissement resterait à l'écran en permanence, sans que rien ne le dise. */
+.reglement-avertissement[hidden] {
+  display: none;
+}

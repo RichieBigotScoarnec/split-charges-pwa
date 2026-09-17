@@ -58,115 +58,279 @@ vi.mock('../../public/js/modules/summary.js', () => ({
   calculateSummary: vi.fn(() => ({ balance: soldeCourant }))
 }));
 
-const { settleBalance } = await import('../../public/js/modules/reimbursements.js');
+const {
+  settleBalance, confirmerLeReglement, initReimbursements
+} = await import('../../public/js/modules/reimbursements.js');
 const { setState } = await import('../../public/js/state.js');
 const { toast } = await import('../../public/js/components/toast.js');
-const { showConfirmModal } = await import('../../public/js/components/modal.js');
+const { showModal, closeModal } = await import('../../public/js/components/modal.js');
+const { oublierLesEcouteurs } = await import('../../public/js/utils/ecouteur.js');
+
+/**
+ * Le balisage de la modale, tel qu'il vit dans `FairSplit.html`
+ *
+ * Recopié plutôt qu'importé, et c'est une duplication délibérée dont le prix
+ * est connu : ce qui la tient est le contrôle de bout en bout, qui charge la
+ * vraie page. Ce que ces cas mesurent est la MÉCANIQUE — ce qui est lu, ce qui
+ * est écrit, ce qui ne l'est pas —, pas le balisage.
+ */
+function poserLaModale() {
+  document.body.innerHTML = `
+    <button id="addReimbursementBtn"></button>
+    <button id="saveReimbursement"></button>
+    <div id="modalReglerSolde">
+      <h2 id="modalReglerSoldeTitre"></h2>
+      <p id="reglerSoldeSens"></p>
+      <input type="text" id="reglerSoldeMontant" />
+      <p id="reglerSoldeConsequence"></p>
+      <p id="reglerSoldeAvertissement" hidden></p>
+      <button id="reglerSoldeValider"></button>
+    </div>
+    <div id="reimbursementsList"></div>`;
+  for (const id of ['addReimbursementBtn', 'saveReimbursement', 'reglerSoldeValider',
+    'reglerSoldeMontant']) {
+    oublierLesEcouteurs(document.getElementById(id));
+  }
+}
+
+const champ = () => document.getElementById('reglerSoldeMontant');
+const phrase = () => document.getElementById('reglerSoldeConsequence').textContent;
+const avertissement = () => document.getElementById('reglerSoldeAvertissement');
+const bouton = () => document.getElementById('reglerSoldeValider');
+
+/** Tape un montant, comme la personne le ferait */
+function taper(valeur) {
+  champ().value = valeur;
+  champ().dispatchEvent(new Event('input'));
+}
 
 /** Dernier remboursement transmis à la base */
 const dernierEcrit = () => dbPush.mock.calls.at(-1)[1];
 
-describe('Régler le solde d\'un mois', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    showConfirmModal.mockResolvedValue(true);
-    setState('currentPeriod', '2026-08');
-    liaisonRompueMock = () => false;
-    INSTANTANE = { '2026-08': { variableCharges: { v1: { amount: 10 } } } };
+/** Ce que `formatCurrency` écrit : espaces fines insécables comprises */
+const chiffres = (texte) => texte.replace(/[\s\u202f\u00a0]/g, '');
+
+function remettreAZero() {
+  vi.clearAllMocks();
+  poserLaModale();
+  setState('currentPeriod', '2026-08');
+  setState('members', { vous: 'Richard', conjointe: 'Cindy' });
+  setState('emplacementCourant', 'vous');
+  liaisonRompueMock = () => false;
+  INSTANTANE = { '2026-08': { variableCharges: { v1: { amount: 10 } } } };
+}
+
+describe('Ouvrir le règlement d\'un mois', () => {
+  beforeEach(remettreAZero);
+
+  it('pré-remplit le montant EXACT du solde', async () => {
+    soldeCourant = 66.94;
+    await settleBalance();
+
+    expect(showModal).toHaveBeenCalledWith('modalReglerSolde');
+    expect(champ().value).toBe('66,94');
+    expect(phrase()).toBe('Le solde du mois reviendra à zéro.');
+    expect(bouton().disabled).toBe(false);
   });
 
-  it('quand la conjointe doit de l\'argent, c\'est elle qui verse', async () => {
+  it('le titre nomme le MOIS AFFICHÉ, celui que le règlement solde', async () => {
     soldeCourant = 500;
     await settleBalance();
 
-    expect(dernierEcrit()).toMatchObject({
-      direction: REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU,
-      amount: 500
-    });
+    // D5 : un règlement appartient au mois affiché, pas au mois de sa date.
+    // Sans le titre, rien à l'écran ne dirait lequel on solde.
+    expect(document.getElementById('modalReglerSoldeTitre').textContent)
+      .toMatch(/août\s+2026/i);
   });
 
-  it('quand c\'est vous qui devez, c\'est vous qui versez', async () => {
-    soldeCourant = -320.5;
+  it('le sens est DIT, et il suit le signe du solde', async () => {
+    soldeCourant = 500;
+    await settleBalance();
+    const quandElleDoit = document.getElementById('reglerSoldeSens').textContent;
+
+    soldeCourant = -500;
+    await settleBalance();
+    const quandJeDois = document.getElementById('reglerSoldeSens').textContent;
+
+    expect(quandElleDoit).toContain('Cindy');
+    expect(quandJeDois).toContain('Richard');
+    expect(quandJeDois).not.toBe(quandElleDoit);
+    // Et il n'est pas offert au choix : aucun contrôle de sens dans la modale.
+    expect(document.querySelectorAll('#modalReglerSolde select')).toHaveLength(0);
+  });
+
+  it('un montant arrondi à la centaine de centimes garde ses deux décimales', async () => {
+    soldeCourant = 320.5;
     await settleBalance();
 
-    expect(dernierEcrit()).toMatchObject({
-      direction: REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER,
-      amount: 320.5
-    });
+    expect(champ().value).toBe('320,50');
   });
 
-  it('le montant écrit est exactement le solde, au centime', async () => {
-    soldeCourant = 412.337;
-    await settleBalance();
-
-    expect(dernierEcrit().amount).toBe(412.34);
-  });
-
-  it('des comptes déjà équilibrés n\'écrivent rien', async () => {
+  it('des comptes déjà équilibrés n\'ouvrent rien', async () => {
     soldeCourant = 0;
     await settleBalance();
 
+    expect(showModal).not.toHaveBeenCalled();
     expect(dbPush).not.toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalled();
   });
 
-  it('un écart inférieur au centime n\'écrit rien non plus', async () => {
-    // Un arrondi flottant résiduel ne doit pas produire une écriture de 0 €.
+  it('un écart inférieur au centime n\'ouvre rien non plus', async () => {
     soldeCourant = 0.004;
     await settleBalance();
 
+    expect(showModal).not.toHaveBeenCalled();
     expect(dbPush).not.toHaveBeenCalled();
   });
 
-  it('un refus de confirmation n\'écrit rien', async () => {
-    soldeCourant = 500;
-    showConfirmModal.mockResolvedValue(false);
-    await settleBalance();
-
-    expect(dbPush).not.toHaveBeenCalled();
-  });
-
-  it('sans période sélectionnée, rien n\'est écrit', async () => {
+  it('sans période sélectionnée, rien ne s\'ouvre', async () => {
     soldeCourant = 500;
     setState('currentPeriod', null);
     await settleBalance();
 
-    expect(dbPush).not.toHaveBeenCalled();
+    expect(showModal).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('le BOUTON de la modale mène bien à l\'écriture', async () => {
+    // L'export de `confirmerLeReglement` sert au banc d'essai ; ce cas tient le
+    // CÂBLAGE, que l'export ne prouve pas. Sans lui, tous les autres cas
+    // pourraient passer sur une modale dont le bouton ne fait rien.
+    soldeCourant = 500;
+    initReimbursements();
+    await settleBalance();
+
+    bouton().click();
+    await vi.waitFor(() => expect(dbPush).toHaveBeenCalled());
+    expect(dernierEcrit().amount).toBe(500);
+  });
+});
+
+describe('Le montant est LIBRE, et sa conséquence est dite', () => {
+  beforeEach(remettreAZero);
+
+  it('un paiement exact ramène le solde à zéro', async () => {
+    soldeCourant = 66.94;
+    await settleBalance();
+    await confirmerLeReglement();
+
+    expect(dernierEcrit()).toMatchObject({
+      direction: REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU,
+      amount: 66.94,
+      note: 'Règlement du solde'
+    });
+  });
+
+  it('UN PAIEMENT PARTIEL écrit ce qui a été tapé, pas le pré-remplissage', async () => {
+    soldeCourant = 66.94;
+    await settleBalance();
+    taper('40');
+
+    expect(chiffres(phrase())).toContain('26,94€');
+    await confirmerLeReglement();
+
+    expect(dernierEcrit().amount).toBe(40);
+  });
+
+  it('LE GESTE SUIVANT PRÉ-REMPLIT LE RESTE — pas d\'échéancier (D4)', async () => {
+    soldeCourant = 66.94;
+    await settleBalance();
+    taper('40');
+    await confirmerLeReglement();
+
+    // Le mois a bougé : le solde vaut désormais ce qui reste.
+    soldeCourant = 26.94;
+    await settleBalance();
+
+    expect(champ().value).toBe('26,94');
+    expect(phrase()).toBe('Le solde du mois reviendra à zéro.');
+  });
+
+  it('un TROP-VERSÉ est accepté, sans plafond, et affiché (D3)', async () => {
+    soldeCourant = 66.94;
+    await settleBalance();
+    taper('70');
+
+    expect(phrase()).toContain('Tu devras');
+    expect(chiffres(phrase())).toContain('3,06€');
+    expect(bouton().disabled).toBe(false);
+
+    await confirmerLeReglement();
+    expect(dernierEcrit().amount).toBe(70);
+  });
+
+  it('la virgule du clavier français est lue comme le point', async () => {
+    soldeCourant = 100;
+    await settleBalance();
+    taper('12,50');
+    await confirmerLeReglement();
+
+    expect(dernierEcrit().amount).toBe(12.5);
+  });
+
+  it('un montant illisible DÉSACTIVE la validation, et dit pourquoi', async () => {
+    soldeCourant = 500;
+    await settleBalance();
+    taper('abc');
+
+    expect(bouton().disabled).toBe(true);
+    expect(phrase()).toMatch(/[Mm]ontant/);
+
+    await confirmerLeReglement();
+    expect(dbPush).not.toHaveBeenCalled();
+  });
+
+  it.each([['zéro', '0'], ['négatif', '-5'], ['vide', '']])(
+    'un montant %s n\'écrit rien', async (_nom, saisie) => {
+      soldeCourant = 500;
+      await settleBalance();
+      taper(saisie);
+
+      expect(bouton().disabled).toBe(true);
+      await confirmerLeReglement();
+      expect(dbPush).not.toHaveBeenCalled();
+    });
+
+  it('le sens écrit reste celui du solde, même sur un trop-versé', async () => {
+    // Verser plus que dû ne change pas QUI verse : c'est le solde d'APRÈS qui
+    // s'inverse, pas le versement.
+    soldeCourant = -66.94;
+    await settleBalance();
+    taper('70');
+    await confirmerLeReglement();
+
+    expect(dernierEcrit().direction).toBe(REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
+  });
+
+  it('LE MOIS AFFICHÉ reçoit le règlement, pas le mois de sa date (D5)', async () => {
+    soldeCourant = 500;
+    await settleBalance();
+    await confirmerLeReglement();
+
+    expect(dbPush.mock.calls.at(-1)[0]).toBe('periods/2026-08/reimbursements');
   });
 });
 
 /**
  * La relecture qui précède l'écriture
  *
- * Le geste promet en toutes lettres « le solde du mois reviendra à zéro ». Il
+ * Le geste promet en toutes lettres ce que le versement fera au solde. Il
  * relisait pourtant les seuls remboursements avant d'écrire — un sixième de ce
- * dont le solde dépend. Une dépense saisie en face pendant que la confirmation
- * était à l'écran restait invisible, et le montant écrit était celui d'avant.
- *
- * Et il l'écrivait quand même : `amount` et `direction` étaient figés AVANT la
- * confirmation, si bien que la relecture ne servait qu'à détecter le cas où
- * tout était déjà soldé. Dans tous les autres, elle ne changeait rien.
+ * dont le solde dépend. Une dépense saisie en face pendant que la modale était
+ * à l'écran restait invisible, et la phrase affichée était fausse.
  */
 describe('Ce que le règlement relit avant d\'écrire', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    showConfirmModal.mockResolvedValue(true);
-    setState('currentPeriod', '2026-08');
-    liaisonRompueMock = () => false;
-    INSTANTANE = { '2026-08': { variableCharges: { v1: { amount: 10 } } } };
-  });
+  beforeEach(remettreAZero);
 
   it('tout ce dont le solde dépend, et d\'un seul instantané', async () => {
     soldeCourant = 500;
     await settleBalance();
+    await confirmerLeReglement();
 
-    // Le mois affiché, tiré de l'instantané, va aux trois listes et aux termes.
     const mois = INSTANTANE['2026-08'];
     expect(appliquerLesTermesDuMois).toHaveBeenCalledWith(mois, null);
     expect(loadVariableCharges).toHaveBeenCalledWith(mois);
     expect(loadFixedCharges).toHaveBeenCalledWith(mois);
-    // Le report dépend des mois précédents : il reçoit l'instantané entier.
     expect(refreshCarryOver).toHaveBeenCalledWith({
       historique: INSTANTANE, salairesGlobaux: null
     });
@@ -175,119 +339,134 @@ describe('Ce que le règlement relit avant d\'écrire', () => {
     //
     // Une lecture de charges en vaut TROIS depuis le lot P1b — le commun et
     // les deux poches personnelles —, et les trois sont une seule lecture
-    // logique : `lirePeriodes` les émet ensemble et n'en rend qu'un nœud. Ce
-    // que ce cas tient est qu'il n'y en a pas DEUX, et cette propriété est
-    // inchangée : on compte donc les lectures de l'historique, quelle que soit
-    // la poche qu'elles visent.
+    // logique : `lirePeriodes` les émet ensemble et n'en rend qu'un nœud.
     const lus = dbGet.mock.calls.map(c => c[0]);
     const lectureDeLHistorique = (chemin) => /(^|\/)periods$/.test(chemin);
 
     expect(lus.filter(lectureDeLHistorique)).toHaveLength(3);
     expect(lus.filter(c => c === 'periods')).toHaveLength(1);
     expect(lus.filter(c => c === 'salaries')).toHaveLength(1);
-    // La seule autre lecture est celle qui suit l'écriture : le remboursement
-    // qu'on vient de pousser n'est dans aucun instantané pris avant lui. Il n'a
-    // pas de poche personnelle — un remboursement se fait toujours à deux.
     expect(lus.filter(c => !lectureDeLHistorique(c) && c !== 'salaries'))
       .toEqual(['periods/2026-08/reimbursements']);
   });
 
-  it('TÉMOIN NÉGATIF : le montant d\'avant la confirmation n\'est plus celui qu\'on écrit', async () => {
-    // L'autre personne saisit une dépense pendant que la modale est ouverte :
-    // le solde passe de 500 à 180. L'ancien code écrivait 500 — le mois
-    // restait déséquilibré de 320 €, après avoir promis zéro.
+  it('LE SOLDE QUI A CHANGÉ N\'ÉCRIT RIEN, ET NE FERME PAS LA MODALE', async () => {
+    // Ce qui est comparé n'est plus le montant — il est saisi, il ne bouge
+    // pas — mais le SOLDE sur lequel la phrase a été affichée.
     soldeCourant = 500;
-    showConfirmModal.mockImplementation(async () => {
-      soldeCourant = 180;
-      return true;
-    });
-
     await settleBalance();
+    taper('70');
 
-    expect(dbPush, 'un montant que personne n\'a validé a été écrit')
+    // L'autre personne saisit une dépense pendant la saisie.
+    soldeCourant = 180;
+    await confirmerLeReglement();
+
+    expect(dbPush, 'une promesse jamais faite a été tenue').not.toHaveBeenCalled();
+    expect(closeModal, 'la modale s\'est fermée, il faudra retaper')
       .not.toHaveBeenCalled();
-    // Et on dit lequel, pour qu'un second appui règle le bon.
-    expect(toast.warning.mock.calls.at(-1)[0]).toContain('180');
+    // Le montant saisi est CONSERVÉ : personne ne l'a contesté.
+    expect(champ().value).toBe('70');
   });
 
-  it('un solde qui a changé de SENS n\'est pas écrit non plus', async () => {
+  it('et la phrase est recalculée sur le solde FRAIS', async () => {
     soldeCourant = 500;
-    showConfirmModal.mockImplementation(async () => {
-      soldeCourant = -500;
-      return true;
-    });
-
     await settleBalance();
+    taper('70');
+    soldeCourant = 180;
+    await confirmerLeReglement();
 
-    // Même montant, sens inverse : verser dans le mauvais sens double l'écart.
-    expect(dbPush).not.toHaveBeenCalled();
-    expect(toast.warning).toHaveBeenCalled();
+    // 70 sur 500 laissait 430 ; sur 180 il reste 110.
+    expect(chiffres(phrase())).toContain('110,00€');
+    expect(chiffres(phrase())).not.toContain('430,00€');
+
+    expect(avertissement().hidden).toBe(false);
+    expect(chiffres(avertissement().textContent)).toContain('180,00€');
   });
 
-  it('un solde inchangé s\'écrit, au centime près', async () => {
-    soldeCourant = 412.337;
-    await settleBalance();
-
-    expect(dbPush.mock.calls.at(-1)[1]).toMatchObject({
-      amount: 412.34,
-      direction: REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
-    });
-  });
-
-  it('un solde réglé en face pendant la confirmation ne produit rien', async () => {
+  it('un SECOND appui, lui, écrit — sur le solde frais', async () => {
     soldeCourant = 500;
-    showConfirmModal.mockImplementation(async () => {
-      soldeCourant = 0;
-      return true;
-    });
-
     await settleBalance();
+    taper('70');
+    soldeCourant = 180;
+    await confirmerLeReglement();
+    expect(dbPush).not.toHaveBeenCalled();
+
+    await confirmerLeReglement();
+    expect(dernierEcrit().amount).toBe(70);
+  });
+
+  it('un solde qui a changé d\'UN CENTIME suffit à retenir l\'écriture', async () => {
+    soldeCourant = 500;
+    await settleBalance();
+    soldeCourant = 500.01;
+    await confirmerLeReglement();
 
     expect(dbPush).not.toHaveBeenCalled();
+  });
+
+  it('un solde réglé en face pendant la saisie FERME la modale', async () => {
+    // Là, la modale n'a plus d'objet : il n'y a plus rien à régler.
+    soldeCourant = 500;
+    await settleBalance();
+    soldeCourant = 0;
+    await confirmerLeReglement();
+
+    expect(dbPush).not.toHaveBeenCalled();
+    expect(closeModal).toHaveBeenCalledWith('modalReglerSolde', false);
     expect(toast.info).toHaveBeenCalled();
+  });
+
+  it('un règlement abouti ferme la modale', async () => {
+    soldeCourant = 500;
+    await settleBalance();
+    await confirmerLeReglement();
+
+    expect(closeModal).toHaveBeenCalledWith('modalReglerSolde', false);
+    expect(toast.success).toHaveBeenCalled();
+  });
+
+  it('LE VERROU : deux appuis simultanés n\'écrivent qu\'une fois', async () => {
+    soldeCourant = 500;
+    await settleBalance();
+
+    await Promise.all([confirmerLeReglement(), confirmerLeReglement()]);
+
+    expect(dbPush).toHaveBeenCalledTimes(1);
   });
 });
 
 /**
- * Hors ligne, la vérification est impossible — donc la promesse aussi
+ * Hors ligne, la vérification est impossible — donc la phrase aussi
  *
  * `dbGet` ne lève pas quand la liaison est rompue : il sert le miroir. La
  * relecture rendrait donc les valeurs de la dernière connexion, et le « solde
  * vérifié » n'aurait rien vérifié. Pire, `dbPush` met l'écriture en file et
- * rend la main : l'application annoncerait « Solde réglé » pour un règlement
- * qui partira plus tard, calculé sur un solde périmé.
+ * rend la main : l'application annoncerait « Versement enregistré » pour un
+ * règlement qui partira plus tard, calculé sur un solde périmé.
  */
 describe('Régler hors ligne', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    showConfirmModal.mockResolvedValue(true);
-    setState('currentPeriod', '2026-08');
-    INSTANTANE = { '2026-08': { variableCharges: { v1: { amount: 10 } } } };
-  });
+  beforeEach(remettreAZero);
 
-  it('refuse avant même de faire confirmer', async () => {
+  it('refuse avant même d\'ouvrir la saisie', async () => {
     soldeCourant = 500;
     liaisonRompueMock = () => true;
 
     await settleBalance();
 
-    expect(showConfirmModal, 'on a fait confirmer un geste qu\'on refuse')
-      .not.toHaveBeenCalled();
+    expect(showModal, 'on a ouvert une saisie qu\'on refuse').not.toHaveBeenCalled();
     expect(dbPush).not.toHaveBeenCalled();
     expect(toast.error.mock.calls.at(-1)[0]).toContain('hors ligne');
   });
 
-  it('refuse aussi quand la liaison se rompt PENDANT la confirmation', async () => {
+  it('refuse aussi quand la liaison se rompt PENDANT la saisie', async () => {
     // C'est le contrôle qui décide : le premier n'est qu'une courtoisie.
     soldeCourant = 500;
     let rompue = false;
     liaisonRompueMock = () => rompue;
-    showConfirmModal.mockImplementation(async () => {
-      rompue = true;
-      return true;
-    });
 
     await settleBalance();
+    rompue = true;
+    await confirmerLeReglement();
 
     expect(dbPush).not.toHaveBeenCalled();
     expect(toast.error.mock.calls.at(-1)[0]).toContain('hors ligne');
@@ -302,8 +481,9 @@ describe('Régler hors ligne', () => {
 
     let rompue = false;
     liaisonRompueMock = () => rompue;
-    showConfirmModal.mockImplementation(async () => { rompue = true; return true; });
     await settleBalance();
+    rompue = true;
+    await confirmerLeReglement();
     const apres = toast.error.mock.calls.at(-1)[0];
 
     expect(apres).toBe(avant);
@@ -311,7 +491,7 @@ describe('Régler hors ligne', () => {
 });
 
 /**
- * Le test qui compte vraiment : le règlement doit ramener le solde à zéro.
+ * Le test qui compte vraiment : un règlement EXACT doit ramener le solde à zéro.
  *
  * Il ne vérifie pas une valeur écrite mais la conséquence de cette écriture,
  * en repassant par le vrai moteur de calcul. Un tel test aurait suffi à
@@ -319,7 +499,7 @@ describe('Régler hors ligne', () => {
  * l'ancienne convention, régler un solde de 500 l'aurait porté à 1000.
  */
 describe('Après règlement, les comptes sont soldés', () => {
-  /** @returns {Object} Un mois où vous avez payé 1000 € pour des salaires égaux */
+  /** @returns {Object} Un mois où une personne a payé 1000 € pour des salaires égaux */
   const moisDesequilibre = (payeur) => ({
     salaries: { vous: 2000, conjointe: 2000 },
     fixedCharges: [{ id: 'f1', amount: 1000, paidBy: payeur, deleted: false }],
@@ -350,5 +530,45 @@ describe('Après règlement, les comptes sont soldés', () => {
     });
 
     expect(apres.balance).toBeCloseTo(0, 5);
+  });
+
+  it('UN PAIEMENT PARTIEL laisse exactement ce que la phrase annonçait', () => {
+    // Le raccord entre la phrase et le moteur : ce qu'elle promet est ce que
+    // `computeSummary` rendra. Sans ce cas, la phrase pourrait dire n'importe
+    // quoi tant qu'elle le dit de façon cohérente avec elle-même.
+    const mois = moisDesequilibre('vous');
+    const { balance } = computeSummary(mois);
+
+    const apres = computeSummary({
+      ...mois,
+      reimbursements: [{
+        id: 'r1', amount: 300, deleted: false,
+        direction: balance > 0
+          ? REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
+          : REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
+      }]
+    });
+
+    expect(Math.abs(apres.balance)).toBeCloseTo(200, 5);
+    // Et le sens n'a pas bougé : 300 < 500.
+    expect(Math.sign(apres.balance)).toBe(Math.sign(balance));
+  });
+
+  it('UN TROP-VERSÉ inverse le sens, du montant annoncé', () => {
+    const mois = moisDesequilibre('vous');
+    const { balance } = computeSummary(mois);
+
+    const apres = computeSummary({
+      ...mois,
+      reimbursements: [{
+        id: 'r1', amount: 700, deleted: false,
+        direction: balance > 0
+          ? REIMBURSEMENT_DIRECTIONS.PARTNER_TO_YOU
+          : REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER
+      }]
+    });
+
+    expect(Math.abs(apres.balance)).toBeCloseTo(200, 5);
+    expect(Math.sign(apres.balance)).toBe(-Math.sign(balance));
   });
 });

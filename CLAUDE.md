@@ -54,7 +54,7 @@ FairSplit/
 │       │                       # ici, pas dans `perimetre.js`, qui est pur)
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 31 modules fonctionnels — dont trash (rétablir
+│       ├── modules/            # 32 modules fonctionnels — dont trash (rétablir
 │       │                       # ce qui a été supprimé en douceur, sur tout
 │       │                       # l'historique), selection-charges (agir sur
 │       │                       # plusieurs charges à la fois),
@@ -62,7 +62,12 @@ FairSplit/
 │       │                       # sans y penser), resume-prive (ce que l'autre
 │       │                       # voit d'un espace privé, selon la posture
 │       │                       # accordée : rien, un total, ou le détail)
-│       └── utils/              # 68 aides pures — dont decomposition (pourquoi
+│       └── utils/              # 72 aides pures — dont phrase-reglement (ce qu'un
+│                               # règlement fera au solde : « il reviendra à zéro »,
+│                               # « il restera X à régler », « tu devras X » — la
+│                               # seule protection contre la faute de frappe, le
+│                               # trop-versé n'ayant aucun plafond),
+│                               # decomposition (pourquoi
 │                               # ma part vaut ce qu'elle vaut : une ligne par
 │                               # RÈGLE appliquée, jamais par catégorie),
 │                               # onglets (quel panneau
@@ -189,14 +194,14 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 |---|---|---|---|
 | `utils/debug.js` | 38 | 0 | Critique — le plus importé du dépôt |
 | `state.js` | 35 | 1 | Critique — état global |
-| `utils/format.js` | 29 | 0 | Critique — affichage monétaire |
+| `utils/format.js` | 30 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
 | `db.js` | 26 | **21** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
-| `utils/members.js` | 24 | 0 | Important — qui doit à qui |
+| `utils/members.js` | 25 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 24 | 0 | Important — ce qui pèse sur le solde |
 | `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
-| `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
+| `utils/montant.js` | 19 | 0 | Important — lecture d'une saisie |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
@@ -317,6 +322,14 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > C'est ce que le classement complet coûte quand il est rejoué **dans la même
 > passe que le lot** : une ligne à corriger, et treize dont on sait qu'elles
 > n'ont pas bougé. La septième dérive vient de n'avoir pas fait ça.
+
+> **Relevé le 2026-09-17 pour le lot du règlement à montant libre — et ce
+> n'est PAS une dérive : le classement complet a été rejoué dans la même passe
+> que le lot.** Trois lignes bougent, les trois sont les siennes, et elles ont
+> toutes la même cause : `utils/phrase-reglement.js` — `utils/format.js`
+> 29 → 30, `utils/members.js` 24 → 25, `utils/montant.js` 18 → 19. Les onze
+> autres lignes n'ont pas bougé, et on le SAIT plutôt que de le supposer. Le
+> hub est inchangé : 30 imports statiques, 29 `runStep`.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -2114,7 +2127,7 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 
 ### Livraison et commandes
 
-- **`sw.js` tient sa liste de précache à la main** (129 entrées). **Tout module
+- **`sw.js` tient sa liste de précache à la main** (135 entrées). **Tout module
   neuf doit y être ajouté**, sinon le rendu échoue hors ligne. La garde est
   **`tests/utils/service-worker-precache.test.js`**, cas « couvre tous les
   modules JavaScript publiés » : il énumère `public/**/*.js` et exige que chacun
@@ -2597,6 +2610,75 @@ information reçue.**
 > installe : « je n'en ai pas » ou « on ne me les montre pas ? ». La masquer
 > aurait répondu à la question en la supprimant.
 
+> **✅ LE RÈGLEMENT À MONTANT LIBRE, APPLIQUÉ LE 2026-09-17 — D1 à D6, décisions
+> du foyer.** « Régler ce solde » écrivait le montant EXACT du solde après une
+> question fermée. On rembourse pourtant rarement au centime : on arrondit —
+> 70 € pour 66,94 € —, on paie en deux fois, ou on verse ce que la banque a
+> débité. Un paiement partiel obligeait à retrouver la carte
+> « 💸 Remboursements » et son bouton « + Ajouter » ; **rien depuis « Régler »
+> n'y menait**, et on en concluait que ce n'était pas possible.
+>
+> - **D1 — une vraie modale de saisie**, `#modalReglerSolde`, à la place de
+>   `showConfirmModal`. Le champ est PRÉ-REMPLI de `reglementPour(solde).amount`
+>   et modifiable ; le cas au centime reste donc à un appui, ouvrir puis valider.
+>   **Le SENS n'est pas offert au choix** : il découle du signe du solde. Le
+>   rendre modifiable ouvrirait un versement qui AGGRAVE l'écart, et aucune des
+>   trois phrases ci-dessous ne saurait l'appeler un règlement.
+> - **D2 — une phrase de conséquence, co-visible avec le champ**, recalculée à
+>   chaque frappe sur le solde CUMULÉ, report compris. Une seule fabrique pure,
+>   `utils/phrase-reglement.js`, et la comparaison se fait **au centime**
+>   (`Math.round(x * 100)`) : `0,1 + 0,2 − 0,3` n'est pas nul en flottant, et un
+>   paiement exact aurait annoncé « il restera 0,00 € à régler ».
+> - **D3 — le trop-versé est accepté, sans aucun plafond.** La protection contre
+>   la faute de frappe EST la phrase : un plafond refuserait un geste légitime, et
+>   un refus n'apprend rien, quand « Il restera 1 233,06 € à régler » se lit tout
+>   seul quand on voulait taper 70 et qu'on a tapé 7.
+> - **D4 — payer en plusieurs fois, c'est faire plusieurs règlements.** Pas
+>   d'échéancier : au geste suivant, le pré-remplissage donne le reste.
+> - **D5 — un règlement appartient au mois AFFICHÉ, qu'il solde**, jamais au mois
+>   de sa date : `periods/${currentPeriod}`, comportement conservé. Le titre le
+>   NOMME — « Régler septembre 2026 » — parce que sans lui rien à l'écran ne dirait
+>   quel mois on solde. ⚠️ **C'est l'inverse du formulaire « + Ajouter »**, qui
+>   range par `periodeDeLaDate` et n'a pas été touché : là-bas on saisit un
+>   virement, ici on éteint un mois. Conséquence assumée, mesurée à l'étape 0 : un
+>   règlement d'août saisi le 3 septembre s'affiche dans la carte d'août daté du
+>   03/09, **sans aucune marque** — `renderReimbursements` peint la date telle
+>   quelle, l'appartenance au mois venant du CHEMIN.
+> - **D6 — pas de raccourcis d'arrondi en v1.**
+>
+> **CE QUI A CHANGÉ DANS LA RELECTURE, et c'est la conséquence la moins évidente
+> du montant libre.** Le code comparait le montant FRAIS au montant confirmé :
+> deux grandeurs de même nature. Le montant étant désormais saisi, cette
+> comparaison n'a plus d'objet — 70 € restent 70 € quoi qu'ait fait le solde. Ce
+> qui est comparé est le **SOLDE relu au solde sur lequel la phrase a été
+> affichée**, au centime. Et le remède n'est plus de rendre la main : rien n'est
+> écrit, **la modale RESTE ouverte avec le montant saisi**, la phrase est
+> recalculée sur le solde frais, un avertissement dit ce qui a bougé, et un
+> second appui décide. Fermer ferait retaper un montant que personne n'a
+> contesté. Un solde frais à zéro, lui, ferme : la modale n'a plus d'objet.
+>
+> **LE VERROU `reglementEnCours` A SUIVI L'ÉCRITURE.** Il gardait l'ouverture du
+> geste, parce que l'ouverture ALLAIT jusqu'au `dbPush`. Depuis qu'une modale
+> s'intercale, garder l'ouverture ne garderait plus rien — elle rend la main dès
+> que la modale est à l'écran. Il garde `confirmerLeReglement`, où deux appuis
+> feraient basculer le solde du même montant dans l'autre sens ; rouvrir la
+> modale deux fois, à l'inverse, ne coûte rien (`empilerCouche` est idempotente).
+>
+> **ÉCART ASSUMÉ À LA LETTRE DE D2, et il est mesuré.** D2 rédigeait le
+> trop-versé « *<prénom du créancier devenu débiteur> te devra X* ». Cette
+> formulation n'est vraie que d'UN des deux cas : quand c'est l'AUTRE qui verse
+> trop, c'est **moi** qui deviens débiteur, et la phrase rendrait « Richard te
+> devra 3,06 € » sur le téléphone de Richard. Le module applique donc D2 **plus
+> son miroir** — « Tu devras 3,06 € à Cindy » —, par
+> `describeBalance().emplacementDebiteur`, seule fabrique de la convention de
+> signe, et la convention du « tu » de `tete-du-bilan.js`. Tenu par un cas qui
+> joue les MÊMES données sur les deux téléphones et exige deux phrases
+> différentes ; une rédaction unique le fait tomber.
+>
+> **Et la couleur : le bouton de validation n'est PAS en `--danger`.** C'est un
+> paiement, pas une destruction — voir le point ouvert du libellé de
+> `showConfirmModal`, qui porte le relevé des douze appels.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
@@ -2704,6 +2786,54 @@ les relevés pris avant valent toujours.
    maison du personnel.
 3. **Où atterrit le personnel** dans l'arbre, et la migration des données.
 4. **La purge définitive** — `PRIV-003`, contre la contrainte ci-dessus.
+5. **⚠️ `showConfirmModal` rend « Supprimer » EN ROUGE pour les DOUZE appels du
+   dépôt, dont sept ne suppriment rien.** Le libellé et la couleur sont écrits
+   en dur dans le balisage — `FairSplit.html`, bouton `#modalConfirmOk`,
+   `class="btn btn-danger"` — et **aucun JS ne les touche** : `modal.js` ne lit
+   cet élément que pour y poser ses écouteurs. Relevé le 2026-09-17, en ouvrant
+   l'étape 0 du lot du règlement :
+
+   | Fichier:ligne | Action confirmée | Juste ? |
+   |---|---|---|
+   | `backup.js:395` | remplacer toutes les données par une sauvegarde | non — « Restaurer » |
+   | `fixed-charges.js:187` | reconduire des charges fixes | **non** — création |
+   | `fixed-charges.js:533` | basculer une charge fixe commun ⇄ perso | **non** — déplacement |
+   | `fixed-charges.js:667` | supprimer une charge fixe | oui |
+   | `envelopes.js:189` | **créer** une cagnotte | **non** |
+   | `envelopes.js:1366` | supprimer une enveloppe | oui |
+   | `auth.js:176` | se déconnecter avec des saisies en attente | **non** |
+   | `selection-charges.js:294` | supprimer un lot de charges | oui |
+   | `variable-charges.js:546` | basculer une charge variable commun ⇄ perso | **non** |
+   | `variable-charges.js:711` | supprimer une charge variable | oui |
+   | `reimbursements.js:496` | supprimer un remboursement | oui |
+
+   Le douzième était `reimbursements.js:412`, « enregistrer un règlement » : il
+   **a quitté cette liste** le 2026-09-17, en gagnant sa propre modale. Les onze
+   autres restent, et **ce lot ne les corrige pas** — c'est un lot séparé, et
+   toucher onze sites de confirmation dans le même commit qu'un changement de
+   mécanique de règlement rendrait les deux illisibles.
+
+   Ce que le correctif demandera : un libellé et un ton PARAMÉTRÉS, avec un
+   défaut. Le passer à `showConfirmModal` sans défaut ferait un treizième site
+   qu'on oublierait de renseigner, et un bouton vide est pire qu'un bouton faux.
+6. **⚠️ `expliquerLeReport` — la branche « sens opposés, total basculé » répète
+   le héros au lieu de dire le mouvement du mois** (constaté à l'écran le
+   2026-09-17).
+   - Fichier : `public/js/utils/explication-solde.js`, avant-dernière branche.
+   - Cas réel : report de 40,51 € dû à Richard, mois propre de 211,37 € dû par
+     Richard, aucun remboursement. Solde : 170,86 €.
+   - Rendu actuel : « les 40,51 € dus des mois précédents sont soldés ; ce
+     mois-ci laisse 170,86 € dans l'autre sens ».
+   - Défaut : la phrase affiche `somme(total)` là où « ce mois-ci » appelle
+     `somme(mois)`. Elle répète le héros, rend 40,51 et 170,86 invérifiables de
+     tête (contre le principe écrit en tête du fichier), et « soldés » suggère
+     un paiement qui n'a pas eu lieu.
+   - Formulation proposée, non encore validée : « ce mois-ci pèse X dans
+     l'autre sens et efface les Y dus des mois précédents ».
+   - À traiter APRÈS la fusion de ce lot : un règlement partiel fait entrer des
+     remboursements dans `ownBalance`, et « ce mois-ci » mélangerait alors
+     charges et versements. Le lot de correction devra couvrir ce cas par un
+     test.
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).
