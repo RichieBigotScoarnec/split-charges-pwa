@@ -88,10 +88,25 @@ async function semerLesQuatre(page) {
   await page.waitForTimeout(2500);
 }
 
-/** Les libellés des lignes RENDUES dans la liste des charges variables */
+/**
+ * Les libellés des lignes RENDUES dans la liste des charges variables
+ *
+ * Le texte PROPRE de `.charge-description`, sans ses enfants : l'étiquette
+ * « perso » vit à l'intérieur, et `textContent` rendait « Coiffeur à moi
+ * perso ». Le cas était rouge sur une égalité de libellé, pour une raison qui
+ * n'avait rien à voir avec la propriété — et, plus grave, les assertions
+ * d'ABSENCE auraient pu devenir vraies pour la même raison, en vert.
+ *
+ * C'est la plus petite surface qui contienne encore la propriété : le libellé
+ * que la personne lit, et lui seul.
+ */
 const lignesRendues = (page) => page.evaluate(() =>
   [...document.querySelectorAll('#variableChargesList .charge-item .charge-description')]
-    .map(el => el.textContent.trim()));
+    .map(el => [...el.childNodes]
+      .filter(n => n.nodeType === 3)
+      .map(n => n.textContent)
+      .join('')
+      .trim()));
 
 /**
  * Change de portée par le segment que l'écran porte
