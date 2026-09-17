@@ -200,8 +200,8 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
 | `utils/members.js` | 25 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 24 | 0 | Important — ce qui pèse sur le solde |
-| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 19 | 0 | Important — lecture d'une saisie |
+| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
@@ -322,6 +322,32 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > C'est ce que le classement complet coûte quand il est rejoué **dans la même
 > passe que le lot** : une ligne à corriger, et treize dont on sait qu'elles
 > n'ont pas bougé. La septième dérive vient de n'avoir pas fait ça.
+
+> **Relevé le 2026-09-17 après avoir fusionné `main` dans une branche en vol —
+> et la nouveauté est qu'il n'y a RIEN à corriger, sur des chiffres qui ont
+> pourtant bougé.** Le lot du règlement à montant libre (#219) a fait monter
+> trois lignes — `utils/format.js` 29 → 30, `utils/members.js` 24 → 25,
+> `utils/montant.js` 18 → 19 — parce que son fichier neuf,
+> `utils/phrase-reglement.js`, importe les trois. **Et il a corrigé les trois
+> lignes dans sa propre passe.** C'est la huitième occasion de dériver, et la
+> première qui n'a rien coûté.
+>
+> **Ce qu'elle apprend porte sur la MÉTHODE de vérification, pas sur les
+> comptes.** J'ai d'abord conclu à une huitième dérive — les trois chiffres
+> mesurés ne correspondaient pas à ceux que j'avais en tête. Ils venaient du
+> `CLAUDE.md` **d'avant la fusion** : je comparais la mesure d'un arbre à un
+> tableau qui n'était plus celui de cet arbre. Le tableau réel était juste.
+>
+> **Le geste : après une fusion, relire le tableau DANS L'ARBRE FUSIONNÉ, jamais
+> de mémoire.** Un tableau tenu à la main est une donnée versionnée comme le
+> code ; le comparer à un souvenir accuse la mauvaise passe, et ici ça aurait
+> imputé à #219 un défaut qu'il avait justement évité. La règle 5 s'applique au
+> diagnostic d'une dérive comme à tout le reste.
+>
+> Un seul écart réel, et il est d'ORDRE : `utils/montant.js` (19) était listé
+> **sous** `poches.js` (18), alors que le tableau se lit par compte décroissant.
+> Corrigé. Le hub est exact — 30 imports statiques, 29 appels à `runStep`,
+> remesurés.
 
 > **Relevé le 2026-09-17 pour le lot du règlement à montant libre — et ce
 > n'est PAS une dérive : le classement complet a été rejoué dans la même passe
