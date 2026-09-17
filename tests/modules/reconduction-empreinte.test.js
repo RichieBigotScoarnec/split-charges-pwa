@@ -31,7 +31,15 @@ vi.mock('../../public/js/modules/fixed-charges.js', () => ({
   loadFixedCharges: vi.fn().mockResolvedValue(undefined)
 }));
 vi.mock('../../public/js/modules/summary.js', () => ({ calculateSummary: vi.fn() }));
-vi.mock('../../public/js/db.js', () => ({
+// Le double de `db.js` enveloppe l'ORIGINAL plutôt que de le remplacer.
+//
+// Depuis le lot P1b, les lectures de charges passent par `poches.js`, qui
+// demande `cheminDuPersonnel` à `db.js`. Un double qui ne le porte pas fait
+// échouer la fusion ; un double qui le RÉÉCRIT en donnerait une seconde
+// rédaction, et ces cas mesureraient alors un chemin que l'application
+// n'emprunte pas. Seuls les accès sont remplacés.
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   getDataPath: (chemin) => `household/${chemin}`,
   dbGet: vi.fn()
 }));

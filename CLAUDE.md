@@ -176,20 +176,22 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
-| `utils/debug.js` | 36 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 33 | 1 | Critique — état global |
-| `utils/format.js` | 28 | 0 | Critique — affichage monétaire |
+| `utils/debug.js` | 38 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 35 | 1 | Critique — état global |
+| `utils/format.js` | 29 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
-| `db.js` | 25 | **22** | Critique — abstraction DB |
+| `db.js` | 26 | **21** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
+| `utils/members.js` | 23 | 0 | Important — qui doit à qui |
+| `utils/perimetre.js` | 21 | 0 | Important — ce qui pèse sur le solde |
+| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
-| `utils/members.js` | 18 | 0 | Important — qui doit à qui |
-| `utils/perimetre.js` | 18 | 0 | Important — ce qui pèse sur le solde |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
-| `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
+| `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
+| `utils/diagnostics.js` | 13 | 0 | Important — le journal qui survit au téléphone |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
-| `modules/auth.js` | 1 | 0 | Critique — **hub** : importe 28 modules et en initialise 26 |
+| `modules/auth.js` | 1 | 0 | Critique — **hub** : 30 imports statiques, 28 appels à `runStep` |
 
 > **Relevé le 2026-09-08 par `node tools/adherences.mjs`, et quatre lignes
 > avaient dérivé** — debug 35 → 36, state 31 → 32, date 24 → 25,
@@ -219,6 +221,56 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > l'appartenance au tableau — quel module y figure —, jamais son compte : les
 > six dérives sont donc toutes passées en vert. Voir le point 0 de « Ce qui
 > reste OUVERT », dans les *Décisions de conception*.
+
+> **Relevé le 2026-09-16 pour le lot P1b** — `poches.js` entre au tableau à
+> **14 dépendants**, et quatre lignes bougent avec lui : debug 36 → 37,
+> state 33 → 34, members 18 → 20, et **`db.js` passe de 22 imports dynamiques à
+> 20**.
+>
+> Cette dernière est la seule qui DESCEND, et sa raison mérite d'être dite :
+> `poches.js` s'importe **statiquement** partout, là où `db.js` s'importe
+> presque toujours par `await import()`. Ce n'est pas une préférence de style —
+> mesuré le 2026-09-16, un `poches.js` importé dynamiquement était résolu par
+> Vitest **hors du graphe doublé** : le module recevait le VRAI `db.js` malgré
+> un double en place, et quatre cas de `saisie-rapide.test.js` échouaient sur
+> « Database not initialized » sans que rien ne désigne la cause. L'import
+> statique la referme, et il est de toute façon le bon choix pour une couche
+> qui s'intercale sous tout le reste.
+
+> **SIXIÈME DÉRIVE, relevée le 2026-09-16 par le lot P1b — et le classement
+> complet a été rejoué, pas la seule ligne qui avait rougi.**
+> `adherences-declarees.test.js` a signalé `utils/diagnostics.js` à 13, absent
+> du tableau. Rejouer `node tools/adherences.mjs` **sans argument** a montré que
+> **six autres lignes** avaient bougé dans le même lot — `utils/debug.js`
+> 37 → 38, `state.js` 34 → 35, `utils/format.js` 28 → 29, `db.js` 25/20 →
+> 26/21, `utils/members.js` 20 → 23, `utils/perimetre.js` 18 → 21, `poches.js`
+> 14 → 18. Toutes viennent de ce lot : `poches.js` est devenu le point de
+> passage de la lecture, et `renommage.js`, `migration-poches.js`,
+> `bascule-poche.js` l'importent avec ses voisins.
+>
+> **Rejoué une seconde fois à la fin du lot**, et deux lignes avaient encore
+> bougé en trois commits : `utils/members.js` 23 → 22 (la migration lit
+> `confidentialite.js` plutôt que `members.js`, pour n'avoir aucun repli
+> d'emplacement) et `utils/perimetre.js` 21 → 22 (`recurrence.js` a gagné le
+> périmètre). C'est la mesure de ce que coûte l'habitude de ne recompter
+> qu'une fois : un lot de trois commits déplace ces chiffres trois fois.
+>
+> **Et les deux chiffres du hub étaient faux, faute de définition.** Le tableau
+> annonçait « importe 28 modules et en initialise 26 ». Mesuré sur `origin/main`
+> **avant** ce lot : 28 imports statiques — le premier chiffre était juste et
+> sans définition écrite — et **27** appels à `runStep`, non 26. Les deux
+> portent désormais le nom de ce qu'on compte, parce qu'un compte sans sa
+> définition ne se refait pas :
+>
+> ```bash
+> grep -c '^import ' public/js/modules/auth.js        # imports statiques
+> grep -c 'await runStep(' public/js/modules/auth.js  # étapes initialisées
+> ```
+>
+> C'est le point 0 de « Ce qui reste OUVERT » qui rend ces dérives possibles :
+> la garde tient l'APPARTENANCE au tableau, jamais les comptes. Elle a fait son
+> travail — elle a nommé le module qui franchissait le seuil — et elle ne
+> pouvait rien dire des six autres.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -1990,6 +2042,30 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 > aller le chercher. **Le geste est de télécharger l'artefact AVANT d'écrire ce
 > qu'il contient** ; `retention-days: 7` ne laisse pas de seconde chance.
 
+### Le prix d'une ouverture
+
+- **Une étape d'initialisation qui lit `periods` de son côté DOUBLE le coût
+  d'une ouverture, et `lecture-unique.spec.js` est le seul à le dire.** Mesuré
+  à douze mois de données : `periods` pèse **96 % des octets** téléchargés à
+  l'ouverture, et à cinq ans c'est 568 Ko par lecture. `initializeAppData` le
+  lit **une fois** — c'est l'étape de migration des poches qui le rapporte
+  depuis le lot P1b — et le passe à toutes les étapes qui en ont besoin, par un
+  paramètre `historique` toujours OPTIONNEL : l'oublier coûte une lecture,
+  jamais un chiffre faux.
+  **Le lot P1b l'a cassé deux fois d'un coup, et c'est le contrôle qui l'a
+  dit** — `periods` lu 3 fois, chaque poche 2 fois. Deux étapes neuves
+  lisaient chacune l'historique : la migration des poches et la reprise des
+  libellés personnels. Le remède n'est pas de relâcher le contrôle : la
+  migration rend son instantané, la reprise le reçoit.
+  **Et le raisonnement qui autorise à réutiliser l'instantané est écrit, parce
+  qu'il n'est pas évident : le nœud FUSIONNÉ est invariant sous la migration.**
+  Déplacer une charge d'une poche à l'autre change son chemin, jamais
+  l'ensemble que la fusion réunit. Le nœud COMMUN, lui, change bel et bien — et
+  c'est pour cela que c'est lui, et lui seul, que la migration inspecte
+  (`lireLesPoches`, qui rend les trois nœuds et leur fusion en une passe).
+  Une étape neuve qui a besoin de l'historique **reçoit** l'instantané ; elle
+  ne le lit pas.
+
 ### Livraison et commandes
 
 - **`sw.js` tient sa liste de précache à la main** (129 entrées). **Tout module
@@ -2248,6 +2324,60 @@ information reçue.**
 > `SECURITY.md`. Ce qui reste garanti est plus étroit et exact : une sauvegarde
 > ne peut pas contenir la poche de l'autre.
 
+> **✅ P1b APPLIQUÉ LE 2026-09-16, en trois commits — les 3 charges sont dans
+> leur poche.** Ce que P1a avait posé est maintenant rempli.
+>
+> - **La lecture.** Une seule fabrique de fusion, `poches.js`, lue par les 19
+>   sites de lecture. L'invariant est rétabli : `getState('variableCharges')` et
+>   `getState('fixedCharges')` portent le commun ET le personnel qu'on a le
+>   droit de lire, comme avant P1a. Les 33 `getState` ont suivi gratuitement.
+>   **Elle ne consulte JAMAIS `aval/`** : les quatre accès absolus lèvent en bac
+>   à sable, et un refus de lecture est une réponse suffisante — « pas de
+>   personnel », jamais une panne.
+> - **Le chemin se DÉRIVE de la charge, il ne se compose plus.**
+>   `cheminDeLaCharge(charge, {periode, collection, id})`, aux 19 sites
+>   d'écriture. Aucun marqueur n'est porté par l'objet : le périmètre et le
+>   payeur suffisent, et `perimetre.js` tranche.
+> - **La bascule « perso » est nommée, confirmée et atomique.** C'est le premier
+>   changement de chemin qu'une édition produise. Refusée, RIEN n'est écrit —
+>   pas même les autres champs.
+> - **La migration : chacun la sienne, à l'ouverture.** Personne n'a le droit
+>   d'écrire dans la poche de l'autre, donc aucun compte ne peut migrer les
+>   deux. `modules/migration-poches.js` lit le nœud COMMUN — jamais le fusionné,
+>   ce qui la rend idempotente — et renonce hors ligne comme quand des écritures
+>   attendent de partir.
+>
+> **UN DÉFAUT RÉEL, trouvé en balayant les sites d'écriture et absent du
+> relevé.** `quick-add.js` composait `periods/{mois}/variableCharges` pour TOUTE
+> dépense, « Perso » comprise : elle partait bien avec `perimetre: 'solo'` —
+> donc hors du solde — mais dans la poche COMMUNE, lisible par l'autre sans
+> aucun aval. C'est le geste le plus fréquent de l'application. Le relevé de
+> phase 1 avait compté les 19 sites de LECTURE et les traversées ; il n'avait
+> pas ouvert chaque `dbPush`.
+>
+> **TROIS ASYMÉTRIES ASSUMÉES, écrites plutôt que subies** — chacune est le prix
+> du mur, pas un défaut à réparer :
+>
+> - **le miroir.** Sa propre poche est mémorisée sur l'appareil et mise en file
+>   hors ligne ; celle de l'autre ne l'est **jamais** — ni mémoire à l'aller, ni
+>   repli au retour. Une poche qu'on ne peut pas relire est une poche qu'on
+>   n'affiche pas ;
+> - **le renommage.** Il suit les charges du foyer et les miennes ; les
+>   personnelles de l'autre gardent l'ancien libellé, et l'écran dit combien.
+>   Chacun reprend la sienne à l'ouverture (`planRattrapage`), par la
+>   correspondance dérivable entre le libellé d'une charge et l'identifiant
+>   d'une entrée — qui survit au renommage. **Sa limite est tenue par un cas :**
+>   deux renommages successifs pendant qu'une poche dort ne sont PAS repris,
+>   parce que rien ne les distingue d'un libellé étranger à la liste ;
+> - **la reconduction.** Elle porte **une marque par poche** — le seul nœud que
+>   P1b ajoute aux règles. La marque commune ne peut pas servir au personnel :
+>   celui des deux qui ouvre l'application le premier la réserve, et la poche de
+>   l'autre ne serait alors jamais reconduite.
+>
+> **Et le total de catégorie inclut toujours le personnel sans le dire** — c'est
+> P2, délibérément. Un lot qui change à la fois la lecture, les écritures et un
+> affichage de total ne se relit plus.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
@@ -2258,11 +2388,13 @@ information reçue.**
 - **`database.rules.json:979` / `:1023`** conditionnent le `.read` de
   `prive/{qui}` à `aval/{qui}/actif`. Posture « Rien » → aucun accès.
   **Vérifié contre le moteur, pas contre un libellé d'écran.**
-- **Mais les dépenses solo vivent dans `household/`** et sont **lisibles par
-  l'autre aujourd'hui, sans aucun aval**. La réalité est l'inverse de la
-  crainte : ce qu'on croyait exposé est protégé, ce qu'on saisit réellement ne
-  l'est pas. *(Toujours vrai après P1a : la structure existe, les 3 charges n'y
-  sont pas encore — voir l'encadré ci-dessus.)*
+- **~~Mais les dépenses solo vivent dans `household/`~~ ✅ REFERMÉ le
+  2026-09-16 par P1b.** Le constat était : elles étaient **lisibles par l'autre,
+  sans aucun aval**, et la réalité était l'inverse de la crainte — ce qu'on
+  croyait exposé était protégé, ce qu'on saisit réellement ne l'était pas. La
+  structure est venue avec P1a, les 3 charges avec P1b. Le texte reste, parce
+  que c'est lui qui rend le lot lisible : un constat effacé donne un dépôt qui
+  a l'air de n'avoir jamais eu le défaut.
 - **Ce constat est NEUF.** `PRIV-001`, `PRIV-002`, `PRIV-003` (agent
   `privacy-compliance`, commit `b2e5622`) portent sur Nominatim absent de
   `SECURITY.md`, sur deux fabriques de géocodage dont une n'arrondit pas la

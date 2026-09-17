@@ -10,9 +10,21 @@ const dbGet = vi.fn(chemin => Promise.resolve(chemin === 'periods' ? INSTANTANE 
 /** La liaison est-elle rompue ? Remplaçable par test. */
 let liaisonRompueMock = () => false;
 
-vi.mock('../../public/js/db.js', () => ({
-  dbPush,
-  dbGet,
+// Le double de `db.js` enveloppe l'ORIGINAL plutôt que de le remplacer.
+//
+// Depuis le lot P1b, les lectures de charges passent par `poches.js`, qui
+// demande `cheminDuPersonnel` à `db.js`. Un double qui ne le porte pas fait
+// échouer la fusion ; un double qui le RÉÉCRIT en donnerait une seconde
+// rédaction, et ces cas mesureraient alors un chemin que l'application
+// n'emprunte pas. Seuls les accès sont remplacés.
+vi.mock('../../public/js/db.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  // Accesseurs PARESSEUX, et ce n'est pas un style : le facteur d'un double
+  // `async` est invoqué AVANT les `const` du fichier, et une référence
+  // directe y tombe en zone morte temporelle. Vitest sert alors le module
+  // ORIGINAL — silencieusement — et le cas mesure la vraie base.
+  dbPush: (...a) => dbPush(...a),
+  dbGet: (...a) => dbGet(...a),
   dbSet: vi.fn(() => Promise.resolve()),
   dbUpdate: vi.fn(() => Promise.resolve()),
   getDataPath: vi.fn(path => `household/${path}`),
@@ -160,12 +172,23 @@ describe('Ce que le règlement relit avant d\'écrire', () => {
     });
 
     // Deux lectures pour la relecture entière, pas une par collaborateur.
+    //
+    // Une lecture de charges en vaut TROIS depuis le lot P1b — le commun et
+    // les deux poches personnelles —, et les trois sont une seule lecture
+    // logique : `lirePeriodes` les émet ensemble et n'en rend qu'un nœud. Ce
+    // que ce cas tient est qu'il n'y en a pas DEUX, et cette propriété est
+    // inchangée : on compte donc les lectures de l'historique, quelle que soit
+    // la poche qu'elles visent.
     const lus = dbGet.mock.calls.map(c => c[0]);
+    const lectureDeLHistorique = (chemin) => /(^|\/)periods$/.test(chemin);
+
+    expect(lus.filter(lectureDeLHistorique)).toHaveLength(3);
     expect(lus.filter(c => c === 'periods')).toHaveLength(1);
     expect(lus.filter(c => c === 'salaries')).toHaveLength(1);
     // La seule autre lecture est celle qui suit l'écriture : le remboursement
-    // qu'on vient de pousser n'est dans aucun instantané pris avant lui.
-    expect(lus.filter(c => c !== 'periods' && c !== 'salaries'))
+    // qu'on vient de pousser n'est dans aucun instantané pris avant lui. Il n'a
+    // pas de poche personnelle — un remboursement se fait toujours à deux.
+    expect(lus.filter(c => !lectureDeLHistorique(c) && c !== 'salaries'))
       .toEqual(['periods/2026-08/reimbursements']);
   });
 

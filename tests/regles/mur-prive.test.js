@@ -343,6 +343,45 @@ describe.each(ESPACES)('Le mur personnel — %s, écriture', (espace) => {
       session(VOUS).ref(chargePerso(espace, 'vous')).set({ description: 'sans montant' }));
   });
 
+  /**
+   * ───────────────────────────────────────────────────────────────────────────
+   * LA MARQUE DE RECONDUCTION DE LA POCHE (lot P1b)
+   *
+   * `periods/$periode/reconductedFrom` marque le mois COMMUN comme reconduit.
+   * Elle ne peut pas servir au personnel : celui des deux qui ouvre
+   * l'application le premier la réserve, et la poche de l'autre ne serait
+   * alors JAMAIS reconduite — son abonnement disparaîtrait du mois, en
+   * silence, tous les mois.
+   */
+  const marque = (qui) => `${espace}/personnel/${qui}/periods/2026-09/reconductedFrom`;
+
+  it('chacun réserve la marque de SA poche', async () => {
+    await assertSucceeds(session(VOUS).ref(marque('vous')).set('2026-08'));
+    await assertSucceeds(session(CONJOINTE).ref(marque('conjointe')).set('2026-08'));
+  });
+
+  it("et personne ne réserve celle de l'autre — même sous aval", async () => {
+    // L'aval ouvre la LECTURE, jamais l'écriture. Une marque posée chez l'autre
+    // arrêterait sa reconduction sans qu'il l'ait demandé.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.database().ref('aval/vous/actif').set(true);
+    });
+    await assertFails(session(CONJOINTE).ref(marque('vous')).set('2026-08'));
+    await assertFails(session(VOUS).ref(marque('conjointe')).set('2026-08'));
+  });
+
+  it('la marque doit être un mois, pas une chaîne libre', async () => {
+    // Même borne que celle du mois commun : c'est un mois source, et il sert à
+    // décider si la reconduction a déjà eu lieu.
+    for (const valeur of ['hier', '2026-8', '26-08', '', 42, true]) {
+      await assertFails(session(VOUS).ref(marque('vous')).set(valeur));
+    }
+  });
+
+  it("un tiers n'en réserve aucune", async () => {
+    await assertFails(session(TIERS).ref(marque('vous')).set('2026-08'));
+  });
+
   it("un set sur le conteneur de charges ne doit pas effacer les autres", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await ctx.database()

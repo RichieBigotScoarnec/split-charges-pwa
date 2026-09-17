@@ -33,6 +33,10 @@ import { fileURLToPath } from 'node:url';
 // tombaient donc chez le développeur et passaient en CI, où personne ne les
 // voyait échouer.
 const RACINE = fileURLToPath(new URL('..', import.meta.url));
+
+// LA VRAIE FABRIQUE, appelée plutôt que réécrite — voir « Les chemins que le
+// code ne compose plus lui-même », plus bas.
+const { cheminDeLaCharge } = await import('../public/js/poches.js');
 const REGLES = JSON.parse(readFileSync(join(RACINE, 'database.rules.json'), 'utf-8')).rules;
 
 /** Tous les fichiers JS livrés */
@@ -194,6 +198,172 @@ function developper(gabarit, resoudre) {
  * `undefined` vise la racine de l'espace — `getDataPath('')` rend `household`.
  * Elle est déclarée par construction : c'est le nœud qui porte tous les autres.
  */
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LES CHEMINS QUE LE CODE NE COMPOSE PLUS LUI-MÊME (lot P1b)
+ *
+ * Avant P1b, une charge vivait à un seul endroit et chaque site d'écriture
+ * composait son chemin en clair — `` `periods/${periode}/${noeud}/${cle}` ``.
+ * Le relevé les lisait comme des littéraux, et c'est ce que ses deux cas
+ * nommés « le lot multi-chemins de l'import » tenaient.
+ *
+ * Depuis P1b, une charge vit dans le commun OU dans une poche personnelle, et
+ * le chemin se DÉRIVE de la charge par une fabrique unique,
+ * `poches.js → cheminDeLaCharge`. Plus aucun site d'écriture ne porte de
+ * littéral : le relevé les voyait tous comme « une expression », donc les
+ * ignorait — dix-neuf sites d'écriture passés sous silence, en vert.
+ *
+ * ## Ce qu'on ne fait PAS : réécrire les deux formes ici
+ *
+ * Recopier `periods/…` et `personnel/{qui}/periods/…` dans ce fichier en
+ * ferait une seconde fabrique du même chemin (règle 2), et la moins à jour
+ * serait celle qui décrit une frontière de confidentialité. Le relevé APPELLE
+ * donc la vraie fabrique, en lui donnant des arguments symboliques :
+ * `'${periode}'` ressort tel quel du gabarit, et le reste du contrôle le lit
+ * comme un segment variable, exactement comme avant.
+ *
+ * Les deux familles sont relevées à CHAQUE site, et c'est juste : rien, dans le
+ * code, ne dit statiquement si la charge qu'on écrit est personnelle. Les deux
+ * chemins sont atteignables partout.
+ */
+
+/** Ce qu'un site d'écriture relaie à la fabrique de chemins */
+const FABRIQUES_DE_CHEMIN = ['cheminDeLaCharge', 'ecrituresDuDeplacement'];
+
+/** Les charges d'essai : le commun, puis la poche de chacun */
+const CHARGES_TEMOINS = [
+  {},
+  { perimetre: 'solo', paidBy: 'vous' },
+  { perimetre: 'solo', paidBy: 'conjointe' }
+];
+
+/**
+ * Le texte entre les parenthèses d'un appel, accolades équilibrées
+ *
+ * @param {string} source
+ * @param {number} depuis - Index de la parenthèse ouvrante
+ * @returns {string}
+ */
+function argumentsDe(source, depuis) {
+  let profondeur = 0;
+  for (let i = depuis; i < source.length; i += 1) {
+    if (source[i] === '(') profondeur += 1;
+    else if (source[i] === ')') {
+      profondeur -= 1;
+      if (profondeur === 0) return source.slice(depuis + 1, i);
+    }
+  }
+  return '';
+}
+
+/**
+ * Le DERNIER bloc accolade de premier niveau d'une liste d'arguments
+ *
+ * Le dernier, et non le premier : `cheminDeLaCharge(charge || {}, { … })` en
+ * porte deux, et c'est le second qui nomme la période et la collection.
+ *
+ * @param {string} texte
+ * @returns {string}
+ */
+function dernierBlocAccolade(texte) {
+  let profondeur = 0;
+  let debut = -1;
+  let dernier = '';
+
+  for (let i = 0; i < texte.length; i += 1) {
+    if (texte[i] === '{') {
+      if (profondeur === 0) debut = i;
+      profondeur += 1;
+    } else if (texte[i] === '}') {
+      profondeur -= 1;
+      if (profondeur === 0 && debut >= 0) {
+        dernier = texte.slice(debut + 1, i);
+        debut = -1;
+      }
+    }
+  }
+
+  return dernier;
+}
+
+/**
+ * Les options nommées d'un bloc, forme abrégée comprise
+ *
+ * @param {string} bloc
+ * @returns {Map<string, string>} Nom → texte brut de la valeur
+ */
+function optionsNommees(bloc) {
+  const table = new Map();
+
+  for (const morceau of bloc.split(',')) {
+    const texte = morceau.trim();
+    if (!texte) continue;
+
+    const deuxPoints = texte.indexOf(':');
+    if (deuxPoints < 0) table.set(texte, texte);
+    else table.set(texte.slice(0, deuxPoints).trim(), texte.slice(deuxPoints + 1).trim());
+  }
+
+  return table;
+}
+
+/**
+ * Les valeurs qu'une option peut prendre, ou son nom rendu variable
+ *
+ * Un nom qui ne se résout pas rend `${nom}` : le reste du contrôle le lit
+ * comme « n'importe quelle clé », ce qu'il est.
+ *
+ * @param {string|undefined} brut
+ * @param {(nom: string) => Array<string>|undefined} resoudre
+ * @param {string} defaut - Valeur quand l'option est absente de l'appel
+ * @returns {Array<string>}
+ */
+function valeursDeLOption(brut, resoudre, defaut) {
+  if (brut === undefined) return [defaut];
+
+  const litteral = brut.match(/^(['"`])([^'"`]*)\1$/);
+  if (litteral) return [litteral[2]];
+
+  return resoudre(brut) ?? [`\${${brut}}`];
+}
+
+/**
+ * Les chemins qu'un site d'écriture obtient de la fabrique
+ *
+ * @param {string} source
+ * @param {(nom: string) => Array<string>|undefined} resoudre
+ * @returns {Array<string>}
+ */
+function cheminsDerives(source, resoudre) {
+  const releves = [];
+
+  for (const fabrique of FABRIQUES_DE_CHEMIN) {
+    const motif = new RegExp(`\\b${fabrique}\\s*\\(`, 'g');
+
+    for (const appel of source.matchAll(motif)) {
+      const bloc = dernierBlocAccolade(
+        argumentsDe(source, appel.index + appel[0].length - 1)
+      );
+      if (!bloc) continue;
+
+      const options = optionsNommees(bloc);
+      if (!options.has('periode') || !options.has('collection')) continue;
+
+      for (const periode of valeursDeLOption(options.get('periode'), resoudre, '')) {
+        for (const collection of valeursDeLOption(options.get('collection'), resoudre, '')) {
+          for (const id of valeursDeLOption(options.get('id'), resoudre, '')) {
+            for (const charge of CHARGES_TEMOINS) {
+              releves.push(cheminDeLaCharge(charge, { periode, collection, id }));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return releves;
+}
+
 function cheminsEcrits() {
   const motif = new RegExp(`(?:${ECRIVAINS})\\(\\s*([^,)]+)`, 'g');
   const motifAbsolu = new RegExp(`(?:${ECRIVAINS_ABSOLUS})\\(\\s*([^,)]+)`, 'g');
@@ -219,6 +389,11 @@ function cheminsEcrits() {
     };
 
     for (const [, , cle] of source.matchAll(motifLot)) retenir(trouves, cle);
+
+    // Les chemins que la fabrique dérive, pour ce fichier-ci.
+    for (const chemin of cheminsDerives(source, resoudre)) {
+      if (chemin.trim()) trouves.add(chemin);
+    }
 
     for (const [, brut] of source.matchAll(motifAbsolu)) {
       const litteral = brut.trim().match(/^([`'"])([^`'"]*)\1$/);
@@ -339,17 +514,55 @@ describe('Chaque chemin écrit par l\'application est déclaré dans les règles
     }
   });
 
-  it.each(['periods/${periode}/fixedCharges/${cle}', 'periods/${periode}/variableCharges/${cle}'])(
-    'le lot multi-chemins de l\'import est relevé : %s',
-    (chemin) => {
-      // `dbUpdate(undefined, ecritures)` n'a AUCUN chemin en premier argument :
-      // ils sont les clés de l'objet. C'est ainsi qu'écrivent l'import CSV et le
-      // renommage — deux gestes qui touchent des centaines de charges d'un coup.
-      // Et le nœud vient d'un ternaire, `ligne.type === 'fixe' ? … : …`, donc de
-      // DEUX littéraux qu'il faut résoudre tous les deux.
+  describe('LES DEUX POCHES, dérivées par la fabrique (lot P1b)', () => {
+    /**
+     * Aucun site d'écriture ne porte plus de littéral : le chemin se dérive de
+     * la charge. Ces cas tiennent que le relevé SUIT la fabrique — sans eux,
+     * les dix-neuf sites d'écriture des charges seraient ignorés en silence, et
+     * « le relevé n'est pas vide » resterait vert sur les nœuds voisins.
+     *
+     * Ils remplacent les deux cas « le lot multi-chemins de l'import est
+     * relevé », qui tenaient la même propriété sur la forme d'AVANT P1b — une
+     * clé calculée littérale. Leur raison d'être reste : `dbUpdate(undefined,
+     * ecritures)` n'a aucun chemin en premier argument, ils sont les clés de
+     * l'objet, et c'est ainsi qu'écrivent l'import CSV et le renommage.
+     */
+    it.each([
+      'periods/${periode}/fixedCharges/${cle}',
+      'periods/${periode}/variableCharges/${cle}',
+      'personnel/vous/periods/${periode}/fixedCharges/${cle}',
+      'personnel/vous/periods/${periode}/variableCharges/${cle}',
+      'personnel/conjointe/periods/${periode}/fixedCharges/${cle}',
+      'personnel/conjointe/periods/${periode}/variableCharges/${cle}'
+    ])('l\'import CSV dérive bien ce chemin : %s', (chemin) => {
+      // L'import est le site qui porte les DEUX collections — son nœud vient
+      // d'un ternaire — donc celui qui sépare le mieux une fabrique suivie
+      // d'une fabrique ignorée.
       expect(chemins).toContain(chemin);
-    }
-  );
+    });
+
+    it('et les deux poches sont relevées sur les sites d\'ÉDITION aussi', () => {
+      // L'import pourrait être le seul site suivi sans qu'on le voie : sa clé
+      // calculée est la forme que le relevé savait déjà lire. Ce cas porte sur
+      // la période nommée `currentPeriod`, qui n'existe que dans les modules de
+      // liste — jamais dans l'import.
+      expect(chemins).toContain('personnel/vous/periods/${currentPeriod}/variableCharges/${key}');
+      expect(chemins).toContain('personnel/conjointe/periods/${currentPeriod}/fixedCharges/${key}');
+    });
+
+    it('LE TÉMOIN — la fabrique appelée est bien celle du code', () => {
+      // Sans lui, les cas ci-dessus seraient satisfaits par une seconde
+      // rédaction de la forme dans ce fichier — et c'est très exactement ce
+      // qu'on refuse d'écrire ici. Une charge commune n'a PAS de préfixe, une
+      // charge personnelle en a un : ce couple ne peut pas venir d'une
+      // constante recopiée sans qu'elle porte la règle du périmètre.
+      expect(cheminDeLaCharge({}, { periode: 'M', collection: 'C', id: 'I' }))
+        .toBe('periods/M/C/I');
+      expect(cheminDeLaCharge(
+        { perimetre: 'solo', paidBy: 'conjointe' }, { periode: 'M', collection: 'C', id: 'I' }
+      )).toBe('personnel/conjointe/periods/M/C/I');
+    });
+  });
 
   describe('LES TROIS RACINES PRIVÉES, hors de l\'espace de données', () => {
     /**

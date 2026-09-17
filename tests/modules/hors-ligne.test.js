@@ -1127,3 +1127,139 @@ describe('LE DÉTAIL PRIVÉ NE PASSE NI PAR LE MIROIR NI PAR LA FILE', () => {
     expect(base.contenu.household.prive).toBeUndefined();
   });
 });
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LA POCHE PERSONNELLE : LA SIENNE PASSE PAR LE MIROIR, CELLE DE L'AUTRE JAMAIS
+ *
+ * Le détail privé vit hors de l'espace de données et saute donc le miroir et la
+ * file par construction — c'est ce que tient le bloc ci-dessus. La poche
+ * PERSONNELLE, arrivée au lot P1a, vit SOUS `household` : c'est ce qui lui
+ * laisse le schéma complet d'une charge, et c'est ce qui la fait passer par les
+ * deux.
+ *
+ * Décision du foyer, 2026-09-16, et elle est ASYMÉTRIQUE :
+ *
+ *   - LA SIENNE reste mémorisée et mise en file. Même classe d'exposition que
+ *     ses charges communes, déjà dans ce `localStorage` — et c'est ce qui garde
+ *     la saisie hors réseau, qui est toujours la sienne ;
+ *   - CELLE DE L'AUTRE, jamais. Sinon elle survivrait à la révocation de
+ *     l'aval : le mur se referme en base, et le détail resterait sur
+ *     l'appareil, en clair, sur une origine partagée.
+ */
+describe('LA POCHE DE L\'AUTRE NE LAISSE AUCUNE TRACE SUR L\'APPAREIL', () => {
+  const MIENNE = 'personnel/vous/periods/2026-08/variableCharges';
+  const SIENNE = 'personnel/conjointe/periods/2026-08/variableCharges';
+
+  /** Tout ce que l'appareil garde, à plat */
+  const trace = () => JSON.stringify(window.localStorage);
+
+  beforeEach(() => {
+    base.contenu.household.personnel = {
+      vous: {
+        periods: { '2026-08': { variableCharges: { m1: { description: 'Sport', amount: 30 } } } }
+      },
+      conjointe: {
+        periods: { '2026-08': { variableCharges: { s1: { description: 'Coiffeur', amount: 45 } } } }
+      }
+    };
+  });
+
+  it('une lecture de SA poche est mémorisée, comme le reste du foyer', async () => {
+    // Le témoin positif de ce bloc : sans lui, « rien n'est mémorisé » serait
+    // satisfait par un miroir entièrement cassé.
+    expect(await dbGet(MIENNE)).toEqual({ m1: { description: 'Sport', amount: 30 } });
+
+    expect(trace()).toContain('Sport');
+  });
+
+  it('une lecture de la poche de L\'AUTRE aboutit, et ne laisse RIEN', async () => {
+    // Elle aboutit : avec un aval actif, le serveur la laisse passer, et
+    // l'écran doit la montrer. Elle ne laisse rien : le mur se referme en base,
+    // et ce qui vit dans `localStorage` n'en saurait rien.
+    expect(await dbGet(SIENNE)).toEqual({ s1: { description: 'Coiffeur', amount: 45 } });
+
+    expect(trace()).not.toContain('Coiffeur');
+  });
+
+  it('hors ligne, la poche de l\'autre échoue plutôt que de servir une valeur', async () => {
+    // Le corollaire : rien n'ayant été gardé, il n'y a rien à servir. Rendre
+    // `null` afficherait une poche vide parfaitement crédible — et laisserait
+    // croire que l'autre n'a rien saisi.
+    await dbGet(SIENNE);
+    base.couper();
+    signalerLiaison(false);
+
+    await expect(dbGet(SIENNE)).rejects.toThrow(/jamais gardé sur cet appareil/);
+  });
+
+  it('hors ligne, SA poche est servie par le miroir', async () => {
+    // L'autre moitié de l'asymétrie, et le témoin de la précédente : sans lui,
+    // « l'autre échoue » serait satisfait par un miroir qui ne garde rien.
+    await dbGet(MIENNE);
+    base.couper();
+    signalerLiaison(false);
+
+    expect(await dbGet(MIENNE)).toEqual({ m1: { description: 'Sport', amount: 30 } });
+  });
+
+  it('une écriture dans la poche de l\'autre n\'entre pas dans la file', async () => {
+    // Aucune écriture de l'application ne la vise — les règles la
+    // refuseraient —, mais la file est remplie AVANT tout contrôle serveur.
+    base.couper();
+    signalerLiaison(false);
+
+    await expect(dbUpdate(`${SIENNE}/s1`, { description: 'Forgé' }))
+      .rejects.toThrow(/Hors ligne/);
+
+    expect(saisiesEnAttente()).toBe(0);
+    expect(trace()).not.toContain('Forgé');
+  });
+
+  it('et le refus DIT que c\'est la poche d\'un tiers', async () => {
+    // Deux gardes portent ce refus : celle de `mettreEnFile`, et celle
+    // d'`operationRejouable`, refaite au rejeu. Mesuré : retirer l'une des deux
+    // laissait le cas ci-dessus VERT — chacune suffit, aucune n'est nécessaire,
+    // et un mutant qui n'en enlève qu'une ne mesure donc pas celle-là.
+    //
+    // Ce cas sépare les deux : seule `mettreEnFile` peut nommer la raison, et
+    // c'est elle qui parle à qui lira le journal. La garde du rejeu, elle,
+    // reste tenue par le cas ci-dessus.
+    base.couper();
+    signalerLiaison(false);
+
+    await expect(dbUpdate(`${SIENNE}/s1`, { description: 'Forgé' })).rejects.toThrow();
+
+    const motifs = noter.mock.calls
+      .filter(([categorie]) => categorie === 'hors-ligne')
+      .map(([, motif]) => motif);
+    expect(motifs.some((motif) => /poche personnelle d'un tiers/.test(motif)),
+      `motifs relevés : ${motifs.join(' | ')}`).toBe(true);
+  });
+
+  it('TÉMOIN — une écriture dans SA poche, elle, est gardée', async () => {
+    // Sans lui, « l'écriture de l'autre n'entre pas dans la file » serait
+    // satisfait par une file qui refuse tout, et la saisie hors réseau — qui
+    // est toute la raison d'être de cette file — serait perdue sans un mot.
+    base.couper();
+    signalerLiaison(false);
+
+    await dbUpdate(`${MIENNE}/m1`, { description: 'Gardé' });
+
+    expect(saisiesEnAttente()).toBe(1);
+    expect(trace()).toContain('Gardé');
+  });
+
+  it('et l\'asymétrie suit le compte connecté, pas le nom du nœud', async () => {
+    // Le témoin qui interdit de coder « conjointe » en dur : c'est la poche de
+    // L'AUTRE qui ne laisse rien, quel que soit son nom. Sur le téléphone de
+    // Cindy, c'est `vous` qui devient l'autre.
+    setAuthenticatedUser('uid-cindy', 'cindypepe.cp95@gmail.com');
+
+    expect(await dbGet(SIENNE)).toEqual({ s1: { description: 'Coiffeur', amount: 45 } });
+    expect(trace()).toContain('Coiffeur');
+
+    expect(await dbGet(MIENNE)).toEqual({ m1: { description: 'Sport', amount: 30 } });
+    expect(trace()).not.toContain('Sport');
+  });
+});
