@@ -552,7 +552,10 @@ test.describe('Régler le solde', () => {
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
 
     await page.locator('.btn-settle').click();
-    await page.locator('#modalConfirmOk').click();
+    // Le règlement passe par une saisie depuis le lot du montant libre : le
+    // champ est PRÉ-REMPLI du solde exact, et valider sans y toucher règle au
+    // centime — c'est le geste que ces cas éprouvaient déjà.
+    await page.locator('#reglerSoldeValider').click();
 
     await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
     await expect(page.locator('.btn-settle')).toHaveCount(0);
@@ -564,7 +567,10 @@ test.describe('Régler le solde', () => {
     await expect(page.locator('#balanceBar')).toContainText('Vous devez', { timeout: 5000 });
 
     await page.locator('.btn-settle').click();
-    await page.locator('#modalConfirmOk').click();
+    // Le règlement passe par une saisie depuis le lot du montant libre : le
+    // champ est PRÉ-REMPLI du solde exact, et valider sans y toucher règle au
+    // centime — c'est le geste que ces cas éprouvaient déjà.
+    await page.locator('#reglerSoldeValider').click();
 
     await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
   });
@@ -574,7 +580,7 @@ test.describe('Régler le solde', () => {
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit', { timeout: 5000 });
 
     await page.locator('.btn-settle').click();
-    await page.locator('#modalConfirmCancel').click();
+    await page.locator('[data-action="closeModal"][data-arg="modalReglerSolde"]').click();
 
     await expect(page.locator('#balanceBar')).toContainText('Conjointe vous doit');
     await expect(page.locator('.btn-settle')).toBeVisible();
@@ -679,7 +685,10 @@ test.describe('Report du solde', () => {
     await expect(page.locator('.btn-settle')).toBeVisible({ timeout: 5000 });
 
     await page.locator('.btn-settle').click();
-    await page.locator('#modalConfirmOk').click();
+    // Le règlement passe par une saisie depuis le lot du montant libre : le
+    // champ est PRÉ-REMPLI du solde exact, et valider sans y toucher règle au
+    // centime — c'est le geste que ces cas éprouvaient déjà.
+    await page.locator('#reglerSoldeValider').click();
 
     await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
   });
@@ -1467,7 +1476,10 @@ test.describe('Écritures simultanées', () => {
     await expect(page.locator('#balanceBar')).toContainText('150,00', { timeout: 5000 });
 
     await page.locator('.btn-settle').click();
-    await page.locator('#modalConfirmOk').click();
+    // Le règlement passe par une saisie depuis le lot du montant libre : le
+    // champ est PRÉ-REMPLI du solde exact, et valider sans y toucher règle au
+    // centime — c'est le geste que ces cas éprouvaient déjà.
+    await page.locator('#reglerSoldeValider').click();
     await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 5000 });
 
     // Un seul remboursement doit exister : deux le feraient passer à -150.

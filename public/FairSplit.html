@@ -1161,6 +1161,52 @@
     </div>
   </div>
 
+  <!-- Modal: Régler le solde
+       Le geste écrivait le montant EXACT du solde après une question fermée.
+       On rembourse pourtant rarement au centime : on arrondit, on paie en
+       deux fois, ou on verse ce que la banque a débité. Le montant devient
+       donc une saisie, pré-remplie avec le solde — le cas au centime reste à
+       un appui : ouvrir, valider.
+
+       Le SENS n'est pas modifiable ici : il découle du signe du solde. Le
+       rendre choisissable ouvrirait un versement qui AGGRAVE l'écart, sans
+       qu'aucune phrase ne puisse l'appeler un règlement.
+
+       Le titre nomme le mois, parce que ce règlement appartient au mois
+       AFFICHÉ et non à celui de sa date : un règlement d'août saisi le
+       3 septembre est rangé en août, et la liste l'y montrera daté du 03/09.
+  -->
+  <div id="modalReglerSolde" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReglerSoldeTitre">
+    <div class="modal">
+      <h2 class="modal-header" id="modalReglerSoldeTitre">Régler le solde</h2>
+
+      <p class="reglement-sens" id="reglerSoldeSens"></p>
+
+      <div class="form-group">
+        <label for="reglerSoldeMontant">Montant versé (€)</label>
+        <input type="text" id="reglerSoldeMontant" inputmode="decimal" maxlength="10"
+               autocomplete="off" aria-describedby="reglerSoldeConsequence" required />
+      </div>
+
+      <!-- La phrase est CO-VISIBLE avec le champ, et c'est elle qui tient lieu
+           de garde-fou : aucun plafond n'est posé sur le trop-versé, parce
+           qu'un trop-versé délibéré existe et qu'un refus n'apprendrait rien.
+           « Il restera 1 233,06 € à régler » se lit tout seul quand on voulait
+           taper 70 et qu'on a tapé 7. -->
+      <p class="reglement-consequence" id="reglerSoldeConsequence" role="status" aria-live="polite"></p>
+
+      <!-- Le solde a bougé entre l'ouverture et l'appui : rien n'est écrit, la
+           modale RESTE ouverte avec le montant saisi, et la phrase est
+           recalculée sur le solde frais. Fermer ferait retaper. -->
+      <p class="reglement-avertissement" id="reglerSoldeAvertissement" role="alert" hidden></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="closeModal" data-arg="modalReglerSolde">Annuler</button>
+        <button type="button" class="btn btn-primary" id="reglerSoldeValider">Enregistrer le versement</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Quick Add (Saisie Express) -->
   <div id="modalQuickAdd" class="modal-overlay quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="modalQuickAddTitle">
     <div class="modal">

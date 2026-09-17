@@ -226,7 +226,7 @@ test.describe('Trois mois d\'usage contre le vrai Firebase', () => {
     // ---------- Reglement : le solde reporte doit tomber a zero ----------
     await test.step("régler solde l'ardoise entière, report compris", async () => {
       await page.locator('.btn-settle').click();
-      await page.locator('#modalConfirmOk').click();
+      await page.locator('#reglerSoldeValider').click();
 
       await expect(page.locator('#balanceBar')).toContainText('Comptes équilibrés', { timeout: 20000 });
       await expect(page.locator('.btn-settle')).toHaveCount(0);
@@ -432,15 +432,15 @@ test.describe('Reconduction concurrente', () => {
 
     // La première ouvre la confirmation et la laisse à l'écran.
     await premiere.page.locator('.btn-settle').click();
-    await expect(premiere.page.locator('#modalConfirmOk')).toBeVisible({ timeout: 10000 });
+    await expect(premiere.page.locator('#reglerSoldeValider')).toBeVisible({ timeout: 10000 });
 
     // La seconde règle entièrement pendant ce temps.
     await seconde.page.locator('.btn-settle').click();
-    await seconde.page.locator('#modalConfirmOk').click();
+    await seconde.page.locator('#reglerSoldeValider').click();
     await expect(seconde.page.locator('#balanceBar')).toContainText('quilibr', { timeout: 20000 });
 
     // La première confirme un solde qui n'existe plus.
-    await premiere.page.locator('#modalConfirmOk').click();
+    await premiere.page.locator('#reglerSoldeValider').click();
     await premiere.page.waitForTimeout(4000);
 
     const reglements = await premiere.page.evaluate(async (m) => {
