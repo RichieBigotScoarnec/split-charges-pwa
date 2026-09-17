@@ -17,7 +17,9 @@ import {
   periodeDeLaDate, formatPeriod
 } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
-import { afficherTotalDeListe, afficherLeRenvoi, libelleDuTotal } from '../utils/totaux-liste.js';
+import {
+  afficherTotalDeListe, afficherLeRenvoi, afficherEtatVide, libelleDuTotal, coupleDeLaPortee
+} from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe, renderCarteEnveloppes } from './envelopes.js';
@@ -804,9 +806,14 @@ export function renderFixedCharges() {
   // La portée filtre ici comme dans la liste variable, et par la MÊME fabrique.
   // Une charge fixe peut être personnelle — un abonnement —, et P1b la reconduit
   // dans la poche de son propriétaire : elle a exactement le même besoin.
+  // `moi` est lu UNE fois et passé aux quatre lectures — liste, renvoi, pied et
+  // en-têtes doivent toutes parler de la même personne. Voir
+  // `variable-charges.js` : sans lui, « Moi ce mois » afficherait le personnel
+  // de l'autre dès qu'un aval le rend lisible.
   const portee = getState('porteeCourante');
-  const affichees = chargesDeLaPortee(charges, portee);
-  const renvoi = renvoiDeLaPortee(charges, portee, payeurParDefaut());
+  const moi = payeurParDefaut();
+  const affichees = chargesDeLaPortee(charges, portee, moi);
+  const renvoi = renvoiDeLaPortee(charges, portee, moi);
 
   // Vider la liste
   listElement.innerHTML = '';
@@ -814,20 +821,18 @@ export function renderFixedCharges() {
 
   if (affichees.length === 0) {
     // L'écran ne prétend jamais qu'un mois est vide quand il ne l'est pas.
-    // Deux branches et deux LITTÉRAUX — même raison que dans
-    // `variable-charges.js` : un ternaire affecté à `innerHTML` compte comme un
-    // site d'injection de plus, et le plafond est à marge nulle.
-    if (renvoi.nombre > 0) {
-      listElement.innerHTML = '<p class="empty-state">Aucune charge fixe commune ce mois-ci'
-        + '<small>Le mois n\'est pas vide pour autant : vos charges perso sont'
-        + ' rangées à part.</small></p>';
-    } else {
-      listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période'
-        + '<small>Ce qui revient chaque mois pour le même montant : loyer,'
-        + ' assurance, abonnements. Elles sont reportées automatiquement d\'un'
-        + ' mois sur l\'autre.</small></p>';
-    }
-    afficherTotalDeListe(totalElement, []);
+    // ── ET SOUS « MOI », LA SECTION VIDE EST LE CAS NOMINAL ──
+    //
+    // Relevé sur la base réelle le 2026-09-17 : ZÉRO charge fixe personnelle
+    // contre trois variables. Cette section sera donc vide dès le premier jour
+    // sous « Moi ce mois ». Elle RESTE, avec un état vide qui lève l'ambiguïté
+    // — « je n'ai pas d'abonnement » ou « l'application ne me les montre
+    // pas » ? La masquer répondrait à la question en la supprimant.
+    //
+    // Les trois rédactions vivent avec celles de la liste variable, dans
+    // `utils/totaux-liste.js`.
+    afficherEtatVide(listElement, { collection: 'fixedCharges', portee, renvoi });
+    afficherTotalDeListe(totalElement, [], { portee, moi });
     afficherLeCoutAnnuel([]);
     return;
   }
@@ -844,8 +849,8 @@ export function renderFixedCharges() {
   const groupes = grouperParCategorie(charges);
 
   // Afficher par catégorie
-  groupes.forEach(({ categorie: category, charges: toutesDuGroupe, commun, solo }) => {
-    const categoryCharges = chargesDeLaPortee(toutesDuGroupe, portee);
+  groupes.forEach(({ categorie: category, charges: toutesDuGroupe }) => {
+    const categoryCharges = chargesDeLaPortee(toutesDuGroupe, portee, moi);
     if (categoryCharges.length === 0) return;
 
     const categoryDiv = document.createElement('div');
@@ -858,7 +863,7 @@ export function renderFixedCharges() {
     categoryDiv.innerHTML = `
       <h4 class="category-header">
         ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
-        <span class="category-total">${escapeHtml(libelleDuTotal({ commun, solo }))}</span>
+        <span class="category-total">${escapeHtml(libelleDuTotal(coupleDeLaPortee(toutesDuGroupe, portee, moi)))}</span>
       </h4>
     `;
 
@@ -917,8 +922,24 @@ export function renderFixedCharges() {
   // Le pied totalise ce qui est AFFICHÉ. Le coût annuel, lui, reçoit la liste
   // entière : il filtre déjà par `chargesCommunes` (`cout-annuel.js`), et il
   // parle de tout le mois — pas de ce que la portée montre.
-  afficherTotalDeListe(totalElement, affichees);
-  afficherLeCoutAnnuel(charges);
+  afficherTotalDeListe(totalElement, affichees, { portee, moi });
+  // ── LE COÛT ANNUEL REÇOIT LES CHARGES AFFICHÉES, ET NON LE MOIS ENTIER ──
+  //
+  // `coutDesChargesFixes` traverse `chargesCommunes` en dur (`utils/cout-annuel.js`).
+  // Nourri du mois entier, il annonçait donc sous « Moi ce mois » le coût annuel
+  // du COMMUN — un chiffre du foyer sous une liste qui ne montre que mon
+  // personnel, exactement le défaut que l'en-tête de catégorie vient de perdre.
+  //
+  // Nourri des charges affichées, il rend le même chiffre sous « À deux »
+  // (elles SONT le commun) et se tait sous « Moi » : `chargesCommunes` d'une
+  // liste toute personnelle est vide, et la carte se masque à zéro.
+  //
+  // ⚠️ Le prix, dit plutôt que découvert : le jour où un abonnement personnel
+  // existera, son coût annuel restera masqué sous « Moi » — la fabrique ne sait
+  // compter que du commun. Zéro charge fixe personnelle en base au 2026-09-17,
+  // donc rien n'est perdu aujourd'hui ; et une carte absente vaut mieux qu'une
+  // carte qui annonce le foyer sur l'écran « moi ».
+  afficherLeCoutAnnuel(affichees);
 }
 
 /**

@@ -862,7 +862,31 @@
    Aucune ne se déclare aujourd'hui, et c'est mesuré : sous « Moi » comme sous
    « Privé », les quatre cartes affichaient les chiffres du foyer — aucune
    n'avait de version personnelle. La colonne est donc vide sur ces deux
-   portées ; le foyer a demandé à la voir avant de la figer. */
+   portées ; le foyer a demandé à la voir avant de la figer.
+
+   ✅ IL L'A VUE, ET LA RÉPONSE EST « ELLE RESTE VIDE » — 2026-09-17.
+   Le lot « Moi » devait y poser une carte « Ta part du commun », qui aurait
+   porté le montant et ouvert le grand-livre. Elle est ABANDONNÉE, et c'est la
+   mesure qui l'a décidé : `suiteDeMoi` (`js/modules/summary.js`) affiche déjà
+   « Ta part du commun » textuellement, sous le héros, dans un grand-livre qui
+   n'est PAS un `<details>` — son ouverture permanente est une décision prise
+   avec son prix chiffré (300 px à 320) et sa raison (« la réserve ne doit
+   jamais être séparée du chiffre qu'elle qualifie, ni derrière un geste »).
+   « La carte ouvre le grand-livre » n'avait donc pas d'objet, et une carte qui
+   répète le même montant trois lignes plus bas coûte de la hauteur sur la
+   portée qui en a le moins.
+   Les deux autres issues ont été écartées aussi : sortir la ligne du
+   grand-livre révoquerait cette décision pour déplacer un chiffre de dix
+   centimètres, et « la carte porte autre chose » n'avait pas de demandeur.
+
+   ⚠️ ET CETTE RÈGLE EST À SENS UNIQUE — la note est ici pour la première carte
+   qui se déclarera personnelle. Rien ne masque une carte personnelle sous
+   « À deux » : la règle miroir n'existe pas, et elle ne se déduit pas de
+   celle-ci. Une carte `data-lecture="personnelle"` paraîtra donc sur LES TROIS
+   portées, y compris celle où le grand-livre annonce déjà « Répartition à
+   payer » à quelques lignes. Le contrôle ne le verra pas non plus :
+   `tests/e2e/portee-du-panneau.spec.js` ne visite que les portées
+   personnelles. */
 #panneauBilan[data-lecture="personnelle"] .bilan-cartes > :not([data-lecture="personnelle"]) {
   display: none;
 }

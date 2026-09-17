@@ -29,6 +29,7 @@
 import { getState, setState } from '../state.js';
 import { cheminDeLaCharge } from '../poches.js';
 import { chargesDeLaPortee } from '../utils/portee.js';
+import { normaliserEmplacement } from '../utils/members.js';
 import { toast } from '../components/toast.js';
 import { showConfirmModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
@@ -102,7 +103,12 @@ function poser({ actif, ids }) {
 function chargesAffichees() {
   return chargesDeLaPortee(
     (getState('variableCharges') || []).filter(charge => charge && !charge.deleted),
-    getState('porteeCourante')
+    getState('porteeCourante'),
+    // `moi` est obligatoire depuis le lot « Moi » : sans lui, un « tout
+    // cocher » sous cette portée ramasserait le personnel de l'autre — des
+    // charges absentes de l'écran, et sur lesquelles on n'a aucun droit
+    // d'écriture. Le lot en aurait fait une écriture refusée par le serveur.
+    normaliserEmplacement(getState('emplacementCourant'))
   );
 }
 

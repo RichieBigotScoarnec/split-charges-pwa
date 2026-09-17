@@ -114,7 +114,14 @@ FairSplit/
 │                               # aussi l'UNIQUE rédaction de « commun + X
 │                               # perso », lue par le pied comme par l'en-tête
 │                               # de catégorie, et le renvoi qui dit où sont
-│                               # parties les dépenses que la portée retire),
+│                               # parties les dépenses que la portée retire —
+│                               # DEUX natures : mon personnel sous « À deux »,
+│                               # chiffré ; le commun sous « Moi », sans aucun
+│                               # nombre. Plus l'état vide des deux listes, en
+│                               # nœuds construits et non en chaîne : une
+│                               # chaîne assignée à `innerHTML` coûterait deux
+│                               # sites au plafond, pour des phrases qui
+│                               # n'interpolent rien),
 │                               # echelle (des graduations qu'un humain lit),
 │                               # budget-propose (ce que coûte un mois
 │                               # ordinaire, proposé plutôt que demandé),
@@ -186,7 +193,7 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
 | `db.js` | 26 | **21** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
-| `utils/members.js` | 22 | 0 | Important — qui doit à qui |
+| `utils/members.js` | 24 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 24 | 0 | Important — ce qui pèse sur le solde |
 | `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
@@ -299,6 +306,17 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > Le geste : quand un recompte est consigné en prose, **la même passe corrige la
 > ligne du tableau**. Une mesure notée à côté de ce qu'elle démentait ne
 > corrige rien, elle documente une contradiction.
+
+> **Relevé le 2026-09-17 pour le lot « Moi » — et ce n'est PAS une dérive.**
+> Une seule ligne bouge, `utils/members.js` 22 → 24, et elle est celle du lot :
+> `search.js` et `selection-charges.js` doivent savoir QUI est connecté pour
+> filtrer « Moi ce mois » sur le bon personnel. `utils/portee.js` passe de 9 à
+> 10 dépendants — sous le seuil, donc hors tableau — et `utils/perimetre.js`
+> reste à 24, ses deux nouveaux lecteurs l'important déjà.
+>
+> C'est ce que le classement complet coûte quand il est rejoué **dans la même
+> passe que le lot** : une ligne à corriger, et treize dont on sait qu'elles
+> n'ont pas bougé. La septième dérive vient de n'avoir pas fait ça.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -2132,6 +2150,15 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > refuse alors un ajout qui n'ouvre AUCUNE surface — un refus qu'on prend
   > pour un faux positif si on ne sait pas d'où il vient, et qu'on est tenté de
   > régler en déplaçant le plafond.
+  >
+  > **Et la SORTIE de ce piège, quand les branches se multiplient : construire
+  > le DOM.** Le lot « Moi » a porté ces états vides de quatre rédactions à
+  > six, dans deux fichiers — la règle 4 à l'état pur. Les réunir dans une
+  > fabrique qui rend une CHAÎNE aurait fait 26 ; une fabrique qui pose des
+  > nœuds (`createElement` + `replaceChildren`) coûte **zéro**, et le précédent
+  > était déjà dans le fichier où la rédaction devait vivre — `afficherLeRenvoi`,
+  > `utils/totaux-liste.js`. Le plafond n'interdit donc pas la fabrique : il
+  > interdit de lui faire produire du balisage en chaîne.
 - **`no-control-regex` est une ERREUR**, pas un avertissement : elle vient de
   `js.configs.recommended` (`eslint.config.mjs:26`), sans clause `files`. Et la
   CI lance `npx eslint .`, qui couvre `tests/`.
@@ -2458,11 +2485,13 @@ information reçue.**
 >
 > **Trois bornes assumées, écrites plutôt que subies :**
 >
-> - **« Moi ce mois » n'est PAS filtré**, et c'est une décision de Richie, pas
+> - ~~**« Moi ce mois » n'est PAS filtré**, et c'est une décision de Richie, pas
 >   un oubli : la liste y montrera le personnel seul, la part du commun en
->   carte agrégée, au lot « Moi, rangs 2 et 3 ». Une ligne commune à son montant
->   plein sur l'écran « toi » contredirait le héros, et la réafficher à ta part
->   serait un second rendu de la même liste (règle 2) ;
+>   carte agrégée, au lot « Moi, rangs 2 et 3 ».~~ **⟲ RÉVOQUÉ le 2026-09-17 :
+>   « Moi » filtre, et la carte est abandonnée** — voir le bloc du lot « Moi »
+>   ci-dessous. Ce qui reste vrai de cette ligne : une ligne commune à son
+>   montant plein sur l'écran « toi » contredirait le héros, et la réafficher à
+>   ta part serait un second rendu de la même liste (règle 2) ;
 > - **ni la recherche historique ni la corbeille ne sont filtrées** — elles
 >   répondent à « où est cette dépense », et une portée y masquerait la réponse ;
 > - **l'en-tête est BORNÉ** : l'annotation ne paraît que sur une catégorie qui
@@ -2480,6 +2509,93 @@ information reçue.**
 > qui n'existe pas encore. Tenu par un cas de
 > `tests/e2e/portee-filtre-la-liste.spec.js`, qui sème une personnelle dans
 > CHAQUE poche et exige que le renvoi n'en chiffre qu'une.
+
+> **✅ LE LOT « MOI » APPLIQUÉ LE 2026-09-17 — et la CARTE qu'il devait porter
+> est ABANDONNÉE, sur mesure.** Le cahier annonçait « Moi, rangs 2 et 3 » : une
+> carte agrégée « Ta part du commun » dans la colonne du bilan, qui ouvrirait le
+> grand-livre, PUIS le filtre. Sa prémisse était que le héros de « Moi »
+> soustrait une part du commun que rien à l'écran ne montre.
+>
+> **Elle est fausse.** `suiteDeMoi` (`summary.js`) affiche déjà « Ta part du
+> commun » textuellement, sous le héros, et son grand-livre n'est **pas** un
+> `<details>` : son ouverture permanente est une décision prise avec son prix
+> chiffré — 300 px à 320 px — et sa raison, « la réserve ne doit jamais être
+> séparée du chiffre qu'elle qualifie, ni derrière un geste ». « La carte ouvre
+> le grand-livre » n'avait donc pas d'objet, et répéter le même montant trois
+> lignes plus bas coûte de la hauteur sur la portée qui en a le moins.
+>
+> **La colonne des cartes reste donc VIDE sous « Moi » et « Privé »**, et ce
+> n'est plus une question ouverte : le foyer l'a vue et a répondu. La réponse
+> est écrite là où on la cherchera, dans `summary.css`, « La portée gouverne le
+> panneau ».
+>
+> Ce que le lot fait, et c'est tout :
+>
+> - **le filtre sur « Moi » → MON personnel, seul.** `chargesDeLaPortee` prend
+>   un troisième argument, `moi`, et il est OBLIGATOIRE : depuis P1b,
+>   `poches.js` fusionne dans l'état le personnel de l'autre quand un aval le
+>   rend lisible, et un filtre qui l'ignorerait afficherait ses dépenses sous
+>   « Moi ce mois ». Sans emplacement lisible, la liste est **vide** et non
+>   complète — un défaut qu'on voit vaut mieux qu'une fuite que personne ne
+>   voit. Quatre sites d'appel, comme à P2 ;
+> - **une seule déclaration pour les deux portées.** P2 portait une LISTE de
+>   portées plus un comportement écrit dans la fonction ; à deux comportements,
+>   ce serait deux déclarations du même fait, et la première divergence serait
+>   une portée inscrite dans la liste que personne n'a câblée — filtrée par un
+>   comportement absent, donc rendue vide sans un mot. `FILTRE_DE_LA_PORTEE` est
+>   la seule déclaration : `porteeFiltreLaListe` lit ses clés ;
+> - **une SECONDE NATURE de renvoi.** Voir ci-dessous, c'est le piège du lot ;
+> - **l'état vide par une fabrique qui construit le DOM** —
+>   `afficherEtatVide`, dans `utils/totaux-liste.js` avec le reste. Six
+>   rédactions du même patron dans deux fichiers auraient été la règle 4 à
+>   l'état pur. Et la forme est imposée par la mesure : une fabrique qui rendrait
+>   une CHAÎNE assignée à `innerHTML` porte le plafond des sites d'injection de
+>   24 à 26, sur des phrases qui n'interpolent rien.
+>
+> **LE PIÈGE, MÉCANIQUE : inscrire « Moi » dans la table ALLUME le renvoi de P2
+> tout seul.** `renvoiDeLaPortee` s'ouvre sur `porteeFiltreLaListe`. Le renvoi
+> aurait donc annoncé « 3 dépenses perso (45,00 €) — rangées dans "Moi ce
+> mois" » **sur l'écran « Moi ce mois »** : un compte de ce qui est AFFICHÉ, et
+> une destination qui est l'écran où l'on se trouve déjà. `portee.test.js` porte
+> la garde qui l'attrape, et elle n'a pas été relâchée — elle a changé de
+> propriété, parce qu'elle était devenue **verte par coïncidence** : elle lisait
+> `nombre`, et le renvoi du commun vaut zéro par décision.
+>
+> **Et ce qui manquait sous « Moi » n'était pas un chiffre : c'était une
+> ADRESSE.** Vérifié plutôt que supposé — un agrégat ne répond pas à « où est
+> passée ma course de 122,07 € ». Le renvoi du commun dit donc que le commun
+> n'est pas dans cette liste, nomme « À deux », et **ne porte aucun nombre** :
+> le montant est déjà dans le grand-livre, deux cartes plus haut. La décision
+> est dans la DONNÉE (`nombre: 0`, `total: 0`) et pas seulement dans la
+> rédaction — ce qu'on ne calcule pas ne peut pas s'afficher par accident.
+>
+> **TROIS CONSÉQUENCES QUE LE FILTRE FORCE, et qui n'étaient pas au cahier :**
+>
+> - **`libelleDuTotal` gagne une clause symétrique.** Sous « Moi », la formule de
+>   P2 rendait « 0,00 € + 45,00 € perso » — exact, illisible. L'annotation
+>   existe pour DISTINGUER deux natures dans une même liste ; quand l'une manque,
+>   il n'y a rien à distinguer ;
+> - **`coupleDeLaPortee` remplace le couple de `grouperParCategorie`** comme
+>   source de l'en-tête. Le `commun` du groupe est le commun du FOYER : sous
+>   « Moi », l'en-tête aurait annoncé « 120,00 € + 45,00 € perso » au-dessus
+>   d'une liste qui ne montre que les 45 €. Une seule formule sert les deux
+>   portées — *ce que la portée montre, plus mon personnel qu'elle cache* — et
+>   elle corrige au passage une imprécision de P2 : l'en-tête annonçait le solo
+>   du groupe entier, donc celui des DEUX comptes sous un aval, là où le renvoi
+>   ne comptait que le mien. `utils/tri.js` rend toujours le couple, et ses cas
+>   le tiennent, mais **ce n'est plus la source de l'en-tête** ;
+> - **le coût annuel reçoit les charges AFFICHÉES.** `coutDesChargesFixes`
+>   traverse `chargesCommunes` en dur : nourri du mois entier, il annonçait sous
+>   « Moi » le coût annuel du COMMUN. Il se tait désormais sur cette portée. ⚠️ Le
+>   prix, dit plutôt que découvert : le jour où un abonnement personnel existera,
+>   son coût annuel restera masqué — la fabrique ne sait compter que du commun.
+>   Zéro charge fixe personnelle en base au 2026-09-17.
+>
+> **Et la section des charges fixes vide sous « Moi » est le cas NOMINAL** —
+> zéro charge fixe personnelle contre trois variables, relevé sur la base réelle
+> le 2026-09-17. Elle reste, et sa phrase lève l'ambiguïté qu'une section vide
+> installe : « je n'en ai pas » ou « on ne me les montre pas ? ». La masquer
+> aurait répondu à la question en la supprimant.
 
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
@@ -2579,6 +2695,11 @@ les relevés pris avant valent toujours.
 1. **« Il te reste » compte-t-il le personnel ?** Il le soustrait aujourd'hui et
    **exclut le privé** (2026-09-11, argument de l'épaule). Les deux poches n'en
    faisant plus qu'une, la question se repose entière.
+   **Le lot « Moi » (2026-09-17) ne l'a PAS tranchée, et il ne l'a pas
+   effleurée** : `computeMoisPersonnel` est inchangé, `suiteDeMoi` est
+   inchangé. Ce que le lot change est que le chiffre se VÉRIFIE à l'écran —
+   la liste sous le grand-livre ne montre plus que les dépenses personnelles
+   que celui-ci soustrait. C'est la condition d'une réponse, pas la réponse.
 2. **Le nom de l'onglet-fenêtre** et le sort de `prive/` : renommé, ou devenu la
    maison du personnel.
 3. **Où atterrit le personnel** dans l'arbre, et la migration des données.

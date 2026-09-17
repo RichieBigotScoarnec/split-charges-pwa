@@ -145,22 +145,96 @@ test.describe('La portée filtre la liste', () => {
     expect(sousDeux).toHaveLength(2);
   });
 
-  test('LE TÉMOIN — « Moi ce mois » les rend toutes les quatre', async ({ page }) => {
-    // Ce lot ne filtre PAS « Moi ce mois », et c'est une décision : la portée
-    // personnelle garde son contenu d'avant. Ce cas s'en sert comme témoin —
-    // sans lui, les quatre assertions d'absence ci-dessus seraient satisfaites
-    // par un semis qui n'a jamais été écrit.
-    await choisirLaPortee(page, 'solo');
-    const sousMoi = await lignesRendues(page);
+  test('LE TÉMOIN — « Privé », qui ne filtre pas, les rend toutes les quatre', async ({ page }) => {
+    // ⚠️ CE TÉMOIN PASSAIT PAR « MOI », qui ne filtrait pas au lot P2. Elle
+    // filtre depuis le lot « Moi », donc il change de portée : « Privé » est
+    // désormais la seule qui ne retire rien.
+    //
+    // Sa raison d'être ne bouge pas : sans lui, les assertions d'absence —
+    // ici et dans les deux cas de « Moi » ci-dessous — seraient satisfaites
+    // par un semis qui n'a jamais été écrit, ou par une liste qui ne rend
+    // rien du tout.
+    await choisirLaPortee(page, 'prive');
+    const sansFiltre = await lignesRendues(page);
 
     for (const libelle of ['Courses partagées', 'Essence avancée par Cindy',
       'Coiffeur à moi', 'Magazine de Cindy']) {
-      expect(sousMoi, `« ${libelle} » doit être semée et lisible`).toContain(libelle);
+      expect(sansFiltre, `« ${libelle} » doit être semée et lisible`).toContain(libelle);
     }
 
     // Et le retour redessine : le changement de portée agit dans les deux sens.
     await choisirLaPortee(page, 'deux');
     expect(await lignesRendues(page)).toHaveLength(2);
+  });
+
+  test('LES QUATRE COMBINAISONS — « Moi ce mois » ne garde QUE ma personnelle', async ({ page }) => {
+    await choisirLaPortee(page, 'solo');
+    const sousMoi = await lignesRendues(page);
+
+    expect(sousMoi).toEqual(['Coiffeur à moi']);
+  });
+
+  test('LE CAS QUI COÛTERAIT DES EUROS, dans l\'autre sens', async ({ page }) => {
+    // Un filtre sur le payeur ramènerait sous « Moi » tout ce que j'ai avancé
+    // — « Courses partagées » est payée `partage`, mais le grand-livre juste
+    // au-dessus compte les deux communes dans « Ta part du commun » et non
+    // dans « Tes dépenses solo ». Les afficher ici le contredirait.
+    //
+    // Et « Magazine de Cindy » est SON personnel : sous un aval actif il est
+    // dans l'état, et « Moi ce mois » est MON écran.
+    await choisirLaPortee(page, 'solo');
+    const sousMoi = await lignesRendues(page);
+
+    expect(sousMoi).not.toContain('Courses partagées');
+    expect(sousMoi).not.toContain('Essence avancée par Cindy');
+    expect(sousMoi, 'le personnel de l\'autre appartient à la fenêtre de P3')
+      .not.toContain('Magazine de Cindy');
+  });
+
+  test('sous « Moi », le renvoi nomme « À deux » — et ne chiffre RIEN', async ({ page }) => {
+    // La seconde nature du renvoi. Ce qui manquait sous « Moi » n'était pas un
+    // chiffre — ma part du commun est déjà dans le grand-livre, deux cartes
+    // plus haut — c'était une ADRESSE : « où est passée ma course de 120 € ? »
+    await choisirLaPortee(page, 'solo');
+
+    const renvoi = page.locator('#variableChargesRenvoi');
+    await expect(renvoi).toBeVisible();
+    await expect(renvoi).toContainText(/communes/i);
+    expect(await renvoi.innerText(), 'le renvoi du commun ne porte aucun chiffre')
+      .not.toMatch(/\d/);
+
+    // Et il MÈNE là où il dit. C'est le tiers du renvoi qui referme le défaut.
+    await renvoi.locator('button[data-action="allerALaPortee"]').click();
+    await page.waitForTimeout(600);
+    expect(await lignesRendues(page)).toHaveLength(2);
+  });
+
+  test('sous « Moi », l\'en-tête ne dit QUE ce qu\'il montre', async ({ page }) => {
+    // Le défaut que le lot aurait produit sans `coupleDeLaPortee` : l'en-tête
+    // annonçait le couple du groupe ENTIER, donc « 120,00 € + 45,00 € perso »
+    // au-dessus d'une liste qui ne montre que les 45 €. Le commun du FOYER,
+    // sur l'écran qui dit « moi ».
+    await choisirLaPortee(page, 'solo');
+
+    const entete = await page.evaluate(() => document.querySelector(
+      '#variableChargesList .charge-category[data-categorie="Courses"] .category-total'
+    ).textContent.replace(/[\s\u202F\u00A0]/g, ''));
+
+    expect(entete).toBe('45,00€');
+  });
+
+  test('sous « Moi », les charges fixes sont vides ET LE DISENT', async ({ page }) => {
+    // Le cas NOMINAL : relevé sur la base réelle le 2026-09-17, zéro charge
+    // fixe personnelle. La section reste, et sa phrase lève l'ambiguïté qu'une
+    // section vide installe — « je n'en ai pas » ou « on ne me les montre
+    // pas » ?
+    await choisirLaPortee(page, 'solo');
+
+    const fixes = page.locator('#fixedChargesList');
+    await expect(fixes.locator('.empty-state')).toBeVisible();
+    await expect(fixes).toContainText(/perso/i);
+    await expect(fixes, 'la phrase du mois vide ne dit rien de « moi »')
+      .not.toContainText('pour cette période');
   });
 
   test('une catégorie ENTIÈREMENT personnelle disparaît de « À deux »', async ({ page }) => {

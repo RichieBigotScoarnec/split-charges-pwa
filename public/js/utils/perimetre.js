@@ -47,8 +47,16 @@ export const PERIMETRES = Object.freeze({
   SOLO: 'solo'
 });
 
-/** Les payeurs qui désignent une personne — les seuls qui peuvent posséder un solo */
-const PERSONNES = Object.freeze(['vous', 'conjointe']);
+/**
+ * Les payeurs qui désignent une personne — les seuls qui peuvent posséder un solo
+ *
+ * Exportée depuis le lot « Moi » : `utils/portee.js` doit savoir si
+ * l'emplacement qu'on lui passe désigne quelqu'un, et la paire s'y serait
+ * réécrite en clair. Une énumération de deux valeurs recopiée chez le voisin
+ * est la règle 4 à son stade le moins visible — les deux copies sont exactes
+ * le jour où on les écrit.
+ */
+export const PERSONNES = Object.freeze(['vous', 'conjointe']);
 
 /**
  * Le périmètre d'une charge, toujours l'une des deux valeurs connues
