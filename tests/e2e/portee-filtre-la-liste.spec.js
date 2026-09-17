@@ -203,6 +203,12 @@ test.describe('La portée filtre la liste', () => {
     expect(await renvoi.innerText(), 'le renvoi du commun ne porte aucun chiffre')
       .not.toMatch(/\d/);
 
+    // Et il se lit en français : le NOM du segment termine la phrase, jamais
+    // « dans Voir X ».
+    const texte = (await renvoi.innerText()).replace(/\s+/g, ' ').trim();
+    expect(texte).toMatch(/\bdans « À deux »$/);
+    expect(texte).not.toMatch(/voir/i);
+
     // Et il MÈNE là où il dit. C'est le tiers du renvoi qui referme le défaut.
     await renvoi.locator('button[data-action="allerALaPortee"]').click();
     await page.waitForTimeout(600);
@@ -235,6 +241,48 @@ test.describe('La portée filtre la liste', () => {
     await expect(fixes).toContainText(/perso/i);
     await expect(fixes, 'la phrase du mois vide ne dit rien de « moi »')
       .not.toContainText('pour cette période');
+  });
+
+  test('LE BADGE « perso » — il paraît sur la liste MIXTE, et là seulement', async ({ page }) => {
+    // Le badge est une propriété de la LISTE affichée, pas de la ligne ni de la
+    // portée : il sépare deux natures, donc il n'a rien à séparer quand une
+    // seule est là. Vu à l'écran sur septembre 2026, sous « Moi ce mois » les
+    // trois lignes le portaient TOUTES.
+    //
+    // « Privé » ne filtre pas — `FILTRE_DE_LA_PORTEE` n'a pas d'entrée pour
+    // elle —, donc sa liste mélange le commun et le personnel : c'est le seul
+    // écran d'aujourd'hui où le badge sépare encore quelque chose, et c'est LUI
+    // qui rend les deux absences ci-dessous mesurables.
+    //
+    // ⚠️ Et le cas ne nomme « Privé » que comme SEMIS d'une liste mixte. Le
+    // jour où P3 la filtrera, c'est ce cas-là qui devra changer de semis — pas
+    // le code, qui ne connaît aucune portée.
+    const badges = page.locator('#variableChargesList .charge-perimetre-tag');
+
+    await expect(badges, '« À deux » : liste toute commune').toHaveCount(0);
+
+    await choisirLaPortee(page, 'solo');
+    await expect(badges, '« Moi ce mois » : liste toute personnelle').toHaveCount(0);
+
+    await choisirLaPortee(page, 'prive');
+    const rendues = await lignesRendues(page);
+    expect(rendues.length, 'prémisse : la liste mixte porte bien les quatre').toBe(4);
+    await expect(badges, 'liste mixte : le badge sépare, il doit être là')
+      .toHaveCount(2);
+  });
+
+  test('sous « À deux », le renvoi se lit en français — et nulle part « dans Voir »', async ({ page }) => {
+    // Le défaut ne se voyait qu'à l'écran : le bouton portait « Voir « Moi ce
+    // mois » », et la phrase s'arrête sur « dans ». Assemblées, elles donnaient
+    // « … rangée dans Voir « Moi ce mois » ». Aucun contrôle d'une des deux
+    // moitiés n'aurait rougi — c'est le TEXTE RENDU qui le dit.
+    const renvoi = page.locator('#variableChargesRenvoi');
+    await expect(renvoi).toBeVisible();
+
+    const texte = (await renvoi.innerText()).replace(/\s+/g, ' ').trim();
+    expect(texte, 'le nom du segment termine la phrase')
+      .toMatch(/\bdans « Moi ce mois »$/);
+    expect(texte, '« Voir » employé comme nom dans la phrase').not.toMatch(/voir/i);
   });
 
   test('une catégorie ENTIÈREMENT personnelle disparaît de « À deux »', async ({ page }) => {

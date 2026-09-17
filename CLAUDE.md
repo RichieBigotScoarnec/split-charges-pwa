@@ -200,8 +200,8 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
 | `utils/members.js` | 25 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 24 | 0 | Important — ce qui pèse sur le solde |
-| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 19 | 0 | Important — lecture d'une saisie |
+| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
@@ -322,6 +322,32 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > C'est ce que le classement complet coûte quand il est rejoué **dans la même
 > passe que le lot** : une ligne à corriger, et treize dont on sait qu'elles
 > n'ont pas bougé. La septième dérive vient de n'avoir pas fait ça.
+
+> **Relevé le 2026-09-17 après avoir fusionné `main` dans une branche en vol —
+> et la nouveauté est qu'il n'y a RIEN à corriger, sur des chiffres qui ont
+> pourtant bougé.** Le lot du règlement à montant libre (#219) a fait monter
+> trois lignes — `utils/format.js` 29 → 30, `utils/members.js` 24 → 25,
+> `utils/montant.js` 18 → 19 — parce que son fichier neuf,
+> `utils/phrase-reglement.js`, importe les trois. **Et il a corrigé les trois
+> lignes dans sa propre passe.** C'est la huitième occasion de dériver, et la
+> première qui n'a rien coûté.
+>
+> **Ce qu'elle apprend porte sur la MÉTHODE de vérification, pas sur les
+> comptes.** J'ai d'abord conclu à une huitième dérive — les trois chiffres
+> mesurés ne correspondaient pas à ceux que j'avais en tête. Ils venaient du
+> `CLAUDE.md` **d'avant la fusion** : je comparais la mesure d'un arbre à un
+> tableau qui n'était plus celui de cet arbre. Le tableau réel était juste.
+>
+> **Le geste : après une fusion, relire le tableau DANS L'ARBRE FUSIONNÉ, jamais
+> de mémoire.** Un tableau tenu à la main est une donnée versionnée comme le
+> code ; le comparer à un souvenir accuse la mauvaise passe, et ici ça aurait
+> imputé à #219 un défaut qu'il avait justement évité. La règle 5 s'applique au
+> diagnostic d'une dérive comme à tout le reste.
+>
+> Un seul écart réel, et il est d'ORDRE : `utils/montant.js` (19) était listé
+> **sous** `poches.js` (18), alors que le tableau se lit par compte décroissant.
+> Corrigé. Le hub est exact — 30 imports statiques, 29 appels à `runStep`,
+> remesurés.
 
 > **Relevé le 2026-09-17 pour le lot du règlement à montant libre — et ce
 > n'est PAS une dérive : le classement complet a été rejoué dans la même passe
@@ -1983,6 +2009,38 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   Ces échecs-là sont de la contention, pas des défauts ; ils ne se produisent
   pas en CI, et les compter comme des symptômes ferait chercher une cause qui
   n'existe pas.
+  > **⚠️ ET LE « ZÉRO SUR 548 » NE TIENT PLUS — `--workers=4` EN FABRIQUE
+  > AUSSI, une fois la suite assez longue. Mesuré le 2026-09-17, sur 782
+  > contrôles.** Deux passes de la suite entière, même arbre, même commande
+  > `npm run e2e` :
+  >
+  > | Passe | Verdict |
+  > |---|---|
+  > | 1 | **10 échecs** — les 7 d'authentification, plus `data-flow:915`, `data-flow:1091`, `vues:39` |
+  > | 2 | **7 échecs** — la base seule, les trois autres verts |
+  >
+  > Les trois surnuméraires, **jouées seules à `--workers=1`** : 3 verts en
+  > 7,9 s. Et `main` porte le même code en CI, `--workers=4`, verte.
+  >
+  > **Ce qui les désigne comme de la contention n'est pas leur disparition,
+  > c'est leur SIGNATURE** — les trois échouent sur le même geste, à la même
+  > seconde de timeout : `#addVariableChargeBtn` cliqué, et
+  > `#variableChargeDescription` « resolved » mais jamais visible pendant 30 s.
+  > Trois specs sans rapport, un seul symptôme, une modale qui met plus de 30 s
+  > à s'ouvrir. Un défaut de code ne choisit pas trois fichiers au hasard pour
+  > se manifester de façon identique sur l'ouverture d'une modale.
+  >
+  > **Et il ne faut PAS en conclure que le défaut a disparu** — c'est la règle 1
+  > appliquée à un symptôme intermittent, et le dépôt l'a déjà payé sur
+  > `detail-depenses`. Ce qui est établi est plus étroit : aucun défaut n'a été
+  > démontré, et l'hypothèse de charge est la seule qui survive aux trois
+  > mesures. Le chiffre de 2026-09-06 a été relevé sur une autre machine et une
+  > suite **43 % plus courte** ; ce n'est pas lui qui est faux, c'est sa portée
+  > qu'on avait crue générale.
+  >
+  > **Le geste : devant un échec au-delà de la base connue, le rejouer SEUL
+  > avant de le diagnostiquer.** Sept secondes contre douze minutes, et ça
+  > répond avant qu'on ait commencé à chercher une cause.
 - **Les exceptions que la page lève sont désormais visibles partout**
   (`_harness.js`, `surveillerLesErreursDePage`). Quatre specs sur vingt-neuf
   posaient cet écouteur ; les vingt-cinq autres étaient aveugles, dont celle qui
@@ -2678,6 +2736,53 @@ information reçue.**
 > **Et la couleur : le bouton de validation n'est PAS en `--danger`.** C'est un
 > paiement, pas une destruction — voir le point ouvert du libellé de
 > `showConfirmModal`, qui porte le relevé des douze appels.
+
+> **✅ DEUX CORRECTIONS DE SURFACE LE 2026-09-17 — le badge devient une
+> propriété de la LISTE, et les deux renvois se lisent enfin en français.**
+> Aucun changement de comportement : ni le filtre, ni les totaux, ni la
+> fabrique d'état vide, ni le grand-livre. Aucune donnée touchée.
+>
+> - **Le badge « perso » ne qualifie plus une LIGNE, il qualifie la liste
+>   RENDUE.** Depuis que « À deux » et « Moi » filtrent, ces deux listes sont
+>   d'une seule nature : le badge y était sur toutes les lignes ou sur aucune,
+>   donc il ne distinguait plus rien. `listeMelangeLesPerimetres(charges)`
+>   (`utils/perimetre.js`, pure) rend « cette liste porte les deux natures », et
+>   les deux modules de liste la lisent. **Elle ne nomme AUCUNE portée**, et
+>   c'est ce qui emporte la décision : nommer « Privé » aurait fait d'elle un
+>   contrôle qui se périme **EN VERT** le jour où P3 filtre cette portée — la
+>   quatrième réponse condamnante de la règle 1. Elle prédit, la portée ne
+>   l'intéresse pas. ⚠️ **Elle doit recevoir les lignes RÉELLEMENT AFFICHÉES**
+>   (`affichees`), jamais l'état complet : nourrie du mois entier, elle
+>   rallumerait le badge sur des listes d'une seule nature.
+>   `.charge-perimetre-tag` reste dans `summary.css` — le badge existe toujours,
+>   il paraît moins souvent, aujourd'hui sous « Privé » seul.
+>
+> - **« … elles sont dans Voir « À deux » » — DEUX MOITIÉS JUSTES, UN ASSEMBLAGE
+>   FAUX, et aucun contrôle ne pouvait le voir.** La phrase du renvoi se
+>   terminait sur « dans », correctement ; le bouton portait « Voir X », ce qui
+>   est un libellé de commande correct. Mises bout à bout, elles employaient le
+>   libellé du lien comme un NOM dans la phrase. Le bouton porte désormais le
+>   **nom du segment**, `« À deux »` / `« Moi ce mois »`, une seule rédaction
+>   dans `utils/portee.js` lue par `totaux-liste.js`.
+>
+>   **La leçon est transposable, et elle n'est dans aucune des cinq règles :
+>   deux fabriques peuvent être justes chacune et leur ASSEMBLAGE faux.** La
+>   règle 2 attrape deux rédactions du même fait ; ici il y en avait deux
+>   rédactions de faits DIFFÉRENTS, dont le rendu concaténé n'appartient à
+>   aucune des deux. Aucun test unitaire ne pouvait le voir — chacun mesurait sa
+>   moitié, et chaque moitié passait. **Ce qui l'a vu est un écran.** Le contrôle
+>   existe depuis : il lit le texte ASSEMBLÉ des enfants du renvoi —
+>   `[...element.children].map(e => e.textContent).join(' ')` — et exige
+>   `/\bdans « (À deux|Moi ce mois) »$/`, avec son témoin. Le geste : **quand
+>   deux fabriques produisent des morceaux d'une même phrase, le contrôle porte
+>   sur la phrase, jamais sur les morceaux.**
+>
+>   ⚠️ **Et le renvoi reste un BOUTON NU** — aucun `aria-checked`,
+>   `aria-selected` ni `aria-current`. `portee-unique.spec.js` relève tout
+>   élément portant l'un des trois dont le texte contient `/\bmoi\b/i` et le
+>   compterait comme une **seconde annonce de portée**, sur l'écran dont il tient
+>   qu'il n'en annonce qu'une. Le nom du segment dans le bouton ne change rien à
+>   ça : c'est du texte, pas un état ARIA.
 
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 

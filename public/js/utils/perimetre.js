@@ -127,6 +127,53 @@ export function chargesSolo(charges, proprietaire) {
 }
 
 /**
+ * Cette liste porte-t-elle LES DEUX natures ?
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * LE BADGE « perso » EST UNE PROPRIÉTÉ DE LA LISTE, PAS DE LA LIGNE
+ *
+ * Le badge existait pour qu'une dépense personnelle ne se confonde pas avec une
+ * charge commune au milieu des mêmes lignes. Depuis que la portée filtre la
+ * liste, il paraissait très exactement là où il ne distingue plus rien — vu à
+ * l'écran sur septembre 2026, sous « Moi ce mois » les trois lignes le
+ * portaient TOUTES — et il était impossible sous « À deux », d'où le personnel
+ * a disparu.
+ *
+ * C'est la règle que le lot P2 a écrite pour le total, appliquée à la surface
+ * qu'il avait oubliée : *l'annotation existe pour DISTINGUER deux natures dans
+ * une même liste ; quand l'une manque, il n'y a rien à distinguer.*
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * ELLE NE NOMME AUCUNE PORTÉE, ET C'EST CE QUI L'EMPÊCHE DE SE PÉRIMER
+ *
+ * Une liste de portées écrite en dur — « le badge paraît sous Privé » — serait
+ * juste aujourd'hui et fausse le jour où P3 filtre cet écran. Elle se
+ * périmerait **EN VERT**, sans que personne ne le voie : c'est la quatrième
+ * réponse condamnante de la règle 1, « il interroge la surface où la chose vit,
+ * pas la propriété ».
+ *
+ * La propriété, elle, est vraie de n'importe quelle liste : deux natures
+ * cohabitent, ou non. Le badge s'éteindra donc tout seul le jour où une portée
+ * cessera de mélanger, et se rallumera tout seul si une surface remélange.
+ *
+ * ⚠️ **À nourrir des lignes RÉELLEMENT AFFICHÉES**, jamais de l'état complet :
+ * l'état porte les deux natures presque tous les mois, donc le badge
+ * reparaîtrait partout. C'est le piège que `chargesAffichees`
+ * (`selection-charges.js`) a déjà payé — un nom qui disait la propriété sans la
+ * tenir.
+ *
+ * Les supprimées sont écartées : elles ne sont affichées nulle part, et une
+ * corbeille pleine ferait mélanger une liste d'une seule nature.
+ *
+ * @param {Array<Object>} charges - Les charges telles que la liste les montre
+ * @returns {boolean}
+ */
+export function listeMelangeLesPerimetres(charges) {
+  const actives = (Array.isArray(charges) ? charges : []).filter(c => c && !c.deleted);
+  return chargesCommunes(actives).length > 0 && chargesSolo(actives).length > 0;
+}
+
+/**
  * Le total d'une liste de charges, un montant abîmé valant zéro
  *
  * Même garde que `computeSummary` et `computeVirementsByDestination`, pour la
