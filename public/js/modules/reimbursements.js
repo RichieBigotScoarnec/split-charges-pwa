@@ -8,7 +8,7 @@ import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 // Les règles de saisie vivent dans utils/validation.js : réécrites dans
 // chaque formulaire, elles avaient divergé.
 import { validateChargeAmount } from '../utils/validation.js';
-import { directionLabel, memberLabel } from '../utils/members.js';
+import { directionLabel, memberLabel, normaliserEmplacement } from '../utils/members.js';
 import { toast } from '../components/toast.js';
 import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
@@ -24,6 +24,7 @@ import { trierParDate } from '../utils/tri.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { lirePeriodes } from '../poches.js';
+import { consequenceDuReglement } from '../utils/phrase-reglement.js';
 
 /**
  * Initialise le module de gestion des remboursements
@@ -105,6 +106,13 @@ export function initReimbursements() {
   const saveBtn = exigerElement('saveReimbursement', 'enregistrer un remboursement');
   if (saveBtn) {
     ecouterUneFois(saveBtn, 'click', saveReimbursement);
+  }
+
+  // Le règlement du solde a sa modale depuis qu'il porte un montant libre :
+  // son bouton de validation se câble ici, comme celui du formulaire ordinaire.
+  const validerBtn = exigerElement('reglerSoldeValider', 'enregistrer un règlement du solde');
+  if (validerBtn) {
+    ecouterUneFois(validerBtn, 'click', confirmerLeReglement);
   }
 
   // Expose functions globally for onclick handlers (legacy HTML compatibility)
@@ -256,7 +264,7 @@ async function enregistrerReimbursement() {
 }
 
 /**
- * Enregistre un remboursement soldant exactement le déséquilibre du mois.
+ * Ouvre le règlement du solde : une saisie pré-remplie du montant exact.
  *
  * Sans cette action, régler ses comptes demandait de lire le solde, ouvrir le
  * formulaire, recopier le montant à la virgule près et choisir le bon sens —
@@ -264,36 +272,64 @@ async function enregistrerReimbursement() {
  * déjà tous les termes.
  *
  * Le sens découle du signe du solde : un solde positif signifie que la
- * conjointe doit de l'argent, c'est donc elle qui verse.
+ * conjointe doit de l'argent, c'est donc elle qui verse. Le MONTANT, lui, est
+ * modifiable depuis ce lot : on rembourse rarement au centime, et un paiement
+ * partiel obligeait jusqu'ici à retrouver une autre carte et un autre bouton.
  *
- * Le geste tient une promesse en toutes lettres — « le solde du mois reviendra
- * à zéro » — et c'est elle qui commande le reste : le montant écrit est celui
- * qu'on a fait confirmer, et il est vérifié contre une relecture COMPLÈTE
- * juste avant l'écriture. Hors ligne, cette vérification est impossible : le
- * geste est refusé, la saisie ordinaire restant disponible.
+ * Ce que la promesse est devenue : « le solde du mois reviendra à zéro » ne
+ * peut plus être écrit en dur, puisqu'un versement partiel ou un trop-versé ne
+ * la tiennent pas. Elle est désormais RECALCULÉE à chaque frappe, co-visible
+ * avec le champ — c'est `consequenceDuReglement` qui la rédige, et c'est aussi
+ * la seule protection contre la faute de frappe. Hors ligne, la vérification
+ * du solde est impossible : le geste est refusé, la saisie ordinaire restant
+ * disponible.
  *
  * @returns {Promise<void>}
  */
 export async function settleBalance() {
-  // Un règlement enregistre un remboursement du montant exact du solde. Deux
-  // déclenchements -- un double clic, ou deux téléphones affichant le même
-  // solde -- en enregistrent deux : le solde bascule alors du même montant
-  // dans l'autre sens. Le verrou écarte le double clic ; la relecture du
-  // solde juste avant l'écriture réduit la fenêtre entre deux appareils.
-  if (reglementEnCours) {
-    log('💸 Règlement déjà en cours, second déclenchement ignoré');
+  const currentPeriod = getState('currentPeriod');
+  if (!currentPeriod) {
+    toast.error('Aucune période sélectionnée');
     return;
   }
-  reglementEnCours = true;
 
-  try {
-    await reglerLeSolde();
-  } finally {
-    reglementEnCours = false;
+  // Le solde affiché fait foi : une seule source, pas de calcul dupliqué.
+  const { balance } = calculateSummary();
+  const { amount } = reglementPour(balance);
+
+  // En deçà du centime, il n'y a rien à régler et l'écriture serait du bruit.
+  if (amount < 0.01) {
+    toast.info('Les comptes sont déjà équilibrés');
+    return;
   }
+
+  const { liaisonRompue } = await import('../db.js');
+  // Courtoisie : éviter d'ouvrir une saisie qu'on refusera ensuite. Ce n'est
+  // PAS le contrôle qui décide — la liaison peut se rompre pendant que la
+  // modale est à l'écran. Celui qui décide est dans `ecrireLeReglement`.
+  if (liaisonRompue()) {
+    toast.error(MESSAGE_HORS_LIGNE);
+    return;
+  }
+
+  ouvrirLaModaleDeReglement(balance, currentPeriod);
 }
 
-/** Un règlement est-il déjà en cours dans cette session ? */
+/**
+ * Une écriture de règlement est-elle déjà partie ?
+ *
+ * LE VERROU A SUIVI L'ÉCRITURE, et c'est le lot du montant libre qui l'a
+ * déplacé. Il gardait l'ouverture du geste, parce que l'ouverture ALLAIT
+ * jusqu'à l'écriture : une question fermée, puis un `dbPush`. Depuis qu'une
+ * modale de saisie s'intercale, garder l'ouverture ne garderait plus rien —
+ * elle rend la main dès que la modale est à l'écran, et deux appuis sur le
+ * bouton de validation passeraient tous les deux.
+ *
+ * Il garde donc `confirmerLeReglement`, où le second appui coûte vraiment
+ * quelque chose : deux versements du même montant font basculer le solde du
+ * même montant dans l'autre sens. Rouvrir la modale deux fois, à l'inverse, ne
+ * coûte rien — `empilerCouche` est idempotente et le rendu repart du même état.
+ */
 let reglementEnCours = false;
 
 /**
@@ -302,7 +338,10 @@ let reglementEnCours = false;
  * Nommé une fois : les deux contrôles doivent dire la même chose, et le second
  * est celui qu'on lira le plus rarement — donc celui dont le message dériverait.
  * Le formulaire ordinaire, lui, reste disponible et se met en file : ce qui est
- * refusé ici, c'est la promesse « le solde reviendra à zéro », pas la saisie.
+ * refusé ici, c'est la PHRASE DE CONSÉQUENCE — « le solde reviendra à zéro »,
+ * « il restera X à régler » —, pas la saisie. Une phrase calculée sur le
+ * miroir de la dernière connexion serait une promesse faite sur un solde
+ * périmé, et c'est très exactement ce que ce geste vend.
  */
 const MESSAGE_HORS_LIGNE =
   'Règlement impossible hors ligne — le solde ne peut pas être vérifié. '
@@ -377,98 +416,272 @@ async function relireLeSolde(currentPeriod) {
   return calculateSummary({ historique: instantane }).balance;
 }
 
+/** Le solde sur lequel la phrase affichée a été calculée, et le mois qu'il solde */
+let soldeAffiche = 0;
+let moisDuReglement = null;
+
 /**
- * Corps du règlement, protégé par le verrou ci-dessus
+ * Remplit et ouvre la modale de règlement
+ *
+ * @param {number} solde - Solde CUMULÉ du mois, report inclus
+ * @param {string} periode - Le mois que ce règlement solde
+ * @returns {void}
+ */
+function ouvrirLaModaleDeReglement(solde, periode) {
+  soldeAffiche = solde;
+  moisDuReglement = periode;
+
+  const { amount, direction } = reglementPour(solde);
+
+  // LE TITRE NOMME LE MOIS, et ce n'est pas décoratif : un règlement appartient
+  // au mois AFFICHÉ, celui qu'il solde, et non au mois de sa date. Saisi le
+  // 3 septembre sur août, il est rangé en août et la liste l'y montre daté du
+  // 03/09 — sans le titre, rien à l'écran ne dirait quel mois on solde.
+  const titre = document.getElementById('modalReglerSoldeTitre');
+  if (titre) titre.textContent = `Régler ${formatPeriod(periode)}`;
+
+  // Le sens est dit, jamais offert au choix : il découle du signe du solde.
+  // Le rendre modifiable ouvrirait un versement qui AGGRAVE l'écart, et
+  // aucune des trois phrases ne saurait l'appeler un règlement.
+  const sens = document.getElementById('reglerSoldeSens');
+  if (sens) {
+    const qui = directionLabel(direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
+    sens.textContent = '';
+    const fort = document.createElement('strong');
+    fort.textContent = qui;
+    sens.append('Versement ', fort);
+  }
+
+  const avertissement = document.getElementById('reglerSoldeAvertissement');
+  if (avertissement) {
+    avertissement.textContent = '';
+    avertissement.hidden = true;
+  }
+
+  const champ = document.getElementById('reglerSoldeMontant');
+  if (champ) {
+    // LA VIRGULE, et pas le point de `toFixed`. `parseMontant` lit les deux —
+    // ce n'est donc pas une question de relecture — mais le champ est un texte
+    // qu'on CORRIGE : « 66.94 » y côtoierait les « 66,94 € » de tout l'écran,
+    // et le premier geste serait de le retaper.
+    champ.value = amount.toFixed(2).replace('.', ',');
+
+    // `showModal` pose bien le focus sur le premier champ, mais ne SÉLECTIONNE
+    // pas son contenu : la frappe s'ajouterait au montant pré-rempli — taper
+    // « 70 » sur « 66.94 » donnerait « 66.9470 ». L'écouteur est posé sur le
+    // focus plutôt qu'à côté du `setTimeout(100)` de `showModal` : il tient
+    // quel que soit l'instant où le focus arrive.
+    ecouterUneFois(champ, 'input', rafraichirLaConsequence);
+    champ.addEventListener('focus', () => champ.select(), { once: true });
+  }
+
+  rafraichirLaConsequence();
+  showModal('modalReglerSolde');
+}
+
+/**
+ * Recalcule la phrase de conséquence, et gouverne le bouton
+ *
+ * Elle est co-visible avec le champ et se recalcule à chaque frappe : c'est la
+ * SEULE protection contre la faute de frappe, aucun plafond n'étant posé sur
+ * le trop-versé. Un plafond refuserait un geste légitime, et un refus
+ * n'apprend rien ; « Il restera 1 233,06 € à régler » se lit tout seul.
+ *
+ * @returns {{issue: string, valide: boolean, phrase: string, montant: number,
+ *   resteCentimes: number|null}} Le verdict qui vient d'être affiché
+ */
+function rafraichirLaConsequence() {
+  const champ = document.getElementById('reglerSoldeMontant');
+  const ligne = document.getElementById('reglerSoldeConsequence');
+  const bouton = document.getElementById('reglerSoldeValider');
+
+  const verdict = consequenceDuReglement({
+    saisie: champ ? champ.value : '',
+    solde: soldeAffiche,
+    members: getState('members'),
+    moi: normaliserEmplacement(getState('emplacementCourant'))
+  });
+
+  if (ligne) {
+    ligne.textContent = verdict.phrase;
+    ligne.dataset.issue = verdict.issue;
+  }
+  if (bouton) bouton.disabled = !verdict.valide;
+
+  return verdict;
+}
+
+/**
+ * Enregistre le versement saisi, après avoir relu le solde
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * CE QUI A CHANGÉ DANS LA RELECTURE, ET POURQUOI
+ *
+ * Tant que le montant était imposé, le contrôle comparait le montant FRAIS au
+ * montant confirmé : deux grandeurs de même nature. Le montant étant désormais
+ * saisi, cette comparaison n'a plus d'objet — un versement de 70 € reste
+ * 70 € quoi qu'ait fait le solde. Ce qu'il faut comparer est le SOLDE relu au
+ * solde sur lequel la phrase a été affichée : c'est lui, et lui seul, qui rend
+ * la phrase vraie ou fausse.
+ *
+ * Et le remède n'est plus de rendre la main. Rien n'est écrit, la modale RESTE
+ * ouverte avec le montant saisi, la phrase est recalculée sur le solde frais,
+ * un avertissement dit ce qui a bougé, et un second appui décide. Fermer
+ * ferait retaper un montant que personne n'a contesté.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * POURQUOI ELLE EST EXPORTÉE
+ *
+ * Le bouton l'appelle, et rien d'autre dans l'application. L'export sert au
+ * banc d'essai : un `click()` rend la main avant que la chaîne asynchrone soit
+ * finie, et attendre « assez longtemps » est exactement la forme de mesure qui
+ * rend un contrôle vert sans rien avoir observé. Un cas tient séparément que
+ * le BOUTON mène bien ici — l'export ne dispense pas de le prouver.
+ *
  * @returns {Promise<void>}
  */
-async function reglerLeSolde() {
-  const currentPeriod = getState('currentPeriod');
+export async function confirmerLeReglement() {
+  // Deux appuis -- un double clic, ou une relecture qui prend son temps -- en
+  // enregistreraient deux : le solde basculerait alors du même montant dans
+  // l'autre sens. Le verrou écarte le second ; la relecture du solde juste
+  // avant l'écriture réduit la fenêtre entre deux appareils.
+  if (reglementEnCours) {
+    log('💸 Règlement déjà en cours, second appui ignoré');
+    return;
+  }
+  reglementEnCours = true;
+
+  const bouton = document.getElementById('reglerSoldeValider');
+  const rendreLeBouton = occuperLeBouton(bouton);
+
+  try {
+    await ecrireLeReglement();
+  } finally {
+    rendreLeBouton();
+    reglementEnCours = false;
+    // Le bouton reprend l'état que dit la phrase : `occuperLeBouton` le
+    // réactive toujours, y compris quand la saisie est devenue illisible.
+    rafraichirLaConsequence();
+  }
+}
+
+/**
+ * Le corps de l'écriture, protégé par le verrou ci-dessus
+ * @returns {Promise<void>}
+ */
+async function ecrireLeReglement() {
+  const currentPeriod = moisDuReglement;
   if (!currentPeriod) {
     toast.error('Aucune période sélectionnée');
     return;
   }
 
-  // Le solde affiché fait foi : une seule source, pas de calcul dupliqué.
-  const { balance } = calculateSummary();
-  const { amount, direction } = reglementPour(balance);
+  // La saisie est relue ici, pas mémorisée à la frappe : entre la dernière
+  // frappe et l'appui, rien d'autre ne la touche, et une seconde copie de la
+  // valeur serait une seconde source du montant écrit.
+  const verdict = rafraichirLaConsequence();
+  if (!verdict.valide) return;
 
-  // En deçà du centime, il n'y a rien à régler et l'écriture serait du bruit.
-  if (amount < 0.01) {
-    toast.info('Les comptes sont déjà équilibrés');
-    return;
-  }
+  const montant = Math.round(verdict.montant * 100) / 100;
 
   const { liaisonRompue } = await import('../db.js');
-  // Courtoisie : éviter de faire confirmer un geste qu'on refusera ensuite.
-  // Ce n'est PAS le contrôle qui décide — la liaison peut se rompre pendant
-  // que la confirmation est à l'écran. Celui qui décide est plus bas.
   if (liaisonRompue()) {
     toast.error(MESSAGE_HORS_LIGNE);
     return;
   }
 
-  const directionText = directionLabel(direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
-
-  const confirmed = await showConfirmModal(
-    `Enregistrer un règlement de ${formatCurrency(amount)} (${directionText}) ? Le solde du mois reviendra à zéro.`
-  );
-  if (!confirmed) return;
-
   try {
     // Relire AVANT d'écrire : l'autre personne a pu régler, ou saisir une
-    // dépense, pendant que la confirmation était à l'écran. Tout ce dont le
-    // solde dépend est relu, pas seulement les remboursements — sans quoi une
-    // charge ajoutée en face resterait invisible et le contrôle ne contrôlerait
-    // que le sixième du problème.
+    // dépense, pendant que la modale était à l'écran. Tout ce dont le solde
+    // dépend est relu, pas seulement les remboursements — sans quoi une charge
+    // ajoutée en face resterait invisible et le contrôle ne contrôlerait que le
+    // sixième du problème.
     const soldeFrais = await relireLeSolde(currentPeriod);
 
     // Le contrôle qui décide, et il vient APRÈS les lectures.
     //
     // `dbGet` ne lève pas quand la liaison est rompue : il sert le miroir. Une
-    // relecture hors ligne rend donc les valeurs de la dernière connexion,
-    // et le « solde vérifié » n'aurait rien vérifié. Pire, `dbPush` mettrait
+    // relecture hors ligne rend donc les valeurs de la dernière connexion, et
+    // le « solde vérifié » n'aurait rien vérifié. Pire, `dbPush` mettrait
     // l'écriture en file et rendrait la main : l'application annoncerait
-    // « Solde réglé » pour un règlement qui partira plus tard, calculé sur un
-    // solde périmé.
+    // « Versement enregistré » pour un règlement qui partira plus tard,
+    // calculé sur un solde périmé.
     if (liaisonRompue()) {
       toast.error(MESSAGE_HORS_LIGNE);
       return;
     }
 
     if (Math.abs(soldeFrais) < 0.01) {
+      // Plus rien à régler : la modale n'a plus d'objet, elle se ferme.
+      fermerLaModaleDeReglement();
       toast.info("Le solde vient d'être réglé — rien à faire");
       return;
     }
 
-    // Le solde a bougé pendant la confirmation. Écrire le montant d'avant
-    // laisserait le mois déséquilibré de la différence, en ayant promis
-    // « le solde reviendra à zéro » ; écrire le montant d'après enregistrerait
-    // une somme que personne n'a validée. On rend donc la main : l'écran
-    // affiche désormais le solde à jour, et un second appui le règle.
-    const { amount: montantFrais, direction: sensFrais } = reglementPour(soldeFrais);
-    if (montantFrais !== amount || sensFrais !== direction) {
-      toast.warning(`Le solde a changé — il est maintenant de ${formatCurrency(montantFrais)}`);
+    // Le solde a bougé pendant la saisie. La phrase affichée décrivait un autre
+    // monde : écrire maintenant tiendrait une promesse qui n'a jamais été
+    // faite. On ne ferme pas pour autant — le montant saisi reste bon, c'est
+    // sa conséquence qui a changé.
+    if (Math.round(soldeFrais * 100) !== Math.round(soldeAffiche * 100)) {
+      soldeAffiche = soldeFrais;
+      annoncerLeSoldeChange(soldeFrais);
+      rafraichirLaConsequence();
       return;
     }
 
+    const { direction } = reglementPour(soldeFrais);
     const { dbPush } = await import('../db.js');
 
+    // LE MOIS AFFICHÉ, PAS CELUI DE LA DATE. Un règlement solde le mois qu'on
+    // regarde : rangé au mois de sa date, il quitterait le solde qu'il éteint
+    // pour en fausser un autre. C'est l'inverse de la règle du formulaire
+    // « + Ajouter », qui range par `periodeDeLaDate` — et c'est voulu : là-bas
+    // on saisit un virement, ici on solde un mois.
     await dbPush(`periods/${currentPeriod}/reimbursements`, {
-      direction: sensFrais,
-      amount: montantFrais,
+      direction,
+      amount: montant,
       note: 'Règlement du solde',
       date: dateDuJour(),
       timestamp: Date.now(),
       deleted: false
     });
 
+    fermerLaModaleDeReglement();
     await loadReimbursements();
     calculateSummary();
-    toast.success('Solde réglé');
+    toast.success('Versement enregistré');
   } catch (err) {
     logError('❌ Erreur règlement du solde :', err);
     toast.error('Erreur de sauvegarde');
   }
+}
+
+/**
+ * Dit ce que le solde est devenu, sans effacer ce qui est saisi
+ *
+ * @param {number} soldeFrais
+ * @returns {void}
+ */
+function annoncerLeSoldeChange(soldeFrais) {
+  const montant = formatCurrency(reglementPour(soldeFrais).amount);
+  const message = `Le solde a changé — il est maintenant de ${montant}. `
+    + 'Vérifiez le montant, puis appuyez à nouveau.';
+
+  const zone = document.getElementById('reglerSoldeAvertissement');
+  if (zone) {
+    zone.textContent = message;
+    zone.hidden = false;
+  }
+  toast.warning(message);
+}
+
+/**
+ * Referme la modale et oublie le mois qu'elle soldait
+ * @returns {void}
+ */
+function fermerLaModaleDeReglement() {
+  moisDuReglement = null;
+  closeModal('modalReglerSolde', false);
 }
 
 /**
