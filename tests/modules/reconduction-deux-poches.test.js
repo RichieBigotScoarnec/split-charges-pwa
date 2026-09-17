@@ -249,6 +249,65 @@ describe('Les deux empreintes', () => {
     ]).toEqual([AOUT, null]);
   });
 
+  it('LA PREMIÈRE EST RENDUE QUAND LA SECONDE RÉSERVATION LÈVE', async () => {
+    // Le défaut que ce cas ferme, et il est né du lot P1b lui-même. Avec une
+    // seule empreinte, la réservation et la copie se suivaient : rien ne
+    // pouvait lever entre les deux. Avec deux, la SECONDE peut échouer — règle
+    // pas encore déployée, liaison coupée — alors que la première est posée.
+    //
+    // Sans filet, la levée sortait de la boucle sans rendre ce qui était
+    // réservé : le mois commun restait marqué « reconduit » sans une seule
+    // charge en face, et `planRecurrence` s'y arrête POUR DE BON. Le loyer
+    // disparaissait du mois, définitivement, en silence.
+    const factice = baseFactice();
+    const vraieRef = factice.instance.ref;
+    factice.instance.ref = (chemin) => {
+      const ref = vraieRef(chemin);
+      if (chemin && chemin.includes('personnel/vous')) {
+        ref.transaction = vi.fn(async () => {
+          throw new Error('PERMISSION_DENIED — la règle n\'est pas encore déployée');
+        });
+      }
+      return ref;
+    };
+    base.instance = factice.instance;
+
+    const nombre = await reconduire({ moi: 'vous' });
+
+    expect(nombre).toBe(0);
+    // Posée, puis RENDUE : le mois redevient reconductible à la prochaine
+    // ouverture, et le loyer reviendra.
+    expect(factice.journal.empreintes['household/periods/2026-09/reconductedFrom'])
+      .toEqual([AOUT, null]);
+    // Et rien n'a été copié : la copie n'a jamais eu lieu.
+    expect(factice.journal.copies).toBe(0);
+  });
+
+  it('LE TÉMOIN — l\'ordre des poches n\'est pas ce qui sauve', async () => {
+    // Le cas ci-dessus met le commun en premier, donc la poche qui lève est la
+    // seconde. Sans ce témoin, un correctif qui se contenterait de réserver les
+    // deux empreintes AVANT de rien accumuler passerait pour bon — alors que la
+    // levée du commun laisserait la poche personnelle posée.
+    const factice = baseFactice();
+    const vraieRef = factice.instance.ref;
+    factice.instance.ref = (chemin) => {
+      const ref = vraieRef(chemin);
+      if (chemin === 'household/periods/2026-09/reconductedFrom') {
+        ref.transaction = vi.fn(async () => { throw new Error('liaison coupée'); });
+      }
+      return ref;
+    };
+    base.instance = factice.instance;
+
+    const nombre = await reconduire({ moi: 'vous' });
+
+    expect(nombre).toBe(0);
+    // Le commun lève AVANT d'être posé : rien à rendre de son côté, et la poche
+    // personnelle n'a jamais été atteinte.
+    expect(factice.journal.empreintes).toEqual({});
+    expect(factice.journal.copies).toBe(0);
+  });
+
   it('sans emplacement connu, une seule empreinte est touchée', async () => {
     const factice = baseFactice();
     base.instance = factice.instance;
