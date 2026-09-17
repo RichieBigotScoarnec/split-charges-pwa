@@ -1218,6 +1218,40 @@ complète garde la fusion, pas le commit — et **mettre la PR en brouillon**
 > sauvé est d'avoir **mesuré avant d'agir** — le `--stat` là, le `git status`
 > ici.
 
+> ### ⚖️ LE PROTOCOLE ALLÉGÉ — « fusion puis écran dans l'heure »
+>
+> **Le protocole ci-dessus reste la règle : écrire, pousser, REGARDER L'ÉCRAN,
+> fusionner.** Ce qui suit est une exception bornée, pas une seconde façon de
+> faire.
+>
+> Un lot peut passer par le protocole allégé — PR verte, fusion, écran regardé
+> **dans l'heure**, `git revert <SHA>` si KO — **si et seulement si les quatre
+> conditions sont réunies** :
+>
+> 1. le lot ne modifie pas `database.rules.json` ;
+> 2. il n'introduit aucune migration ni changement de format des données déjà
+>    écrites ;
+> 3. tout ce qu'il peut écrire de faux **se supprime depuis l'interface** ;
+> 4. la PR est verte, **y compris les e2e**.
+>
+> **Si une seule condition manque, l'écran se regarde AVANT la fusion**, en
+> local (`npm run serve`, service worker contourné).
+>
+> **Ce qu'il faut savoir en l'employant :**
+>
+> - un revert relance toute la chaîne de déploiement, et **ne défait pas les
+>   données écrites entre-temps** ;
+> - l'autre membre du foyer reçoit le changement **en même temps**.
+>
+> **Motif de son existence** : le poste de développement ne lance pas toujours
+> les émulateurs (JDK 21, proxy), et le local sans émulateur parle à la base de
+> **production**.
+>
+> **Motif de ses bornes** : deux jours de travail ont été annoncés mesurés et
+> fusionnés **sans jamais avoir été écrits**, parce que personne n'avait ouvert
+> l'écran. **L'allègement porte sur le MOMENT du regard, jamais sur son
+> existence.**
+
 **Et la cinquième n'est même pas une commande.** Le 2026-09-06, une PR a été
 mergée sur un head **périmé** : ses deux derniers commits étaient bien poussés,
 la branche distante les portait, rien n'était cassé — mais GitHub avait
