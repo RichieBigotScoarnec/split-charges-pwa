@@ -919,6 +919,44 @@ rouge ?* Trois réponses le condamnent :
 > C'est le même raisonnement que les deux gardes redondantes ci-dessus, appliqué
 > aux conditions d'un contrôle plutôt qu'aux lignes d'un correctif.
 
+> **ET LA TROISIÈME RÉPONSE, QUAND UN DÉFAUT PASSE SOUS UN CONTRÔLE VERT : LE
+> CONTRÔLE EST JUSTE, SON MUTANT TOMBE, ET IL NE VISITE PAS LA CONDITION.**
+> Mesuré le 2026-09-17, sur le champ du règlement.
+>
+> Le défaut était réel et vu à l'écran : le montant pré-rempli n'était pas
+> sélectionné, curseur en fin. Le lot annonçait pourtant un contrôle « champ
+> prêt à recevoir » et un mutant qui le fait tomber. **La lecture immédiate —
+> celle qu'on m'a demandé de faire — est que l'un des deux est faux.** Les deux
+> ont été rejoués :
+>
+> | | verdict |
+> |---|---|
+> | le contrôle, sur le code déployé | **vert** |
+> | son mutant (`select()` retiré) | **rouge**, aux deux largeurs |
+> | le fichier déployé porte-t-il bien `select()` ? | **oui**, relevé par `curl` sur Pages |
+>
+> Ni le contrôle ni le mutant n'étaient faux. Le contrôle mesurait la BONNE
+> propriété — `selectionEnd - selectionStart`, plus la frappe observable — et
+> il tombait bien. Il ne visitait simplement pas la condition où le geste
+> échoue.
+>
+> **Et la condition ne se trouve pas en relisant : elle se trouve en
+> DÉCOMPOSANT.** Quatre hypothèses plausibles ont été exécutées et réfutées
+> l'une après l'autre — cinq profils d'appareil dont Pixel 5 et `hasTouch`, le
+> mode *headed* sous Xvfb, la réouverture de la modale après « Annuler » et
+> après un paiement partiel, et un tiers qui focalise le champ avant le
+> minuteur. **Les quatre sélectionnent correctement.** La cinquième a rendu le
+> symptôme exact, `selection 6..6` : neutraliser tout `focus()` appelé depuis
+> un minuteur — ce que fait Safari iOS d'un focus programmatique hors de la
+> tâche du geste, et `showModal` pose le sien dans un `setTimeout(…, 100)`.
+>
+> **Le geste : quand un défaut réel passe sous un contrôle vert, ne pas se
+> demander lequel des deux ment — se demander QUELLE CONDITION le contrôle ne
+> visite pas, et la chercher par décomposition jusqu'à obtenir le symptôme.**
+> Conclure « le mutant était faux » aurait fermé le dossier sur une hypothèse
+> non exécutée, et laissé le défaut en place sous un contrôle qu'on aurait
+> réécrit pour rien.
+
 **Ce qu'elle exige** — tout contrôle neuf porte son **témoin** : un mutant qui le
 fait tomber, ou, quand l'assertion peut être satisfaite trivialement, un témoin
 **positif** exigeant que les données mesurées soient non dégénérées. Un contrôle
@@ -1970,6 +2008,24 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   position **dans** un `expect.poll`, à chaque essai (`data-flow:827`). Deux
   hypothèses sont tombées avant celle-ci — le focus rendu au déclencheur, le
   bouton recréé par le rendu.
+- **Compter les écritures dans `window.__db` par `includes()` les compte DEUX
+  fois, et le contrôle accuse alors le code.** Le double garde les deux
+  représentations du même nœud — l'objet parent `…/reimbursements` ET une clé
+  plate par enfant —, c'est écrit dans `_harness.js` et c'est la seule façon de
+  rendre un arbre unique. Un filtre `cle.includes('…/reimbursements')` retient
+  donc les deux.
+  Mesuré le 2026-09-17 en écrivant le contrôle du double appui : **un SEUL
+  appui rendait « 150, 150 »**, et le rouge désignait le verrou — qui, lui,
+  tenait. Il a fallu relever les clés pour le voir :
+  `["…/reimbursements", "…/reimbursements/ch_1789675795252_v2zr7"]`.
+  **Et les deux sens sont piégés** : un contrôle qui exige `[150]` rougit sur un
+  dépôt sain, un contrôle qui exige `0` reste vert quoi qu'il arrive. Ne retenir
+  que les FEUILLES — un segment après le conteneur, ce que `push().set()`
+  écrit : `new RegExp(\`periods/${mois}/reimbursements/[^/]+$\`)`.
+  Le jumeau du même fichier portait le même filtre avec un `0` attendu, donc
+  vert par construction ; il a été corrigé dans la même passe — *« quand une
+  garde tombe parce que sa prémisse était fausse, relire TOUTES les prémisses
+  du fichier »*.
 - **Le double Firebase de `_harness.js` diverge de Realtime Database.** Deux
   divergences corrigées, aucune garde automatique : `set(null)` doit effacer, et
   `push().set()` doit écrire un chemin plat sous peine d'avaler les semences. En
@@ -2973,6 +3029,50 @@ les relevés pris avant valent toujours.
      remboursements dans `ownBalance`, et « ce mois-ci » mélangerait alors
      charges et versements. Le lot de correction devra couvrir ce cas par un
      test.
+
+7. **⚠️ `auth-ui.spec.js:48` est ROUGE sur `main`, et il l'est pour une raison
+   qui n'est pas celle qu'il teste.** Relevé le 2026-09-17, en marge du lot du
+   champ ; **non corrigé ici**, inscrit pour qu'un rouge permanent ne finisse
+   pas par masquer une régression.
+   - Le cas : « appeler `createAccount` directement ne crée rien ». Il attend
+     `/pas ouverte/` dans `#authError` ; il reçoit `""` et expire à 5 s.
+   - **La cause est mesurée, pas supposée** : sur l'écran de connexion, avec la
+     mise en place de ce fichier — un simple `goto`, sans `setupFirebaseMock` —
+     `typeof window.createAccount` vaut **`undefined`**.
+     `window.createAccount = createAccount` vit en fin d'`initAuth`
+     (`auth.js:819`), que le SDK absent n'atteint jamais.
+   - Le cas s'écrit `window.createAccount && window.createAccount()` : le `&&`
+     **avale silencieusement** le cas où la fonction n'est pas exposée. Le
+     contrôle ne peut donc rien dire de `SIGNUP_ENABLED` dans cet environnement
+     — il est rouge sans mesurer sa propriété, ce qui est la règle 1 à
+     l'envers.
+   - Reproduction sur `main` détaché, sans rien de ce dépôt d'ouvert :
+
+     ```bash
+     git worktree add /tmp/base origin/main && ln -s "$PWD/node_modules" /tmp/base/node_modules
+     cd /tmp/base && npx playwright test auth-ui --workers=1
+     ```
+   - Ce que le correctif demandera : que le cas ÉCHOUE fort quand la fonction
+     n'est pas exposée — `expect(typeof window.createAccount).toBe('function')`
+     avant de l'appeler — et qu'il pose la mise en place qui l'expose. Deux
+     décisions distinctes, à ne pas prendre en passant.
+8. **⚠️ `occuperLeBouton` est DÉFAIT synchroniquement sur le règlement : le
+   bouton n'est jamais réellement désactivé.** Relevé le 2026-09-17 en
+   instrumentant le double appui — `bouton.disabled` vaut `false`
+   immédiatement après le premier appui, dans la même tâche.
+   `confirmerLeReglement` pose `occuperLeBouton` (qui met `disabled = true` et
+   « Enregistrement… »), puis `ecrireLeReglement` ouvre sur
+   `rafraichirLaConsequence()`, qui écrit `bouton.disabled = !verdict.valide`
+   — donc `false` — avant le premier `await`.
+   **Ce qui est perdu est la moitié VISIBLE de la garde, pas la garde** : le
+   libellé « Enregistrement… » tient, `reglementEnCours` tient, et
+   `tests/e2e/reglement-montant-libre.spec.js` « UN DOUBLE APPUI SUR LE BOUTON
+   N'ÉCRIT QU'UNE LIGNE » le prouve — son mutant rend « montants écrits :
+   150, 150 ». Ce qui manque est le silence qui fait appuyer une seconde fois,
+   et c'est très exactement ce que `soumission.js` dit vouloir éviter.
+   Le correctif tient en un ordre — occuper le bouton APRÈS la relecture de la
+   saisie — mais il déplace le verrou visible d'un cran et ne se prend pas dans
+   le lot qui l'a trouvé.
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).

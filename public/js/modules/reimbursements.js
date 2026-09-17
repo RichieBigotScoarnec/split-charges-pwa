@@ -466,17 +466,58 @@ function ouvrirLaModaleDeReglement(solde, periode) {
     // et le premier geste serait de le retaper.
     champ.value = amount.toFixed(2).replace('.', ',');
 
-    // `showModal` pose bien le focus sur le premier champ, mais ne SÉLECTIONNE
-    // pas son contenu : la frappe s'ajouterait au montant pré-rempli — taper
-    // « 70 » sur « 66.94 » donnerait « 66.9470 ». L'écouteur est posé sur le
-    // focus plutôt qu'à côté du `setTimeout(100)` de `showModal` : il tient
-    // quel que soit l'instant où le focus arrive.
     ecouterUneFois(champ, 'input', rafraichirLaConsequence);
-    champ.addEventListener('focus', () => champ.select(), { once: true });
+
+    // L'écouteur est armé AVANT l'appel synchrone ci-dessous, et c'est ce qui
+    // le désarme : sans cela, le premier appui de la personne DANS le champ
+    // resélectionnerait tout, alors qu'on touche un champ pour y placer son
+    // curseur. Il ne sert que tant que la préparation n'a pas abouti.
+    champ.addEventListener('focus', () => preparerLeChamp(champ), { once: true });
   }
 
   rafraichirLaConsequence();
   showModal('modalReglerSolde');
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ICI, ET PAS DANS UN ÉCOUTEUR SEUL — mesuré le 2026-09-17.
+  //
+  // `showModal` pose le focus dans un `setTimeout(…, 100)`, donc HORS de la
+  // tâche du geste. Tant que la sélection n'était accrochée qu'à l'événement
+  // `focus`, tout le geste tenait à ce focus différé : neutralisé — et c'est
+  // ce que fait Safari iOS d'un `focus()` programmatique hors geste, ce que
+  // ferait aussi un tiers qui prend le focus —, le relevé rend exactement le
+  // symptôme constaté à l'écran, `sel = 6..6`, curseur en fin, rien de
+  // sélectionné.
+  //
+  // La préparation est donc posée ici, SYNCHRONE, dans la même tâche que
+  // l'ouverture. `showModal` verra le focus dans la modale au bout de ses
+  // 100 ms et n'y touchera pas — c'est sa garde `focusDejaPose`, et elle est
+  // tenue par ses propres contrôles.
+  //
+  // Trois occasions, UNE SEULE rédaction : cet appel, le focus différé s'il
+  // aboutit, et à défaut le premier appui de la personne. Aucune ne peut
+  // laisser le champ à moitié prêt, parce qu'aucune ne fait autre chose que
+  // `preparerLeChamp`.
+  if (champ) preparerLeChamp(champ);
+}
+
+/**
+ * Met le champ en état de RECEVOIR : focalisé, contenu sélectionné
+ *
+ * Une frappe doit REMPLACER le montant pré-rempli, pas s'y ajouter — sans
+ * cela, taper « 70 » sur « 150,00 » donne « 150,0070 », et le paiement partiel
+ * redevient le geste pénible que le montant libre devait supprimer.
+ *
+ * Idempotente : `focus()` sur un élément déjà focalisé ne fait rien et n'émet
+ * aucun événement, et re-sélectionner une sélection entière ne change rien.
+ * C'est ce qui autorise les trois déclencheurs.
+ *
+ * @param {HTMLInputElement} champ
+ * @returns {void}
+ */
+function preparerLeChamp(champ) {
+  champ.focus();
+  champ.select();
 }
 
 /**

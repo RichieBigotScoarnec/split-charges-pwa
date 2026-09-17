@@ -76,6 +76,29 @@ async function uneDepenseArriveEnFace(page, { montant, payeur }) {
   }, { montant, payeur });
 }
 
+/**
+ * Les remboursements RÉELLEMENT écrits dans le mois affiché
+ *
+ * ⚠️ `window.__db` porte DEUX représentations du même nœud — l'objet parent
+ * `…/reimbursements` ET une clé plate par enfant —, c'est écrit dans
+ * `_harness.js` et c'est ce que fait Realtime Database vu d'un seul arbre.
+ * Un filtre par `includes('…/reimbursements')` compte donc chaque écriture
+ * DEUX fois : mesuré, un seul appui rendait « 150, 150 ».
+ *
+ * Un contrôle qui exige `[150]` rougit alors sur un dépôt sain, et un contrôle
+ * qui exige `0` reste vert quoi qu'il arrive. On ne retient que les FEUILLES —
+ * un segment après `reimbursements` —, ce que `push().set()` écrit.
+ */
+const reglementsEcrits = (page) => page.evaluate(() => {
+  const mois = document.getElementById('periodSelect').value;
+  const feuille = new RegExp(`periods/${mois}/reimbursements/[^/]+$`);
+  return Object.entries(window.__db)
+    .filter(([cle]) => feuille.test(cle))
+    .map(([, valeur]) => valeur)
+    .filter(r => r && !r.deleted)
+    .map(r => r.amount);
+});
+
 const modale = (page) => page.locator('#modalReglerSolde');
 const champ = (page) => page.locator('#reglerSoldeMontant');
 const phrase = (page) => page.locator('#reglerSoldeConsequence');
@@ -183,15 +206,9 @@ for (const largeur of LARGEURS) {
       expect(chiffres(await phrase(page).innerText())).toContain('50,00€');
 
       // Rien n'a été écrit.
-      const regles = await page.evaluate(() => {
-        const mois = document.getElementById('periodSelect').value;
-        const noeud = Object.entries(window.__db)
-          .filter(([k]) => k.includes(`periods/${mois}/reimbursements`))
-          .map(([, v]) => v);
-        return noeud.flatMap(v => (v && typeof v === 'object' && !('amount' in v)
-          ? Object.values(v) : [v])).filter(r => r && !r.deleted).length;
-      });
-      expect(regles, 'un règlement a été écrit sur un solde périmé').toBe(0);
+      const regles = await reglementsEcrits(page);
+      expect(regles, `un règlement a été écrit sur un solde périmé : ${regles.join(', ')}`)
+        .toEqual([]);
 
       // Un SECOND appui, lui, écrit — sur le solde frais.
       await valider(page).click();
@@ -250,6 +267,109 @@ for (const largeur of LARGEURS) {
       expect(danger, 'témoin : danger et primaire rendent la même couleur')
         .not.toBe(temoinPrimaire);
       expect(fond, 'le bouton de paiement est peint en danger').not.toBe(danger);
+    });
+
+    test('UN DOUBLE APPUI SUR LE BOUTON N\'ÉCRIT QU\'UNE LIGNE', async ({ page }) => {
+      // Le verrou `reglementEnCours` a suivi l'écriture au lot du montant
+      // libre : il gardait l'ouverture, qui allait jusqu'au `dbPush`, et il
+      // garde désormais la validation. Un contrôle unitaire tient déjà la
+      // propriété en appelant deux fois la fonction ; celui-ci tient le
+      // BOUTON, c'est-à-dire ce que la personne touche.
+      //
+      // Deux `click()` dans la MÊME tâche, et non deux gestes espacés : c'est
+      // la seule forme déterministe de la course. Le second entre pendant que
+      // la relecture du premier est en vol — la fenêtre que le verrou ferme.
+      await semerUnSolde(page, { montant: 300, payeur: 'vous' });
+      await ouvrirLeReglement(page);
+      await expect(champ(page)).toHaveValue('150,00');
+
+      await page.evaluate(() => {
+        const bouton = document.getElementById('reglerSoldeValider');
+        bouton.click();
+        bouton.click();
+      });
+
+      // On attend la FERMETURE, pas le solde soldé : attendre « équilibré »
+      // ferait accuser la barre de solde par un mutant dont la faute est
+      // d'avoir écrit deux lignes. Un contrôle doit nommer ce qu'il a vu.
+      await expect(modale(page)).not.toHaveClass(/active/, { timeout: 10000 });
+      await page.waitForTimeout(1500);
+
+      const montants = await reglementsEcrits(page);
+      expect(montants, `montants écrits : ${montants.join(', ')}`).toEqual([150]);
+
+      // Et la conséquence, une fois la cause nommée : deux lignes de 150
+      // feraient basculer le solde de 150 dans l'autre sens.
+      await expect(page.locator('#balanceBar')).toContainText('quilibr', { timeout: 10000 });
+    });
+
+    test('LE CHAMP EST PRÊT MÊME SI LE FOCUS DIFFÉRÉ N\'ABOUTIT PAS', async ({ page }) => {
+      // ─────────────────────────────────────────────────────────────────
+      // LE CAS QUE LE CONTRÔLE VOISIN NE VISITE PAS — et c'est lui qui a
+      // laissé passer le défaut vu à l'écran le 2026-09-17.
+      //
+      // Le voisin mesure la BONNE propriété, et son mutant tombe : retirer
+      // la sélection le fait rougir. Il ne visite simplement pas la
+      // condition où le geste échoue — un `focus()` différé qui n'aboutit
+      // pas. Safari iOS ignore un `focus()` programmatique hors de la tâche
+      // du geste, et `showModal` pose le sien dans un `setTimeout(…, 100)`.
+      //
+      // On ne simule pas Safari : on neutralise le seul maillon dont le
+      // soupçon porte — tout `focus()` appelé depuis un minuteur — et on
+      // vérifie que le champ est prêt QUAND MÊME. Mesuré avant le
+      // correctif : `selection 6..6`, curseur en fin, champ non focalisé,
+      // c'est-à-dire exactement le symptôme rapporté.
+      await page.addInitScript(() => {
+        const vraiFocus = HTMLElement.prototype.focus;
+        let dansUnMinuteur = false;
+        const vraiSetTimeout = window.setTimeout;
+        window.setTimeout = function (fn, ...reste) {
+          return vraiSetTimeout(function (...args) {
+            dansUnMinuteur = true;
+            try { return fn.apply(this, args); } finally { dansUnMinuteur = false; }
+          }, ...reste);
+        };
+        HTMLElement.prototype.focus = function (...args) {
+          if (dansUnMinuteur) return;
+          return vraiFocus.apply(this, args);
+        };
+      });
+      await page.reload();
+      await page.waitForSelector('body[data-app-ready="true"]', { timeout: 30000 });
+
+      await semerUnSolde(page, { montant: 300, payeur: 'vous' });
+      await ouvrirLeReglement(page);
+
+      // TÉMOIN DE LA NEUTRALISATION : sans lui, ce cas serait vert sur un
+      // navigateur où le focus différé aboutit — donc sur celui-ci —, et il
+      // ne mesurerait rien de ce qu'il prétend tenir.
+      const differeNeutralise = await page.evaluate(() => new Promise((resoudre) => {
+        const temoin = document.createElement('input');
+        document.body.appendChild(temoin);
+        setTimeout(() => {
+          temoin.focus();
+          const pris = document.activeElement === temoin;
+          temoin.remove();
+          resoudre(!pris);
+        }, 0);
+      }));
+      expect(differeNeutralise, 'témoin : le focus différé aboutit encore').toBe(true);
+
+      // La propriété : le champ est focalisé ET son contenu sélectionné.
+      const etat = await page.evaluate(() => {
+        const actif = document.activeElement;
+        const c = document.getElementById('reglerSoldeMontant');
+        return { focalise: actif === c, debut: c.selectionStart, fin: c.selectionEnd,
+          longueur: c.value.length };
+      });
+      expect(etat.focalise, 'le champ n\'a pas le focus').toBe(true);
+      expect(etat.debut, 'la sélection ne part pas du début').toBe(0);
+      expect(etat.fin, 'la sélection ne va pas jusqu\'au bout').toBe(etat.longueur);
+
+      // Et le COMPORTEMENT OBSERVABLE, qui est ce qui compte : taper « 100 »
+      // sans toucher le champ remplace le pré-remplissage.
+      await page.keyboard.type('100');
+      await expect(champ(page)).toHaveValue('100');
     });
 
     test('la modale tient dans l\'écran, et son champ est prêt à recevoir', async ({ page }) => {
