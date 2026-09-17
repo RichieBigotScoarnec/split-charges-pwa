@@ -28,6 +28,7 @@
 
 import { getState, setState } from '../state.js';
 import { cheminDeLaCharge } from '../poches.js';
+import { chargesDeLaPortee } from '../utils/portee.js';
 import { toast } from '../components/toast.js';
 import { showConfirmModal } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
@@ -79,10 +80,30 @@ function poser({ actif, ids }) {
 
 /**
  * Les charges du mois affiché, telles que la liste les montre
+ *
+ * ── « TELLES QUE LA LISTE LES MONTRE » EST DEVENU VRAI — lot P2 ──
+ *
+ * Son nom disait déjà la propriété ; sa mise en œuvre lisait l'état ENTIER, et
+ * c'était juste tant que la liste montrait tout. Depuis que la portée la
+ * filtre, quatre lectures en dépendent et toutes les quatre auraient menti :
+ *
+ *   - « tout cocher » aurait compté des charges absentes de l'écran, et le
+ *     bouton se serait cru déjà rempli ;
+ *   - l'écriture en lot aurait porté sur elles — une charge personnelle
+ *     modifiée depuis « À deux », où personne ne l'avait vue ;
+ *   - le résumé de la barre aurait annoncé un compte et un total que les lignes
+ *     démentaient.
+ *
+ * Le filtre vient de la même fabrique que le rendu. Un second prédicat écrit
+ * ici divergerait du premier au prochain correctif.
+ *
  * @returns {Array<Object>}
  */
 function chargesAffichees() {
-  return (getState('variableCharges') || []).filter(charge => charge && !charge.deleted);
+  return chargesDeLaPortee(
+    (getState('variableCharges') || []).filter(charge => charge && !charge.deleted),
+    getState('porteeCourante')
+  );
 }
 
 // ===== LECTURES POUR LE RENDU =====

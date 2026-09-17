@@ -71,7 +71,9 @@
  */
 
 import { setState, getState } from '../state.js';
-import { PORTEES, porteeValide, panneauPorteLaPortee, porteeRetenue } from '../utils/portee.js';
+import {
+  PORTEES, porteeValide, panneauPorteLaPortee, porteeRetenue, LIBELLES_DE_PORTEE
+} from '../utils/portee.js';
 import { log, warn } from '../utils/debug.js';
 
 /** Les panneaux candidats. `panneauPorteLaPortee` tranche, pas cette liste. */
@@ -99,11 +101,13 @@ const PANNEAUX = ['panneauBilan', 'panneauCharges', 'panneauReglages'];
  * Et raccourcir « À deux » ne rendrait rien : les segments se partagent la
  * rangée en parts égales quel que soit leur contenu.
  */
-const SEGMENTS = [
-  { portee: PORTEES.DEUX, libelle: 'À deux' },
-  { portee: PORTEES.SOLO, libelle: 'Moi ce mois' },
-  { portee: PORTEES.PRIVE, libelle: 'Privé' }
-];
+// Les libellés viennent de `utils/portee.js` depuis le lot P2 : le renvoi en
+// pied de liste doit dire OÙ partent les dépenses qu'il retire de la vue, donc
+// prononcer le nom d'un segment. Deux rédactions du même nom divergeraient, et
+// la moins à jour enverrait chercher un segment qui ne s'appelle plus comme ça.
+// L'ORDRE, lui, reste ici : c'est une décision d'écran, pas de vocabulaire.
+const SEGMENTS = [PORTEES.DEUX, PORTEES.SOLO, PORTEES.PRIVE]
+  .map(portee => ({ portee, libelle: LIBELLES_DE_PORTEE[portee] }));
 
 /** Le segment qui porte le repère de solde : celui du foyer, seul à en avoir un. */
 const PORTEE_DU_SOLDE = PORTEES.DEUX;
@@ -237,11 +241,30 @@ function choisirLaPortee(demandee) {
   setState('porteeCourante', demandee);
   peindreLaPortee();
 
-  // Le rendu suit l'état, il ne le précède pas : le bilan relit
-  // `porteeCourante` et décide seul de ce qu'il montre.
+  // Le rendu suit l'état, il ne le précède pas : chaque surface relit
+  // `porteeCourante` et décide seule de ce qu'elle montre.
+  //
+  // ── LES DEUX LISTES AUSSI, DEPUIS LE LOT P2 ──
+  //
+  // Elles ne l'étaient pas, et rien ne le disait : le sélecteur ne rafraîchissait
+  // que le bilan. Tant que la portée ne filtrait pas la liste, c'était sans
+  // conséquence ; depuis qu'elle la filtre, l'oublier ferait que la commande
+  // promette encore un filtre qu'elle n'applique pas — le défaut même que ce
+  // lot répare, déplacé d'un cran.
+  //
+  // Les deux rendus ne lisent que `state.js` : aucune lecture en base, donc
+  // aucun coût réseau à changer de segment.
   import('./summary.js')
     .then(({ calculateSummary }) => calculateSummary())
     .catch((erreur) => warn('Portée changée, bilan non rafraîchi', erreur));
+
+  import('./variable-charges.js')
+    .then(({ renderVariableCharges }) => renderVariableCharges())
+    .catch((erreur) => warn('Portée changée, charges variables non redessinées', erreur));
+
+  import('./fixed-charges.js')
+    .then(({ renderFixedCharges }) => renderFixedCharges())
+    .catch((erreur) => warn('Portée changée, charges fixes non redessinées', erreur));
 }
 
 /**
@@ -250,19 +273,23 @@ function choisirLaPortee(demandee) {
  * @returns {void}
  */
 export function initSelecteurPortee() {
-  // ── CE MODULE NE DÉCLARE PLUS AUCUNE ACTION — lot D, 2026-09-11 ──
+  // ── `allerALaPortee` EST DE RETOUR, ET C'EST LE CAS QUE LE LOT D PRÉVOYAIT ──
   //
-  // Il exposait `allerALaPortee`, pour une seule commande vivant hors des
-  // segments : la rangée « Gérer mes dépenses privées et le partage », dans le
-  // bloc privé du versant personnel. Ce bloc est devenu la dernière ligne du
-  // grand-livre de « Moi », sans renvoi — les planches 12 et 15 n'en ont pas —,
-  // et le segment est désormais la seule porte vers l'espace privé.
+  // Le lot D l'avait retirée : sa dernière commande hors segments — la rangée
+  // « Gérer mes dépenses privées et le partage » — avait disparu, et une entrée
+  // de liste blanche sans balisage est ce qu'`actions-declarees` refuse, dans
+  // les deux sens. Son commentaire disait alors : *« si une commande hors
+  // segments revient un jour, elle reprendra un nom déclaré — jamais un
+  // écouteur élargi à tout `[data-portee]` du document »*.
   //
-  // L'action a quitté la liste blanche d'`init.js` avec sa dernière commande :
-  // une entrée sans balisage est ce que `actions-declarees` refuse, dans les
-  // deux sens. Si une commande hors segments revient un jour, elle reprendra un
-  // nom déclaré — jamais un écouteur élargi à tout `[data-portee]` du document,
-  // qui ferait de n'importe quel balisage injecté une commande.
+  // Le lot P2 la fait revenir, exactement sous cette forme. Le renvoi en pied
+  // de liste — « 3 dépenses perso (36,70 €) — rangées dans "Moi ce mois" » —
+  // porte un bouton qui mène à cette portée, parce que filtrer « À deux » rend
+  // une dépense saisie introuvable sans lui.
+  //
+  // Le nom est déclaré dans `init.js`, la fonction est exposée ici, et
+  // l'écouteur reste posé sur les seuls GROUPES que ce module fabrique.
+  window.allerALaPortee = (demandee) => choisirLaPortee(demandee);
 
   let poses = 0;
 

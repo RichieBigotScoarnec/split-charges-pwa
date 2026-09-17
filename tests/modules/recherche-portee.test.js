@@ -137,3 +137,58 @@ describe('Robustesse', () => {
     expect(() => trouves('vacances')).not.toThrow();
   });
 });
+
+describe('La recherche du mois cherche dans ce que la liste MONTRE — lot P2', () => {
+  /**
+   * Elle lisait l'état entier. Depuis que la portée filtre la liste, cela
+   * annoncerait « 3 résultats » avec une seule ligne à l'écran — et
+   * `refleterLesTotaux` reverserait le personnel dans le pied, c'est-à-dire le
+   * défaut des 170 € que `recherche-totaux.spec.js` existe pour fermer,
+   * réintroduit par l'autre bout.
+   *
+   * Les quatre couples payeur × périmètre sont semés : trois d'entre eux ne
+   * séparent pas « je garde ce qui est commun » de « je garde ce qui est
+   * `partage` », et c'est la seconde lecture qui coûterait des euros.
+   */
+  beforeEach(() => {
+    setState('variableCharges', [
+      { id: 'vous-partagee', description: 'Courses Leclerc', category: 'Courses',
+        amount: 120, paidBy: 'partage', date: '2026-08-02' },
+      { id: 'vous-avancee', description: 'Courses Intermarché', category: 'Courses',
+        amount: 60, paidBy: 'conjointe', date: '2026-08-03' },
+      { id: 'vous-solo', description: 'Courses de midi', category: 'Courses',
+        amount: 10, paidBy: 'vous', perimetre: 'solo', date: '2026-08-04' },
+      { id: 'conjointe-solo', description: 'Courses du samedi', category: 'Courses',
+        amount: 5, paidBy: 'conjointe', perimetre: 'solo', date: '2026-08-05' }
+    ]);
+    setState('fixedCharges', []);
+    setState('reimbursements', []);
+  });
+
+  it('LE TÉMOIN — sans portée qui filtre, les quatre sont trouvées', () => {
+    // « Moi ce mois » n'est pas filtrée par ce lot, délibérément. Ce cas s'en
+    // sert comme témoin positif : sans lui, les absences ci-dessous seraient
+    // satisfaites par un semis que la recherche n'atteint pas du tout.
+    setState('porteeCourante', 'solo');
+    expect(trouves('courses').sort()).toEqual(
+      ['conjointe-solo', 'vous-avancee', 'vous-partagee', 'vous-solo']);
+  });
+
+  it('« À deux » ne rend que le commun', () => {
+    setState('porteeCourante', 'deux');
+    expect(trouves('courses').sort()).toEqual(['vous-avancee', 'vous-partagee']);
+  });
+
+  it('une charge AVANCÉE par une personne et partagée reste trouvable', () => {
+    // C'est le cas que seul un filtre par PAYEUR perdrait — et il le perdrait
+    // en silence, puisque le solde continuerait de la compter.
+    setState('porteeCourante', 'deux');
+    expect(trouves('intermarché')).toContain('vous-avancee');
+  });
+
+  it('une portée absente vaut « À deux », comme partout ailleurs', () => {
+    // `porteeRetenue` retombe sur la portée par défaut : la recherche ne peut
+    // pas avoir une lecture du défaut différente de celle de la liste.
+    expect(trouves('courses').sort()).toEqual(['vous-avancee', 'vous-partagee']);
+  });
+});

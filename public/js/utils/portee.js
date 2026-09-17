@@ -37,6 +37,8 @@
  * ce qu'on veut tenir.
  */
 
+import { chargesCommunes, chargesSolo, totalDesCharges } from './perimetre.js';
+
 /**
  * Les trois portées, et rien d'autre
  *
@@ -60,6 +62,34 @@ export const PORTEES = Object.freeze({
  * même raisonnement que la barre d'onglets, qui ouvre sur le bilan.
  */
 export const PORTEE_PAR_DEFAUT = PORTEES.DEUX;
+
+/**
+ * Le nom que l'écran donne à chaque portée
+ *
+ * Il vivait dans `SEGMENTS`, privé de `modules/selecteur-portee.js`, et c'était
+ * juste tant que le sélecteur était le seul à le prononcer. Le lot P2 lui donne
+ * un second lecteur : le renvoi en pied de liste, qui doit dire OÙ sont parties
+ * les dépenses personnelles qu'il vient de retirer de la vue.
+ *
+ * Deux rédactions du même nom divergeraient — et la moins à jour enverrait
+ * quelqu'un chercher un segment qui ne s'appelle plus comme ça. Le nom vit donc
+ * ici, dans le module qui décide ce qu'une portée est, et le sélecteur le lit.
+ */
+export const LIBELLES_DE_PORTEE = Object.freeze({
+  [PORTEES.DEUX]: 'À deux',
+  [PORTEES.SOLO]: 'Moi ce mois',
+  [PORTEES.PRIVE]: 'Privé'
+});
+
+/**
+ * Le nom d'une portée, celui de « À deux » pour une valeur inconnue
+ *
+ * @param {*} portee
+ * @returns {string}
+ */
+export function libelleDeLaPortee(portee) {
+  return LIBELLES_DE_PORTEE[porteeRetenue(portee)];
+}
 
 /** Les panneaux sur lesquels une portée a un sens. Volontairement privée. */
 const PANNEAUX_AVEC_PORTEE = Object.freeze(['panneauBilan', 'panneauCharges']);
@@ -242,4 +272,112 @@ const PORTEES_QUI_MONTRENT_LE_FOYER = Object.freeze([PORTEES.DEUX]);
  */
 export function porteeMontreLeFoyer(portee) {
   return PORTEES_QUI_MONTRENT_LE_FOYER.includes(porteeRetenue(portee));
+}
+
+/**
+ * Les portées qui FILTRENT la liste des charges.
+ * Volontairement privée, comme les trois listes ci-dessus.
+ */
+const PORTEES_QUI_FILTRENT_LA_LISTE = Object.freeze([PORTEES.DEUX]);
+
+/**
+ * Les charges qu'une portée montre dans la liste
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * LA COMMANDE PROMETTAIT UN FILTRE QU'ELLE N'APPLIQUAIT PAS
+ *
+ * Le sélecteur existait depuis le lot 5 ; la liste, elle, montrait tout sous
+ * les trois portées. « À deux » affichait le commun ET le personnel, avec un
+ * badge `perso` et un total séparé en pied — un contournement du défaut, pas
+ * une décision. Une commande qui ne gouverne rien enseigne que la moitié des
+ * commandes ne font rien.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * ELLE LIT LE PÉRIMÈTRE, JAMAIS LE PAYEUR — et c'est le seul défaut de ce
+ * lot qui coûterait des euros
+ *
+ * Une charge payée par une personne **et partagée** est COMMUNE
+ * (`perimetre.js`, « `paidBy` dit qui a AVANCÉ l'argent, jamais à qui la
+ * dépense APPARTIENT »). Un filtre qui déduirait le périmètre du payeur
+ * retirerait de la liste du foyer des dépenses qui pèsent bel et bien sur le
+ * solde — en silence, puisque le solde, lui, continuerait de les compter.
+ *
+ * C'est pour cela que cette fonction ne connaît QUE `chargesCommunes`, et que
+ * son jeu d'essai porte les quatre couples payeur × périmètre : sans les
+ * quatre, il ne sépare pas les deux lectures.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * « MOI CE MOIS » N'EST PAS FILTRÉE, ET C'EST UNE DÉCISION
+ *
+ * Sa cible est « le personnel seul, la part du commun en carte agrégée ». La
+ * carte appartient au lot « Moi, rangs 2 et 3 », qui n'est pas fait : filtrer
+ * sans elle donnerait un écran dont le héros — « Il te reste X » — soustrait
+ * une part du commun que rien à l'écran ne montre.
+ *
+ * La liste DÉCLARÉE est ce qui rend cette attente lisible : le jour où la carte
+ * existe, `PORTEES.SOLO` la rejoint, et rien d'autre ne change.
+ *
+ * @param {Array<Object>} charges
+ * @param {*} portee
+ * @returns {Array<Object>} La liste telle quelle quand la portée ne filtre pas
+ */
+export function chargesDeLaPortee(charges, portee) {
+  const liste = Array.isArray(charges) ? charges : [];
+  if (!PORTEES_QUI_FILTRENT_LA_LISTE.includes(porteeRetenue(portee))) return liste;
+  return chargesCommunes(liste);
+}
+
+/**
+ * Cette portée retire-t-elle des charges de la liste ?
+ *
+ * Le renvoi en pied et l'état vide en dépendent : c'est ce qui les fait
+ * paraître sous « À deux » et nulle part ailleurs.
+ *
+ * @param {*} portee
+ * @returns {boolean}
+ */
+export function porteeFiltreLaListe(portee) {
+  return PORTEES_QUI_FILTRENT_LA_LISTE.includes(porteeRetenue(portee));
+}
+
+/**
+ * Ce que la portée courante MASQUE de mes dépenses, et où c'est parti
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * COMPTÉ SUR MES SEULES DÉPENSES — jamais sur tout le personnel lisible
+ *
+ * Sous un aval actif, la liste du foyer portait aussi les dépenses
+ * personnelles de l'autre. Le filtre les retire elles aussi, et elles n'ont
+ * PAS de renvoi : elles n'appartiennent pas à « Moi ce mois », qui est mon
+ * écran. Leur place est la fenêtre en lecture seule de P3, qui n'existe pas
+ * encore — c'est un trou de P3, consigné plutôt que comblé ici. Aucun aval
+ * n'est actif aujourd'hui, donc le cas est d'école.
+ *
+ * `nombre` à zéro veut dire « rien à annoncer » : une liste sans dépense
+ * personnelle n'a pas de renvoi, et une mention systématique ferait du bruit
+ * sur la majorité des mois.
+ *
+ * @param {Array<Object>} charges - La liste ENTIÈRE du mois, avant filtrage
+ * @param {*} portee
+ * @param {'vous'|'conjointe'} moi - L'emplacement du compte connecté
+ * @returns {{nombre: number, total: number, versLaPortee: string, libelle: string}}
+ */
+export function renvoiDeLaPortee(charges, portee, moi) {
+  const vide = {
+    nombre: 0, total: 0,
+    versLaPortee: PORTEES.SOLO, libelle: LIBELLES_DE_PORTEE[PORTEES.SOLO]
+  };
+  if (!porteeFiltreLaListe(portee)) return vide;
+
+  const miennes = chargesSolo(
+    (Array.isArray(charges) ? charges : []).filter(charge => charge && !charge.deleted),
+    moi
+  );
+
+  return {
+    nombre: miennes.length,
+    total: totalDesCharges(miennes),
+    versLaPortee: PORTEES.SOLO,
+    libelle: LIBELLES_DE_PORTEE[PORTEES.SOLO]
+  };
 }

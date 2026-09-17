@@ -110,7 +110,11 @@ FairSplit/
 │                               # il compose ceux du bilan et des tendances),
 │                               # totaux-liste (le total d'une liste de charges,
 │                               # lu par le rendu ET par la recherche — c'est
-│                               # elle qui affichait un chiffre faux),
+│                               # elle qui affichait un chiffre faux ; porte
+│                               # aussi l'UNIQUE rédaction de « commun + X
+│                               # perso », lue par le pied comme par l'en-tête
+│                               # de catégorie, et le renvoi qui dit où sont
+│                               # parties les dépenses que la portée retire),
 │                               # echelle (des graduations qu'un humain lit),
 │                               # budget-propose (ce que coûte un mois
 │                               # ordinaire, proposé plutôt que demandé),
@@ -182,8 +186,8 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
 | `db.js` | 26 | **21** | Critique — abstraction DB |
 | `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
-| `utils/members.js` | 23 | 0 | Important — qui doit à qui |
-| `utils/perimetre.js` | 21 | 0 | Important — ce qui pèse sur le solde |
+| `utils/members.js` | 22 | 0 | Important — qui doit à qui |
+| `utils/perimetre.js` | 24 | 0 | Important — ce qui pèse sur le solde |
 | `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 18 | 0 | Important — lecture d'une saisie |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
@@ -191,7 +195,7 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
 | `utils/diagnostics.js` | 13 | 0 | Important — le journal qui survit au téléphone |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
-| `modules/auth.js` | 1 | 0 | Critique — **hub** : 30 imports statiques, 28 appels à `runStep` |
+| `modules/auth.js` | 1 | 0 | Critique — **hub** : 30 imports statiques, 29 appels à `runStep` |
 
 > **Relevé le 2026-09-08 par `node tools/adherences.mjs`, et quatre lignes
 > avaient dérivé** — debug 35 → 36, state 31 → 32, date 24 → 25,
@@ -271,6 +275,30 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > la garde tient l'APPARTENANCE au tableau, jamais les comptes. Elle a fait son
 > travail — elle a nommé le module qui franchissait le seuil — et elle ne
 > pouvait rien dire des six autres.
+
+> **SEPTIÈME DÉRIVE, relevée le 2026-09-17 par le lot P2 — et cette fois le
+> classement complet a été rejoué AVANT d'écrire une seule ligne du tableau.**
+> Trois lignes bougent, et **une seule des trois vient du lot du jour** :
+>
+> - **`utils/perimetre.js` 21 → 24**, et c'est le lot P2 : `utils/tri.js` et
+>   `utils/portee.js` le lisent désormais, plus `utils/totaux-liste.js` qui le
+>   lisait déjà. C'est l'effet voulu — la distinction de périmètre a cessé de
+>   vivre par-dessus les fabriques pour entrer dedans ;
+> - **`utils/members.js` 23 → 22** et **`auth.js` 28 → 29 appels à `runStep`** :
+>   les deux datent de **P1b**, qui les avait mesurées et les avait écrites dans
+>   sa propre note — « rejoué une seconde fois à la fin du lot, et deux lignes
+>   avaient encore bougé » — **sans jamais les reporter dans le tableau**.
+>
+> **C'est une forme neuve du défaut, et elle est plus retorse que les six
+> précédentes : le chiffre juste était écrit, en prose, trois paragraphes sous
+> le tableau qui le contredisait.** Les six dérives antérieures venaient de
+> n'avoir pas recompté. Celle-ci vient d'avoir recompté, consigné la mesure, et
+> laissé le tableau dire autre chose — or c'est le TABLEAU qu'on lit avant de
+> toucher à un module, jamais la note qui le commente.
+>
+> Le geste : quand un recompte est consigné en prose, **la même passe corrige la
+> ligne du tableau**. Une mesure notée à côté de ce qu'elle démentait ne
+> corrige rien, elle documente une contradiction.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -2091,6 +2119,19 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
 - **Plafond des sites d'injection : 24 sur 24, marge nulle**
   (`tools/plafond-innerhtml.mjs:64`). C'est voulu — tout `innerHTML`
   supplémentaire fait échouer la CI tant qu'il n'a pas été relu.
+  > **⚠️ Et un TERNAIRE affecté à `innerHTML` compte comme un site, même entre
+  > deux littéraux qui n'interpolent rien.** Mesuré le 2026-09-17 : le lot P2
+  > remplaçait, dans les deux modules de liste, un état vide littéral par
+  > `innerHTML = condition ? 'littéral A' : 'littéral B'` — et le plafond
+  > passait de **24 à 26**, sur deux chaînes sans une seule donnée.
+  > `no-unsanitized` ne reconnaît qu'une expression littérale : une
+  > `ConditionalExpression` n'en est pas une, quoi qu'elle contienne.
+  >
+  > Le remède ne coûte rien : **deux branches, deux affectations littérales**.
+  > Ce qu'il faut savoir, c'est que le plafond est à marge nulle et qu'il
+  > refuse alors un ajout qui n'ouvre AUCUNE surface — un refus qu'on prend
+  > pour un faux positif si on ne sait pas d'où il vient, et qu'on est tenté de
+  > régler en déplaçant le plafond.
 - **`no-control-regex` est une ERREUR**, pas un avertissement : elle vient de
   `js.configs.recommended` (`eslint.config.mjs:26`), sans clause `files`. Et la
   CI lance `npx eslint .`, qui couvre `tests/`.
@@ -2378,6 +2419,68 @@ information reçue.**
 > P2, délibérément. Un lot qui change à la fois la lecture, les écritures et un
 > affichage de total ne se relit plus.
 
+> **✅ P2 APPLIQUÉ LE 2026-09-17 — « À deux » montre le commun, et le dit.**
+> Le sélecteur existait depuis le lot 5 et ne filtrait rien : la commande
+> promettait un filtre qu'elle n'appliquait pas. Trois choses, une seule lecture
+> de `perimetre.js` :
+>
+> - **le filtre**, `chargesDeLaPortee` (`utils/portee.js`), sur une liste
+>   déclarée privée — `PORTEES_QUI_FILTRENT_LA_LISTE`, du même patron que
+>   `PORTEES_QUI_RAPPELLENT_LE_SOLDE` : le contrôle prouve le comportement,
+>   jamais le contenu de la liste ;
+> - **le total de catégorie annonce le personnel** — `commun + X perso`, et
+>   seulement s'il existe. La distinction entre dans `grouperParCategorie`
+>   (`utils/tri.js`), qui rend le couple, et `totaux-liste.js` cesse de la
+>   recalculer par-dessus : **une seule rédaction**, `libelleDuTotal`, lue par
+>   le pied ET par l'en-tête ;
+> - **le renvoi en pied est CRÉÉ** — il n'existait pas. Il nomme sa destination,
+>   et c'est un **bouton NU** : un `aria-checked`, `aria-selected` ou
+>   `aria-current` en ferait une SECONDE annonce de portée pour
+>   `portee-unique.spec.js`, sur l'écran dont il tient qu'il n'en annonce
+>   qu'une.
+>
+> **LE PIÈGE, ET IL AURAIT COÛTÉ DES EUROS EN SILENCE : le filtre ne déduit
+> jamais le périmètre du PAYEUR.** Une charge avancée par une personne et
+> partagée est COMMUNE (`perimetre.js`, « `paidBy` dit qui a *avancé* l'argent,
+> jamais à qui la dépense *appartient* »). Un filtre écrit sur le payeur la
+> retirerait de la liste du foyer pendant que le solde continuerait de la
+> compter — l'écran et le bilan en désaccord, sans qu'aucun contrôle ne bronche.
+> Le jeu d'essai porte donc **les quatre combinaisons** (payeur × périmètre), et
+> c'est la seule forme qui les sépare : sans une dépense payée par une personne
+> ET partagée, « je garde ce qui est `partage` » et « je garde ce qui est
+> commun » rendent le même écran.
+>
+> **Le renvoi corrige la seule affirmation que filtrer rend FAUSSE.** Un mois
+> qui ne porte que du personnel annonçait « Aucune charge variable pour cette
+> période » sous « À deux ». C'est faux — il y en a, elles sont ailleurs. La
+> propriété tenue : **l'écran ne prétend jamais qu'un mois est vide quand il ne
+> l'est pas.**
+>
+> **Trois bornes assumées, écrites plutôt que subies :**
+>
+> - **« Moi ce mois » n'est PAS filtré**, et c'est une décision de Richie, pas
+>   un oubli : la liste y montrera le personnel seul, la part du commun en
+>   carte agrégée, au lot « Moi, rangs 2 et 3 ». Une ligne commune à son montant
+>   plein sur l'écran « toi » contredirait le héros, et la réafficher à ta part
+>   serait un second rendu de la même liste (règle 2) ;
+> - **ni la recherche historique ni la corbeille ne sont filtrées** — elles
+>   répondent à « où est cette dépense », et une portée y masquerait la réponse ;
+> - **l'en-tête est BORNÉ** : l'annotation ne paraît que sur une catégorie qui
+>   garde au moins une ligne affichée. Une catégorie entièrement personnelle
+>   disparaît de « À deux » — un en-tête sans une seule ligne dessous serait
+>   plus déroutant que son absence — et n'est couverte que par le renvoi.
+>
+> **⚠️ LE TROU CONSIGNÉ, ET IL NE SE COMBLE PAS ICI : le personnel de l'AUTRE,
+> sous aval, n'a aucun renvoi.** `renvoiDeLaPortee` ne chiffre que
+> `chargesSolo(charges, moi)`. Compter les deux ferait dire au pied « 2 dépenses
+> perso (50,00 €) » là où une seule est à moi, et surtout : mener quelque part
+> supposerait un endroit où aller. Cet endroit est **la fenêtre de P3** — Privé
+> cesse d'être une portée pour devenir une fenêtre en lecture seule sur le
+> personnel de l'autre. Le combler avant P3 serait poser un renvoi vers un écran
+> qui n'existe pas encore. Tenu par un cas de
+> `tests/e2e/portee-filtre-la-liste.spec.js`, qui sème une personnelle dans
+> CHAQUE poche et exige que le renvoi n'en chiffre qu'une.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
@@ -2426,19 +2529,30 @@ de premier niveau**, et l'espace privé n'a même pas de corbeille
 Le `pull` de `39efd31` à `44a5cff` ne touche, dans `public/js`, que `backup.js` :
 les relevés pris avant valent toujours.
 
-- **`utils/tri.js:101` `grouperParCategorie` est la fabrique unique** — trois
-  appelants (`variable-charges.js:729`, `fixed-charges.js:777`,
-  `totaux-liste.js:71`). **Elle ne porte aucune notion de périmètre** : zéro
-  occurrence de `solo` ou `commun` dans `tri.js`. La règle 2 n'est **pas** en
-  cause — c'est une distinction appliquée à une surface sur deux.
-- **`totaux-liste.js:46`** appelle `totauxParPerimetre` **par-dessus**, pour son
-  seul pied de liste : `commun + solo perso`.
-- **`variable-charges.js:743`** peint un scalaire muet. Vérifié à la main sur
+- ~~**`utils/tri.js:101` `grouperParCategorie` est la fabrique unique** — trois
+  appelants. **Elle ne porte aucune notion de périmètre** : zéro occurrence de
+  `solo` ou `commun` dans `tri.js`. La règle 2 n'est **pas** en cause — c'est
+  une distinction appliquée à une surface sur deux.~~
+  ~~**`totaux-liste.js:46`** appelle `totauxParPerimetre` **par-dessus**, pour
+  son seul pied de liste.~~
+  ~~**`variable-charges.js:743`** peint un scalaire muet. Vérifié à la main sur
   capture : `122,07 + 20,64 + 20,00 + 25,00 + 80,18 + 10,00 + 103,86 = 381,75`
-  — **le total de catégorie inclut le perso sans le dire**.
-- **`:729` lit `getState('variableCharges')`** sans passer par `perimetre.js`.
-  Recoupe `41f915c` : *« ni variable-charges.js ni fixed-charges.js ne lit
-  porteeCourante »*.
+  — **le total de catégorie inclut le perso sans le dire**.~~
+  ~~**`:729` lit `getState('variableCharges')`** sans passer par
+  `perimetre.js`.~~
+  **✅ LES QUATRE REFERMÉS LE 2026-09-17 par P2, et c'était un seul défaut vu à
+  quatre endroits** — la distinction vivait par-dessus la fabrique au lieu d'y
+  vivre. `grouperParCategorie` rend le couple `{commun, solo}`, `totaux-liste.js`
+  ne recalcule plus rien au-dessus, les deux modules de liste lisent
+  `porteeCourante`. Le relevé reste : c'est lui qui dit pourquoi le correctif
+  porte sur la fabrique et non sur les deux surfaces, et **il portait le chiffre
+  qui a servi de témoin** — 381,75 dont 10,00.
+  > **Et « la règle 2 n'est pas en cause » était juste pour la mauvaise
+  > raison.** Elle ne l'était pas sur le GROUPEMENT, qui n'avait qu'une
+  > fabrique ; elle l'était sur la RÉDACTION — « `commun + X perso` » n'existait
+  > qu'en clair dans `afficherTotalDeListe`, et le lot lui donnait un second
+  > lecteur. Deux rédactions du même chiffre à deux lignes de distance, c'est
+  > le symptôme exact de la règle 2. `libelleDuTotal` est né de là.
 - **Le sélecteur de portée est rendu deux fois, VU à l'écran** (2026-09-16),
   après la mesure aux quatre largeurs consignée dans `refonte-lots.md`.
 - **Sous « Privé », la liste du bas affiche les charges du foyer**, payeur et
@@ -2450,7 +2564,12 @@ les relevés pris avant valent toujours.
 ### Ce qui reste OUVERT — à ne pas trancher par omission
 
 0. **Les chiffres du tableau des adhérences ne sont tenus par RIEN**, et c'est
-   la cinquième dérive (`perimetre.js` 17 → 18, corrigé le 2026-09-16).
+   la **septième** dérive (`perimetre.js` 21 → 24, `members.js` 23 → 22,
+   `auth.js` 28 → 29 `runStep`, corrigés le 2026-09-17 ; la cinquième était
+   `perimetre.js` 17 → 18, le 2026-09-16). **La septième s'est produite sur des
+   chiffres DÉJÀ MESURÉS et consignés en prose sous le tableau** — voir sa note,
+   en tête des *Adhérences critiques* : la garde n'y est pour rien, personne
+   n'avait reporté la mesure dans la ligne.
    `adherences-declarees.test.js` tient l'**appartenance** au tableau — quel
    module y figure — jamais son compte : mesuré en lisant le fichier, ses six
    cas comparent des listes de noms. Les rendre exacts serait un contrôle de

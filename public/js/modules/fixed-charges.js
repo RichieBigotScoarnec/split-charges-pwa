@@ -17,7 +17,7 @@ import {
   periodeDeLaDate, formatPeriod
 } from '../utils/date.js';
 import { grouperParCategorie } from '../utils/tri.js';
-import { afficherTotalDeListe } from '../utils/totaux-liste.js';
+import { afficherTotalDeListe, afficherLeRenvoi, libelleDuTotal } from '../utils/totaux-liste.js';
 import { calculateSummary } from './summary.js';
 import { getCategoryIcon as getCategoryEmoji, populateCategorySelect, populateDestinationSelect } from './custom-lists.js';
 import { populateEnvelopeSelect, etiquetteEnveloppe, renderCarteEnveloppes } from './envelopes.js';
@@ -29,6 +29,7 @@ import { normaliserEmplacement } from '../utils/members.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import { chargesDeLaPortee, renvoiDeLaPortee } from '../utils/portee.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { coutDesChargesFixes } from '../utils/cout-annuel.js';
 import { lirePeriodes, cheminDeLaCharge, ecrituresDuDeplacement } from '../poches.js';
@@ -793,20 +794,39 @@ export function renderFixedCharges() {
   const charges = getState('fixedCharges') || [];
   const listElement = document.getElementById('fixedChargesList');
   const totalElement = document.getElementById('fixedChargesTotal');
+  const renvoiElement = document.getElementById('fixedChargesRenvoi');
 
   if (!listElement) {
     warn('⚠️ Element #fixedChargesList introuvable');
     return;
   }
 
+  // La portée filtre ici comme dans la liste variable, et par la MÊME fabrique.
+  // Une charge fixe peut être personnelle — un abonnement —, et P1b la reconduit
+  // dans la poche de son propriétaire : elle a exactement le même besoin.
+  const portee = getState('porteeCourante');
+  const affichees = chargesDeLaPortee(charges, portee);
+  const renvoi = renvoiDeLaPortee(charges, portee, payeurParDefaut());
+
   // Vider la liste
   listElement.innerHTML = '';
+  afficherLeRenvoi(renvoiElement, renvoi);
 
-  if (charges.length === 0) {
-    listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période'
-      + '<small>Ce qui revient chaque mois pour le même montant : loyer,'
-      + ' assurance, abonnements. Elles sont reportées automatiquement d\'un'
-      + ' mois sur l\'autre.</small></p>';
+  if (affichees.length === 0) {
+    // L'écran ne prétend jamais qu'un mois est vide quand il ne l'est pas.
+    // Deux branches et deux LITTÉRAUX — même raison que dans
+    // `variable-charges.js` : un ternaire affecté à `innerHTML` compte comme un
+    // site d'injection de plus, et le plafond est à marge nulle.
+    if (renvoi.nombre > 0) {
+      listElement.innerHTML = '<p class="empty-state">Aucune charge fixe commune ce mois-ci'
+        + '<small>Le mois n\'est pas vide pour autant : vos charges perso sont'
+        + ' rangées à part.</small></p>';
+    } else {
+      listElement.innerHTML = '<p class="empty-state">Aucune charge fixe pour cette période'
+        + '<small>Ce qui revient chaque mois pour le même montant : loyer,'
+        + ' assurance, abonnements. Elles sont reportées automatiquement d\'un'
+        + ' mois sur l\'autre.</small></p>';
+    }
     afficherTotalDeListe(totalElement, []);
     afficherLeCoutAnnuel([]);
     return;
@@ -818,10 +838,16 @@ export function renderFixedCharges() {
   // c'est-à-dire l'ordre de création, et les catégories dans celui de la
   // première charge rencontrée. Invisible tant qu'aucune date ne s'affichait —
   // sans repère temporel, un ordre arbitraire ressemble à un ordre.
+  // Le groupement reçoit la liste ENTIÈRE et annonce le couple ; les lignes
+  // sont filtrées. Borné comme la liste variable : une catégorie sans ligne
+  // affichée disparaît plutôt que de rendre un en-tête vide.
   const groupes = grouperParCategorie(charges);
 
   // Afficher par catégorie
-  groupes.forEach(({ categorie: category, charges: categoryCharges, total: categoryTotal }) => {
+  groupes.forEach(({ categorie: category, charges: toutesDuGroupe, commun, solo }) => {
+    const categoryCharges = chargesDeLaPortee(toutesDuGroupe, portee);
+    if (categoryCharges.length === 0) return;
+
     const categoryDiv = document.createElement('div');
     categoryDiv.className = 'charge-category';
     // Le libellé de la catégorie, porté par l'élément plutôt que relu depuis
@@ -832,7 +858,7 @@ export function renderFixedCharges() {
     categoryDiv.innerHTML = `
       <h4 class="category-header">
         ${escapeHtml(getCategoryIcon(category))} ${escapeHtml(category)}
-        <span class="category-total">${formatCurrency(categoryTotal)}</span>
+        <span class="category-total">${escapeHtml(libelleDuTotal({ commun, solo }))}</span>
       </h4>
     `;
 
@@ -888,8 +914,10 @@ export function renderFixedCharges() {
     listElement.appendChild(categoryDiv);
   });
 
-  // Afficher le total — commun d'abord, perso à part.
-  afficherTotalDeListe(totalElement, charges);
+  // Le pied totalise ce qui est AFFICHÉ. Le coût annuel, lui, reçoit la liste
+  // entière : il filtre déjà par `chargesCommunes` (`cout-annuel.js`), et il
+  // parle de tout le mois — pas de ce que la portée montre.
+  afficherTotalDeListe(totalElement, affichees);
   afficherLeCoutAnnuel(charges);
 }
 

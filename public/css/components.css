@@ -1373,6 +1373,31 @@
   color: var(--text-secondary);
 }
 
+/* Le renvoi en pied : où sont parties les dépenses que la portée retire.
+   Même encre et même taille que le coût annuel juste au-dessus — les deux
+   disent la même chose à l'écran : « et à côté de ce total, il y a ça ».
+
+   `flex-wrap` plutôt qu'une largeur figée : la phrase porte un montant et un
+   nom de segment, et à 320 px elle passe à la ligne avant son bouton. */
+.list-renvoi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin: var(--space-xs) 0 0;
+  padding: 0 var(--space-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Le bouton du renvoi porte `.btn-link`, l'action en ligne du dépôt — il n'a
+   pas sa propre règle. Une seconde rédaction d'un bouton-lien divergerait, et
+   la première tentative l'a prouvé sur place : elle peignait le survol en
+   `--primary-dark`, qui mesure 2,58:1 sur le fond du thème sombre. C'est
+   `encre-sur-surface.test.js` qui l'a dit, pas la relecture. `.btn-link` porte
+   `--primary-ink`, éprouvée partout où elle est posée. */
+
 /* ===== SÉLECTION MULTIPLE DE CHARGES ===== */
 
 /* Deux boutons dans l'en-tête là où il n'y en avait qu'un. `flex-wrap` plutôt

@@ -200,3 +200,96 @@ describe('À jour égal, l\'heure décide', () => {
     expect(triees.map(c => c.description)).toEqual(['Matin', 'Illisible']);
   });
 });
+
+/**
+ * ═════════════════════════════════════════════════════════════════════════════
+ * LE TOTAL DE CATÉGORIE DIT SA PART PERSONNELLE (lot P2)
+ *
+ * Mesuré à la main sur septembre 2026 : « Courses » annonçait 381,75 € dont
+ * 10,00 de personnel, sans le dire. Le pied de liste savait déjà dire
+ * `commun + X perso` ; `grouperParCategorie` ne portait aucune notion de
+ * périmètre, et `totaux-liste.js` la recalculait par-dessus. La distinction
+ * était donc appliquée à une surface sur deux.
+ *
+ * Un total qui DIT sa part personnelle cesse de prétendre être un chiffre du
+ * foyer — c'est ce qui rend lisible l'asymétrie que P1b a installée.
+ */
+describe('Le groupement rend le couple, et garde son total', () => {
+  const melange = [
+    { id: 'a', category: 'Courses', amount: 40, paidBy: 'vous' },
+    { id: 'b', category: 'Courses', amount: 10, paidBy: 'vous', perimetre: 'solo' },
+    { id: 'c', category: 'Maison', amount: 900, paidBy: 'conjointe' }
+  ];
+
+  const courses = () => grouperParCategorie(melange).find(g => g.categorie === 'Courses');
+
+  it('sépare le commun du personnel', () => {
+    expect(courses().commun).toBe(40);
+    expect(courses().solo).toBe(10);
+  });
+
+  it('`total` reste la SOMME DES DEUX — c\'est lui qui porte le tri', () => {
+    // Une catégorie ne descend pas dans la liste parce que sa dépense est
+    // personnelle : l'argent est sorti du foyer, pas de la question « où part
+    // l'argent ? ». Et c'est ce qui rend l'ajout additif — aucun des trois
+    // appelants ne casse.
+    expect(courses().total).toBe(50);
+  });
+
+  it('LE TÉMOIN — le jeu d\'essai porte bien les deux périmètres', () => {
+    // Sans lui, « sépare le commun du personnel » serait satisfait par un
+    // groupement qui rendrait `solo: 0` partout : sur une liste sans personnel,
+    // un couple juste et un couple qui ignore le périmètre sont indiscernables.
+    expect(courses().solo).toBeGreaterThan(0);
+    expect(courses().commun).toBeGreaterThan(0);
+  });
+
+  it('une catégorie sans personnel rend `solo: 0`, pas `undefined`', () => {
+    // C'est ce qui permet à la formulation de décider sans garde : `solo > 0`.
+    const maison = grouperParCategorie(melange).find(g => g.categorie === 'Maison');
+    expect(maison.solo).toBe(0);
+    expect(maison.commun).toBe(900);
+  });
+
+  it('une catégorie ENTIÈREMENT personnelle rend un commun nul', () => {
+    // Elle disparaîtra de « À deux » — bornée par le rendu, pas ici : ce module
+    // groupe, il ne décide pas de ce qui paraît.
+    const groupes = grouperParCategorie([
+      { id: 'x', category: 'Beauté', amount: 55.55, paidBy: 'vous', perimetre: 'solo' }
+    ]);
+    expect(groupes[0].commun).toBe(0);
+    expect(groupes[0].solo).toBe(55.55);
+  });
+
+  it('les supprimées ne comptent dans aucun des deux', () => {
+    // `totauxParPerimetre` les écarte, et c'est la raison de lui déléguer le
+    // couple plutôt que d'écrire une somme ici.
+    const groupes = grouperParCategorie([
+      { id: 'a', category: 'Courses', amount: 40, paidBy: 'vous' },
+      { id: 'b', category: 'Courses', amount: 10, paidBy: 'vous', perimetre: 'solo', deleted: true }
+    ]);
+    expect(groupes[0].commun).toBe(40);
+    expect(groupes[0].solo).toBe(0);
+  });
+
+  it('un montant illisible ne fausse ni l\'un ni l\'autre', () => {
+    const groupes = grouperParCategorie([
+      { category: 'Courses', amount: 40, paidBy: 'vous' },
+      { category: 'Courses', amount: 'beaucoup', paidBy: 'vous', perimetre: 'solo' }
+    ]);
+    expect(groupes[0].commun).toBe(40);
+    expect(groupes[0].solo).toBe(0);
+  });
+
+  it('le tri suit `total`, personnel compris', () => {
+    // Une catégorie dont tout est personnel reste à sa place dans le classement
+    // « où part l'argent ». La retirer du tri ferait remonter une catégorie
+    // plus petite au-dessus d'elle.
+    const ordre = grouperParCategorie([
+      { category: 'Petite', amount: 30, paidBy: 'vous' },
+      { category: 'Perso', amount: 200, paidBy: 'vous', perimetre: 'solo' }
+    ]).map(g => g.categorie);
+
+    expect(ordre).toEqual(['Perso', 'Petite']);
+  });
+});

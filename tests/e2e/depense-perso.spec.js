@@ -118,7 +118,18 @@ test.describe('La dépense perso', () => {
     await expect(page.locator('#variableChargePaidBy option[value="partage"]')).toBeEnabled();
   });
 
-  test('le solde ne bouge pas, mais la liste montre la dépense', async ({ page }) => {
+  test('le solde ne bouge pas, et « À deux » ne la montre PLUS — mais dit où elle est', async ({ page }) => {
+    // ⚠️ CE CAS TENAIT LA PROPRIÉTÉ D'AVANT LE LOT P2, et il était juste :
+    // « À deux » montrait le commun ET le personnel, avec un badge « perso »
+    // pour les distinguer. C'est très exactement ce que P2 retire — la
+    // commande promettait un filtre qu'elle n'appliquait pas.
+    //
+    // Il n'est donc pas supprimé, il change de propriété, et la nouvelle est
+    // PLUS forte que l'ancienne : le solde ne bouge pas, la dépense quitte la
+    // liste du foyer, **et l'écran dit où elle est allée**. Ce dernier tiers
+    // est le seul qui referme le défaut que filtrer crée : une dépense saisie
+    // qui devient introuvable.
+    //
     // Une charge commune d'abord, pour que le solde ait une valeur à ne pas
     // changer. Un solde resté à zéro passerait le test sans rien prouver.
     await page.locator('#addVariableChargeBtn').click();
@@ -144,14 +155,40 @@ test.describe('La dépense perso', () => {
 
     expect(await soldeAffiche(page)).toBe(soldeAvant);
 
-    // Elle existe pourtant bien à l'écran, et se distingue.
+    // La liste du foyer garde le commun et perd le personnel. Les deux
+    // moitiés comptent : sans la première, un filtre qui aurait tout retiré
+    // passerait.
+    await expect(page.locator('#variableChargesList')).toContainText('Courses');
+    await expect(page.locator('#variableChargesList')).not.toContainText('Coiffeur');
+    // Et le badge n'a plus rien à distinguer sur cet écran : il vivait là pour
+    // expliquer une ligne absente du bilan, et cette ligne n'y est plus.
+    await expect(page.locator('#variableChargesList .charge-perimetre-tag')).toHaveCount(0);
+
+    // Le renvoi la CHIFFRE et la NOMME. Sans lui, le filtre ci-dessus serait
+    // une perte sèche.
+    const renvoi = page.locator('#variableChargesRenvoi');
+    await expect(renvoi).toBeVisible();
+    await expect(renvoi).toContainText('1 dépense perso');
+    expect((await renvoi.innerText()).replace(/\s/g, '')).toContain('45,00');
+
+    // ET ELLE EST RETROUVABLE PAR CE GESTE — c'est la propriété entière.
+    // « Moi ce mois » n'est pas filtré par ce lot, délibérément : la dépense y
+    // est, et le renvoi y mène.
+    await renvoi.locator('button[data-action="allerALaPortee"]').click();
     await expect(page.locator('#variableChargesList')).toContainText('Coiffeur');
-    await expect(page.locator('.charge-perimetre-tag')).toHaveText('perso');
   });
 
-  test('le pied de liste annonce les deux totaux plutôt qu\'un seul', async ({ page }) => {
-    // Un total unique contredirait le bilan affiché juste au-dessus : 345 €
-    // sous une liste que le bilan chiffre à 300 €.
+  test('le pied dit le commun SEUL, et c\'est l\'en-tête de catégorie qui nomme le perso', async ({ page }) => {
+    // ⚠️ MÊME DÉPLACEMENT QUE LE CAS PRÉCÉDENT. Ce cas exigeait que le pied
+    // annonce les DEUX totaux, et sa raison était bonne : « un total unique
+    // contredirait le bilan affiché juste au-dessus ». Le lot P2 la satisfait
+    // autrement, et mieux — le pied ne compte plus que ce que la liste montre,
+    // donc il DIT le chiffre du bilan au lieu d'en annoncer un second à côté.
+    //
+    // Ce qui ne pouvait pas disparaître, c'est que le personnel soit NOMMÉ
+    // quelque part : mesuré à la main sur septembre 2026, « Courses »
+    // annonçait 381,75 € dont 10,00 de personnel, sans le dire. C'est
+    // l'en-tête de catégorie qui le porte désormais.
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Courses');
     await page.locator('#variableChargeAmount').fill('300');
@@ -160,8 +197,10 @@ test.describe('La dépense perso', () => {
     await page.locator('#saveVariableCharge').click();
     await page.waitForTimeout(400);
 
-    // Sans dépense perso, la phrase est celle d'avant.
+    // Sans dépense perso, ni le pied ni l'en-tête ne disent rien : tous les
+    // mois déjà en base gardent leur apparence.
     await expect(page.locator('#variableChargesTotal')).not.toContainText('perso');
+    await expect(page.locator('#variableChargesList .category-total')).not.toContainText('perso');
 
     await page.locator('#addVariableChargeBtn').click();
     await page.locator('#variableChargeDescription').fill('Coiffeur');
@@ -172,10 +211,21 @@ test.describe('La dépense perso', () => {
     await page.locator('#saveVariableCharge').click();
     await page.waitForTimeout(600);
 
-    const total = await page.locator('#variableChargesTotal').innerText();
-    expect(total).toContain('perso');
-    expect(total.replace(/\s/g, '')).toContain('300,00');
-    expect(total.replace(/\s/g, '')).toContain('45,00');
+    // LE PIED : le commun seul, et rien de plus. Il compte ce que la liste
+    // montre — c'est ce qui le met d'accord avec le bilan.
+    const pied = (await page.locator('#variableChargesTotal').innerText()).replace(/\s/g, '');
+    expect(pied).toContain('300,00');
+    expect(pied).not.toContain('45,00');
+    expect(pied).not.toContain('perso');
+
+    // L'EN-TÊTE : il baisse ET il le dit. Les deux moitiés sont la propriété —
+    // un en-tête qui baisserait en silence prétendrait encore être un chiffre
+    // du foyer.
+    const entete = (await page.locator('#variableChargesList .category-total').innerText())
+      .replace(/\s/g, '');
+    expect(entete).toContain('300,00');
+    expect(entete).toContain('45,00');
+    expect(entete).toContain('perso');
   });
 
   test('rouvrir une dépense perso la retrouve cochée', async ({ page }) => {
@@ -186,6 +236,14 @@ test.describe('La dépense perso', () => {
     await page.locator('#variableChargePaidBy').selectOption('vous');
     await page.locator('#variableChargePerso + .toggle-slider').click();
     await page.locator('#saveVariableCharge').click();
+    await page.waitForTimeout(600);
+
+    // ⚠️ IL FAUT ALLER LA CHERCHER OÙ ELLE EST, depuis le lot P2 : le mois ne
+    // porte QUE cette dépense, et « À deux » ne la montre plus. Sa propriété —
+    // le formulaire rouvre sur l'état enregistré — n'a pas changé d'un iota ;
+    // c'est le chemin pour l'atteindre qui en a un de plus, et c'est très
+    // exactement ce que le renvoi en pied existe pour dire.
+    await page.locator('#panneauCharges [data-portee="solo"]').click();
     await page.waitForTimeout(600);
 
     await page.locator('#variableChargesList [data-action="editVariableCharge"]').first().click();
