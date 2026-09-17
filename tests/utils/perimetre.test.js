@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   PERIMETRES,
   perimetreDeLaCharge,
@@ -8,7 +10,8 @@ import {
   chargesSolo,
   totalDesCharges,
   perimetreEcrivable,
-  totauxParPerimetre
+  totauxParPerimetre,
+  listeMelangeLesPerimetres
 } from '../../public/js/utils/perimetre.js';
 
 describe('perimetreDeLaCharge — le défaut préserve l\'argent déjà en base', () => {
@@ -204,5 +207,92 @@ describe('totauxParPerimetre — le pied de liste ne contredit pas le bilan', ()
 
   it('une liste vide ne lève pas', () => {
     expect(totauxParPerimetre(null)).toEqual({ commun: 0, solo: 0, total: 0, nombreSolo: 0 });
+  });
+});
+
+describe('listeMelangeLesPerimetres — le badge est une propriété de la LISTE', () => {
+  /**
+   * Le badge « perso » existait pour qu'une dépense personnelle ne se confonde
+   * pas avec une charge commune au milieu des mêmes lignes. Depuis que la
+   * portée filtre la liste, il paraissait très exactement là où il ne distingue
+   * plus rien — vu à l'écran sur septembre 2026, sous « Moi ce mois » les trois
+   * lignes le portaient TOUTES.
+   *
+   * Ce bloc tient la propriété qui le gouverne, et elle NE NOMME AUCUNE
+   * PORTÉE : c'est ce qui l'empêche de se périmer **en vert** le jour où P3
+   * filtrera « Privé ».
+   */
+  const commune = { amount: 120, paidBy: 'partage' };
+  const mienne = { amount: 45, paidBy: 'vous', perimetre: 'solo' };
+  const sienne = { amount: 30, paidBy: 'conjointe', perimetre: 'solo' };
+
+  it('une liste MIXTE mélange — c\'est là que le badge sépare', () => {
+    expect(listeMelangeLesPerimetres([commune, mienne])).toBe(true);
+  });
+
+  it('une liste TOUTE COMMUNE ne mélange pas', () => {
+    // « À deux » depuis le lot P2 : le badge y est impossible.
+    expect(listeMelangeLesPerimetres([commune, { amount: 60, paidBy: 'vous' }])).toBe(false);
+  });
+
+  it('une liste TOUTE PERSONNELLE ne mélange pas', () => {
+    // « Moi ce mois » depuis le lot « Moi » : toutes les lignes portaient le
+    // badge, donc il ne séparait rien. C'est le défaut que ce lot retire.
+    expect(listeMelangeLesPerimetres([mienne, sienne])).toBe(false);
+  });
+
+  it('LE TÉMOIN — les trois régimes ne rendent PAS la même réponse', () => {
+    // Sans lui, une fabrique qui répondrait toujours `false` satisferait deux
+    // des trois cas ci-dessus, et une qui répondrait toujours `true` le
+    // premier. C'est la règle 2 : un jeu d'essai qui ne sépare pas les deux
+    // lectures ne prouve ni l'une ni l'autre.
+    const reponses = [
+      listeMelangeLesPerimetres([commune, mienne]),
+      listeMelangeLesPerimetres([commune]),
+      listeMelangeLesPerimetres([mienne])
+    ];
+    expect(reponses).toEqual([true, false, false]);
+  });
+
+  it('elle ignore à QUI le personnel appartient', () => {
+    // Deux natures cohabitent, c'est tout ce que le badge a besoin de savoir :
+    // il dit « celle-là n'est pas commune », pas « celle-là est à toi ».
+    expect(listeMelangeLesPerimetres([commune, sienne])).toBe(true);
+  });
+
+  it('une SUPPRIMÉE ne fait mélanger personne', () => {
+    // Elle n'est affichée nulle part. Sans cette garde, une corbeille pleine
+    // ferait mélanger une liste d'une seule nature, et le badge reparaîtrait
+    // sur un écran qui ne montre qu'une nature.
+    expect(listeMelangeLesPerimetres([commune, { ...mienne, deleted: true }])).toBe(false);
+    expect(listeMelangeLesPerimetres([mienne, { ...commune, deleted: true }])).toBe(false);
+  });
+
+  it('une liste vide, absente ou abîmée ne mélange rien', () => {
+    expect(listeMelangeLesPerimetres([])).toBe(false);
+    expect(listeMelangeLesPerimetres(null)).toBe(false);
+    expect(listeMelangeLesPerimetres(undefined)).toBe(false);
+    expect(listeMelangeLesPerimetres([null, undefined])).toBe(false);
+  });
+
+  it('elle ne nomme AUCUNE portée — la garde qui l\'empêche de se périmer', () => {
+    // La propriété du fichier, pas de la fonction : `perimetre.js` ne doit rien
+    // savoir des portées. Une liste de portées écrite ici serait juste
+    // aujourd'hui et fausse le jour où P3 filtre « Privé » — et elle se
+    // périmerait EN VERT.
+    //
+    // La garde lit la SOURCE, ce qui est faible en général (règle 1) ; ici
+    // c'est légitime, parce que la propriété tenue est une ABSENCE, et qu'une
+    // absence ne se mesure pas par le comportement.
+    const source = readFileSync(
+      fileURLToPath(new URL('../../public/js/utils/perimetre.js', import.meta.url)), 'utf-8'
+    );
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+
+    expect(code, 'témoin : le fichier a bien été lu et dépouillé').toContain('listeMelangeLesPerimetres');
+    for (const mot of ['portee', 'porteeCourante', 'PORTEES', 'prive', 'deux']) {
+      expect(code.toLowerCase(), `« ${mot} » n'a rien à faire dans perimetre.js`)
+        .not.toContain(mot.toLowerCase());
+    }
   });
 });

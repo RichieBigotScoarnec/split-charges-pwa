@@ -2597,6 +2597,53 @@ information reçue.**
 > installe : « je n'en ai pas » ou « on ne me les montre pas ? ». La masquer
 > aurait répondu à la question en la supprimant.
 
+> **✅ DEUX CORRECTIONS DE SURFACE LE 2026-09-17 — le badge devient une
+> propriété de la LISTE, et les deux renvois se lisent enfin en français.**
+> Aucun changement de comportement : ni le filtre, ni les totaux, ni la
+> fabrique d'état vide, ni le grand-livre. Aucune donnée touchée.
+>
+> - **Le badge « perso » ne qualifie plus une LIGNE, il qualifie la liste
+>   RENDUE.** Depuis que « À deux » et « Moi » filtrent, ces deux listes sont
+>   d'une seule nature : le badge y était sur toutes les lignes ou sur aucune,
+>   donc il ne distinguait plus rien. `listeMelangeLesPerimetres(charges)`
+>   (`utils/perimetre.js`, pure) rend « cette liste porte les deux natures », et
+>   les deux modules de liste la lisent. **Elle ne nomme AUCUNE portée**, et
+>   c'est ce qui emporte la décision : nommer « Privé » aurait fait d'elle un
+>   contrôle qui se périme **EN VERT** le jour où P3 filtre cette portée — la
+>   quatrième réponse condamnante de la règle 1. Elle prédit, la portée ne
+>   l'intéresse pas. ⚠️ **Elle doit recevoir les lignes RÉELLEMENT AFFICHÉES**
+>   (`affichees`), jamais l'état complet : nourrie du mois entier, elle
+>   rallumerait le badge sur des listes d'une seule nature.
+>   `.charge-perimetre-tag` reste dans `summary.css` — le badge existe toujours,
+>   il paraît moins souvent, aujourd'hui sous « Privé » seul.
+>
+> - **« … elles sont dans Voir « À deux » » — DEUX MOITIÉS JUSTES, UN ASSEMBLAGE
+>   FAUX, et aucun contrôle ne pouvait le voir.** La phrase du renvoi se
+>   terminait sur « dans », correctement ; le bouton portait « Voir X », ce qui
+>   est un libellé de commande correct. Mises bout à bout, elles employaient le
+>   libellé du lien comme un NOM dans la phrase. Le bouton porte désormais le
+>   **nom du segment**, `« À deux »` / `« Moi ce mois »`, une seule rédaction
+>   dans `utils/portee.js` lue par `totaux-liste.js`.
+>
+>   **La leçon est transposable, et elle n'est dans aucune des cinq règles :
+>   deux fabriques peuvent être justes chacune et leur ASSEMBLAGE faux.** La
+>   règle 2 attrape deux rédactions du même fait ; ici il y en avait deux
+>   rédactions de faits DIFFÉRENTS, dont le rendu concaténé n'appartient à
+>   aucune des deux. Aucun test unitaire ne pouvait le voir — chacun mesurait sa
+>   moitié, et chaque moitié passait. **Ce qui l'a vu est un écran.** Le contrôle
+>   existe depuis : il lit le texte ASSEMBLÉ des enfants du renvoi —
+>   `[...element.children].map(e => e.textContent).join(' ')` — et exige
+>   `/\bdans « (À deux|Moi ce mois) »$/`, avec son témoin. Le geste : **quand
+>   deux fabriques produisent des morceaux d'une même phrase, le contrôle porte
+>   sur la phrase, jamais sur les morceaux.**
+>
+>   ⚠️ **Et le renvoi reste un BOUTON NU** — aucun `aria-checked`,
+>   `aria-selected` ni `aria-current`. `portee-unique.spec.js` relève tout
+>   élément portant l'un des trois dont le texte contient `/\bmoi\b/i` et le
+>   compterait comme une **seconde annonce de portée**, sur l'écran dont il tient
+>   qu'il n'en annonce qu'une. Le nom du segment dans le bouton ne change rien à
+>   ça : c'est du texte, pas un état ARIA.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit

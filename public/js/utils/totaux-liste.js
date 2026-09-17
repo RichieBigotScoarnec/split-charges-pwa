@@ -334,6 +334,17 @@ const PHRASE_DU_RENVOI = Object.freeze({
  * bouton, qui est la commande. Une phrase qui le répéterait le dirait deux fois
  * à deux mots d'écart.
  *
+ * ⚠️ **C'est donc le bouton qui doit porter un NOM, pas un verbe.** Il a
+ * d'abord porté « Voir « À deux » », et la phrase se lisait alors *« …elles
+ * sont dans Voir « À deux » »* — vu à l'écran. Les deux moitiés étaient justes
+ * séparément : la phrase s'arrête bien sur « dans », et « Voir X » est une
+ * étiquette de commande correcte. C'est leur ASSEMBLAGE qui ne se lisait plus,
+ * et rien dans ce fichier ne pouvait le dire : la phrase ne sait pas ce que le
+ * bouton écrit, et le bouton ne sait pas qu'il termine une phrase.
+ *
+ * La contrainte à retenir, parce qu'elle ne se voit qu'à l'écran : **les deux
+ * textes forment UNE phrase**, et le second en est le complément.
+ *
  * @param {{nature: string|null, nombre: number, total: number}} renvoi
  * @returns {string}
  */
@@ -376,7 +387,9 @@ export function afficherLeRenvoi(element, renvoi) {
   bouton.className = 'btn-link';
   bouton.dataset.action = 'allerALaPortee';
   bouton.dataset.arg = renvoi.versLaPortee;
-  bouton.textContent = `Voir « ${renvoi.libelle} »`;
+  // Le NOM du segment, et non « Voir X » : les deux textes forment une phrase,
+  // et c'est le nom qui la termine. Voir `libelleDuRenvoi`.
+  bouton.textContent = `« ${renvoi.libelle} »`;
 
   element.append(texte, bouton);
 }

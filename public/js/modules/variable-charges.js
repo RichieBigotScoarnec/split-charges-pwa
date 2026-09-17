@@ -32,7 +32,9 @@ import { parseMontant } from '../utils/montant.js';
 import { uneSeuleFois, occuperLeBouton } from '../utils/soumission.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { categorieProposee } from '../utils/memoire-libelle.js';
-import { estSolo, perimetreEcrivable, PERIMETRES } from '../utils/perimetre.js';
+import {
+  estSolo, perimetreEcrivable, listeMelangeLesPerimetres, PERIMETRES
+} from '../utils/perimetre.js';
 import { chargesDeLaPortee, renvoiDeLaPortee } from '../utils/portee.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
@@ -778,6 +780,9 @@ export function renderVariableCharges() {
   const moi = normaliserEmplacement(getState('emplacementCourant'));
   const affichees = chargesDeLaPortee(charges, portee, moi);
   const renvoi = renvoiDeLaPortee(charges, portee, moi);
+  // Sur les lignes AFFICHÉES, jamais sur l'état : celui-ci porte les deux
+  // natures presque tous les mois, et le badge reparaîtrait partout.
+  const melangeLesNatures = listeMelangeLesPerimetres(affichees);
 
   // Vider la liste
   listElement.innerHTML = '';
@@ -882,9 +887,15 @@ export function renderVariableCharges() {
       const dateTag = dateLisible
         ? `<span class="charge-date">${escapeHtml(dateLisible)}</span>`
         : '';
-      // Une dépense perso se voit dans la liste, sinon elle se confond avec
-      // une charge commune et son absence du bilan devient inexplicable.
-      const perimetreTag = estSolo(charge)
+      // ── LE BADGE NE PARAÎT QUE SI LA LISTE MÉLANGE LES DEUX NATURES ──
+      //
+      // Il servait à ne pas confondre une dépense personnelle avec une charge
+      // commune au milieu des mêmes lignes. Depuis que la portée filtre, il
+      // paraissait là où il ne distingue plus rien : sous « Moi ce mois »,
+      // TOUTES les lignes le portaient. `listeMelangeLesPerimetres` répond sur
+      // la liste AFFICHÉE, et ne connaît aucune portée — c'est ce qui l'empêche
+      // de se périmer en vert le jour où une portée cesse de mélanger.
+      const perimetreTag = melangeLesNatures && estSolo(charge)
         ? '<span class="charge-perimetre-tag">perso</span>'
         : '';
       // Une charge reconduite repart sans montant : la ligne doit le dire,

@@ -160,9 +160,28 @@ test.describe('La dépense perso', () => {
     // passerait.
     await expect(page.locator('#variableChargesList')).toContainText('Courses');
     await expect(page.locator('#variableChargesList')).not.toContainText('Coiffeur');
-    // Et le badge n'a plus rien à distinguer sur cet écran : il vivait là pour
-    // expliquer une ligne absente du bilan, et cette ligne n'y est plus.
-    await expect(page.locator('#variableChargesList .charge-perimetre-tag')).toHaveCount(0);
+    // ── LE BADGE NE PARAÎT QUE SUR UNE LISTE QUI MÉLANGE LES DEUX NATURES ──
+    //
+    // Ce cas exigeait « aucun badge sous À deux », et c'était vrai mais trop
+    // étroit : la propriété ne parle pas de cette portée, elle parle de ce que
+    // la liste montre. Une liste d'une SEULE nature ne porte aucun badge — ici
+    // le commun seul, et sous « Moi ce mois » le personnel seul, où les trois
+    // lignes le portaient TOUTES sans rien distinguer.
+    //
+    // Son témoin est de l'autre côté : `portee-filtre-la-liste.spec.js` sème
+    // une liste MIXTE sous « Privé » et exige que le badge y soit. Sans lui,
+    // ce zéro serait satisfait par un badge supprimé partout.
+    const badges = page.locator('#variableChargesList .charge-perimetre-tag');
+    await expect(badges, 'liste toute commune : rien à distinguer').toHaveCount(0);
+
+    // Et sous « Moi ce mois », liste toute personnelle : pas davantage.
+    await page.locator('#panneauCharges [data-portee="solo"]').click();
+    await page.waitForTimeout(600);
+    await expect(page.locator('#variableChargesList')).toContainText('Coiffeur');
+    await expect(badges, 'liste toute personnelle : rien à distinguer non plus')
+      .toHaveCount(0);
+    await page.locator('#panneauCharges [data-portee="deux"]').click();
+    await page.waitForTimeout(600);
 
     // Le renvoi la CHIFFRE et la NOMME. Sans lui, le filtre ci-dessus serait
     // une perte sèche.

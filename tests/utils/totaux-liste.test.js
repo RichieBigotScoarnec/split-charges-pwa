@@ -369,6 +369,79 @@ describe('L\'état vide d\'une liste', () => {
   });
 });
 
+describe('La phrase et le bouton forment UNE phrase', () => {
+  /**
+   * ⚠️ LE DÉFAUT QUE CE BLOC EXISTE POUR FERMER, et il ne se voyait qu'à
+   * l'écran.
+   *
+   * Le bouton portait « Voir « À deux » », et la phrase s'arrête sur « dans » —
+   * les deux moitiés étaient justes SÉPARÉMENT. Assemblées, elles donnaient
+   * *« Les dépenses communes ne sont pas dans cette liste, elles sont dans Voir
+   * « À deux » »*. Le libellé du LIEN était employé comme NOM dans la phrase.
+   *
+   * Et rien ne pouvait le dire : la phrase ne sait pas ce que le bouton écrit,
+   * et le bouton ne sait pas qu'il termine une phrase. Aucun contrôle d'une des
+   * deux moitiés n'aurait rougi. C'est donc l'ASSEMBLAGE qui est tenu ici, et
+   * son rendu l'est à l'écran par `portee-filtre-la-liste.spec.js`.
+   */
+  beforeEach(() => {
+    document.body.innerHTML = '<p id="renvoi" hidden></p>';
+  });
+
+  const RENVOIS = [
+    ['le commun', {
+      nature: NATURES_DE_RENVOI.LE_COMMUN,
+      nombre: 0, total: 0, libelle: 'À deux', versLaPortee: 'deux'
+    }],
+    ['mon personnel', {
+      nature: NATURES_DE_RENVOI.MON_PERSONNEL,
+      nombre: 3, total: 36.7, libelle: 'Moi ce mois', versLaPortee: 'solo'
+    }]
+  ];
+
+  it('la phrase s\'arrête sur « dans » — le nom est la suite', () => {
+    for (const [nom, renvoi] of RENVOIS) {
+      expect(libelleDuRenvoi(renvoi), nom).toMatch(/\bdans$/);
+    }
+  });
+
+  it('LE BOUTON PORTE LE NOM, PAS LE VERBE', () => {
+    for (const [nom, renvoi] of RENVOIS) {
+      afficherLeRenvoi(document.getElementById('renvoi'), renvoi);
+      const bouton = document.getElementById('renvoi').querySelector('button');
+
+      expect(bouton.textContent, nom).toBe(`« ${renvoi.libelle} »`);
+      expect(bouton.textContent, `${nom} : « Voir X » se lisait « dans Voir X »`)
+        .not.toMatch(/voir/i);
+    }
+  });
+
+  it('L\'ASSEMBLAGE se lit en français, et nulle part « dans Voir »', () => {
+    // La propriété entière, sur les deux textes réunis dans l'ordre où l'écran
+    // les met. Le séparateur est le `gap` de `.list-renvoi`, qui était déjà ce
+    // qui espaçait les deux moitiés avant ce lot.
+    for (const [nom, renvoi] of RENVOIS) {
+      afficherLeRenvoi(document.getElementById('renvoi'), renvoi);
+      const element = document.getElementById('renvoi');
+      const phrase = [...element.children].map(e => e.textContent).join(' ');
+
+      expect(phrase, nom).toMatch(/\bdans « (À deux|Moi ce mois) »$/);
+      expect(phrase, nom).not.toMatch(/dans\s+voir/i);
+    }
+  });
+
+  it('LE TÉMOIN — l\'assemblage sait rougir', () => {
+    // Sans lui, le cas ci-dessus serait satisfait par un renvoi qui ne rend
+    // rien du tout : deux éléments absents joignent une chaîne vide, et une
+    // chaîne vide ne contient pas « dans Voir ».
+    afficherLeRenvoi(document.getElementById('renvoi'), RENVOIS[0][1]);
+    const element = document.getElementById('renvoi');
+
+    expect(element.children).toHaveLength(2);
+    expect([...element.children].map(e => e.textContent).join(' ')).not.toBe(' ');
+  });
+});
+
 describe('Le pied et les sous-totaux disent la MÊME chose', () => {
   it('le pied emprunte la formulation', () => {
     document.body.innerHTML = '<strong id="total"></strong>';
