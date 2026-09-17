@@ -2009,6 +2009,38 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   Ces échecs-là sont de la contention, pas des défauts ; ils ne se produisent
   pas en CI, et les compter comme des symptômes ferait chercher une cause qui
   n'existe pas.
+  > **⚠️ ET LE « ZÉRO SUR 548 » NE TIENT PLUS — `--workers=4` EN FABRIQUE
+  > AUSSI, une fois la suite assez longue. Mesuré le 2026-09-17, sur 782
+  > contrôles.** Deux passes de la suite entière, même arbre, même commande
+  > `npm run e2e` :
+  >
+  > | Passe | Verdict |
+  > |---|---|
+  > | 1 | **10 échecs** — les 7 d'authentification, plus `data-flow:915`, `data-flow:1091`, `vues:39` |
+  > | 2 | **7 échecs** — la base seule, les trois autres verts |
+  >
+  > Les trois surnuméraires, **jouées seules à `--workers=1`** : 3 verts en
+  > 7,9 s. Et `main` porte le même code en CI, `--workers=4`, verte.
+  >
+  > **Ce qui les désigne comme de la contention n'est pas leur disparition,
+  > c'est leur SIGNATURE** — les trois échouent sur le même geste, à la même
+  > seconde de timeout : `#addVariableChargeBtn` cliqué, et
+  > `#variableChargeDescription` « resolved » mais jamais visible pendant 30 s.
+  > Trois specs sans rapport, un seul symptôme, une modale qui met plus de 30 s
+  > à s'ouvrir. Un défaut de code ne choisit pas trois fichiers au hasard pour
+  > se manifester de façon identique sur l'ouverture d'une modale.
+  >
+  > **Et il ne faut PAS en conclure que le défaut a disparu** — c'est la règle 1
+  > appliquée à un symptôme intermittent, et le dépôt l'a déjà payé sur
+  > `detail-depenses`. Ce qui est établi est plus étroit : aucun défaut n'a été
+  > démontré, et l'hypothèse de charge est la seule qui survive aux trois
+  > mesures. Le chiffre de 2026-09-06 a été relevé sur une autre machine et une
+  > suite **43 % plus courte** ; ce n'est pas lui qui est faux, c'est sa portée
+  > qu'on avait crue générale.
+  >
+  > **Le geste : devant un échec au-delà de la base connue, le rejouer SEUL
+  > avant de le diagnostiquer.** Sept secondes contre douze minutes, et ça
+  > répond avant qu'on ait commencé à chercher une cause.
 - **Les exceptions que la page lève sont désormais visibles partout**
   (`_harness.js`, `surveillerLesErreursDePage`). Quatre specs sur vingt-neuf
   posaient cet écouteur ; les vingt-cinq autres étaient aveugles, dont celle qui
