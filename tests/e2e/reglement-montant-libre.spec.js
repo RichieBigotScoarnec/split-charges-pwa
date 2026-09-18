@@ -303,75 +303,6 @@ for (const largeur of LARGEURS) {
       await expect(page.locator('#balanceBar')).toContainText('quilibr', { timeout: 10000 });
     });
 
-    test('LE CHAMP EST PRÊT MÊME SI LE FOCUS DIFFÉRÉ N\'ABOUTIT PAS', async ({ page }) => {
-      // ─────────────────────────────────────────────────────────────────
-      // LE CAS QUE LE CONTRÔLE VOISIN NE VISITE PAS — et c'est lui qui a
-      // laissé passer le défaut vu à l'écran le 2026-09-17.
-      //
-      // Le voisin mesure la BONNE propriété, et son mutant tombe : retirer
-      // la sélection le fait rougir. Il ne visite simplement pas la
-      // condition où le geste échoue — un `focus()` différé qui n'aboutit
-      // pas. Safari iOS ignore un `focus()` programmatique hors de la tâche
-      // du geste, et `showModal` pose le sien dans un `setTimeout(…, 100)`.
-      //
-      // On ne simule pas Safari : on neutralise le seul maillon dont le
-      // soupçon porte — tout `focus()` appelé depuis un minuteur — et on
-      // vérifie que le champ est prêt QUAND MÊME. Mesuré avant le
-      // correctif : `selection 6..6`, curseur en fin, champ non focalisé,
-      // c'est-à-dire exactement le symptôme rapporté.
-      await page.addInitScript(() => {
-        const vraiFocus = HTMLElement.prototype.focus;
-        let dansUnMinuteur = false;
-        const vraiSetTimeout = window.setTimeout;
-        window.setTimeout = function (fn, ...reste) {
-          return vraiSetTimeout(function (...args) {
-            dansUnMinuteur = true;
-            try { return fn.apply(this, args); } finally { dansUnMinuteur = false; }
-          }, ...reste);
-        };
-        HTMLElement.prototype.focus = function (...args) {
-          if (dansUnMinuteur) return;
-          return vraiFocus.apply(this, args);
-        };
-      });
-      await page.reload();
-      await page.waitForSelector('body[data-app-ready="true"]', { timeout: 30000 });
-
-      await semerUnSolde(page, { montant: 300, payeur: 'vous' });
-      await ouvrirLeReglement(page);
-
-      // TÉMOIN DE LA NEUTRALISATION : sans lui, ce cas serait vert sur un
-      // navigateur où le focus différé aboutit — donc sur celui-ci —, et il
-      // ne mesurerait rien de ce qu'il prétend tenir.
-      const differeNeutralise = await page.evaluate(() => new Promise((resoudre) => {
-        const temoin = document.createElement('input');
-        document.body.appendChild(temoin);
-        setTimeout(() => {
-          temoin.focus();
-          const pris = document.activeElement === temoin;
-          temoin.remove();
-          resoudre(!pris);
-        }, 0);
-      }));
-      expect(differeNeutralise, 'témoin : le focus différé aboutit encore').toBe(true);
-
-      // La propriété : le champ est focalisé ET son contenu sélectionné.
-      const etat = await page.evaluate(() => {
-        const actif = document.activeElement;
-        const c = document.getElementById('reglerSoldeMontant');
-        return { focalise: actif === c, debut: c.selectionStart, fin: c.selectionEnd,
-          longueur: c.value.length };
-      });
-      expect(etat.focalise, 'le champ n\'a pas le focus').toBe(true);
-      expect(etat.debut, 'la sélection ne part pas du début').toBe(0);
-      expect(etat.fin, 'la sélection ne va pas jusqu\'au bout').toBe(etat.longueur);
-
-      // Et le COMPORTEMENT OBSERVABLE, qui est ce qui compte : taper « 100 »
-      // sans toucher le champ remplace le pré-remplissage.
-      await page.keyboard.type('100');
-      await expect(champ(page)).toHaveValue('100');
-    });
-
     test('la modale tient dans l\'écran, et son champ est prêt à recevoir', async ({ page }) => {
       await semerUnSolde(page, { montant: 300, payeur: 'vous' });
       await ouvrirLeReglement(page);
@@ -408,6 +339,93 @@ for (const largeur of LARGEURS) {
         return dehors;
       });
       expect(trop, `commandes hors de l'écran : ${trop.join(', ')}`).toEqual([]);
+    });
+  });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// LE CAS QUE LE CONTRÔLE VOISIN NE VISITE PAS — et il a SA MISE EN PLACE.
+//
+// Le voisin (« la modale tient dans l'écran ») mesure la BONNE propriété, et
+// son mutant tombe : retirer la sélection le fait rougir. Il ne visite
+// simplement pas la condition où le geste échoue — un `focus()` différé qui
+// n'aboutit pas. Safari iOS ignore un `focus()` programmatique hors de la
+// tâche du geste, et `showModal` pose le sien dans un `setTimeout(…, 100)`.
+//
+// On ne simule pas Safari : on neutralise le seul maillon dont le soupçon
+// porte — tout `focus()` appelé depuis un minuteur — et on vérifie que le
+// champ est prêt QUAND MÊME. Mesuré avant le correctif : `selection 6..6`,
+// curseur en fin, champ non focalisé, c'est-à-dire le symptôme rapporté.
+//
+// ⚠️ POURQUOI CE BLOC A SA PROPRE MISE EN PLACE, et pas un `reload()` dans le
+// test. La première rédaction posait la surcharge APRÈS le démarrage du
+// `beforeEach` commun, puis rechargeait pour la faire prendre — donc DEUX
+// démarrages complets de l'application. Le second n'est pas venu en 30 s sous
+// la CI, aux deux largeurs (run 35342446934). C'était bien le second
+// démarrage et non la surcharge : chronométré sous émulateurs,
+// `reload` → `data-app-ready` rend **601 ms sans** la surcharge et **579 ms
+// avec**. Posée avant la PREMIÈRE navigation, elle ne coûte aucun
+// démarrage — et elle décrit mieux ce qu'on modélise, puisqu'un appareil qui
+// ignore le focus différé l'ignore dès l'ouverture, pas seulement après un
+// rechargement.
+for (const largeur of LARGEURS) {
+  test.describe(`Le focus différé n'aboutit pas — ${largeur.nom}`, () => {
+    test.use({ viewport: largeur.viewport });
+
+    test.beforeEach(async ({ page }) => {
+      await setupFirebaseMock(page);
+      await page.addInitScript(() => {
+        const vraiFocus = HTMLElement.prototype.focus;
+        let dansUnMinuteur = false;
+        const vraiSetTimeout = window.setTimeout;
+        window.setTimeout = function (fn, ...reste) {
+          return vraiSetTimeout(function (...args) {
+            dansUnMinuteur = true;
+            try { return fn.apply(this, args); } finally { dansUnMinuteur = false; }
+          }, ...reste);
+        };
+        HTMLElement.prototype.focus = function (...args) {
+          if (dansUnMinuteur) return;
+          return vraiFocus.apply(this, args);
+        };
+      });
+      await waitForApp(page);
+    });
+
+    test('LE CHAMP EST PRÊT MÊME SI LE FOCUS DIFFÉRÉ N\'ABOUTIT PAS', async ({ page }) => {
+      await semerUnSolde(page, { montant: 300, payeur: 'vous' });
+      await ouvrirLeReglement(page);
+
+      // TÉMOIN DE LA NEUTRALISATION : sans lui, ce cas serait vert sur un
+      // navigateur où le focus différé aboutit — donc sur celui-ci —, et il
+      // ne mesurerait rien de ce qu'il prétend tenir.
+      const differeNeutralise = await page.evaluate(() => new Promise((resoudre) => {
+        const temoin = document.createElement('input');
+        document.body.appendChild(temoin);
+        setTimeout(() => {
+          temoin.focus();
+          const pris = document.activeElement === temoin;
+          temoin.remove();
+          resoudre(!pris);
+        }, 0);
+      }));
+      expect(differeNeutralise, 'témoin : le focus différé aboutit encore').toBe(true);
+
+      // La propriété : le champ est focalisé ET son contenu sélectionné.
+      const etat = await page.evaluate(() => {
+        const actif = document.activeElement;
+        const c = document.getElementById('reglerSoldeMontant');
+        return { focalise: actif === c, debut: c.selectionStart, fin: c.selectionEnd,
+          longueur: c.value.length };
+      });
+      expect(etat.focalise, 'le champ n\'a pas le focus').toBe(true);
+      expect(etat.debut, 'la sélection ne part pas du début').toBe(0);
+      expect(etat.fin, 'la sélection ne va pas jusqu\'au bout').toBe(etat.longueur);
+
+      // Et le COMPORTEMENT OBSERVABLE, qui est ce qui compte : taper « 100 »
+      // sans toucher le champ remplace le pré-remplissage.
+      await page.keyboard.type('100');
+      await expect(champ(page)).toHaveValue('100');
     });
   });
 }
