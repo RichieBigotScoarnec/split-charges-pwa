@@ -42,7 +42,10 @@ vi.mock('../../public/js/db.js', async (importOriginal) => ({
 vi.mock('../../public/js/components/toast.js', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info, warning: vi.fn() }
 }));
-vi.mock('../../public/js/components/modal.js', () => ({
+vi.mock('../../public/js/components/modal.js', async (reel) => ({
+  // Le double part du VRAI module : `TON` y est déclaré, et le
+  // recopier ici en ferait une seconde rédaction de la même table.
+  ...await reel(),
   showModal: vi.fn(),
   closeModal: vi.fn(),
   showConfirmModal: (...args) => showConfirmModal(...args)

@@ -10,7 +10,7 @@ import { invalidateTrends } from './trends.js';
 // chaque formulaire, elles avaient divergé.
 import { validateChargeAmount, validateChargeName } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal, TON } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import {
   formatDateEtHeure, dateDuJour, dateSaisissable,
@@ -551,7 +551,7 @@ async function enregistrerVariableCharge() {
           members: getState('members'),
           description: chargeData.description,
           montant: chargeData.amount
-        }));
+        }), { libelle: 'Déplacer', ton: TON.NORMAL });
         if (!accepte) {
           toast.info('Rien n\'a été modifié');
           return;
@@ -710,7 +710,10 @@ export async function deleteVariableCharge(chargeId) {
     return;
   }
 
-  const confirmed = await showConfirmModal(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`);
+  const confirmed = await showConfirmModal(
+    `Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`,
+    { libelle: 'Supprimer', ton: TON.DESTRUCTIF }
+  );
   if (!confirmed) return;
 
   try {

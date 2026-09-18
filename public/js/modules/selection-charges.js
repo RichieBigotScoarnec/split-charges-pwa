@@ -31,7 +31,7 @@ import { cheminDeLaCharge } from '../poches.js';
 import { chargesDeLaPortee } from '../utils/portee.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { toast } from '../components/toast.js';
-import { showConfirmModal } from '../components/modal.js';
+import { showConfirmModal, TON } from '../components/modal.js';
 import { formatCurrency } from '../utils/format.js';
 import { log, warn, error as logError } from '../utils/debug.js';
 import { getCategories, populateCategorySelect } from './custom-lists.js';
@@ -293,7 +293,8 @@ export async function supprimerLaSelection() {
   // s'apprête à effacer 40 € ou 1 400 €.
   const confirme = await showConfirmModal(
     `Supprimer ${lot.nombre} charge${lot.nombre > 1 ? 's' : ''} `
-    + `(${formatCurrency(lot.total)}) ? Elles resteront dans la corbeille.`
+    + `(${formatCurrency(lot.total)}) ? Elles resteront dans la corbeille.`,
+    { libelle: 'Supprimer', ton: TON.DESTRUCTIF }
   );
   if (!confirme) return;
 

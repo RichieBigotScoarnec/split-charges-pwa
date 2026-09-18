@@ -172,10 +172,11 @@ export async function signOut() {
     // effacer les données du site l'emporterait toujours.
     const enAttente = saisiesEnAttente();
     if (enAttente > 0) {
-      const { showConfirmModal } = await import('../components/modal.js');
+      const { showConfirmModal, TON } = await import('../components/modal.js');
       const accepte = await showConfirmModal(enAttente === 1
         ? '1 saisie n\'est encore que sur cet appareil. Elle est conservée et repartira à la prochaine connexion. Se déconnecter maintenant ?'
-        : `${enAttente} saisies ne sont encore que sur cet appareil. Elles sont conservées et repartiront à la prochaine connexion. Se déconnecter maintenant ?`);
+        : `${enAttente} saisies ne sont encore que sur cet appareil. Elles sont conservées et repartiront à la prochaine connexion. Se déconnecter maintenant ?`,
+        { libelle: 'Se déconnecter', ton: TON.NORMAL });
       if (!accepte) return;
     }
 

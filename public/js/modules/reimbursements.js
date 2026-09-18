@@ -10,7 +10,7 @@ import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
 import { validateChargeAmount } from '../utils/validation.js';
 import { directionLabel, memberLabel, normaliserEmplacement } from '../utils/members.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal, TON } from '../components/modal.js';
 import { formatCurrency, escapeHtml } from '../utils/format.js';
 import { calculateSummary } from './summary.js';
 import { log, warn, error as logError } from '../utils/debug.js';
@@ -747,7 +747,10 @@ export async function deleteReimbursement(reimbursementId) {
   const directionText = directionLabel(
       reimbursement.direction, getState('members'), REIMBURSEMENT_DIRECTIONS.YOU_TO_PARTNER);
 
-  const confirmed = await showConfirmModal(`Supprimer le remboursement ${directionText} de ${formatCurrency(reimbursement.amount)} ?`);
+  const confirmed = await showConfirmModal(
+    `Supprimer le remboursement ${directionText} de ${formatCurrency(reimbursement.amount)} ?`,
+    { libelle: 'Supprimer', ton: TON.DESTRUCTIF }
+  );
   if (!confirmed) return;
 
   try {

@@ -249,12 +249,52 @@ export function initModals() {
 }
 
 /**
+ * Les deux tons d'une confirmation — deux, et pas trois
+ *
+ * Même règle que le héros du bilan : deux couleurs disent un fait, trois
+ * diraient un jugement. Un geste détruit quelque chose, ou il n'en détruit pas.
+ */
+export const TON = Object.freeze({
+  DESTRUCTIF: 'destructif',
+  NORMAL: 'normal'
+});
+
+/** Ce que chaque ton peint sur le bouton */
+const CLASSE_DU_TON = Object.freeze({
+  [TON.DESTRUCTIF]: 'btn-danger',
+  [TON.NORMAL]: 'btn-primary'
+});
+
+/**
+ * LE DÉFAUT EST NEUTRE, ET C'EST LA DÉCISION DU LOT (2026-09-18)
+ *
+ * Le bouton portait « Supprimer » en rouge, en dur dans le balisage : mesuré,
+ * **6 des 11 appels ne supprimaient rien** — créer une cagnotte, se
+ * déconnecter, reconduire des charges fixes, déplacer une charge entre poches,
+ * restaurer une sauvegarde. Le rouge et le mot sont le SEUL avertissement que
+ * porte cette modale ; employés pour une création, ils cessent d'avertir le
+ * jour où il le faudrait.
+ *
+ * Garder « Supprimer » comme défaut aurait fait un diff plus court et laissé le
+ * piège entier : le prochain appel écrit sans y penser afficherait de nouveau
+ * une fausse destruction. Un défaut neutre produit, lui, un bouton qui
+ * n'avertit pas — une information MANQUANTE plutôt qu'une information FAUSSE,
+ * et c'est la moins chère des deux.
+ */
+const DEFAUT = Object.freeze({ libelle: 'Confirmer', ton: TON.NORMAL });
+
+/**
  * Affiche une modale de confirmation et retourne une Promise<boolean>
  * Remplace les confirm() natifs pour une meilleure UX et accessibilité.
+ *
  * @param {string} message - Message à afficher (texte brut, pas de HTML)
+ * @param {Object} [options]
+ * @param {string} [options.libelle] - Ce que fait le bouton : « Restaurer »,
+ *   « Créer la cagnotte », « Se déconnecter » — l'ACTION, jamais « Valider »
+ * @param {string} [options.ton] - `TON.DESTRUCTIF` ou `TON.NORMAL`
  * @returns {Promise<boolean>} true si confirmé, false si annulé
  */
-export function showConfirmModal(message) {
+export function showConfirmModal(message, options = {}) {
   return new Promise((resolve) => {
     const overlay = document.getElementById('modalConfirm');
     const msgEl = document.getElementById('modalConfirmMessage');
@@ -272,6 +312,15 @@ export function showConfirmModal(message) {
     denouerConfirmation(false);
 
     msgEl.textContent = message;
+
+    // REPEINT À CHAQUE OUVERTURE, classe ET texte — le bouton est unique dans
+    // le balisage et sert toutes les confirmations. Ajouter la classe du ton
+    // sans retirer l'autre laisserait le rouge d'une suppression collé sur la
+    // création qui suit ; `className` remplace au lieu d'accumuler.
+    const { libelle, ton } = { ...DEFAUT, ...options };
+    okBtn.className = `btn ${CLASSE_DU_TON[ton] ?? CLASSE_DU_TON[DEFAUT.ton]}`;
+    okBtn.textContent = libelle;
+
     overlay.classList.add('active');
     cancelBtn.focus();
 
