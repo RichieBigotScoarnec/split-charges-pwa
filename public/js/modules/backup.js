@@ -9,7 +9,7 @@
 // La sauvegarde produit un fichier qui contient tout et qui sait revenir.
 
 import { toast } from '../components/toast.js';
-import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal, TON } from '../components/modal.js';
 import { log, error as logError } from '../utils/debug.js';
 import { ecouterUneFois } from '../utils/ecouteur.js';
 import { normaliserEmplacement } from '../utils/members.js';
@@ -394,7 +394,8 @@ export async function restoreBackup(fichier) {
 
   const confirme = await showConfirmModal(
     `Remplacer toutes vos données par cette sauvegarde (${describeBackup(enveloppe)}) ? ` +
-    'Une copie de l\'état actuel sera téléchargée avant le remplacement.'
+    'Une copie de l\'état actuel sera téléchargée avant le remplacement.',
+    { libelle: 'Restaurer', ton: TON.DESTRUCTIF }
   );
   if (!confirme) return;
 

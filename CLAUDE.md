@@ -146,9 +146,14 @@ FairSplit/
 │                               # jamais rien publier),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # 11 outils, hors `public/` donc jamais publiés :
+├── tools/                      # 14 outils, hors `public/` donc jamais publiés —
+│                               # 11 annoncés ici jusqu'au 2026-09-18, et il y
+│                               # en avait 13 AVANT le lot du jour : recompté
+│                               # par `ls tools/*.mjs | wc -l` :
 │                               # adherences.mjs (les dépendants d'un module,
 │                               # imports dynamiques compris),
+│                               # confirmations-explicites.mjs (tout appel à
+│                               # `showConfirmModal` nomme-t-il son action ?),
 │                               # plafond-innerhtml.mjs (le plafond des sites
 │                               # d'injection, joué par la CI),
 │                               # regles-restrictives.mjs,
@@ -2824,8 +2829,8 @@ information reçue.**
 > différentes ; une rédaction unique le fait tomber.
 >
 > **Et la couleur : le bouton de validation n'est PAS en `--danger`.** C'est un
-> paiement, pas une destruction — voir le point ouvert du libellé de
-> `showConfirmModal`, qui porte le relevé des douze appels.
+> paiement, pas une destruction — voir « Toute confirmation nomme son action »,
+> qui a refermé le libellé de `showConfirmModal` le 2026-09-18.
 
 > **✅ DEUX CORRECTIONS DE SURFACE LE 2026-09-17 — le badge devient une
 > propriété de la LISTE, et les deux renvois se lisent enfin en français.**
@@ -2873,6 +2878,35 @@ information reçue.**
 >   compterait comme une **seconde annonce de portée**, sur l'écran dont il tient
 >   qu'il n'en annonce qu'une. Le nom du segment dans le bouton ne change rien à
 >   ça : c'est du texte, pas un état ARIA.
+
+> **✅ TOUTE CONFIRMATION NOMME SON ACTION — 2026-09-18, et le DÉFAUT est
+> neutre.** `showConfirmModal` peignait un bouton « Supprimer » en rouge écrit
+> en dur dans le balisage : remesuré ce jour, **6 des 11 appels ne supprimaient
+> rien** (restaurer, reconduire, deux bascules de poche, créer une cagnotte, se
+> déconnecter). Le point ouvert qui les recensait disparaît avec eux — il
+> est NOMMÉ plutôt que chiffré ici, parce qu'un numéro de point se
+> déplace : celui-ci était le 5 le 2026-09-18, et deux lots parallèles
+> l'ont fait bouger le même jour.
+>
+> La signature devient `showConfirmModal(message, { libelle, ton })`, `ton`
+> ayant exactement DEUX valeurs (`TON.DESTRUCTIF` → `btn-danger`,
+> `TON.NORMAL` → `btn-primary`) : un troisième degré demanderait d'arbitrer à
+> chaque appel ce qui est « un peu » grave. Le bouton est **repeint à chaque
+> ouverture**, classe ET texte, faute de quoi le rouge d'une suppression
+> resterait sur la création suivante.
+>
+> **Et le défaut est NEUTRE, pas destructif — c'est la décision du lot.** Un
+> appel distrait rend alors un bouton qui n'avertit pas, là où l'ancien défaut
+> rendait un bouton qui avertit à tort : **une information manquante coûte
+> moins cher qu'une information fausse.** L'oubli ne se voyant nulle part à
+> l'écran, il est tenu par un contrôle statique —
+> `tools/confirmations-explicites.mjs`, même forme qu'`adherences.mjs`, qui
+> exige que chaque appel passe ses options.
+>
+> ⚠️ **Le premier mutant n'a PAS fait tomber ce contrôle**, et c'est le
+> contrôle qu'il fallait interroger : retirer les options laisse la virgule de
+> la ligne d'avant, et la garde voyait un second argument là où il n'y avait
+> plus rien. Deux témoins fabriqués tiennent désormais ce cas.
 
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
@@ -2981,37 +3015,7 @@ les relevés pris avant valent toujours.
    maison du personnel.
 3. **Où atterrit le personnel** dans l'arbre, et la migration des données.
 4. **La purge définitive** — `PRIV-003`, contre la contrainte ci-dessus.
-5. **⚠️ `showConfirmModal` rend « Supprimer » EN ROUGE pour les DOUZE appels du
-   dépôt, dont sept ne suppriment rien.** Le libellé et la couleur sont écrits
-   en dur dans le balisage — `FairSplit.html`, bouton `#modalConfirmOk`,
-   `class="btn btn-danger"` — et **aucun JS ne les touche** : `modal.js` ne lit
-   cet élément que pour y poser ses écouteurs. Relevé le 2026-09-17, en ouvrant
-   l'étape 0 du lot du règlement :
-
-   | Fichier:ligne | Action confirmée | Juste ? |
-   |---|---|---|
-   | `backup.js:395` | remplacer toutes les données par une sauvegarde | non — « Restaurer » |
-   | `fixed-charges.js:187` | reconduire des charges fixes | **non** — création |
-   | `fixed-charges.js:533` | basculer une charge fixe commun ⇄ perso | **non** — déplacement |
-   | `fixed-charges.js:667` | supprimer une charge fixe | oui |
-   | `envelopes.js:189` | **créer** une cagnotte | **non** |
-   | `envelopes.js:1366` | supprimer une enveloppe | oui |
-   | `auth.js:176` | se déconnecter avec des saisies en attente | **non** |
-   | `selection-charges.js:294` | supprimer un lot de charges | oui |
-   | `variable-charges.js:546` | basculer une charge variable commun ⇄ perso | **non** |
-   | `variable-charges.js:711` | supprimer une charge variable | oui |
-   | `reimbursements.js:496` | supprimer un remboursement | oui |
-
-   Le douzième était `reimbursements.js:412`, « enregistrer un règlement » : il
-   **a quitté cette liste** le 2026-09-17, en gagnant sa propre modale. Les onze
-   autres restent, et **ce lot ne les corrige pas** — c'est un lot séparé, et
-   toucher onze sites de confirmation dans le même commit qu'un changement de
-   mécanique de règlement rendrait les deux illisibles.
-
-   Ce que le correctif demandera : un libellé et un ton PARAMÉTRÉS, avec un
-   défaut. Le passer à `showConfirmModal` sans défaut ferait un treizième site
-   qu'on oublierait de renseigner, et un bouton vide est pire qu'un bouton faux.
-6. **⚠️ `expliquerLeReport` — la branche « sens opposés, total basculé » répète
+5. **⚠️ `expliquerLeReport` — la branche « sens opposés, total basculé » répète
    le héros au lieu de dire le mouvement du mois** (constaté à l'écran le
    2026-09-17).
    - Fichier : `public/js/utils/explication-solde.js`, avant-dernière branche.
@@ -3030,7 +3034,7 @@ les relevés pris avant valent toujours.
      charges et versements. Le lot de correction devra couvrir ce cas par un
      test.
 
-7. **⚠️ `auth-ui.spec.js:48` est ROUGE sur `main`, et il l'est pour une raison
+6. **⚠️ `auth-ui.spec.js:48` est ROUGE sur `main`, et il l'est pour une raison
    qui n'est pas celle qu'il teste.** Relevé le 2026-09-17, en marge du lot du
    champ ; **non corrigé ici**, inscrit pour qu'un rouge permanent ne finisse
    pas par masquer une régression.
@@ -3056,7 +3060,7 @@ les relevés pris avant valent toujours.
      n'est pas exposée — `expect(typeof window.createAccount).toBe('function')`
      avant de l'appeler — et qu'il pose la mise en place qui l'expose. Deux
      décisions distinctes, à ne pas prendre en passant.
-8. **⚠️ `occuperLeBouton` est DÉFAIT synchroniquement sur le règlement : le
+7. **⚠️ `occuperLeBouton` est DÉFAIT synchroniquement sur le règlement : le
    bouton n'est jamais réellement désactivé.** Relevé le 2026-09-17 en
    instrumentant le double appui — `bouton.disabled` vaut `false`
    immédiatement après le premier appui, dans la même tâche.

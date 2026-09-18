@@ -185,10 +185,11 @@ export async function creerEnveloppeProposee(cle) {
   // le foyer vient de lire, et le refaire ici en donnerait un second.
   const parMois = Number.isFinite(vue.montant) && vue.montant > 0 ? vue.montant : null;
 
-  const { showConfirmModal } = await import('../components/modal.js');
+  const { showConfirmModal, TON } = await import('../components/modal.js');
   const accepte = await showConfirmModal(
     `Créer la cagnotte « ${libelle} » ?`
-    + (parMois ? `\n\n${formatCurrency(parMois)} par mois à mettre de côté.` : '')
+    + (parMois ? `\n\n${formatCurrency(parMois)} par mois à mettre de côté.` : ''),
+    { libelle: 'Créer la cagnotte', ton: TON.NORMAL }
   );
   if (!accepte) return false;
 
@@ -1359,11 +1360,11 @@ function brancherEcran(modal) {
       const rattachees = chargesDuMois()
         .filter(charge => !charge.deleted && charge.envelope === cible.id).length;
 
-      const { showConfirmModal } = await import('../components/modal.js');
+      const { showConfirmModal, TON } = await import('../components/modal.js');
       const question = rattachees > 0
         ? `Supprimer l'enveloppe "${cible.label}" ? ${rattachees} charge(s) de ce mois perdront leur étiquette. Les montants et le solde ne changent pas.`
         : `Supprimer l'enveloppe "${cible.label}" ?`;
-      if (!await showConfirmModal(question)) return;
+      if (!await showConfirmModal(question, { libelle: 'Supprimer', ton: TON.DESTRUCTIF })) return;
 
       if (!await enregistrer(avant.filter((_, rang) => rang !== index), avant)) return;
 

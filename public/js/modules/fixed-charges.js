@@ -10,7 +10,7 @@ import { invalidateTrends } from './trends.js';
 // chaque formulaire, elles avaient divergé.
 import { validateChargeAmount, validateChargeName } from '../utils/validation.js';
 import { toast } from '../components/toast.js';
-import { showModal, closeModal, showConfirmModal } from '../components/modal.js';
+import { showModal, closeModal, showConfirmModal, TON } from '../components/modal.js';
 import { formatCurrency, escapeHtml, formatPaidBy } from '../utils/format.js';
 import {
   formatDate, dateDuJour, dateDeLaCharge, dateSaisissable,
@@ -186,7 +186,10 @@ export async function declarerAbonnementsProposes(cle) {
     return false;
   }
 
-  const accepte = await showConfirmModal(questionDeConfirmation(plan, formatCurrency));
+  const accepte = await showConfirmModal(
+    questionDeConfirmation(plan, formatCurrency),
+    { libelle: 'Reconduire', ton: TON.NORMAL }
+  );
   if (!accepte) return false;
 
   const ecritures = {};
@@ -538,7 +541,7 @@ async function enregistrerFixedCharge() {
           members: getState('members'),
           description: chargeData.description,
           montant: chargeData.amount
-        }));
+        }), { libelle: 'Déplacer', ton: TON.NORMAL });
         if (!accepte) {
           toast.info('Rien n\'a été modifié');
           return;
@@ -666,7 +669,10 @@ export async function deleteFixedCharge(chargeId) {
     return;
   }
 
-  const confirmed = await showConfirmModal(`Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`);
+  const confirmed = await showConfirmModal(
+    `Supprimer "${charge.description}" (${formatCurrency(charge.amount)}) ?`,
+    { libelle: 'Supprimer', ton: TON.DESTRUCTIF }
+  );
   if (!confirmed) return;
 
   try {

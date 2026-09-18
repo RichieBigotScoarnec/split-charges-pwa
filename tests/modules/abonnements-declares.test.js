@@ -46,7 +46,10 @@ vi.mock('../../public/js/components/toast.js', () => ({
 }));
 
 const showConfirmModal = vi.fn(async () => true);
-vi.mock('../../public/js/components/modal.js', () => ({
+vi.mock('../../public/js/components/modal.js', async (reel) => ({
+  // Le double part du VRAI module : `TON` y est déclaré, et le
+  // recopier ici en ferait une seconde rédaction de la même table.
+  ...await reel(),
   showModal: vi.fn(), closeModal: vi.fn(), showConfirmModal: (...a) => showConfirmModal(...a)
 }));
 
