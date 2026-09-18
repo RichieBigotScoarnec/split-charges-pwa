@@ -435,6 +435,12 @@ importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
   d'abord. C'est la commande à employer : la lancer à la main a échoué quatre
   fois sur un jar résiduel dans la seule semaine du chantier
 - `npm run ports` — libère les ports des émulateurs, et dit ce qu'il a tué
+- `npm run releve` — le **relevé de mise en page** : 42 écrans, deux largeurs,
+  quatre mesures (boîte hors écran, commande sous 44 px, contenu qui déborde sa
+  boîte, commande recouverte). **Ce n'est PAS un contrôle** — il ne rougit sur
+  aucun défaut, il écrit `releve-mise-en-page.md` et un résumé d'un écran. Il
+  n'échoue que si ses comptes sont dégénérés. Il ne voit ni les contrastes ni le
+  texte qui déborde à l'intérieur d'une boîte qui, elle, tient
 
 ### Avant de pousser : les deux contrôles de lint de la CI
 

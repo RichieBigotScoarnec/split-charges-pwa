@@ -110,3 +110,10 @@ coverage-fusionnee/
 # avant d'avoir restauré.
 .claude/worktrees/
 .claude/audit/
+
+# Relevé de mise en page : une MESURE, pas une source.
+#
+# Il se refait d'une commande — `npm run releve` — et périme au premier commit
+# suivant. Comme la couverture, il n'a rien à faire dans l'historique : commité,
+# il deviendrait un état du monde qu'on croirait à jour sans le rejouer.
+releve-mise-en-page.md

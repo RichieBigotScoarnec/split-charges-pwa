@@ -110,7 +110,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { browserName: 'chromium' },
-      testIgnore: /(scenario-reel|bouclier-navigateur|audit-axe)\.spec\.js/
+      testIgnore: /(scenario-reel|bouclier-navigateur|audit-axe|releve-mise-en-page)\.spec\.js/
     },
     {
       name: 'reel',
@@ -126,6 +126,17 @@ export default defineConfig({
       use: { browserName: 'chromium' },
       testMatch: /audit-axe\.spec\.js/
     },
+    // Le relevé de mise en page suit exactement la logique d'`axe` : il MESURE
+    // et il ÉCRIT, il ne fait échouer personne sur un défaut. Un débordement
+    // n'est pas toujours un défaut à corriger — celui de `.summary-row` est
+    // délibéré — et c'est au foyer d'en juger, pas à la CI.
+    //
+    // Il a donc son projet, exclu des autres, et se lance par `npm run releve`.
+    {
+      name: 'releve',
+      use: { browserName: 'chromium' },
+      testMatch: /releve-mise-en-page\.spec\.js/
+    }
   ],
   webServer: {
     command: 'npx http-server public -p 3333 -c-1 --silent',
