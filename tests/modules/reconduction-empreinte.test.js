@@ -17,7 +17,7 @@
  * mois où il n'y a rien à payer. C'est le constat le plus cher de l'audit.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const toasts = vi.hoisted(() => ({
   success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn()
@@ -124,6 +124,23 @@ function baseFactice({ copieEchoue, retraitEchoue = false }) {
     }
   };
 }
+
+
+// ═══ L'HORLOGE EST FIGÉE, ET C'EST UNE CONDITION DU CAS ═══
+//
+// Le mois cible semé est septembre 2026, et la reconduction ne remonte jamais dans le
+// passé (`planRecurrence`, `target < currentMonth`). Sans horloge figée, ces
+// cas ont été verts tout septembre 2026 et rouges à partir du 1er octobre —
+// sans qu'un octet du code ait bougé. Mesuré le 2026-10-29 : 13 échecs sur
+// `main`, 16/16 avec l'horloge au 15 septembre. Seule `Date` est simulée :
+// les minuteurs de la transaction restent réels.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 15, 10));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('Reconduction : l\'empreinte ne survit pas à une copie ratée', () => {
 
