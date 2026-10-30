@@ -38,9 +38,8 @@ import {
 import { chargesDeLaPortee, renvoiDeLaPortee } from '../utils/portee.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
-import { lirePeriodes, cheminDeLaCharge, ecrituresDuDeplacement } from '../poches.js';
-import { questionDeBascule } from '../utils/bascule-poche.js';
-import { emplacementOppose } from '../utils/confidentialite.js';
+import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
+import { ecrireUneModification, signalerLaModification } from './edition-charge.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -511,60 +510,22 @@ async function enregistrerVariableCharge() {
       deleted: false
     };
 
-    // Use dbUpdate/dbPush from db.js which handles UID-scoped paths
-    const { dbUpdate, dbPush } = await import('../db.js');
+    // L'ajout pousse ; la modification passe par `edition-charge.js`.
+    const { dbPush } = await import('../db.js');
 
     let key;
+    let modification = null;
+    let soldeAvant = null;
     if (chargeId) {
-      // Édition : la charge reste dans son mois, même si sa date change.
-      //
-      // Techniquement, la déplacer serait possible : `reconduction.js` écrit
-      // déjà plusieurs chemins en une seule mise à jour atomique. C'est donc un
-      // CHOIX, pas une contrainte — une date corrigée par mégarde ferait
-      // disparaître la charge de l'écran, et un déplacement doit se demander,
-      // pas se subir. Pour ranger une charge ailleurs : la supprimer et la
-      // ressaisir à sa date.
+      // Édition : la charge va où sa date la range, dans la poche où son
+      // périmètre la range — et la bascule de poche se demande. Le geste vit
+      // dans `edition-charge.js`, une fois pour les deux listes.
       key = chargeId;
-
-      // LA BASCULE « perso » CHANGE DE POCHE, ET ELLE SE DEMANDE.
-      //
-      // C'est le PREMIER changement de chemin qu'une édition produise dans
-      // cette application. Le raisonnement qui interdit déjà de déplacer une
-      // charge de MOIS s'y applique, et plus fort : ici la charge ne change pas
-      // de mois, elle change de VISIBILITÉ. Décocher « perso » par mégarde
-      // PUBLIE une dépense — et rien, à l'écran, ne le dirait.
-      //
-      // Le geste est donc nommé et confirmé, jamais un effet de bord de
-      // l'enregistrement. Refusé, RIEN n'est écrit : appliquer les autres
-      // champs en laissant la case où elle était rendrait un formulaire qui
-      // obéit à moitié.
-      const ancienne = (getState('variableCharges') || []).find(c => c.id === key);
-      const deplacement = ancienne && ecrituresDuDeplacement({
-        avant: ancienne, apres: chargeData,
-        periode: currentPeriod, collection: 'variableCharges', id: key
+      soldeAvant = getState('dernierSolde');
+      modification = await ecrireUneModification({
+        collection: 'variableCharges', id: key, chargeData, periode: currentPeriod
       });
-
-      if (deplacement) {
-        const accepte = await showConfirmModal(questionDeBascule({
-          versLePersonnel: estSolo(chargeData),
-          autre: emplacementOppose(normaliserEmplacement(getState('emplacementCourant'))),
-          members: getState('members'),
-          description: chargeData.description,
-          montant: chargeData.amount
-        }), { libelle: 'Déplacer', ton: TON.NORMAL });
-        if (!accepte) {
-          toast.info('Rien n\'a été modifié');
-          return;
-        }
-        // ATOMIQUE : en deux écritures, un échec laisserait la charge dans les
-        // deux poches — comptée deux fois — ou dans aucune.
-        await dbUpdate(undefined, deplacement);
-      } else {
-        await dbUpdate(cheminDeLaCharge(chargeData, {
-          periode: currentPeriod, collection: 'variableCharges', id: key
-        }), chargeData);
-      }
-      toast.success('Charge modifiée');
+      if (!modification.ecrit) return;
     } else {
       // Ajout : la date décide du mois, pas l'écran depuis lequel on saisit.
       //
@@ -594,6 +555,12 @@ async function enregistrerVariableCharge() {
 
     // Recalculer le bilan
     calculateSummary();
+
+    // Après le bilan : l'écart d'un mois soldé quitté se lit sur le solde
+    // recalculé.
+    if (modification) {
+      signalerLaModification({ resultat: modification, periode: currentPeriod, soldeAvant });
+    }
   } catch (error) {
     logError('❌ Erreur sauvegarde charge variable :', error);
     toast.error('Erreur de sauvegarde');

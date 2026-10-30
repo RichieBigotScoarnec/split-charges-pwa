@@ -54,7 +54,9 @@ FairSplit/
 │       │                       # ici, pas dans `perimetre.js`, qui est pur)
 │       ├── state.js            # État global (lecture/écriture, sans abonnés)
 │       ├── components/         # modal.js, toast.js
-│       ├── modules/            # 32 modules fonctionnels — dont trash (rétablir
+│       ├── modules/            # 33 modules fonctionnels — dont edition-charge
+│       │                       # (une modification range la charge où sa date
+│       │                       # et son périmètre la rangent), trash (rétablir
 │       │                       # ce qui a été supprimé en douceur, sur tout
 │       │                       # l'historique), selection-charges (agir sur
 │       │                       # plusieurs charges à la fois),
@@ -62,7 +64,10 @@ FairSplit/
 │       │                       # sans y penser), resume-prive (ce que l'autre
 │       │                       # voit d'un espace privé, selon la posture
 │       │                       # accordée : rien, un total, ou le détail)
-│       └── utils/              # 72 aides pures — dont phrase-reglement (ce qu'un
+│       └── utils/              # 73 aides pures — dont changement-de-mois (quand
+│                               # une modification déplace la charge — le mois de
+│                               # sa DATE a changé, pas celui où elle vit — et ce
+│                               # que la reconduction en pensera), phrase-reglement (ce qu'un
 │                               # règlement fera au solde : « il reviendra à zéro »,
 │                               # « il restera X à régler », « tu devras X » — la
 │                               # seule protection contre la faute de frappe, le
@@ -197,19 +202,19 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
-| `utils/debug.js` | 38 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 35 | 1 | Critique — état global |
+| `utils/debug.js` | 39 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 36 | 1 | Critique — état global |
 | `utils/format.js` | 30 | 0 | Critique — affichage monétaire |
-| `components/toast.js` | 26 | 0 | Critique — feedback utilisateur partout |
-| `db.js` | 26 | **21** | Critique — abstraction DB |
-| `utils/date.js` | 25 | 0 | Important — date et période d'une charge |
-| `utils/members.js` | 25 | 0 | Important — qui doit à qui |
-| `utils/perimetre.js` | 24 | 0 | Important — ce qui pèse sur le solde |
+| `components/toast.js` | 27 | 0 | Critique — feedback utilisateur partout |
+| `db.js` | 27 | **22** | Critique — abstraction DB |
+| `utils/date.js` | 27 | 0 | Important — date et période d'une charge |
+| `utils/members.js` | 26 | 0 | Important — qui doit à qui |
+| `utils/perimetre.js` | 26 | 0 | Important — ce qui pèse sur le solde |
+| `poches.js` | 19 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 19 | 0 | Important — lecture d'une saisie |
-| `poches.js` | 18 | 0 | Critique — les deux poches lues comme une seule |
+| `components/modal.js` | 14 | 2 | Important — piège à focus, confirmations |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
 | `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
-| `components/modal.js` | 13 | 2 | Important — piège à focus, confirmations |
 | `utils/diagnostics.js` | 13 | 0 | Important — le journal qui survit au téléphone |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
 | `modules/auth.js` | 1 | 0 | Critique — **hub** : 30 imports statiques, 29 appels à `runStep` |
@@ -362,6 +367,16 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > autres lignes n'ont pas bougé, et on le SAIT plutôt que de le supposer. Le
 > hub est inchangé : 30 imports statiques, 29 `runStep`.
 
+> **Relevé le 2026-10-29 pour le lot « une modification range par la date » —
+> PAS une dérive, et vérifié dans les deux arbres.** Le classement complet a
+> été rejoué sur `origin/main` d'abord : il rendait le tableau à l'identique.
+> Neuf lignes bougent ensuite, toutes à cause de deux fichiers neufs,
+> `modules/edition-charge.js` et `utils/changement-de-mois.js` — debug 38 → 39,
+> state 35 → 36, toast 26 → 27, db 26/21 → 27/22, date 25 → 27, members
+> 25 → 26, perimetre 24 → 26, poches 18 → 19, modal 13 → 14. `poches.js` passe
+> à égalité avec `utils/montant.js`, et `modal.js` au-dessus de `config.js`. Le
+> hub est inchangé : 30 imports statiques, 29 `runStep`.
+
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 
@@ -473,7 +488,12 @@ npx eslint public/js --format json | node tools/plafond-innerhtml.mjs
 - NE PAS ajouter de JS dans `public/FairSplit.html` — tout dans les modules
 - NE PAS utiliser `innerHTML` avec données utilisateur non échappées (XSS)
 - NE PAS stocker credentials, tokens ou PII dans le code/logs
-- NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`)
+- NE JAMAIS supprimer de données Firebase sans soft-delete (`deleted: true`).
+  **Une seule exception, et elle n'efface rien** : le DÉPLACEMENT atomique
+  d'une charge (`ecrituresDuDeplacement`, `poches.js`) pose la charge entière
+  à sa destination, sous le même identifiant, et écrit `null` à l'origine dans
+  la MÊME mise à jour. Un `deleted: true` laissé à l'origine ferait paraître un
+  fantôme dans la corbeille, et le rétablir compterait la charge deux fois
 - NE JAMAIS mettre `.read: true` ou `.write: true` sur données utilisateur dans Firebase rules
 - TOUJOURS utiliser `db.js` pour accéder Firebase (préfixage `DATA_ROOT` automatique)
 - TOUJOURS écrire un test pour toute nouvelle fonction pure dans `utils/`
@@ -2914,6 +2934,51 @@ information reçue.**
 > la ligne d'avant, et la garde voyait un second argument là où il n'y avait
 > plus rien. Deux témoins fabriqués tiennent désormais ce cas.
 
+> **✅ UNE MODIFICATION RANGE PAR LA DATE — 2026-10-29, décisions de Richie.**
+> Mesuré sur une sauvegarde réelle : une charge commune de 182 € datée du
+> 2026-11-01 vivait sous `periods/2026-10` et pesait sur octobre. L'ajout
+> rangeait par la date, la modification par le mois affiché — la règle 2, sur
+> le mois d'une charge. ⟲ **C'était une décision écrite** (« la charge reste
+> dans son mois, même si sa date change ; un déplacement doit se demander, pas
+> se subir »), révoquée : son grief — la charge disparaît de l'écran — est tenu
+> par le toast, qui nomme le mois d'arrivée.
+>
+> - **Le critère est le mois de la DATE qui change** — ancienne date contre
+>   nouvelle, lue par `dateSaisissable`, donc telle que le formulaire l'a
+>   montrée. **Jamais** « le mois de la date diffère du mois où elle vit » :
+>   ce critère-là déplacerait toute charge déjà mal rangée au premier montant
+>   corrigé. **La 182 € elle-même reste donc en octobre** tant qu'on ne touche
+>   pas à sa date ; les charges mal rangées se relèvent par
+>   `tools/charges-mal-rangees.mjs` et se traitent à part.
+> - **Une seule fabrique pour les deux déplacements** — poche et mois —,
+>   `ecrituresDuDeplacement`, une écriture atomique. Les deux peuvent arriver
+>   ensemble : une confirmation (celle de la poche), une écriture. Le mois seul
+>   ne se confirme pas : la date saisie EST la demande.
+> - **La destination est l'ancienne charge PLUS le formulaire**, `id` retiré.
+>   La bascule de P1b posait `apres` seul, et perdait en silence tout champ que
+>   le formulaire ne porte pas.
+> - **Hors ligne, un déplacement est refusé AVANT toute question**, en le
+>   disant. `operationRejouable` refuse la racine, et deux écritures mises en
+>   file ne seraient plus atomiques. La modification sur place, elle, part
+>   toujours en file.
+> - **L'édition des deux listes vit dans `modules/edition-charge.js`.** Les deux
+>   formulaires en portaient chacun une copie (règle 4).
+> - **Aucune règle à changer — demandé au MOTEUR** :
+>   `tests/regles/deplacement-de-mois.test.js`, sous `npm run regles`. Le
+>   `.write` de `$id` n'exige pas `newData.exists()`, et vider le dernier mois
+>   d'un conteneur passe.
+>
+> **Trois bornes, dites plutôt que découvertes :**
+>
+> - l'écart rétroactif ne se dit que pour le mois QUITTÉ (le mois affiché,
+>   dont `dernierSolde` est le solde) ; un mois d'ARRIVÉE passé et soldé n'est
+>   pas vérifié ;
+> - l'avertissement de reconduction ne porte que sur les charges FIXES ; une
+>   variable récurrente déplacée vers un mois déjà reconduit n'est pas
+>   signalée ;
+> - le défaut de fond de la reconduction n'est pas réparé — voir les points
+>   ouverts.
+
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
 - **`tests/regles/mur-prive.test.js`** (fusionné le 2026-09-14, PR #211) ne lit
@@ -3083,6 +3148,32 @@ les relevés pris avant valent toujours.
    Le correctif tient en un ordre — occuper le bouton APRÈS la relecture de la
    saisie — mais il déplace le verrou visible d'un cran et ne se prend pas dans
    le lot qui l'a trouvé.
+8. **⚠️ Une charge FIXE posée dans un mois pas encore reconduit l'empêche de
+   l'être jamais.** `planDeLaPoche` (`utils/recurrence.js`) refuse un mois
+   « déjà garni » d'une charge fixe active : le loyer n'y est alors jamais
+   recopié. **Deux portes y mènent** — l'ajout d'une charge fixe datée dans un
+   mois futur (depuis le rangement par la date de l'ajout), et depuis le
+   2026-10-29 sa modification vers un tel mois. La seconde AVERTIT
+   (`avertissementDeReconduction`), la première pas. Le correctif est dans la
+   reconduction, pas dans les formulaires, et il demande de savoir ce que la
+   garde « mois déjà garni » protège en plus de l'empreinte — à mesurer avant
+   d'y toucher.
+9. **L'import CSV range toutes ses lignes dans le mois AFFICHÉ**
+   (`import.js:220-241`), quelle que soit leur date — la même règle 2 que la
+   modification, sur le troisième chemin de création. Relevé le 2026-10-29, non
+   traité : le format a ses propres questions (un fichier qui couvre plusieurs
+   mois, l'aperçu qui annonce un seul mois).
+10. **⚠️ `reconduction-empreinte.test.js` et `reconduction-deux-poches.test.js`
+    sont ROUGES depuis le 1er octobre 2026, sur `main` comme ailleurs — 13 cas,
+    et aucun défaut de code.** Ils sèment `2026-09` comme mois CIBLE sans figer
+    l'horloge ; or la reconduction ne remonte jamais dans le passé
+    (`target < currentMonth`). Mesuré le 2026-10-29 : les mêmes fichiers, horloge
+    figée au 15 septembre, rendent 16/16. Le dernier passage de la CI sur
+    `main` date du 2026-09-18 — vert, en septembre —, donc rien ne l'a encore
+    dit. C'est le cinquième contrôle de ce dépôt qui dépendait du calendrier
+    (voir « Toute spec datée doit figer l'horloge »), et le premier UNITAIRE.
+    Le remède est `vi.setSystemTime` dans les deux fichiers ; il bloque la CI de
+    toute PR tant qu'il n'est pas fait, et il se prend dans un lot à lui.
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).

@@ -36,9 +36,8 @@ import {
 import { chargesDeLaPortee, renvoiDeLaPortee } from '../utils/portee.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { coutDesChargesFixes } from '../utils/cout-annuel.js';
-import { lirePeriodes, cheminDeLaCharge, ecrituresDuDeplacement } from '../poches.js';
-import { questionDeBascule } from '../utils/bascule-poche.js';
-import { emplacementOppose } from '../utils/confidentialite.js';
+import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
+import { ecrireUneModification, signalerLaModification } from './edition-charge.js';
 
 /**
  * Initialise le module de gestion des charges fixes
@@ -515,44 +514,22 @@ async function enregistrerFixedCharge() {
       deleted: false
     };
 
-    // Use dbUpdate/dbPush from db.js which handles UID-scoped paths
-    const { dbUpdate, dbPush } = await import('../db.js');
+    // L'ajout pousse ; la modification passe par `edition-charge.js`.
+    const { dbPush } = await import('../db.js');
 
     let key;
+    let modification = null;
+    let soldeAvant = null;
     if (chargeId) {
-      // Édition : la charge reste dans son mois, même si sa date change.
-      // C'est un choix, pas une contrainte technique. Cf. `variable-charges.js`.
+      // Édition : la charge va où sa date la range, dans la poche où son
+      // périmètre la range — et la bascule de poche se demande. Le geste vit
+      // dans `edition-charge.js`, une fois pour les deux listes.
       key = chargeId;
-
-      // LA BASCULE « perso » CHANGE DE POCHE, ET ELLE SE DEMANDE.
-      // Même geste et même raison que dans `variable-charges.js` : décocher
-      // « perso » par mégarde PUBLIE une dépense, et rien à l'écran ne le
-      // dirait. Refusé, RIEN n'est écrit.
-      const ancienne = (getState('fixedCharges') || []).find(c => c.id === key);
-      const deplacement = ancienne && ecrituresDuDeplacement({
-        avant: ancienne, apres: chargeData,
-        periode: currentPeriod, collection: 'fixedCharges', id: key
+      soldeAvant = getState('dernierSolde');
+      modification = await ecrireUneModification({
+        collection: 'fixedCharges', id: key, chargeData, periode: currentPeriod
       });
-
-      if (deplacement) {
-        const accepte = await showConfirmModal(questionDeBascule({
-          versLePersonnel: estSolo(chargeData),
-          autre: emplacementOppose(normaliserEmplacement(getState('emplacementCourant'))),
-          members: getState('members'),
-          description: chargeData.description,
-          montant: chargeData.amount
-        }), { libelle: 'Déplacer', ton: TON.NORMAL });
-        if (!accepte) {
-          toast.info('Rien n\'a été modifié');
-          return;
-        }
-        await dbUpdate(undefined, deplacement);
-      } else {
-        await dbUpdate(cheminDeLaCharge(chargeData, {
-          periode: currentPeriod, collection: 'fixedCharges', id: key
-        }), chargeData);
-      }
-      toast.success('Charge modifiée');
+      if (!modification.ecrit) return;
     } else {
       // La date décide du mois, ici aussi.
       //
@@ -582,6 +559,12 @@ async function enregistrerFixedCharge() {
 
     // Recalculer le bilan
     calculateSummary();
+
+    // Après le bilan : l'écart d'un mois soldé quitté se lit sur le solde
+    // recalculé.
+    if (modification) {
+      signalerLaModification({ resultat: modification, periode: currentPeriod, soldeAvant });
+    }
   } catch (error) {
     logError('❌ Erreur sauvegarde charge fixe :', error);
     toast.error('Erreur de sauvegarde');
