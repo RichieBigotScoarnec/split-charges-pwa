@@ -276,3 +276,102 @@ describe('Les trois nœuds rendus ensemble, et pourquoi', () => {
       .toEqual(Object.keys(fusionne['2026-09'].variableCharges).sort());
   });
 });
+
+describe('Le déplacement d\'une charge — de poche, de mois, ou des deux', () => {
+  // `ecrituresDuDeplacement` était la fabrique du seul changement de POCHE.
+  // Le changement de MOIS emprunte la même : deux fabriques d'un même
+  // déplacement finiraient par ranger différemment la même charge (règle 2).
+  let ecrituresDuDeplacement;
+  beforeEach(async () => {
+    ({ ecrituresDuDeplacement } = await import('../public/js/poches.js'));
+  });
+
+  const COMMUNE = { id: 'c1', description: 'Courses', amount: 182, paidBy: 'vous', date: '2026-10-20' };
+  const PERSO = { ...COMMUNE, perimetre: 'solo' };
+
+  it('change de MOIS dans le commun : destination posée, origine effacée, même identifiant', () => {
+    const apres = { ...COMMUNE, date: '2026-11-01' };
+    delete apres.id;
+    const ecritures = ecrituresDuDeplacement({
+      avant: COMMUNE, apres,
+      periode: '2026-10', periodeCible: '2026-11', collection: 'variableCharges', id: 'c1'
+    });
+
+    expect(Object.keys(ecritures).sort()).toEqual([
+      'periods/2026-10/variableCharges/c1',
+      'periods/2026-11/variableCharges/c1'
+    ]);
+    expect(ecritures['periods/2026-10/variableCharges/c1']).toBeNull();
+    expect(ecritures['periods/2026-11/variableCharges/c1'].date).toBe('2026-11-01');
+  });
+
+  it('change de MOIS dans la poche personnelle : les deux chemins restent dans la poche', () => {
+    const ecritures = ecrituresDuDeplacement({
+      avant: PERSO, apres: { ...PERSO, date: '2026-11-01' },
+      periode: '2026-10', periodeCible: '2026-11', collection: 'fixedCharges', id: 'c1'
+    });
+
+    expect(Object.keys(ecritures).sort()).toEqual([
+      'personnel/vous/periods/2026-10/fixedCharges/c1',
+      'personnel/vous/periods/2026-11/fixedCharges/c1'
+    ]);
+  });
+
+  it('poche ET mois changent ensemble : une seule écriture, deux chemins, jamais trois', () => {
+    const ecritures = ecrituresDuDeplacement({
+      avant: COMMUNE, apres: { ...PERSO, date: '2026-11-01' },
+      periode: '2026-10', periodeCible: '2026-11', collection: 'variableCharges', id: 'c1'
+    });
+
+    expect(ecritures).toEqual({
+      'personnel/vous/periods/2026-11/variableCharges/c1': expect.objectContaining({ perimetre: 'solo' }),
+      'periods/2026-10/variableCharges/c1': null
+    });
+  });
+
+  it('les champs que le formulaire ne porte pas SURVIVENT au déplacement', () => {
+    // Une édition sur place fusionne (`update`) ; un déplacement pose un nœud
+    // entier. Sans fusion, tout champ absent du formulaire disparaîtrait au
+    // premier changement de mois — et rien ne le dirait.
+    const avant = { ...COMMUNE, champAncien: 'à garder' };
+    const ecritures = ecrituresDuDeplacement({
+      avant, apres: { amount: 200, date: '2026-11-01' },
+      periode: '2026-10', periodeCible: '2026-11', collection: 'variableCharges', id: 'c1'
+    });
+
+    const posee = ecritures['periods/2026-11/variableCharges/c1'];
+    expect(posee.champAncien).toBe('à garder');
+    expect(posee.amount).toBe(200);
+    expect(posee.description).toBe('Courses');
+  });
+
+  it('l\'identifiant de l\'état n\'est JAMAIS écrit comme un champ', () => {
+    // Les chargeurs rendent `{ id, ...charge }`. `$autre` accepte tout scalaire
+    // court : un `id` recopié passerait le serveur et polluerait la charge.
+    const ecritures = ecrituresDuDeplacement({
+      avant: COMMUNE, apres: { amount: 200 },
+      periode: '2026-10', periodeCible: '2026-11', collection: 'variableCharges', id: 'c1'
+    });
+
+    expect(ecritures['periods/2026-11/variableCharges/c1']).not.toHaveProperty('id');
+  });
+
+  it('sans période cible, rien ne change à la bascule d\'avant', () => {
+    const ecritures = ecrituresDuDeplacement({
+      avant: COMMUNE, apres: PERSO,
+      periode: '2026-10', collection: 'variableCharges', id: 'c1'
+    });
+
+    expect(Object.keys(ecritures).sort()).toEqual([
+      'periods/2026-10/variableCharges/c1',
+      'personnel/vous/periods/2026-10/variableCharges/c1'
+    ]);
+  });
+
+  it('LE TÉMOIN — même poche, même mois : rien à déplacer', () => {
+    expect(ecrituresDuDeplacement({
+      avant: COMMUNE, apres: COMMUNE,
+      periode: '2026-10', periodeCible: '2026-10', collection: 'variableCharges', id: 'c1'
+    })).toBeNull();
+  });
+});

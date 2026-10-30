@@ -543,11 +543,17 @@ describe('Chaque chemin écrit par l\'application est déclaré dans les règles
 
     it('et les deux poches sont relevées sur les sites d\'ÉDITION aussi', () => {
       // L'import pourrait être le seul site suivi sans qu'on le voie : sa clé
-      // calculée est la forme que le relevé savait déjà lire. Ce cas porte sur
-      // la période nommée `currentPeriod`, qui n'existe que dans les modules de
-      // liste — jamais dans l'import.
-      expect(chemins).toContain('personnel/vous/periods/${currentPeriod}/variableCharges/${key}');
-      expect(chemins).toContain('personnel/conjointe/periods/${currentPeriod}/fixedCharges/${key}');
+      // calculée est la forme que le relevé savait déjà lire.
+      //
+      // ⟲ Ce cas nommait `${currentPeriod}/…/${key}`, la forme des deux
+      // modules de liste. Depuis le 2026-10-29 l'édition des deux listes vit
+      // dans `edition-charge.js`, sous les noms `periode`, `collection` et
+      // `id` : la forme a déménagé, le cas l'a suivie, et il est tombé ROUGE
+      // au déménagement — c'est ce qu'il doit faire. La destination d'un
+      // changement de mois (`periodeCible`) a la même forme que l'origine,
+      // période interpolée comprise : une seule ligne la couvre.
+      expect(chemins).toContain('personnel/vous/periods/${periode}/${collection}/${id}');
+      expect(chemins).toContain('personnel/conjointe/periods/${periode}/${collection}/${id}');
     });
 
     it('LE TÉMOIN — la fabrique appelée est bien celle du code', () => {

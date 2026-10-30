@@ -26,6 +26,9 @@ vi.mock('../../public/js/db.js', () => ({
   dbUpdate,
   dbGet: vi.fn(() => Promise.resolve(null)),
   dbSet: vi.fn(() => Promise.resolve()),
+  // L'édition consulte la liaison avant tout déplacement : sans elle, le
+  // `catch` du formulaire avalait la levée, et rien n'était écrit.
+  liaisonRompue: vi.fn(() => false),
   getDataPath: vi.fn(path => `household/${path}`)
 }));
 vi.mock('../../public/js/components/toast.js', () => ({
@@ -205,11 +208,34 @@ describe('Le mois d\'arrivée suit la date, pas l\'écran', () => {
     expect(dbPush.mock.calls.at(-1)[1].date).toBe('2026-09-05');
   });
 
-  it('l\'édition ne déplace pas la charge — limite assumée', async () => {
+  it('l\'édition suit la date elle aussi, quand son MOIS change', async () => {
+    // ⟲ Ce cas s'intitulait « l'édition ne déplace pas la charge — limite
+    // assumée ». Le choix est révoqué le 2026-10-29 : une charge de 182 € datée
+    // du 1er novembre pesait sur octobre, parce que l'ajout et la modification
+    // rangeaient différemment la même charge. Le parcours complet est tenu par
+    // `charge-deplacee-par-sa-date.test.js` ; ici, la même règle que l'ajout.
     document.body.innerHTML = formulaire;
-    // Un choix, pas une contrainte : le déplacement serait faisable en une
-    // écriture atomique. Une date corrigée par mégarde ferait disparaître la
-    // charge de l'écran, et cela doit se demander plutôt que se subir.
+    setState('currentPeriod', '2026-07');
+    setState('variableCharges', [{
+      id: 'cle-existante', description: 'Festival', amount: 45, paidBy: 'vous', date: '2026-07-14'
+    }]);
+    document.getElementById('variableChargeId').value = 'cle-existante';
+    document.getElementById('variableChargeDate').value = '2026-09-01';
+
+    await saveVariableCharge();
+
+    expect(dbPush).not.toHaveBeenCalled();
+    expect(dbUpdate.mock.calls.at(-1)).toEqual([undefined, {
+      'periods/2026-09/variableCharges/cle-existante': expect.objectContaining({ date: '2026-09-01' }),
+      'periods/2026-07/variableCharges/cle-existante': null
+    }]);
+  });
+
+  it('une charge introuvable dans l\'état s\'écrit sur place — sans ancienne date, rien à comparer', async () => {
+    // Critère (b) : on ne déplace que sur un geste sur la DATE. Sans l'ancienne,
+    // on ne sait pas s'il a eu lieu, et déplacer à l'aveugle vaudrait le
+    // critère (a), refusé.
+    document.body.innerHTML = formulaire;
     setState('currentPeriod', '2026-07');
     document.getElementById('variableChargeId').value = 'cle-existante';
     document.getElementById('variableChargeDate').value = '2026-09-01';

@@ -23,6 +23,8 @@ vi.mock('../../public/js/db.js', () => ({
   dbUpdate,
   dbGet: vi.fn(() => Promise.resolve(null)),
   dbSet: vi.fn(() => Promise.resolve()),
+  // L'édition consulte la liaison avant tout déplacement (`edition-charge.js`).
+  liaisonRompue: vi.fn(() => false),
   getDataPath: vi.fn(path => `household/${path}`)
 }));
 vi.mock('../../public/js/components/toast.js', () => ({
