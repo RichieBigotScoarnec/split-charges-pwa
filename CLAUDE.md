@@ -2481,6 +2481,15 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   ligne permanente pour un problème de verrou.
   Retirer les trois existants n'est pas décidé : ils achètent de l'hygiène au
   niveau modéré, et la décision ne se prend pas en passant.
+  **`"@firebase/firestore": { "@grpc/grpc-js": "^1.13.6" }`** (2026-10-30,
+  PR #253, forme imbriquée) — motif : GHSA-m9gg-hp2v-232j et
+  GHSA-f596-whhp-79r4, `@firebase/firestore` déclarant `~1.9.0`, même dans sa
+  dernière version ; **à retirer dès que la plage déclarée par
+  `@firebase/firestore` admet ≥ 1.13.6**, ce que vérifie
+  `npm view @firebase/firestore@latest dependencies.@grpc/grpc-js` (rendait
+  `~1.9.0` le 2026-10-30). ⚠️ Posé, il n'a PAS pris : `npm install` rendait 0
+  et la copie imbriquée restait en 1.9.16 — il a fallu retirer son entrée du
+  verrou. Le vérifier par `npm ls @grpc/grpc-js`, jamais par le code de sortie.
 
 ## Décisions de conception
 
