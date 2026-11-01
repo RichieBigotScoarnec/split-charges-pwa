@@ -429,17 +429,15 @@ describe('La reconduction, AVANT le déplacement d\'une charge fixe', () => {
     expect(dbUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it('BLOCAGE — un mois pas encore reconduit : la modale paraît, Annuler n\'écrit rien', async () => {
-    // Novembre n'est pas reconduit : Netflix le garnirait, et `recurrence.js`
-    // refuse un mois « déjà garni » — le loyer n'y arriverait jamais.
+  it('un mois pas encore reconduit : plus de « ne recevra pas », le déplacement s\'écrit', async () => {
+    // Depuis le lot 2, novembre reçoit le loyer à son ouverture et reconnaît
+    // Netflix. La modale annoncerait une conséquence qui n'existe plus.
     servir({ [OCTOBRE]: OCTOBRE_GARNI });
-    repondre(false);
 
     await redaterAu5Novembre();
 
-    expect(showConfirmModal).toHaveBeenCalledTimes(1);
-    expect(showConfirmModal.mock.calls[0][0]).toMatch(/Novembre 2026 ne recevra pas/);
-    expect(dbUpdate).not.toHaveBeenCalled();
+    expect(showConfirmModal).not.toHaveBeenCalled();
+    expect(dbUpdate).toHaveBeenCalledTimes(1);
   });
 
   it('LECTURE IMPOSSIBLE — on ne se tait pas : la modale le dit', async () => {

@@ -118,10 +118,10 @@ function baseFactice() {
  * @param {Object} params
  * @param {string} [params.moi] - Emplacement du compte connecté
  * @param {*} [params.empreintePersonnelle] - Ce que la base rend pour la marque de la poche
- * @param {*} [params.empreinteCommune] - Idem pour celle du mois commun
+ * @param {Object} [params.empreintes] - Par chemin, des empreintes précises
  * @returns {Promise<{nombre: number, journal: Object}>}
  */
-async function reconduire({ moi = 'vous', empreintePersonnelle = null, arbre } = {}) {
+async function reconduire({ moi = 'vous', empreintePersonnelle = null, arbre, empreintes = {} } = {}) {
   vi.resetModules();
 
   const { setState, resetState } = await import('../../public/js/state.js');
@@ -139,6 +139,7 @@ async function reconduire({ moi = 'vous', empreintePersonnelle = null, arbre } =
   };
 
   dbGet.mockImplementation(async (chemin) => {
+    if (chemin in empreintes) return empreintes[chemin];
     if (/reconductedFrom$/.test(chemin)) return empreintePersonnelle;
     return base[chemin] ?? null;
   });
@@ -354,5 +355,155 @@ describe('LE TÉMOIN du jeu d\'essai', () => {
       .map(charge => charge.description);
 
     expect(ecrites.sort()).toEqual(['Loyer', 'Salle de sport']);
+  });
+});
+
+describe('Le mois déjà garni, de bout en bout du parcours', () => {
+  /** Une charge fixe commune, sans fioriture */
+  const commune = (description, extra = {}) => ({
+    description, amount: 900, recurring: true, date: '2026-08-05', ...extra
+  });
+  const sienne = (description) => ({
+    description, amount: 29, recurring: true, paidBy: 'vous', perimetre: 'solo'
+  });
+
+  it('un mois garni est reconduit, et le message nomme ce qui a été écarté', async () => {
+    const factice = baseFactice();
+    base.instance = factice.instance;
+
+    const nombre = await reconduire({
+      arbre: {
+        periods: {
+          [AOUT]: { fixedCharges: { l: commune('Loyer'), i: commune('Internet') } },
+          [SEPT]: { fixedCharges: { m: commune('Loyer', { date: '2026-09-02' }) } }
+        }
+      }
+    });
+
+    expect(nombre).toBe(1);
+    expect(toasts.info).toHaveBeenCalledTimes(1);
+    expect(toasts.info.mock.calls[0][0]).toBe(
+      '1 charge fixe reconduite depuis août 2026. Déjà présente, non recopiée : Loyer.'
+    );
+  });
+
+  it('un doublon possible se dit en AVERTISSEMENT, et il le nomme', async () => {
+    const factice = baseFactice();
+    base.instance = factice.instance;
+
+    await reconduire({
+      arbre: {
+        periods: {
+          [AOUT]: { fixedCharges: { l: commune('Loyer') } },
+          [SEPT]: { fixedCharges: { m: commune('Loyer', { recurring: false }) } }
+        }
+      }
+    });
+
+    expect(toasts.warning).toHaveBeenCalledTimes(1);
+    expect(toasts.warning.mock.calls[0][0]).toMatch(/Doublon possible, à vérifier : Loyer/);
+    expect(toasts.info).not.toHaveBeenCalled();
+  });
+
+  it('TOUT écarté : l\'empreinte est posée, et le mois de la copie n\'est pas réécrit', async () => {
+    // Sans empreinte, R5 disqualifierait septembre au tour d'octobre, et ce
+    // qu'on y a saisi sortirait de la chaîne sans un mot.
+    const factice = baseFactice();
+    base.instance = factice.instance;
+
+    const nombre = await reconduire({
+      arbre: {
+        periods: {
+          [AOUT]: { fixedCharges: { l: commune('Loyer') } },
+          [SEPT]: { fixedCharges: { m: commune('Loyer') } }
+        }
+      }
+    });
+
+    expect(nombre).toBe(0);
+    expect(factice.journal.empreintes['household/periods/2026-09/reconductedFrom']).toEqual([AOUT]);
+
+    const charges = Object.keys(factice.journal.ecritures || {})
+      .filter(chemin => /fixedCharges|variableCharges/.test(chemin));
+    expect(charges).toEqual([]);
+    expect(toasts.info.mock.calls[0][0]).toMatch(/^Aucune charge fixe reconduite/);
+  });
+
+  it('ma poche seule, tout écarté : rien à écrire, et rien ne part', async () => {
+    // Le commun porterait au moins le mode de partage du mois. Une poche
+    // personnelle n'en a pas : c'est le seul cas d'une mise à jour vide.
+    const factice = baseFactice();
+    base.instance = factice.instance;
+
+    await reconduire({
+      arbre: {
+        periods: {},
+        'personnel/vous/periods': {
+          [AOUT]: { fixedCharges: { a: sienne('Sport') } },
+          [SEPT]: { fixedCharges: { b: sienne('Sport') } }
+        }
+      }
+    });
+
+    expect(factice.journal.empreintes['household/personnel/vous/periods/2026-09/reconductedFrom'])
+      .toEqual([AOUT]);
+    expect(factice.journal.copies).toBe(0);
+  });
+
+  describe('R5 lit les empreintes de ma poche, et seulement ce qu\'il lui faut', () => {
+    const MA_POCHE = {
+      '2026-06': { fixedCharges: { z: sienne('Sport juin') } },
+      '2026-07': { fixedCharges: { a: sienne('Sport juillet') } },
+      [AOUT]: { fixedCharges: { b: sienne('Sport août') } }
+    };
+    const EMPREINTE_AOUT = 'personnel/vous/periods/2026-08/reconductedFrom';
+    const EMPREINTE_JUILLET = 'personnel/vous/periods/2026-07/reconductedFrom';
+
+    const lectures = async () => {
+      const { dbGet } = await import('../../public/js/db.js');
+      return dbGet.mock.calls.map(([chemin]) => chemin).filter(c => /reconductedFrom$/.test(c));
+    };
+
+    it('août porte son empreinte : il sert de source, et sa lecture a suffi', async () => {
+      const factice = baseFactice();
+      base.instance = factice.instance;
+
+      await reconduire({
+        arbre: { periods: {}, 'personnel/vous/periods': MA_POCHE },
+        empreintes: { [EMPREINTE_AOUT]: '2026-07', [EMPREINTE_JUILLET]: '2026-06' }
+      });
+
+      expect(factice.journal.empreintes['household/personnel/vous/periods/2026-09/reconductedFrom'])
+        .toEqual([AOUT]);
+      expect(await lectures()).toEqual([
+        'personnel/vous/periods/2026-09/reconductedFrom',
+        EMPREINTE_AOUT
+      ]);
+    });
+
+    it('août sans empreinte : R5 le disqualifie, la source remonte à juillet', async () => {
+      const factice = baseFactice();
+      base.instance = factice.instance;
+
+      await reconduire({
+        arbre: { periods: {}, 'personnel/vous/periods': MA_POCHE },
+        empreintes: { [EMPREINTE_AOUT]: null, [EMPREINTE_JUILLET]: '2026-06' }
+      });
+
+      expect(factice.journal.empreintes['household/personnel/vous/periods/2026-09/reconductedFrom'])
+        .toEqual(['2026-07']);
+    });
+
+    it('LE PRIX — ma poche déjà reconduite ce mois-ci : aucune lecture de plus', async () => {
+      const factice = baseFactice();
+      base.instance = factice.instance;
+
+      await reconduire({
+        arbre: { periods: {}, 'personnel/vous/periods': MA_POCHE },
+        empreintePersonnelle: AOUT
+      });
+
+      expect(await lectures()).toEqual(['personnel/vous/periods/2026-09/reconductedFrom']);
+    });
   });
 });
