@@ -25,6 +25,18 @@
  * Les deux peuvent arriver ensemble : UNE confirmation, UNE écriture.
  *
  * ─────────────────────────────────────────────────────────────────────────────
+ * UNE CONSÉQUENCE SUR L'ARGENT SE CONFIRME AVANT, JAMAIS APRÈS
+ *
+ * Vu à l'écran le 2026-11-01, en bac à sable : un abonnement d'octobre redaté
+ * au 05/11, novembre déjà reconduit — deux exemplaires en novembre, 8 € au lieu
+ * de 4 €. Un message a paru PUIS disparu, sans rien demander : il arrivait
+ * après l'écriture. Un déplacement qui crée un doublon, prive un mois de sa
+ * reconduction ou laisse un écart sur un mois soldé se CONFIRME désormais
+ * avant — même patron que la bascule « perso ». Annuler n'écrit rien. Sans
+ * conséquence, aucune modale : une modale à chaque déplacement deviendrait du
+ * bruit qu'on valide sans lire.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
  * HORS LIGNE, UN DÉPLACEMENT EST REFUSÉ — EN LE DISANT
  *
  * Une écriture multi-chemins vise la racine, et `operationRejouable` refuse de
@@ -42,19 +54,20 @@ import { questionDeBascule } from '../utils/bascule-poche.js';
 import { emplacementOppose, EMPLACEMENTS } from '../utils/confidentialite.js';
 import { normaliserEmplacement } from '../utils/members.js';
 import { estSolo, proprietaireDuSolo } from '../utils/perimetre.js';
-import { getCurrentPeriod } from '../utils/date.js';
+import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
 import {
-  periodeDeDestination, messageDuDeplacement, avertissementDeReconduction
+  periodeDeDestination, messageDuDeplacement, avertissementDeReconduction, questionDuDeplacement
 } from '../utils/changement-de-mois.js';
 import { ecartLaisseParLaCorrection } from '../utils/correction-retroactive.js';
 import { warn } from '../utils/debug.js';
+import { soldeDuMoisAffiche } from './summary.js';
 
 /**
  * Ce que la reconduction dira du déplacement d'une charge fixe, ou rien
  *
  * Lu AVANT l'écriture : c'est le mois tel que la reconduction le trouverait
- * sans cette charge. Une lecture impossible ne bloque pas l'enregistrement —
- * l'avertissement est un renseignement, pas une garde.
+ * sans cette charge. Une lecture impossible n'est PAS un « rien à signaler » :
+ * elle devient elle-même une conséquence, et la modale le dit (règle 1).
  *
  * @returns {Promise<string|null>}
  */
@@ -78,8 +91,46 @@ async function ceQueDiraLaReconduction({ charge, id, origine, cible }) {
     });
   } catch (erreur) {
     warn('[Édition] Reconduction non consultée :', erreur?.message || erreur);
-    return null;
+    return `Ce que ce déplacement fera à la reconduction de ${formatPeriod(cible)} `
+      + 'n\'a pas pu être vérifié.';
   }
+}
+
+/**
+ * Les conséquences d'un changement de mois sur l'argent, AVANT l'écriture
+ *
+ * Deux familles, une phrase chacune :
+ *   - la reconduction du mois d'arrivée (charges fixes seulement) : doublon
+ *     probable, ou mois qui ne recevra plus ses charges récurrentes ;
+ *   - l'écart laissé sur le mois QUITTÉ, passé, report désactivé.
+ *
+ * Le solde du mois quitté « sans la charge » vient de `soldeDuMoisAffiche`, la
+ * fabrique que lit aussi le bilan : deux calculs du même solde finiraient par
+ * diverger (règle 2).
+ *
+ * @returns {Promise<string[]>}
+ */
+async function consequencesDuDeplacement({ collection, id, chargeData, periode, periodeCible }) {
+  const consequences = [];
+
+  if (collection === 'fixedCharges') {
+    const reconduction = await ceQueDiraLaReconduction({
+      charge: chargeData, id, origine: periode, cible: periodeCible
+    });
+    if (reconduction) consequences.push(reconduction);
+  }
+
+  const restantes = (getState(collection) || []).filter(c => c.id !== id);
+  const ecart = ecartLaisseParLaCorrection({
+    periode,
+    moisCourant: getCurrentPeriod(),
+    reportActif: Boolean(getState('carryOverEnabled')),
+    soldeAvant: soldeDuMoisAffiche(),
+    soldeApres: soldeDuMoisAffiche({ [collection]: restantes })
+  });
+  if (ecart) consequences.push(ecart);
+
+  return consequences;
 }
 
 /**
@@ -91,7 +142,7 @@ async function ceQueDiraLaReconduction({ charge, id, origine, cible }) {
  * @param {string} params.id
  * @param {Object} params.chargeData - La charge telle que le formulaire la rend
  * @param {string} params.periode - Le mois où elle vit, c'est-à-dire le mois affiché
- * @returns {Promise<{ecrit: boolean, periodeCible?: string, avertissement?: string|null}>}
+ * @returns {Promise<{ecrit: boolean}>}
  */
 export async function ecrireUneModification({ collection, id, chargeData, periode }) {
   const { dbUpdate, liaisonRompue } = await import('../db.js');
@@ -110,7 +161,7 @@ export async function ecrireUneModification({ collection, id, chargeData, period
   if (!deplacement) {
     await dbUpdate(cheminDeLaCharge(chargeData, { periode, collection, id }), chargeData);
     toast.success('Charge modifiée');
-    return { ecrit: true, periodeCible: periode, avertissement: null };
+    return { ecrit: true };
   }
 
   if (liaisonRompue()) {
@@ -119,30 +170,40 @@ export async function ecrireUneModification({ collection, id, chargeData, period
     return { ecrit: false };
   }
 
-  // LA BASCULE « perso » SE DEMANDE — et seulement elle. Comparée au même
-  // mois, pour qu'un changement de date seul ne la déclenche pas.
+  // La bascule « perso » se demande toujours. Comparée au même mois, pour
+  // qu'un changement de date seul ne la déclenche pas.
   const changeDePoche = cheminDeLaCharge(ancienne, { periode, collection, id })
     !== cheminDeLaCharge(chargeData, { periode, collection, id });
 
-  if (changeDePoche) {
-    const accepte = await showConfirmModal(questionDeBascule({
-      versLePersonnel: estSolo(chargeData),
-      autre: emplacementOppose(normaliserEmplacement(getState('emplacementCourant'))),
-      members: getState('members'),
-      description: chargeData.description,
-      montant: chargeData.amount
-    }), { libelle: 'Déplacer', ton: TON.NORMAL });
-    // Refusé, RIEN n'est écrit : appliquer les autres champs en laissant la
-    // case où elle était rendrait un formulaire qui obéit à moitié.
+  const consequences = periodeCible !== periode
+    ? await consequencesDuDeplacement({ collection, id, chargeData, periode, periodeCible })
+    : [];
+
+  // UNE question, même quand poche et conséquences se cumulent.
+  if (changeDePoche || consequences.length > 0) {
+    const question = changeDePoche
+      ? [questionDeBascule({
+        versLePersonnel: estSolo(chargeData),
+        autre: emplacementOppose(normaliserEmplacement(getState('emplacementCourant'))),
+        members: getState('members'),
+        description: chargeData.description,
+        montant: chargeData.amount
+      }), ...consequences].join(' ')
+      : questionDuDeplacement({
+        description: chargeData.description,
+        montant: chargeData.amount,
+        cible: periodeCible,
+        consequences
+      });
+
+    const accepte = await showConfirmModal(question, { libelle: 'Déplacer', ton: TON.NORMAL });
+    // Refusé, RIEN n'est écrit : ni le mois, ni la poche, ni les autres champs.
+    // Un formulaire qui appliquerait le reste obéirait à moitié.
     if (!accepte) {
       toast.info('Rien n\'a été modifié');
       return { ecrit: false };
     }
   }
-
-  const avertissement = collection === 'fixedCharges' && periodeCible !== periode
-    ? await ceQueDiraLaReconduction({ charge: chargeData, id, origine: periode, cible: periodeCible })
-    : null;
 
   // ATOMIQUE : en deux écritures, un échec laisserait la charge à deux
   // endroits — comptée deux fois — ou à aucun.
@@ -150,34 +211,5 @@ export async function ecrireUneModification({ collection, id, chargeData, period
   // Dit tout de suite, avant le rechargement : si celui-ci échouait, l'écran ne
   // doit pas annoncer une erreur de sauvegarde sur une écriture réussie.
   toast.success(messageDuDeplacement(periodeCible));
-  return { ecrit: true, periodeCible, avertissement };
-}
-
-/**
- * Dit ce qu'un déplacement laisse derrière lui — APRÈS le recalcul du bilan
- *
- * Après, parce que l'écart d'un mois soldé se lit sur `dernierSolde`, que le
- * bilan recalculé vient de poser. Le succès, lui, est dit dès l'écriture.
- *
- * @param {Object} params
- * @param {{periodeCible: string, avertissement: string|null}} params.resultat
- * @param {string} params.periode - Le mois où la charge vivait
- * @param {number} params.soldeAvant - `dernierSolde` relevé avant l'écriture
- * @returns {void}
- */
-export function signalerLaModification({ resultat, periode, soldeAvant }) {
-  if (resultat.periodeCible === periode) return;
-
-  if (resultat.avertissement) toast.warning(resultat.avertissement);
-
-  // Le mois qu'on quitte a pu être soldé. Report activé, l'écart rejoint la
-  // chaîne ; désactivé, il reste là-bas, et rien d'autre ne le dirait.
-  const ecart = ecartLaisseParLaCorrection({
-    periode,
-    moisCourant: getCurrentPeriod(),
-    reportActif: Boolean(getState('carryOverEnabled')),
-    soldeAvant,
-    soldeApres: getState('dernierSolde')
-  });
-  if (ecart) toast.info(ecart);
+  return { ecrit: true };
 }

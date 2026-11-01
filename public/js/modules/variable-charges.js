@@ -39,7 +39,7 @@ import { chargesDeLaPortee, renvoiDeLaPortee } from '../utils/portee.js';
 import { libelleDeLaRepartition } from '../utils/repartition.js';
 import { estEnModeSelection, estChoisie, rafraichirLaBarre } from './selection-charges.js';
 import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
-import { ecrireUneModification, signalerLaModification } from './edition-charge.js';
+import { ecrireUneModification } from './edition-charge.js';
 
 /**
  * Initialise le module de gestion des charges variables
@@ -514,18 +514,17 @@ async function enregistrerVariableCharge() {
     const { dbPush } = await import('../db.js');
 
     let key;
-    let modification = null;
-    let soldeAvant = null;
     if (chargeId) {
       // Édition : la charge va où sa date la range, dans la poche où son
       // périmètre la range — et la bascule de poche se demande. Le geste vit
       // dans `edition-charge.js`, une fois pour les deux listes.
       key = chargeId;
-      soldeAvant = getState('dernierSolde');
-      modification = await ecrireUneModification({
+      // Les conséquences d'un déplacement se confirment AVANT l'écriture,
+      // dans `ecrireUneModification` : refusé, rien n'est écrit.
+      const { ecrit } = await ecrireUneModification({
         collection: 'variableCharges', id: key, chargeData, periode: currentPeriod
       });
-      if (!modification.ecrit) return;
+      if (!ecrit) return;
     } else {
       // Ajout : la date décide du mois, pas l'écran depuis lequel on saisit.
       //
@@ -556,11 +555,6 @@ async function enregistrerVariableCharge() {
     // Recalculer le bilan
     calculateSummary();
 
-    // Après le bilan : l'écart d'un mois soldé quitté se lit sur le solde
-    // recalculé.
-    if (modification) {
-      signalerLaModification({ resultat: modification, periode: currentPeriod, soldeAvant });
-    }
   } catch (error) {
     logError('❌ Erreur sauvegarde charge variable :', error);
     toast.error('Erreur de sauvegarde');

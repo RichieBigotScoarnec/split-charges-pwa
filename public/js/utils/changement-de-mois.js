@@ -35,6 +35,7 @@
 import { dateSaisissable, periodeDeLaDate, formatPeriod } from './date.js';
 import { planRecurrence } from './recurrence.js';
 import { proprietaireDuSolo } from './perimetre.js';
+import { formatCurrency } from './format.js';
 
 /**
  * Le mois où une charge modifiée doit vivre
@@ -64,6 +65,29 @@ export function periodeDeDestination({ ancienne, nouvelleDate, periodeActuelle }
  */
 export function messageDuDeplacement(periode) {
   return `Charge déplacée en ${formatPeriod(periode)}, sa date`;
+}
+
+/**
+ * La question posée AVANT un déplacement qui a des conséquences
+ *
+ * Le déplacement seul ne se demande pas : la date saisie EST la demande. Mais
+ * quand il crée un doublon, prive un mois de sa reconduction ou laisse un écart
+ * sur un mois soldé, la conséquence se lit AVANT l'écriture, dans une modale
+ * qu'on peut refuser. Un message paru après l'écriture, puis disparu,
+ * n'apprend rien à qui l'a manqué — et l'argent a déjà bougé (vu à l'écran le
+ * 2026-11-01, en bac à sable).
+ *
+ * @param {Object} params
+ * @param {string} params.description
+ * @param {number} params.montant
+ * @param {string} params.cible - Le mois d'arrivée, AAAA-MM
+ * @param {string[]} params.consequences - Une phrase chacune, dans l'ordre
+ * @returns {string}
+ */
+export function questionDuDeplacement({ description, montant, cible, consequences }) {
+  const tete = `Déplacer « ${description} » (${formatCurrency(montant)}) en `
+    + `${formatPeriod(cible)}, le mois de sa date ?`;
+  return [tete, ...consequences].join(' ');
 }
 
 /** Un mois en tête de phrase : « Novembre 2026 » */
@@ -142,6 +166,6 @@ export function avertissementDeReconduction({
 
   return jumelle
     ? `${moisEnTete(cible)} porte déjà une charge « ${charge.description.trim()} » : `
-      + 'vérifiez qu\'elle n\'est pas comptée deux fois.'
+      + 'la déplacer la comptera deux fois.'
     : null;
 }

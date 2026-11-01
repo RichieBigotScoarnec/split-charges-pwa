@@ -95,3 +95,99 @@ for (const largeur of [320, 390]) {
     });
   });
 }
+
+/**
+ * LE CAS VU À L'ÉCRAN, le 2026-11-01 en bac à sable, sur a3ff1e5 : novembre déjà
+ * reconduit — il porte la copie de l'abonnement —, et l'abonnement d'octobre
+ * redaté au 05/11. Deux exemplaires en novembre, 8 € au lieu de 4 €. Un
+ * message a paru PUIS disparu, sans rien demander, l'argent déjà déplacé.
+ *
+ * Propriété : un déplacement qui crée un doublon se CONFIRME avant l'écriture,
+ * et Annuler n'écrit rien.
+ */
+function semenceReconduite({ copieEnNovembre }) {
+  const abonnement = {
+    description: 'Abonnement', amount: 4, category: 'Loisirs',
+    paidBy: 'vous', date: '2026-10-03', recurring: true, deleted: false
+  };
+  return {
+    'household/salaries': { vous: 2500, conjointe: 1800 },
+    'household/periods/2026-10/salaries': { vous: 2500, conjointe: 1800 },
+    'household/periods/2026-10/fixedCharges/f1': abonnement,
+    'household/periods/2026-11/reconductedFrom': '2026-10',
+    'household/periods/2026-11/fixedCharges/r1': copieEnNovembre
+      ? { ...abonnement, date: '2026-11-03' }
+      : { ...abonnement, description: 'Assurance', date: '2026-11-03' }
+  };
+}
+
+/** Les charges fixes d'un mois, telles que la base les rend */
+function fixesDuMois(page, mois) {
+  return page.evaluate(async (periode) => {
+    const { dbGet } = await import('/js/db.js');
+    return await dbGet(`periods/${periode}/fixedCharges`) || {};
+  }, mois);
+}
+
+/** Rouvre l'abonnement d'octobre et le redate au 5 novembre */
+async function redaterLAbonnement(page) {
+  await allerAuPanneau(page, 'panneauCharges');
+  await page.locator('#fixedChargesList [data-action="editFixedCharge"][data-arg="f1"]').click();
+  await page.locator('#fixedChargeDate').fill('2026-11-05');
+  await page.locator('#saveFixedCharge').click();
+}
+
+for (const largeur of [320, 390]) {
+  test.describe(`Un déplacement qui crée un doublon se confirme AVANT — ${largeur} px`, () => {
+    test.use({ viewport: { width: largeur, height: 800 } });
+
+    const ouvrir = async (page, semence) => {
+      await page.clock.setFixedTime(LE_29_OCTOBRE);
+      await setupFirebaseMock(page);
+      await page.addInitScript(`window.__db = ${JSON.stringify(semence)};`);
+      await waitForApp(page);
+    };
+
+    test('ANNULER : la modale nomme le doublon, et les deux mois restent intacts', async ({ page }) => {
+      await ouvrir(page, semenceReconduite({ copieEnNovembre: true }));
+      await redaterLAbonnement(page);
+
+      const modale = page.locator('#modalConfirm');
+      await expect(modale).toBeVisible();
+      await expect(page.locator('#modalConfirmMessage'))
+        .toContainText('Novembre 2026 porte déjà une charge « Abonnement » : la déplacer la comptera deux fois.');
+
+      // AVANT de répondre : rien n'a bougé. C'est toute la propriété — une
+      // question posée après l'écriture n'en est pas une.
+      expect(Object.keys(await fixesDuMois(page, '2026-10'))).toEqual(['f1']);
+      expect(Object.keys(await fixesDuMois(page, '2026-11'))).toEqual(['r1']);
+
+      await page.locator('#modalConfirmCancel').click();
+      await expect(modale).toBeHidden();
+
+      expect(Object.keys(await fixesDuMois(page, '2026-10'))).toEqual(['f1']);
+      expect(Object.keys(await fixesDuMois(page, '2026-11'))).toEqual(['r1']);
+    });
+
+    test('CONFIRMER : la charge part en novembre, à côté de sa copie', async ({ page }) => {
+      await ouvrir(page, semenceReconduite({ copieEnNovembre: true }));
+      await redaterLAbonnement(page);
+
+      await page.locator('#modalConfirmOk').click();
+
+      await expect(page.getByText('Charge déplacée en novembre 2026, sa date')).toBeVisible();
+      await expect.poll(async () => Object.keys(await fixesDuMois(page, '2026-10'))).toEqual([]);
+      expect(Object.keys(await fixesDuMois(page, '2026-11')).sort()).toEqual(['f1', 'r1']);
+    });
+
+    test('TÉMOIN — sans charge du même libellé en novembre, aucune modale', async ({ page }) => {
+      await ouvrir(page, semenceReconduite({ copieEnNovembre: false }));
+      await redaterLAbonnement(page);
+
+      await expect(page.getByText('Charge déplacée en novembre 2026, sa date')).toBeVisible();
+      await expect(page.locator('#modalConfirm')).toBeHidden();
+      await expect.poll(async () => Object.keys(await fixesDuMois(page, '2026-11')).sort())
+        .toEqual(['f1', 'r1']);
+    });
+  });
+}

@@ -45,7 +45,11 @@ vi.mock('../../public/js/components/modal.js', async (reel) => ({
 vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
-vi.mock('../../public/js/modules/summary.js', () => ({ calculateSummary: vi.fn() }));
+vi.mock('../../public/js/modules/summary.js', () => ({
+  calculateSummary: vi.fn(),
+  // Lu AVANT un déplacement de mois, pour l'écart laissé sur un mois soldé.
+  soldeDuMoisAffiche: vi.fn(() => 0)
+}));
 vi.mock('../../public/js/modules/trash.js', () => ({ refreshTrashButton: vi.fn() }));
 vi.mock('../../public/js/modules/map.js', () => ({ refreshMapButton: vi.fn() }));
 vi.mock('../../public/js/modules/trends.js', () => ({ invalidateTrends: vi.fn() }));

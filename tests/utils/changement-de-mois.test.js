@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  periodeDeDestination, avertissementDeReconduction, messageDuDeplacement
+  periodeDeDestination, avertissementDeReconduction, messageDuDeplacement, questionDuDeplacement
 } from '../../public/js/utils/changement-de-mois.js';
 
 /**
@@ -82,6 +82,25 @@ describe('Le toast du déplacement nomme le mois d\'arrivée', () => {
   });
 });
 
+describe('La question posée avant un déplacement qui a des conséquences', () => {
+  it('nomme la charge, son montant, le mois d\'arrivée — puis chaque conséquence', () => {
+    const question = questionDuDeplacement({
+      description: 'Netflix', montant: 4, cible: '2026-11',
+      consequences: ['Novembre 2026 porte déjà une charge « Netflix » : la déplacer la comptera deux fois.']
+    });
+    expect(question).toMatch(/^Déplacer « Netflix » \(4,00\s€\) en novembre 2026, le mois de sa date \?/);
+    expect(question).toMatch(/la déplacer la comptera deux fois\.$/);
+  });
+
+  it('porte TOUTES les conséquences, dans l\'ordre où on les lui donne', () => {
+    const question = questionDuDeplacement({
+      description: 'Loyer', montant: 900, cible: '2026-11', consequences: ['Première.', 'Seconde.']
+    });
+    expect(question.indexOf('Première.')).toBeGreaterThan(0);
+    expect(question.indexOf('Seconde.')).toBeGreaterThan(question.indexOf('Première.'));
+  });
+});
+
 describe('Ce qu\'un déplacement de charge fixe fait à la reconduction', () => {
   const LOYER = { description: 'Loyer', amount: 900, paidBy: 'vous', recurring: true };
   const NETFLIX = { description: 'Netflix', amount: 14, paidBy: 'vous', recurring: true };
@@ -108,7 +127,10 @@ describe('Ce qu\'un déplacement de charge fixe fait à la reconduction', () => 
       ...OCTOBRE(),
       '2026-11': { reconductedFrom: '2026-10', fixedCharges: { r1: { ...NETFLIX } } }
     };
-    expect(deplacerNetflix(periods)).toMatch(/Novembre 2026 porte déjà une charge « Netflix »/);
+    // Une CONSÉQUENCE, pas un conseil : la phrase paraît dans une modale qui
+    // se confirme AVANT l'écriture — « vérifiez » n'y voudrait plus rien dire.
+    expect(deplacerNetflix(periods))
+      .toBe('Novembre 2026 porte déjà une charge « Netflix » : la déplacer la comptera deux fois.');
   });
 
   it('le libellé se compare sans la casse ni les espaces', () => {

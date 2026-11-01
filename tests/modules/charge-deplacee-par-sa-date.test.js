@@ -33,7 +33,9 @@ const toastes = {
   success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn()
 };
 let horsLigne = false;
-let soldeApresCalcul = null;
+/** Le solde du mois quitté, avec puis sans la charge déplacée */
+let soldeAvec = 0;
+let soldeSans = 0;
 
 vi.mock('../../public/js/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -56,11 +58,19 @@ vi.mock('../../public/js/utils/debug.js', () => ({
   log: vi.fn(), warn: vi.fn(), error: vi.fn()
 }));
 vi.mock('../../public/js/modules/summary.js', () => ({
-  // Le bilan recalculé pose `dernierSolde` : c'est ce que le module relit pour
-  // savoir si le mois quitté a cessé d'être soldé.
-  // SYNCHRONE, comme le vrai (`summary.js` pose `dernierSolde` dans la même
-  // tâche) : un double asynchrone mesurerait un ordre que le code n'a pas.
-  calculateSummary: vi.fn(() => globalThis.__apresLeBilan?.())
+  calculateSummary: vi.fn(),
+  // Le solde du mois quitté, AVEC la charge (sans argument) et SANS elle
+  // (avec une liste de remplacement) — lu AVANT l'écriture, pour que l'écart
+  // laissé sur un mois soldé se confirme au lieu de se découvrir après.
+  //
+  // Le solde « sans » n'est rendu que si la charge déplacée a VRAIMENT quitté
+  // la liste fournie : un double qui le rendrait pour n'importe quelle liste
+  // laisserait vert un code qui passe la liste entière, charge comprise.
+  soldeDuMoisAffiche: (remplacements) => {
+    const liste = remplacements?.variableCharges || remplacements?.fixedCharges;
+    const sansElle = Array.isArray(liste) && !liste.some(c => c.id === 'c1' || c.id === 'f1');
+    return sansElle ? soldeSans : soldeAvec;
+  }
 }));
 vi.mock('../../public/js/modules/trash.js', () => ({ refreshTrashButton: vi.fn() }));
 vi.mock('../../public/js/modules/map.js', () => ({ refreshMapButton: vi.fn() }));
@@ -80,9 +90,22 @@ const { saveVariableCharge } = await import('../../public/js/modules/variable-ch
 const { saveFixedCharge } = await import('../../public/js/modules/fixed-charges.js');
 const { setState, resetState } = await import('../../public/js/state.js');
 
-globalThis.__apresLeBilan = () => {
-  if (soldeApresCalcul !== null) setState('dernierSolde', soldeApresCalcul);
-};
+/**
+ * Répond à la confirmation, et relève combien d'écritures étaient DÉJÀ parties
+ * au moment où la question a été posée. Une question posée après l'écriture
+ * n'est pas une confirmation : c'est le défaut vu à l'écran le 2026-11-01.
+ *
+ * @param {boolean} reponse
+ * @returns {{avant: number|null}}
+ */
+function repondre(reponse) {
+  const releve = { avant: null };
+  showConfirmModal.mockImplementation(async () => {
+    releve.avant = dbUpdate.mock.calls.length;
+    return reponse;
+  });
+  return releve;
+}
 
 const OCTOBRE = '2026-10';
 
@@ -147,7 +170,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetState();
   horsLigne = false;
-  soldeApresCalcul = null;
+  soldeAvec = 0;
+  soldeSans = 0;
+  // `clearAllMocks` efface les appels, PAS une implémentation posée par un cas
+  // précédent : un « Annuler » y survivrait au cas suivant.
+  showConfirmModal.mockImplementation(() => Promise.resolve(true));
   setState('currentPeriod', OCTOBRE);
   setState('emplacementCourant', 'vous');
   setState('members', { vous: { prenom: 'Richard' }, conjointe: { prenom: 'Cindy' } });
@@ -271,55 +298,161 @@ for (const liste of LISTES) {
       expect(dits('error')).toEqual([]);
     });
 
-    it('MOIS SOLDÉ QUITTÉ, report désactivé : l\'écart laissé derrière se dit', async () => {
+    // ⟲ Ces cas tenaient un TOAST après l'écriture. Vu à l'écran le
+    // 2026-11-01 : un message qui paraît puis disparaît, sans rien demander,
+    // après que l'argent a déjà bougé. La conséquence se CONFIRME désormais
+    // avant — et Annuler n'écrit rien.
+    const quitterSeptembreSolde = () => {
       setState('currentPeriod', '2026-09');
       setState('carryOverEnabled', false);
-      setState('dernierSolde', 0);
-      soldeApresCalcul = 91;
+      soldeAvec = 0;
+      soldeSans = 91;
       poser({ ...liste.charge, date: '2026-09-20' }, { date: '2026-10-01' });
+    };
+
+    it('MOIS SOLDÉ QUITTÉ, report désactivé : l\'écart se CONFIRME avant d\'écrire', async () => {
+      const releve = repondre(true);
+      quitterSeptembreSolde();
 
       await liste.enregistrer();
 
-      expect(dits('info').join(' ')).toMatch(/Le solde de septembre 2026 passe de/);
+      expect(showConfirmModal).toHaveBeenCalledTimes(1);
+      expect(showConfirmModal.mock.calls[0][0]).toMatch(/Le solde de septembre 2026 passe de/);
+      expect(releve.avant).toBe(0);
+      expect(dbUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it('TÉMOIN — le même geste, report ACTIVÉ : l\'écart rejoint la chaîne, rien à dire', async () => {
-      setState('currentPeriod', '2026-09');
-      setState('carryOverEnabled', true);
-      setState('dernierSolde', 0);
-      soldeApresCalcul = 91;
-      poser({ ...liste.charge, date: '2026-09-20' }, { date: '2026-10-01' });
+    it('… et ANNULER n\'écrit rien, ni dans un mois ni dans l\'autre', async () => {
+      repondre(false);
+      quitterSeptembreSolde();
 
       await liste.enregistrer();
 
-      expect(dits('info').join(' ')).not.toMatch(/Le solde de/);
+      expect(showConfirmModal).toHaveBeenCalledTimes(1);
+      expect(dbUpdate).not.toHaveBeenCalled();
+      expect(dbPush).not.toHaveBeenCalled();
+      expect(dits('info')).toContain('Rien n\'a été modifié');
+    });
+
+    it('TÉMOIN — le même geste, report ACTIVÉ : l\'écart rejoint la chaîne, rien à demander', async () => {
+      quitterSeptembreSolde();
+      setState('carryOverEnabled', true);
+
+      await liste.enregistrer();
+
+      expect(showConfirmModal).not.toHaveBeenCalled();
+      expect(dbUpdate).toHaveBeenCalledTimes(1);
     });
   });
 }
 
-describe('La reconduction, après le déplacement d\'une charge fixe', () => {
-  it('le blocage d\'un mois neuf ARRIVE à l\'écran', async () => {
-    // Octobre porte deux abonnements récurrents ; Netflix part en novembre, mois
-    // pas encore ouvert. Sans avertissement, novembre ne recevrait jamais le
-    // loyer — la garde « mois déjà garni » de `recurrence.js`.
-    const commun = {
-      [OCTOBRE]: {
-        fixedCharges: {
-          f0: { description: 'Loyer', amount: 900, paidBy: 'vous', recurring: true },
-          f1: LISTES[1].charge
-        }
-      }
-    };
+describe('La reconduction, AVANT le déplacement d\'une charge fixe', () => {
+  const LOYER = { description: 'Loyer', amount: 900, paidBy: 'vous', recurring: true };
+
+  /** Sert la base commune ; tout le reste — les poches — est vide */
+  const servir = (commun) =>
     dbGet.mockImplementation(async (chemin) => (chemin === 'periods' ? commun : null));
 
+  /** Rouvre Netflix (f1) d'octobre et le redate au 5 novembre */
+  const redaterAu5Novembre = async () => {
     document.body.innerHTML = FORMULAIRE_FIXE;
     setState('fixedCharges', [LISTES[1].charge]);
-    document.getElementById('fixedChargeDate').value = '2026-11-01';
-
+    document.getElementById('fixedChargeDate').value = '2026-11-05';
     await saveFixedCharge();
+  };
+
+  const OCTOBRE_GARNI = { fixedCharges: { f0: LOYER, f1: LISTES[1].charge } };
+
+  /**
+   * LE CAS VU À L'ÉCRAN, le 2026-11-01 en bac à sable : novembre déjà reconduit
+   * — il porte la copie de Netflix —, et le Netflix d'octobre redaté au 05/11.
+   * Deux exemplaires en novembre, 8 € au lieu de 4 €. Le message n'est arrivé
+   * qu'APRÈS l'écriture, puis a disparu.
+   */
+  const NOVEMBRE_RECONDUIT_AVEC_SA_COPIE = {
+    [OCTOBRE]: OCTOBRE_GARNI,
+    '2026-11': {
+      reconductedFrom: OCTOBRE,
+      fixedCharges: { r1: { ...LISTES[1].charge, id: undefined, date: '2026-11-03' } }
+    }
+  };
+
+  it('DOUBLON — la modale paraît AVANT l\'écriture et nomme la conséquence', async () => {
+    servir(NOVEMBRE_RECONDUIT_AVEC_SA_COPIE);
+    const releve = repondre(true);
+
+    await redaterAu5Novembre();
+
+    expect(showConfirmModal).toHaveBeenCalledTimes(1);
+    expect(showConfirmModal.mock.calls[0][0])
+      .toMatch(/Novembre 2026 porte déjà une charge « Netflix » : la déplacer la comptera deux fois\./);
+    expect(releve.avant).toBe(0);
+  });
+
+  it('DOUBLON — ANNULER laisse les deux mois intacts', async () => {
+    servir(NOVEMBRE_RECONDUIT_AVEC_SA_COPIE);
+    repondre(false);
+
+    await redaterAu5Novembre();
+
+    expect(dbUpdate).not.toHaveBeenCalled();
+    expect(dbPush).not.toHaveBeenCalled();
+    expect(dits('info')).toContain('Rien n\'a été modifié');
+    expect(dits('success')).toEqual([]);
+  });
+
+  it('DOUBLON — CONFIRMER déplace, en une écriture', async () => {
+    servir(NOVEMBRE_RECONDUIT_AVEC_SA_COPIE);
+    repondre(true);
+
+    await redaterAu5Novembre();
 
     expect(dbUpdate).toHaveBeenCalledTimes(1);
-    expect(dits('warning').join(' ')).toMatch(/Novembre 2026 ne recevra pas/);
+    expect(dbUpdate.mock.calls[0][1]).toEqual({
+      'periods/2026-11/fixedCharges/f1': expect.objectContaining({ date: '2026-11-05' }),
+      'periods/2026-10/fixedCharges/f1': null
+    });
+    expect(dits('success')).toContain('Charge déplacée en novembre 2026, sa date');
+  });
+
+  it('TÉMOIN — destination reconduite SANS charge du même libellé : aucune modale', async () => {
+    // Une modale qui paraîtrait à chaque déplacement deviendrait du bruit qu'on
+    // valide sans le lire — et ne protégerait plus le cas qui compte.
+    servir({
+      [OCTOBRE]: OCTOBRE_GARNI,
+      '2026-11': { reconductedFrom: OCTOBRE, fixedCharges: { r0: { ...LOYER } } }
+    });
+
+    await redaterAu5Novembre();
+
+    expect(showConfirmModal).not.toHaveBeenCalled();
+    expect(dbUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('BLOCAGE — un mois pas encore reconduit : la modale paraît, Annuler n\'écrit rien', async () => {
+    // Novembre n'est pas reconduit : Netflix le garnirait, et `recurrence.js`
+    // refuse un mois « déjà garni » — le loyer n'y arriverait jamais.
+    servir({ [OCTOBRE]: OCTOBRE_GARNI });
+    repondre(false);
+
+    await redaterAu5Novembre();
+
+    expect(showConfirmModal).toHaveBeenCalledTimes(1);
+    expect(showConfirmModal.mock.calls[0][0]).toMatch(/Novembre 2026 ne recevra pas/);
+    expect(dbUpdate).not.toHaveBeenCalled();
+  });
+
+  it('LECTURE IMPOSSIBLE — on ne se tait pas : la modale le dit', async () => {
+    // Un contrôle qui ne peut pas mesurer ne doit pas passer pour un contrôle
+    // qui n'a rien trouvé (règle 1).
+    dbGet.mockImplementation(async () => { throw new Error('réseau'); });
+    repondre(false);
+
+    await redaterAu5Novembre();
+
+    expect(showConfirmModal).toHaveBeenCalledTimes(1);
+    expect(showConfirmModal.mock.calls[0][0]).toMatch(/n'a pas pu être vérifi/);
+    expect(dbUpdate).not.toHaveBeenCalled();
   });
 
   it('TÉMOIN — une charge VARIABLE déplacée ne lit pas l\'historique pour rien', async () => {

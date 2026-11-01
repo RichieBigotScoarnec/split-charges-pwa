@@ -130,6 +130,56 @@ function refreshTrendsVisibility(historique) {
 }
 
 /**
+ * Ce que le bilan du mois affiché reçoit — lu dans l'état, une seule fois
+ *
+ * `remplacements` substitue une liste de charges à celle de l'état, sans rien
+ * écrire : c'est ainsi qu'une modification sait, AVANT d'écrire, ce que le
+ * mois deviendrait sans la charge qu'elle déplace.
+ *
+ * @param {{fixedCharges?: Array, variableCharges?: Array}} [remplacements]
+ * @returns {Object} Les entrées de `computeSummary`
+ */
+export function entreesDuBilan(remplacements = {}) {
+  return {
+    salaries: getState('salaries') || { vous: 0, conjointe: 0 },
+    fixedCharges: remplacements.fixedCharges ?? (getState('fixedCharges') || []),
+    variableCharges: remplacements.variableCharges ?? (getState('variableCharges') || []),
+    reimbursements: getState('reimbursements') || [],
+    // Le mois affiché peut avoir figé son mode (reconduction) : c'est celui-là
+    // qui décide, exactement comme dans `computeBalanceChain`. Même fabrique
+    // des deux côtés — sans quoi l'écran et le report annoncent deux chiffres
+    // pour le même mois.
+    shareMode: resolveShareMode(getState('shareModeDuMois'), getState('shareMode')),
+    // Les pourcentages figés du mois, s'il en a. Figer le mode sans ses
+    // paramètres ne protégeait rien sur « custom », le seul mode qui en porte.
+    customPercents: resolvePercents(
+      getState('customPercentsDuMois'),
+      getState('customPercents') || { vous: 50, conjointe: 50 }
+    ),
+    // Report du mois précédent : nul tant que la fonction n'est pas activée,
+    // l'ajout est donc sans effet sur le comportement historique.
+    carryOver: getState('carryOver') || 0
+  };
+}
+
+/**
+ * Le solde du mois affiché, tel que le bilan l'annoncerait — sans rien rendre
+ *
+ * Même entrées, même garde, même calcul que `calculateSummary` : sans revenus
+ * au prorata, le bilan publie 0, et ce solde aussi.
+ *
+ * @param {{fixedCharges?: Array, variableCharges?: Array}} [remplacements]
+ * @returns {number}
+ */
+export function soldeDuMoisAffiche(remplacements) {
+  const entrees = entreesDuBilan(remplacements);
+  if (exigeLesSalaires(entrees.shareMode) && resolveIncomeBase(entrees.salaries).total === 0) {
+    return 0;
+  }
+  return computeSummary(entrees).balance;
+}
+
+/**
  * Calcule le bilan financier complet
  * @returns {Object} Résumé du bilan
  */
@@ -148,14 +198,12 @@ export function calculateSummary({ historique } = {}) {
   // pouvait le voir, l'ordre de deux lignes n'étant pas une valeur.
   refreshTrendsVisibility(historique);
 
-  const salaries = getState('salaries') || { vous: 0, conjointe: 0 };
-  const fixedCharges = getState('fixedCharges') || [];
-  const variableCharges = getState('variableCharges') || [];
-  const reimbursements = getState('reimbursements') || [];
-  // Le mois affiché peut avoir figé son mode (reconduction) : c'est celui-là
-  // qui décide, exactement comme dans `computeBalanceChain`. Même fabrique des
-  // deux côtés — sans quoi l'écran et le report annoncent deux chiffres pour
-  // le même mois.
+  // Les entrées du calcul, d'UNE fabrique : `entreesDuBilan`, que lit aussi
+  // `soldeDuMoisAffiche`. Deux préparations du même bilan finiraient par
+  // annoncer deux soldes pour le même mois (règle 2).
+  const {
+    salaries, fixedCharges, variableCharges, reimbursements, shareMode, customPercents, carryOver
+  } = entreesDuBilan();
   // LA PORTÉE GOUVERNE TOUT LE PANNEAU BILAN — décision du foyer, 2026-09-11.
   // Le panneau déclare ce qu'il lit ; les cartes qui parlent du foyer se
   // taisent sous une lecture personnelle (summary.css, « La portée gouverne le
@@ -163,14 +211,6 @@ export function calculateSummary({ historique } = {}) {
   // qui sortirait tôt laisserait sinon l'état de la portée précédente.
   document.getElementById('panneauBilan')?.setAttribute(
     'data-lecture', porteeMontreLeFoyer(versantDuResume()) ? 'foyer' : 'personnelle'
-  );
-
-  const shareMode = resolveShareMode(getState('shareModeDuMois'), getState('shareMode'));
-  // Les pourcentages figés du mois, s'il en a. Figer le mode sans ses
-  // paramètres ne protégeait rien sur « custom », le seul mode qui en porte.
-  const customPercents = resolvePercents(
-    getState('customPercentsDuMois'),
-    getState('customPercents') || { vous: 50, conjointe: 50 }
   );
 
   // Le prorata porte sur l'ensemble des revenus, salaires et revenus
@@ -234,10 +274,6 @@ export function calculateSummary({ historique } = {}) {
     }
     return { total: 0, yourShare: 0, partnerShare: 0, balance: 0 };
   }
-
-  // Report du mois précédent : nul tant que la fonction n'est pas activée,
-  // l'ajout est donc sans effet sur le comportement historique.
-  const carryOver = getState('carryOver') || 0;
 
   // Calculs purs délégués à utils/calculations.js (couverts par tests unitaires)
   const summary = computeSummary({

@@ -204,7 +204,7 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 |---|---|---|---|
 | `utils/debug.js` | 39 | 0 | Critique — le plus importé du dépôt |
 | `state.js` | 36 | 1 | Critique — état global |
-| `utils/format.js` | 30 | 0 | Critique — affichage monétaire |
+| `utils/format.js` | 31 | 0 | Critique — affichage monétaire |
 | `components/toast.js` | 27 | 0 | Critique — feedback utilisateur partout |
 | `db.js` | 27 | **22** | Critique — abstraction DB |
 | `utils/date.js` | 27 | 0 | Important — date et période d'une charge |
@@ -212,9 +212,9 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 | `utils/perimetre.js` | 26 | 0 | Important — ce qui pèse sur le solde |
 | `poches.js` | 19 | 0 | Critique — les deux poches lues comme une seule |
 | `utils/montant.js` | 19 | 0 | Important — lecture d'une saisie |
+| `modules/summary.js` | 15 | 6 | Important — calculs dépendants |
 | `components/modal.js` | 14 | 2 | Important — piège à focus, confirmations |
 | `config.js` | 14 | 0 | Critique — `DATA_ROOT`, liste blanche |
-| `modules/summary.js` | 14 | 6 | Important — calculs dépendants |
 | `utils/diagnostics.js` | 13 | 0 | Important — le journal qui survit au téléphone |
 | `firebase-init.js` | 6 | 3 | Critique — connexion DB |
 | `modules/auth.js` | 1 | 0 | Critique — **hub** : 30 imports statiques, 29 appels à `runStep` |
@@ -376,6 +376,13 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > 25 → 26, perimetre 24 → 26, poches 18 → 19, modal 13 → 14. `poches.js` passe
 > à égalité avec `utils/montant.js`, et `modal.js` au-dessus de `config.js`. Le
 > hub est inchangé : 30 imports statiques, 29 `runStep`.
+
+> **Relevé le 2026-11-01, même lot, correctif « confirmer avant » — dans la
+> même passe.** Deux lignes bougent, les deux du correctif : `utils/format.js`
+> 30 → 31 (`changement-de-mois.js` chiffre la question) et `modules/summary.js`
+> 14 → 15 (`edition-charge.js` lit `soldeDuMoisAffiche`), qui repasse ainsi
+> au-dessus de `modal.js` et `config.js`. Hub inchangé : 30 imports statiques,
+> 29 `runStep`.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -2385,6 +2392,12 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   cours**, puisqu'il restaure HEAD et que le travail n'est pas commité. Copie de
   sûreté **avant** de muter, restauration par `cp`. Le piège est discret : le
   rouge qui suit ressemble à un mutant mal défait, pas à un correctif effacé.
+  **Et la copie se refait à CHAQUE passe de mutants.** Le 2026-11-01, une copie
+  du 2026-10-29, restée dans le dossier temporaire, a restauré
+  `changement-de-mois.js` dans son état COMMITÉ : trois modifications du jour
+  effacées, en vert — le fichier restauré était cohérent avec lui-même. C'est
+  un `grep` sur la fonction neuve qui l'a dit. Une copie de sûreté porte une
+  date, comme un artefact (règle 5).
 
 - **`git log main..branche` et `git diff main..branche` ne répondent PAS à la
   même question, et seule la seconde protège d'un merge destructeur.**
@@ -2963,6 +2976,21 @@ information reçue.**
 >   `ecrituresDuDeplacement`, une écriture atomique. Les deux peuvent arriver
 >   ensemble : une confirmation (celle de la poche), une écriture. Le mois seul
 >   ne se confirme pas : la date saisie EST la demande.
+> - **⟲ SAUF QUAND SA CONSÉQUENCE TOUCHE L'ARGENT — corrigé le 2026-11-01, vu
+>   à l'écran.** En bac à sable : un abonnement d'octobre redaté au 05/11,
+>   novembre déjà reconduit — deux exemplaires, 8 € au lieu de 4 €. Les trois
+>   avertissements du lot (doublon probable, mois qui ne recevra plus ses
+>   charges récurrentes, écart sur un mois passé report désactivé) étaient des
+>   TOASTS, émis APRÈS l'écriture : un message qui paraît puis disparaît, sans
+>   rien demander, l'argent déjà déplacé. Ils sont devenus des **conséquences,
+>   confirmées AVANT l'écriture** dans une seule modale
+>   (`questionDuDeplacement`), même patron que la bascule « perso » ; Annuler
+>   n'écrit rien. Sans conséquence, aucune modale — sinon elle devient du bruit
+>   qu'on valide sans lire. Le solde « sans la charge » vient de
+>   `soldeDuMoisAffiche` (`summary.js`), qui lit les mêmes entrées que le bilan
+>   (`entreesDuBilan`) : pas de second calcul du solde (règle 2). Et une
+>   lecture impossible de l'historique n'est plus un silence : elle devient une
+>   conséquence, que la modale nomme.
 > - **La destination est l'ancienne charge PLUS le formulaire**, `id` retiré.
 >   La bascule de P1b posait `apres` seul, et perdait en silence tout champ que
 >   le formulaire ne porte pas.
@@ -2979,10 +3007,10 @@ information reçue.**
 >
 > **Trois bornes, dites plutôt que découvertes :**
 >
-> - l'écart rétroactif ne se dit que pour le mois QUITTÉ (le mois affiché,
->   dont `dernierSolde` est le solde) ; un mois d'ARRIVÉE passé et soldé n'est
->   pas vérifié ;
-> - l'avertissement de reconduction ne porte que sur les charges FIXES ; une
+> - l'écart rétroactif ne se confirme que pour le mois QUITTÉ (le mois
+>   affiché, le seul dont le bilan se calcule sans le charger) ; un mois
+>   d'ARRIVÉE passé et soldé n'est pas vérifié ;
+> - la confirmation de reconduction ne porte que sur les charges FIXES ; une
 >   variable récurrente déplacée vers un mois déjà reconduit n'est pas
 >   signalée ;
 > - le défaut de fond de la reconduction n'est pas réparé — voir les points
@@ -3162,8 +3190,9 @@ les relevés pris avant valent toujours.
    « déjà garni » d'une charge fixe active : le loyer n'y est alors jamais
    recopié. **Deux portes y mènent** — l'ajout d'une charge fixe datée dans un
    mois futur (depuis le rangement par la date de l'ajout), et depuis le
-   2026-10-29 sa modification vers un tel mois. La seconde AVERTIT
-   (`avertissementDeReconduction`), la première pas. Le correctif est dans la
+   2026-10-29 sa modification vers un tel mois. La seconde se CONFIRME avant
+   l'écriture depuis le 2026-11-01 (`avertissementDeReconduction`, une
+   conséquence de la modale) ; la première ne dit rien. Le correctif est dans la
    reconduction, pas dans les formulaires, et il demande de savoir ce que la
    garde « mois déjà garni » protège en plus de l'empreinte — à mesurer avant
    d'y toucher.
