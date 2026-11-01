@@ -3246,6 +3246,25 @@ les relevés pris avant valent toujours.
     il n'est PAS commité : ses instantanés sont pris sur le compte réel du bac
     à sable. Ce constat reste ouvert jusqu'à la prochaine occurrence (règle 5,
     « un contrôle tombé une fois et non reproduit reste ouvert »).
+12. **⚠️ `data-flow.spec.js:1346` — « un mois déjà garni à la main n'est pas
+    complété » — reste VERT garde retirée. Il ne mesure pas ce que son titre
+    dit.** Mesuré en phase A du lot 2 (2026-11-01, sur `47ed7c5`) : garde
+    « mois déjà garni » retirée de `utils/recurrence.js`, le cas passe. Une
+    copie jetable du même scénario, comptée 4 s après le geste, sépare les
+    deux :
+
+    | | « Loyer » juste après le clic | après 4 s | charges fixes en base | empreinte |
+    |---|---|---|---|---|
+    | avec la garde | 1 | **0** | 1 | aucune |
+    | sans la garde | 1 | **1** | 2 | `2026-10` |
+
+    **Ce qui le rendait vide** : son `toHaveCount(0)` réessaie jusqu'au premier
+    rendu de novembre, qui précède l'écriture de la reconduction — la
+    reconduction tourne en FIN de `loadPeriodData`. Il passe donc avant que la
+    propriété qu'il tient puisse être fausse. Il ne déclare par ailleurs ni
+    horloge ni largeur. **Il sera réécrit par le lot 2** sur la nouvelle
+    propriété, compté APRÈS la reconduction, à 320 et 390 px — et devra tomber
+    garde remise.
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).
