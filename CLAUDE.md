@@ -2395,9 +2395,14 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   **Et la copie se refait à CHAQUE passe de mutants.** Le 2026-11-01, une copie
   du 2026-10-29, restée dans le dossier temporaire, a restauré
   `changement-de-mois.js` dans son état COMMITÉ : trois modifications du jour
-  effacées, en vert — le fichier restauré était cohérent avec lui-même. C'est
-  un `grep` sur la fonction neuve qui l'a dit. Une copie de sûreté porte une
-  date, comme un artefact (règle 5).
+  effacées, puis repérées par un `grep` sur la fonction neuve, AVANT toute
+  passe de tests. Rejouées le 2026-11-01 sur `47ed7c5`, retirées une à une,
+  elles font toutes trois rougir la suite unitaire (2, 11 et 11 cas), et les
+  modifications 2 et 3 font aussi tomber `eslint`. Une copie de sûreté porte
+  une date, comme un artefact (règle 5).
+  > Cette entrée disait « effacées, en vert » : aucun test n'avait tourné entre
+  > l'écrasement et le `grep`. C'était une affirmation sans mesure — la règle 5
+  > appliquée à sa propre entrée.
 
 - **`git log main..branche` et `git diff main..branche` ne répondent PAS à la
   même question, et seule la seconde protège d'un merge destructeur.**
