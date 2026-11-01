@@ -1,0 +1,60 @@
+{
+  "name": "FairSplit",
+  "short_name": "FairSplit",
+  "description": "Partage équitable des charges au prorata des salaires",
+  "start_url": "./FairSplit.html",
+  "scope": "./",
+  "background_color": "#F8FAFC",
+  "theme_color": "#4F46E5",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Saisie rapide",
+      "short_name": "Saisie",
+      "description": "Enregistrer une dépense en trois gestes",
+      "url": "./FairSplit.html?action=quick-add",
+      "icons": [
+        {
+          "src": "icon-quick-add-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
+        {
+          "src": "icon-quick-add-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  }
+}

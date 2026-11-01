@@ -1,0 +1,181 @@
+/* ===== CARTE MAP ===== */
+/*
+   La carte est une modale : elle doit se poser devant la page.
+
+   Elle n'en avait pourtant que le balisage. `.map-modal` ne portait que
+   `max-width`, `width` et `max-height` — les dimensions d'une *boîte*, alors
+   que `.modal-overlay`, qu'emploient toutes les autres modales, porte le
+   `position: fixed`, le voile et le `z-index`. Quelqu'un avait stylé le voile
+   comme s'il était la boîte.
+
+   Résultat mesuré : `position: static`, posée au pixel 3 472 d'une page qui en
+   compte 3 472 — c'est-à-dire tout en bas, hors de l'écran, bouton de
+   fermeture compris. Ouvrir la carte ne montrait rien.
+*/
+.map-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  padding: var(--space-md);
+  align-items: center;
+  justify-content: center;
+}
+
+.map-modal.active {
+  display: flex;
+}
+
+.map-modal-content {
+  width: 900px;
+  max-width: 100%;
+  /* La hauteur est bornée, et c'est le contenu qui défile : sans cela, filtres
+     et statistiques débordaient sous le bord de l'écran. */
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg, var(--radius));
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+}
+
+.map-container {
+  height: 500px;
+  /* Sur un téléphone, 500 px fixes ne laissaient pas la place aux filtres ni
+     aux totaux. La carte prend ce qui reste, sans jamais chasser le reste. */
+  max-height: 50vh;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: var(--space-md) 0;
+}
+
+/* ===== LEAFLET CUSTOMIZATION =====
+   .leaflet-popup-content est produite par Leaflet, pas par ce dépôt : elle
+   n'apparaît donc dans aucun de nos fichiers. Un balayage des classes
+   inutilisées la signalera comme orpheline — elle ne l'est pas. */
+.leaflet-popup-content {
+  font-family: var(--font);
+  min-width: 200px;
+}
+
+.popup-content {
+  padding: 4px;
+}
+
+.popup-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
+}
+
+.popup-detail {
+  font-size: 12px;
+  margin-bottom: var(--space-xs);
+  color: var(--text-muted);
+}
+
+.popup-detail strong {
+  color: var(--text-primary);
+}
+
+/* Custom marker
+   Le module posait son apparence en style en ligne — fond blanc, bordure
+   #667eea écrite en dur — qui contredisait cette règle et ignorait le thème
+   sombre. Le balisage ne porte plus que l'emoji, le dessin est ici, et les
+   dimensions suivent l'iconSize déclaré par Leaflet (30 × 30). */
+.custom-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  font-size: 17px;
+  line-height: 1;
+  background: var(--card-bg);
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+}
+
+/* ===== STRUCTURE DE LA MODALE =====
+   Ces classes sont produites par map.js depuis toujours ; aucune règle ne les
+   visait. L'en-tête, les filtres et les totaux s'affichaient sans mise en
+   forme, au-dessus d'une carte qui, elle, en avait une. */
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.map-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.btn-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.btn-close:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.map-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.map-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.map-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.map-stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.map-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.map-stat-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}

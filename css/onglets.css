@@ -1,0 +1,733 @@
+/* ===== BARRE D'ONGLETS ET PANNEAUX =====
+   ---------------------------------------------------------------------------
+   Le problème mesuré : sur un téléphone, la page empilait cinq sections et une
+   rangée de dix boutons d'outils. Répondre à « qui doit combien à qui » et
+   corriger une charge de la semaine passée demandaient le même geste — faire
+   défiler jusqu'à trouver.
+
+   Le découpage suit la question qu'on se pose, pas le type de donnée :
+
+     📊 Bilan     — où on en est : solde, prévisionnel, budgets, tendances
+     🧾 Charges   — ce qu'on a dépensé : recherche et les trois listes
+     ⚙️ Réglages  — ce qui ne bouge presque jamais : revenus, règle de
+                    partage, rappels, outils
+
+   Trois destinations, chacune tenant sur un écran.
+
+   Point de rupture à 900 px, celui qui existait déjà : c'est là que la mise en
+   page passe en colonnes. Au-delà, les trois panneaux s'affichent ensemble et
+   la barre disparaît — il y a la place de tout montrer, et masquer les deux
+   tiers d'un grand écran serait une régression, pas un rangement.
+   --------------------------------------------------------------------------- */
+
+/*
+   La barre elle-même.
+
+   Posée en bas : c'est la zone que le pouce atteint sans changer la prise,
+   et l'idiome que toutes les applications bancaires — Sumeria comprise —
+   emploient. `env(safe-area-inset-bottom)` tient compte de la barre système
+   des téléphones sans bouton d'accueil.
+
+   `display: none` par défaut, révélée par la requête média plus bas : ainsi
+   l'impression et les grands écrans n'ont rien à défaire.
+*/
+.onglets {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  /*
+     ─────────────────────────────────────────────────────────────────────
+     CE QUI EST AMENÉ DANS LA VUE ATTERRIT ENTRE LES DEUX BARRES.
+
+     Deux surfaces flottantes encadrent le contenu : le bandeau du mois en haut
+     (`sticky`, 103 px) et la barre d'onglets en bas (`fixed`, 57 px). Sans ces
+     deux réserves, `scrollIntoView` gare sa cible à `top: 0` — c'est-à-dire
+     SOUS le bandeau — et le clic part dans `#periodSelect`. Mesuré le
+     2026-09-09, et déjà vu en CI le 2026-09-01 : 25 interceptions,
+     `locator.click` expiré à 30 s, sur une page parfaitement chargée.
+
+     `scroll-padding` sur le CONTENEUR, et non `scroll-margin` sur chaque cible :
+     les deux barres ne sont la propriété d'aucune ligne en particulier, et une
+     marge posée sur les lignes du grand-livre laisserait le prochain élément
+     qu'on amènera dans la vue retomber dans le même trou.
+
+     ── CE QUE ÇA NE CORRIGE PAS, ET IL FAUT LE DIRE ──
+
+     Un bandeau collant recouvre par construction ce qui défile dessous. Une
+     personne qui fait défiler à la main peut toujours s'arrêter avec une ligne
+     dessous — 22 positions à 320 px, relevées. Elle défile un peu plus ; c'est
+     le comportement de toute application à en-tête collant.
+
+     Ce qui n'avait aucun recours, et que ces deux lignes réparent, c'est le
+     GESTE qui amène quelqu'un sur une ligne pour la toucher.
+     ───────────────────────────────────────────────────────────────────── */
+  html {
+    scroll-padding-top: var(--bandeau-colle-h);
+    scroll-padding-bottom: var(--barre-onglets-h);
+  }
+
+  .onglets {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    display: flex;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    /* L'ombre est portée vers le haut : la barre flotte au-dessus du contenu
+       qui passe dessous, et le liseré seul ne suffit pas à le dire. */
+    box-shadow: 0 -2px 12px rgba(60, 42, 28, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .onglet {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    /* 56 px : au-delà des 44 px des WCAG 2.5.5, parce que c'est la commande
+       la plus souvent visée de l'application. */
+    min-height: 56px;
+    padding: var(--space-sm) var(--space-xs);
+    border: none;
+    /* Le liseré du haut est le témoin d'activité : réservé dès le repos pour
+       qu'activer un onglet ne déplace jamais rien. */
+    border-top: 3px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+  }
+
+  .onglet-icone {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .onglet-nom {
+    /* Sur un écran de 320 px chaque onglet dispose d'environ 106 px : les
+       trois intitulés — Bilan, Charges, Réglages — y tiennent sans coupure. */
+    white-space: nowrap;
+  }
+
+  .onglet:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+  }
+
+  /*
+     L'onglet courant se marque par la couleur ET par le liseré : la couleur
+     seule ne suffit pas — WCAG 1.4.1 interdit d'en faire le seul véhicule
+     d'une information. `aria-current` porte la même chose pour un lecteur
+     d'écran, et c'est lui qu'on stylise : impossible de peindre un onglet
+     actif sans l'annoncer.
+  */
+  .onglet[aria-current="true"] {
+    color: var(--primary-ink);
+    border-top-color: var(--primary-color);
+    background: var(--primary-soft);
+  }
+
+  .onglet:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+  }
+
+  /*
+     Les panneaux au repos.
+
+     `display: none` et non l'attribut `hidden` : la règle globale `[hidden]`
+     de base.css vaut pour tout l'écran, et un panneau masqué par attribut
+     resterait masqué au-delà de 900 px sans qu'on puisse le rouvrir
+     proprement depuis une requête média. Une classe se laisse annuler ;
+     `display: none` retire aussi le panneau de l'arbre d'accessibilité, ce
+     qui est exactement ce qu'on veut d'une section non affichée.
+  */
+  .panneau {
+    display: none;
+  }
+
+  .panneau--actif {
+    display: block;
+  }
+
+  /*
+     La place que la barre occupe.
+
+     Sans cette réserve, la dernière carte de chaque panneau passe sous la
+     barre et devient illisible — le défaut classique d'une barre fixe. Mesuré
+     avant correction : 32 px de contenu masqués, sur un écran de 390 × 844.
+
+     `body .container` et non `.container` : sous 600 px, `responsive.css`
+     applique `padding: var(--space-sm)`, un raccourci qui réécrit les quatre
+     côtés. À spécificité égale — une requête média n'en ajoute pas — c'est la
+     feuille chargée en dernier qui l'emporte, et c'est elle. Le sélecteur plus
+     précis garde la question ici, avec les onglets qui la posent, plutôt que
+     d'aller modifier une règle dont ce n'est pas le sujet.
+
+     56 px de barre + la marge basse + l'encoche des téléphones sans bouton.
+  */
+  body .container {
+    padding-bottom: calc(56px + var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /*
+     Le bouton flottant se hisse au-dessus de la barre.
+
+     Même précaution, et pour la même raison : `responsive.css` le pose à
+     88 px sous 600 px, et `components.css` à 24 px au-dessus. Le second se
+     serait posé sur les onglets. `body .fab` — et non `.container .fab` : le
+     bouton est un enfant direct de `<body>`, un sélecteur le supposant dans
+     le conteneur ne désignerait rien du tout.
+  */
+  body .fab {
+    bottom: calc(56px + var(--space-md) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ===== LES PORTES DU BUREAU =====
+   ---------------------------------------------------------------------------
+   Au-delà de 900 px la barre d'onglets n'existe pas. Jusqu'au lot E ce
+   n'était pas un manque : les trois panneaux avaient chacun leur place,
+   empilés ou en trois colonnes. La maquette sort Réglages du tableau de bord
+   (planches 1 et 3) — il lui faut donc un chemin, et un chemin de retour.
+
+   Deux PORTES, branchées par `onglets.js` exactement comme un onglet :
+     - « ⚙️ Réglages », dans l'en-tête, à droite, avant le compte ;
+     - « ← Retour au tableau de bord », en tête de l'écran Réglages.
+
+   Masquées sous 900 px : la barre du bas porte déjà « Réglages », et le
+   retour y serait un second chemin vers le même écran, sur la largeur où la
+   place se compte au pixel.
+
+   `screen` et pas la seule largeur : une page imprimée assez large tomberait
+   sous la règle qui masque Réglages, et « à l'impression, tout se montre ».
+*/
+.porte-reglages,
+.reglages-entete {
+  display: none;
+}
+
+@media screen and (min-width: 900px) {
+  /* L'écran Réglages REMPLACE le tableau de bord : les deux ne se montrent
+     jamais ensemble. Ailleurs, c'est lui qui s'efface ; sur lui, ce sont les
+     deux colonnes. `:has` lit l'état que `onglets.js` pose déjà — aucune
+     classe de plus à tenir en accord avec `panneau--actif`. */
+  .col-reglages:not(.panneau--actif) {
+    display: none;
+  }
+
+  #mainApp:has(> .col-reglages.panneau--actif) > .col-bilan,
+  #mainApp:has(> .col-reglages.panneau--actif) > .col-listes {
+    display: none;
+  }
+
+  /* L'en-tête sur une ligne : la marque à gauche, la porte et le compte à
+     droite (planche 1). Il était centré sur deux rangées ; la porte y aurait
+     flotté au milieu, sans rapport avec rien. */
+  #mainApp > header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    text-align: left;
+  }
+
+  #mainApp > header h1 {
+    margin: 0 auto 0 0;
+  }
+
+  #mainApp > header .user-info-bar {
+    margin-top: 0;
+  }
+
+  .porte {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 44px;
+    padding: 0 var(--space-md);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .porte:hover,
+  .porte[aria-current="true"] {
+    color: var(--text-primary);
+    background: var(--hover-bg);
+  }
+
+  .reglages-entete {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+
+  .reglages-titre {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+}
+
+/*
+   À l'impression, tout se montre.
+
+   `export.js` construit sa propre page dans une nouvelle fenêtre, donc l'export
+   PDF ne dépend pas de ceci. Mais un Ctrl+P sur la page vivante ne doit pas
+   rendre le seul onglet ouvert : une feuille de comptes amputée des deux tiers
+   sans le dire est pire qu'une impression refusée.
+*/
+@media print {
+  .onglets {
+    display: none;
+  }
+
+  .panneau {
+    display: block;
+  }
+
+  body .container {
+    padding-bottom: 0;
+  }
+}
+
+/* ===== L'EN-TÊTE, ET CE QU'IL COÛTE =====
+   ---------------------------------------------------------------------------
+   Mesuré sur un écran de 390 × 844, avant correction : **294 px avant le
+   premier contenu, soit 35 % de l'écran** — 159 px d'en-tête, 111 px de
+   sélecteur de mois, et le reste en marges. Et rien ne restait épinglé au
+   défilement : passé le premier écran, on ne savait plus quel mois on lisait.
+
+   Le découpage en onglets a rendu ce coût plus lourd qu'il n'était : changer
+   d'onglet remonte en haut, donc ces 294 px se repaient à chaque fois.
+
+   Deux corrections distinctes :
+
+   1. **Au repos** — l'en-tête tient sur une ligne : la marque à gauche, le
+      compte à droite, au lieu de trois rangées centrées.
+   2. **Au défilement** — le mois reste collé en haut, dans un bandeau qui se
+      compacte : le badge « période actuelle » s'efface, les marges se
+      resserrent. C'est la seule chose qu'il faut garder sous les yeux quand
+      on parcourt des charges.
+
+   Rien de tout cela au-delà de 900 px : la page y tient en colonnes, l'en-tête
+   n'y est pas un péage.
+   --------------------------------------------------------------------------- */
+
+/*
+   Le bandeau réunit le mois et le solde dans un seul conteneur collant.
+
+   Collés séparément, il aurait fallu décaler le solde de la hauteur exacte du
+   sélecteur — une valeur qui change entre l'état compact et l'état de repos.
+   Un nombre écrit en dur aurait fait mentir un cas sur deux : soit un trou,
+   soit un recouvrement. Réunis, ils s'empilent d'eux-mêmes.
+
+   `display: contents` par défaut : au-delà de 900 px le conteneur disparaît de
+   la mise en page et rend ses deux enfants à la grille, qui les place comme
+   avant. La requête média ci-dessous le rétablit là où il sert.
+*/
+.bandeau-colle {
+  display: contents;
+}
+
+@media (max-width: 899px) {
+  /*
+     Le titre de la carte répète le nom de l'onglet dont on vient.
+
+     Sous 899 px la barre d'onglets nomme déjà le panneau : « Bilan » en bas de
+     l'écran, « 📊 Résumé du Mois » en haut de la carte. Deux fois la même
+     chose, pour une ligne du premier écran — la ressource la plus rare de
+     l'application, celle où le solde doit tenir sans défiler. Au-delà, la
+     barre disparaît et les trois panneaux prennent leurs colonnes : le titre
+     redevient le seul repère, et il reste.
+
+     Le titre est CLIPPÉ, pas retiré : la `<section>` le désigne par
+     `aria-labelledby`, et un lecteur d'écran continue de l'annoncer. Ce qui
+     n'a plus lieu d'être, c'est la bande de l'en-tête — sa marge, son
+     remplissage et son filet. `display: none` sur le seul titre laissait un
+     bandeau vide de 55 px surmonté d'un trait orphelin : on avait retiré le
+     texte et gardé le décor.
+  */
+  section[aria-labelledby="sectionResume"] > .card > .card-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  #sectionResume {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .bandeau-colle {
+    display: block;
+    position: sticky;
+    top: 0;
+    /* Au-dessus des cartes, sous les modales et la barre d'onglets. */
+    z-index: 55;
+    /* Sans fond, le contenu défilerait en transparence sous le bandeau. */
+    background: var(--dark-bg);
+  }
+
+  /*
+     L'en-tête au repos : une ligne au lieu de trois.
+
+     `text-align: center` et les trois rangées empilées appartenaient à un
+     écran d'accueil ; une fois connecté, la marque et le compte sont deux
+     informations qu'on ne lit plus — elles doivent tenir le moins de place
+     possible sans disparaître.
+  */
+  /*
+     Le rembourrage descend au plus petit jeton, et la marque avec lui.
+
+     Le lot 5 ajoute un sélecteur de portée sous le bandeau — 44 à 52 px — et
+     le budget avant le premier contenu est de 179 px à 320 px. Mesuré : cette
+     compaction rend 15 px, l'en-tête passant de 55 à 40 px marge comprise.
+
+     Elle ne touche QUE le vertical. Le rembourrage horizontal reste
+     `--space-md` : c'est lui qui aligne la marque sur le contenu des cartes,
+     et le resserrer ne rendrait rien du budget, qui se compte en hauteur.
+
+     La largeur a été mesurée, pas supposée : avec un nom de compte de 48
+     caractères à 320 px, le nom se rogne — la dégradation prévue — le titre
+     reste entier, l'en-tête ne déborde pas sa boîte et la page ne défile pas
+     en travers. C'est `onglets.spec.js`, « un nom de compte très long ».
+  */
+  #mainApp > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    text-align: left;
+    padding: var(--space-xs) var(--space-md);
+    margin-bottom: var(--space-xs);
+  }
+
+  #mainApp > header h1 {
+    margin-bottom: 0;
+    /* 17 px et non 19 : la marque reste lisible, et deux pixels de moins sur
+       la ligne la plus haute de l'en-tête en retirent autant à sa boîte. */
+    font-size: 17px;
+    /* La ligne ne se coupe pas : « FairSplit » et la marque restent ensemble. */
+    white-space: nowrap;
+  }
+
+  #mainApp > header .user-info-bar {
+    margin-top: 0;
+    /* Le nom du compte cède la place avant le bouton de déconnexion : sur un
+       écran de 320 px, c'est lui qu'on peut perdre sans rien perdre. */
+    min-width: 0;
+  }
+
+  #mainApp > header .user-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /*
+     Le sélecteur au repos : resserré, pas amputé.
+
+     Les flèches gardent leurs 44 px de cible tactile et le badge « période
+     actuelle » reste — c'est le rembourrage de la carte qui cède, pas ce
+     qu'elle contient.
+
+     ─────────────────────────────────────────────────────────────────────
+     LA DOUBLE CLASSE EST OBLIGATOIRE. NE PAS LA « SIMPLIFIER ».
+
+     Écrite `.period-navigation`, cette règle n'a jamais rien fait sur un
+     téléphone. `responsive.css` déclare :
+
+         @media (max-width: 600px) { .card { padding: var(--space-md) } }
+
+     Ce fichier charge APRÈS celui-ci, la spécificité est la même — (0,1,0)
+     contre (0,1,0) — et l'élément porte `class="card period-navigation"`.
+     C'est donc la dernière déclarée qui gagnait, avec le rembourrage d'une
+     carte pleine.
+
+     Conséquence mesurée le 2026-09-07 : 16 px de rembourrage vertical au lieu
+     de 8, à 320 comme à 390 px, soit 16 px de premier écran perdus sur tout
+     téléphone. La règle fonctionnait entre 601 et 899 px — une tablette — et
+     nulle part ailleurs, c'est-à-dire partout sauf là où elle a été écrite.
+
+     `.card.period-navigation` porte (0,2,0) et reprend la main sans
+     `!important` : le correctif reste une règle ordinaire, que la suivante
+     pourra battre en le disant.
+
+     Ce que ça tient : `onglets.spec.js`, « La carte du mois compactée », aux
+     trois largeurs 320 / 390 / 700, plus son témoin au-delà de 900 px.
+  */
+  .card.period-navigation {
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+
+  /*
+     La ligne du mois : 48 px en PLANCHER, et non en plafond.
+
+     Elle mesurait 44 px de contenu plus 4 px de marge basse — 48 px en tout,
+     mais 48 px que rien ne garantissait. Le même total est désormais porté par
+     la RANGÉE elle-même : la marge part, le plancher la remplace.
+
+     Ce n'est donc pas une compaction, ça ne rend aucun pixel, et c'est voulu.
+     Ce que ça change est une garantie : la ligne peut grandir si son contenu
+     le demande, elle ne peut plus descendre sous la hauteur d'une cible que le
+     doigt vise — les deux flèches et le sélecteur de mois vivent dedans.
+     Un plafond aurait fait l'inverse, et c'est le piège que la maquette
+     tendait en écrivant « 48 px » sans dire dans quel sens.
+  */
+  .period-selector {
+    /* 44 et non 48. Le 48 venait d'une simulation de maquette ; le seuil que
+       ce dépôt s'est donné est 44 (WCAG 2.5.5), et c'est exactement la
+       hauteur que `pointer: coarse` donne aux flèches et au sélecteur de mois
+       qui vivent dans cette rangée. Quatre pixels de premier écran rendus
+       sans rien promettre de moins. */
+    min-height: 44px;
+    margin-bottom: 0;
+  }
+
+  /*
+     L'état compact, posé par `utils/entete.js` dès que l'en-tête a quitté
+     l'écran. Le sélecteur perd son badge et ses marges — il ne garde que ce
+     qu'on doit voir en permanence : quel mois on lit, et comment en changer.
+  */
+  body[data-defile="true"] .period-navigation {
+    padding: var(--space-xs) var(--space-sm);
+    margin-bottom: var(--space-xs);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /*
+     Il y avait ici `body[data-defile="true"] .period-selector { margin-bottom:
+     0 }`, qui retirait au défilement la marge basse de la ligne du mois.
+
+     Cette marge n'existe plus : elle est devenue le plancher de la rangée,
+     juste au-dessus. La règle serait donc restée à ne rien faire, sans le
+     dire — la « règle morte » que ce fichier a déjà payée deux fois. Ce qui
+     compacte le bandeau au défilement est le rembourrage de la carte, qui lui
+     est bien toujours là.
+  */
+
+  /*
+     Il y avait ici une règle qui effaçait `.period-info` au défilement — le
+     badge « 📁 Mois archivé » ne répondant qu'à une question qu'on se pose en
+     arrivant.
+
+     Elle est partie AVEC son élément : la rangée n'existe plus, l'état vit
+     dans le libellé du mois et la levée de malentendu dans un toast. Une règle
+     qui désigne un sélecteur absent ne fait rien et ne le dit pas — c'est
+     exactement la « règle morte » que ce fichier a déjà payée sur
+     `.period-navigation`, et la laisser ici aurait fait croire à un
+     comportement qui n'existe plus.
+  */
+
+  /*
+     La transition porte sur le rembourrage seul. Animer la hauteur d'un
+     élément collant fait sauter le contenu qui le suit à chaque image ; le
+     rembourrage se compose sans déclencher de recalcul de mise en page pour
+     le reste de la page.
+
+     Le bloc `prefers-reduced-motion` de responsive.css la neutralise pour qui
+     l'a demandé.
+  */
+  .period-navigation {
+    transition: padding var(--duration) var(--ease);
+  }
+}
+
+/* ===== LES OUTILS, RANGÉS PAR CE QU'ILS FONT ===== */
+/*
+   Huit boutons alignés à égalité se lisent un par un. Deux boutons sous un
+   intitulé se lisent d'un coup d'œil. Le gain n'est pas la place occupée —
+   c'est le nombre de choses à lire avant d'en viser une.
+*/
+.outils-titre {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.outils-titre:first-of-type {
+  margin-top: 0;
+}
+
+.outils-rangee {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.outils-rangee .btn {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* ===== LES ACCÈS QUOTIDIENS DU BILAN ===== */
+/*
+   Ce qui reste sur l'écran d'accueil : les enveloppes. « Privé » est devenu
+   une portée le 2026-09-08, et la carte a sa propre carte depuis le lot E,
+   « Où vous dépensez ». La rangée vit dans la carte « Enveloppes à deux ».
+*/
+.acces-rapides {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--elevated-bg);
+  border-radius: var(--radius);
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/*
+   Un outil garde sa taille, seul ou accompagné.
+
+   `flex: 1` faisait partager la rangée en parts égales. C'était juste tant
+   qu'ils étaient deux ou trois ; « Privé » est parti le 2026-09-08 — il est
+   devenu une portée — et « Enveloppes » restait seul à s'étirer sur toute la
+   largeur : 308 px à 390, 402 px à 1280. Un outil qu'on ouvre rarement se
+   peignait alors comme le geste principal de l'écran.
+
+   `flex-grow: 0` le laisse à sa largeur de contenu, plancher à 140 px. Le
+   `flex-basis: auto` implicite garde le comportement à plusieurs : ils se
+   posent côte à côte et passent à la ligne quand la place manque, exactement
+   comme avant.
+
+   La propriété est tenue sans seuil par `onglets.spec.js` — « un outil de
+   lecture ne se peint pas comme l'action principale » : sa largeur ne dépend
+   pas du nombre de ses voisins. Un seuil en pourcentage aurait demandé de
+   justifier le pourcentage.
+*/
+.acces-rapides .btn {
+  flex: 0 1 auto;
+  min-width: 140px;
+}
+
+/* ===== LE SÉLECTEUR DE PORTÉE =====
+   ---------------------------------------------------------------------------
+   Trois segments qui disent sur quel argent l'écran porte. Ils vivent en tête
+   de `panneauBilan` et `panneauCharges`, jamais sur Réglages.
+
+   IL N'EST PAS COLLANT, ET C'EST MESURÉ.
+
+   La maquette le voulait « premier enfant collant » du panneau. Le rendre
+   `sticky` demanderait un `top` égal à la hauteur du bandeau — une valeur qui
+   change selon que celui-ci est compact ou non, et qu'un nombre écrit en dur
+   ferait mentir dans un cas sur deux. C'est exactement le problème que
+   `.bandeau-colle` a résolu en réunissant le mois et le solde dans un seul
+   conteneur : deux collants indépendants ne s'empilent pas tout seuls.
+
+   Le sélecteur défile donc avec le panneau. Ce qu'on garde sous les yeux au
+   défilement est le mois et le solde ; la portée, elle, se choisit en arrivant.
+
+   LA MARGE HAUTE EST GRATUITE, LA BASSE NE L'EST PAS.
+
+   Mesuré le 2026-09-07 : la marge du haut fusionne avec la marge basse du
+   bandeau — 8/0, 4/0 et 0/0 donnent tous le même premier contenu. Celle du bas
+   se paie au pixel près. On garde donc les 8 px de séparation visuelle, qui ne
+   coûtent rien, et zéro dessous, que la carte fournit déjà.
+   --------------------------------------------------------------------------- */
+.portee {
+  display: flex;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 0;
+}
+
+.portee-segment {
+  flex: 1;
+  /* `min-width: 0` : sans lui, un `<button>` refuse de descendre sous la
+     largeur de son texte, et trois segments feraient déborder la rangée à
+     320 px au lieu de se partager la place. */
+  min-width: 0;
+  /* 44 px de cible tactile — WCAG 2.5.5, le seuil que ce dépôt s'est donné.
+     En PLANCHER : le segment peut grandir si son libellé se traduit plus long. */
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  /* Le libellé ne se coupe pas : « À deux » sur deux lignes ferait grandir la
+     rangée sans rien gagner. Les trois tiennent à 320 px — mesuré. */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.portee-segment:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/*
+   Le segment actif se marque par la couleur ET par `aria-checked` : la couleur
+   seule ne suffit pas — WCAG 1.4.1 interdit d'en faire le seul véhicule d'une
+   information. C'est l'attribut qu'on stylise, exactement comme `aria-current`
+   sur la barre d'onglets : impossible de peindre un segment actif sans
+   l'annoncer.
+*/
+.portee-segment[aria-checked="true"] {
+  background: var(--primary-soft);
+  border-color: var(--primary-color);
+  color: var(--primary-ink);
+}
+
+.portee-segment:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/*
+   Le repère de solde — il vient de la bascule du résumé, qui n'existe plus.
+
+   Ce qu'il tient n'a pas changé d'un mot : tant qu'un solde reste dû, le
+   segment du foyer le dit, même quand on l'a quitté. Sans lui, choisir « Moi ce
+   mois » ferait disparaître une dette de tout l'écran — le panneau du foyer
+   n'est plus rendu, et la barre collante ne parle que de ce qu'elle surplombe.
+
+   Aucune règle ne le repeint sur le segment ACTIF, contrairement à ce que
+   faisait `.resume-onglet[aria-selected="true"] .resume-onglet-repere`. C'est
+   que le fond actif a changé de nature : l'onglet passait en `--primary-color`
+   plein, où le rouge devenait illisible ; le segment prend un lavis
+   `--primary-soft`, sur lequel `--danger-ink` tient. Une exception de moins.
+
+   Pas de `display` déclaré : l'attribut `hidden` que le JS bascule doit garder
+   son effet, et une règle d'affichage la plus anodine le neutraliserait sans
+   rien dire.
+*/
+.portee-repere {
+  margin-left: 4px;
+  color: var(--danger-ink);
+  font-size: 18px;
+  line-height: 0;
+  vertical-align: middle;
+}
