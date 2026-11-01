@@ -282,7 +282,31 @@ export function cheminDeLaCharge(charge, { periode, collection, id = '' }) {
 }
 
 /**
- * Ce qu'un déplacement de poche écrit — destination posée, origine effacée
+ * Ce qu'un déplacement écrit — de poche, de mois, ou des deux
+ *
+ * Destination posée, origine effacée. La bascule « perso » (P1b) change la
+ * POCHE ; une date modifiée qui change de mois change le MOIS (2026-10-29) ;
+ * les deux peuvent arriver dans le même enregistrement. Une seule fabrique,
+ * pour qu'aucun des trois cas ne range la charge autrement que les autres.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * L'ORIGINE REÇOIT `null`, ET CE N'EST PAS UNE SUPPRESSION
+ *
+ * Le dépôt interdit d'effacer sans soft-delete. Ici rien n'est perdu : la
+ * charge entière est posée à la destination, sous le MÊME identifiant, dans la
+ * MÊME écriture atomique — `null` retire une copie, pas une donnée. Un
+ * `deleted: true` laissé à l'origine serait pire qu'inutile : la corbeille lit
+ * tout l'historique, elle y montrerait un fantôme du même identifiant, et le
+ * rétablir ferait compter la charge deux fois.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LA DESTINATION EST L'ANCIENNE CHARGE, PLUS CE QU'ON MODIFIE
+ *
+ * Une édition sur place passe par `update`, qui garde les champs que le
+ * formulaire ne porte pas. Un déplacement pose un nœud entier : sans fusion,
+ * ces champs disparaîtraient au premier changement de mois. L'identifiant que
+ * les chargeurs ajoutent (`{ id, ...charge }`) est retiré — `$autre` accepte
+ * tout scalaire court, il passerait le serveur.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * ATOMIQUE, ET IL LE FAUT
@@ -303,16 +327,22 @@ export function cheminDeLaCharge(charge, { periode, collection, id = '' }) {
  * @param {Object} params
  * @param {Object} params.avant - La charge telle qu'elle est en base
  * @param {Object} params.apres - La charge telle qu'on veut l'écrire
- * @param {string} params.periode
+ * @param {string} params.periode - Le mois où la charge vit
+ * @param {string} [params.periodeCible] - Le mois où elle doit vivre ; omis, le même
  * @param {'fixedCharges'|'variableCharges'} params.collection
  * @param {string} params.id
  * @returns {Object|null} Écritures multi-chemins, ou `null` si rien ne bouge
  */
-export function ecrituresDuDeplacement({ avant, apres, periode, collection, id }) {
+export function ecrituresDuDeplacement({
+  avant, apres, periode, periodeCible = periode, collection, id
+}) {
   const origine = cheminDeLaCharge(avant, { periode, collection, id });
-  const destination = cheminDeLaCharge(apres, { periode, collection, id });
+  const destination = cheminDeLaCharge(apres, { periode: periodeCible, collection, id });
 
   if (origine === destination) return null;
 
-  return { [destination]: apres, [origine]: null };
+  const posee = { ...avant, ...apres };
+  delete posee.id;
+
+  return { [destination]: posee, [origine]: null };
 }
