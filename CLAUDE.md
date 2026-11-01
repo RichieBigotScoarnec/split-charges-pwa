@@ -2395,9 +2395,14 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   **Et la copie se refait à CHAQUE passe de mutants.** Le 2026-11-01, une copie
   du 2026-10-29, restée dans le dossier temporaire, a restauré
   `changement-de-mois.js` dans son état COMMITÉ : trois modifications du jour
-  effacées, en vert — le fichier restauré était cohérent avec lui-même. C'est
-  un `grep` sur la fonction neuve qui l'a dit. Une copie de sûreté porte une
-  date, comme un artefact (règle 5).
+  effacées, puis repérées par un `grep` sur la fonction neuve, AVANT toute
+  passe de tests. Rejouées le 2026-11-01 sur `47ed7c5`, retirées une à une,
+  elles font toutes trois rougir la suite unitaire (2, 11 et 11 cas), et les
+  modifications 2 et 3 font aussi tomber `eslint`. Une copie de sûreté porte
+  une date, comme un artefact (règle 5).
+  > Cette entrée disait « effacées, en vert » : aucun test n'avait tourné entre
+  > l'écrasement et le `grep`. C'était une affirmation sans mesure — la règle 5
+  > appliquée à sa propre entrée.
 
 - **`git log main..branche` et `git diff main..branche` ne répondent PAS à la
   même question, et seule la seconde protège d'un merge destructeur.**
@@ -3201,17 +3206,72 @@ les relevés pris avant valent toujours.
    modification, sur le troisième chemin de création. Relevé le 2026-10-29, non
    traité : le format a ses propres questions (un fichier qui couvre plusieurs
    mois, l'aperçu qui annonce un seul mois).
-10. **⚠️ `reconduction-empreinte.test.js` et `reconduction-deux-poches.test.js`
-    sont ROUGES depuis le 1er octobre 2026, sur `main` comme ailleurs — 13 cas,
-    et aucun défaut de code.** Ils sèment `2026-09` comme mois CIBLE sans figer
-    l'horloge ; or la reconduction ne remonte jamais dans le passé
-    (`target < currentMonth`). Mesuré le 2026-10-29 : les mêmes fichiers, horloge
-    figée au 15 septembre, rendent 16/16. Le dernier passage de la CI sur
-    `main` date du 2026-09-18 — vert, en septembre —, donc rien ne l'a encore
-    dit. C'est le cinquième contrôle de ce dépôt qui dépendait du calendrier
-    (voir « Toute spec datée doit figer l'horloge »), et le premier UNITAIRE.
-    Le remède est `vi.setSystemTime` dans les deux fichiers ; il bloque la CI de
-    toute PR tant qu'il n'est pas fait, et il se prend dans un lot à lui.
+10. **✅ REFERMÉ — `reconduction-empreinte.test.js` et
+    `reconduction-deux-poches.test.js` ont été ROUGES du 1er au 30 octobre
+    2026, sur `main` comme ailleurs — 13 cas, et aucun défaut de code.**
+    **La cause, qui servira la prochaine fois** : ils semaient `2026-09` comme
+    mois CIBLE sans figer l'horloge, or la reconduction ne remonte jamais dans
+    le passé (`target < currentMonth`). Verts tout septembre, rouges dès que le
+    calendrier a dépassé leur mois cible, sans qu'un octet du code ait bougé.
+    Le dernier passage de la CI sur `main` datait du 2026-09-18 — vert, en
+    septembre —, donc rien ne l'avait dit avant le 2026-10-29. C'est le
+    cinquième contrôle de ce dépôt qui dépendait du calendrier (voir « Toute
+    spec datée doit figer l'horloge »), et le premier UNITAIRE.
+    **Refermé par `0ea5022` (PR #251)** : `vi.useFakeTimers({ toFake: ['Date'] })`
+    et `vi.setSystemTime` au 15 septembre 2026, dans ces deux fichiers seuls —
+    seule `Date` est simulée, les minuteurs de la transaction restent réels.
+    Entré dans `main` par la fusion de #253 (`eedd73f`, 2026-10-30), qui
+    portait la branche de #251 pour sortir d'un blocage croisé : chacune des
+    deux PR était rouge sur la cause de l'autre. Ils ne sont plus rouges et ne
+    bloquent plus la CI — rejoués le 2026-11-01, 16/16.
+11. **⚠️ « Tests contre le vrai Firebase » est tombé UNE fois, le 2026-10-30, sur
+    `eedd73f` — NON REPRODUIT, NON EXPLIQUÉ.** Run **41087696870**, tentative 1
+    (push de la fusion de #253, échec à 16:29 UTC), 2 cas sur 17, tous deux
+    dans `tests/e2e/scenario-reel.spec.js` :
+    - **`:160`**, étape « mois courant : le loyer se reconduit seul » —
+      attendu 422,22, lu **306,67**. L'instantané montre octobre sélectionné,
+      sa liste ne portant que le loyer, et le bilan affichant exactement les
+      chiffres de SEPTEMBRE (total 1 200 €, part 693,33 €) ;
+    - **`:493`**, étape « mois -5 : salaires 2600/1900 » — attendu 306,67,
+      lu **0**. L'instantané montre les charges de mai, et « Renseignez vos
+      deux salaires » alors que la spec sème les salaires par `set` à côté.
+
+    **Vert à la relance** : tentative 2 du même run, le 2026-11-01 à 09:12 UTC.
+    **Il succédait à onze verts consécutifs** sur `main`, du run 35190026119
+    (2026-09-17 06:29) au run 35392698862 (2026-09-18 20:40).
+
+    **Établi** : rien de ce que le navigateur exécute n'avait changé depuis le
+    dernier vert — diff de `public/` vide entre `df3e81f` et `eedd73f`,
+    `database.rules.json` inchangé, SDK Firebase servi par le CDN (10.14.1,
+    intégrité vérifiée), Playwright 1.63.0 des deux côtés. **Non établi** : la
+    cause. Restent le calendrier — la spec ne fige pas l'horloge, ses mois sont
+    relatifs — et l'état réel du bac à sable. Le cas exige
+    `FAIRSPLIT_TEST_PASSWORD`, absent du poste : il ne se reproduit pas en
+    local.
+
+    **L'artefact** `playwright-results-reel` expire le 2026-11-06. Il a été lu,
+    il n'est PAS commité : ses instantanés sont pris sur le compte réel du bac
+    à sable. Ce constat reste ouvert jusqu'à la prochaine occurrence (règle 5,
+    « un contrôle tombé une fois et non reproduit reste ouvert »).
+12. **⚠️ `data-flow.spec.js:1346` — « un mois déjà garni à la main n'est pas
+    complété » — reste VERT garde retirée. Il ne mesure pas ce que son titre
+    dit.** Mesuré en phase A du lot 2 (2026-11-01, sur `47ed7c5`) : garde
+    « mois déjà garni » retirée de `utils/recurrence.js`, le cas passe. Une
+    copie jetable du même scénario, comptée 4 s après le geste, sépare les
+    deux :
+
+    | | « Loyer » juste après le clic | après 4 s | charges fixes en base | empreinte |
+    |---|---|---|---|---|
+    | avec la garde | 1 | **0** | 1 | aucune |
+    | sans la garde | 1 | **1** | 2 | `2026-10` |
+
+    **Ce qui le rendait vide** : son `toHaveCount(0)` réessaie jusqu'au premier
+    rendu de novembre, qui précède l'écriture de la reconduction — la
+    reconduction tourne en FIN de `loadPeriodData`. Il passe donc avant que la
+    propriété qu'il tient puisse être fausse. Il ne déclare par ailleurs ni
+    horloge ni largeur. **Il sera réécrit par le lot 2** sur la nouvelle
+    propriété, compté APRÈS la reconduction, à 320 et 390 px — et devra tomber
+    garde remise.
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).

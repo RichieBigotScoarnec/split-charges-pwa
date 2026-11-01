@@ -111,6 +111,13 @@ coverage-fusionnee/
 .claude/worktrees/
 .claude/audit/
 
+# Les réglages LOCAUX de Claude Code et les archives d'audit : propres à un
+# poste, jamais des sources. Ils n'étaient protégés que par l'ajout fichier par
+# fichier — un `git add .` les aurait commités. `.claude/settings.json`, partagé
+# par le projet, n'est pas visé.
+.claude/settings.local.json
+.claude/*.zip
+
 # Relevé de mise en page : une MESURE, pas une source.
 #
 # Il se refait d'une commande — `npm run releve` — et périme au premier commit
