@@ -3217,6 +3217,35 @@ les relevés pris avant valent toujours.
     (voir « Toute spec datée doit figer l'horloge »), et le premier UNITAIRE.
     Le remède est `vi.setSystemTime` dans les deux fichiers ; il bloque la CI de
     toute PR tant qu'il n'est pas fait, et il se prend dans un lot à lui.
+11. **⚠️ « Tests contre le vrai Firebase » est tombé UNE fois, le 2026-10-30, sur
+    `eedd73f` — NON REPRODUIT, NON EXPLIQUÉ.** Run **41087696870**, tentative 1
+    (push de la fusion de #253, échec à 16:29 UTC), 2 cas sur 17, tous deux
+    dans `tests/e2e/scenario-reel.spec.js` :
+    - **`:160`**, étape « mois courant : le loyer se reconduit seul » —
+      attendu 422,22, lu **306,67**. L'instantané montre octobre sélectionné,
+      sa liste ne portant que le loyer, et le bilan affichant exactement les
+      chiffres de SEPTEMBRE (total 1 200 €, part 693,33 €) ;
+    - **`:493`**, étape « mois -5 : salaires 2600/1900 » — attendu 306,67,
+      lu **0**. L'instantané montre les charges de mai, et « Renseignez vos
+      deux salaires » alors que la spec sème les salaires par `set` à côté.
+
+    **Vert à la relance** : tentative 2 du même run, le 2026-11-01 à 09:12 UTC.
+    **Il succédait à onze verts consécutifs** sur `main`, du run 35190026119
+    (2026-09-17 06:29) au run 35392698862 (2026-09-18 20:40).
+
+    **Établi** : rien de ce que le navigateur exécute n'avait changé depuis le
+    dernier vert — diff de `public/` vide entre `df3e81f` et `eedd73f`,
+    `database.rules.json` inchangé, SDK Firebase servi par le CDN (10.14.1,
+    intégrité vérifiée), Playwright 1.63.0 des deux côtés. **Non établi** : la
+    cause. Restent le calendrier — la spec ne fige pas l'horloge, ses mois sont
+    relatifs — et l'état réel du bac à sable. Le cas exige
+    `FAIRSPLIT_TEST_PASSWORD`, absent du poste : il ne se reproduit pas en
+    local.
+
+    **L'artefact** `playwright-results-reel` expire le 2026-11-06. Il a été lu,
+    il n'est PAS commité : ses instantanés sont pris sur le compte réel du bac
+    à sable. Ce constat reste ouvert jusqu'à la prochaine occurrence (règle 5,
+    « un contrôle tombé une fois et non reproduit reste ouvert »).
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).
