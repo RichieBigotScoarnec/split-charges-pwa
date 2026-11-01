@@ -111,15 +111,22 @@ describe('Ce qu\'un déplacement de charge fixe fait à la reconduction', () => 
   });
 
   const deplacerNetflix = (periods, extra = {}) => avertissementDeReconduction({
-    charge: NETFLIX, id: 'f2', origine: '2026-10', cible: '2026-11',
-    moisCourant: '2026-10', periods, moi: 'vous', empreintePersonnelle: null, ...extra
+    charge: NETFLIX, id: 'f2', cible: '2026-11',
+    periods, moi: 'vous', empreintePersonnelle: null, ...extra
   });
 
-  it('BLOCAGE — vers un mois pas encore reconduit : il ne recevra pas le loyer', () => {
-    // `planDeLaPoche` refuse un mois « déjà garni » : la charge déplacée suffit
-    // à le garnir, et le loyer n'y serait jamais recopié.
-    const phrase = deplacerNetflix(OCTOBRE());
-    expect(phrase).toMatch(/Novembre 2026 ne recevra pas les charges récurrentes d'octobre 2026/);
+  it('vers un mois pas encore reconduit : plus rien à dire', () => {
+    // Elle annonçait « ne recevra pas les charges récurrentes ». Depuis le lot 2,
+    // ce mois-là reçoit le loyer à son ouverture et reconnaît la charge
+    // déplacée : la phrase serait fausse (`recurrence-mois-garni.test.js`, c.).
+    expect(deplacerNetflix(OCTOBRE())).toBeNull();
+  });
+
+  it('même s\'il porte déjà la charge du même nom : la reconduction l\'écartera', () => {
+    expect(deplacerNetflix({
+      ...OCTOBRE(),
+      '2026-11': { fixedCharges: { a: { ...NETFLIX } } }
+    })).toBeNull();
   });
 
   it('DOUBLON — vers un mois déjà reconduit qui porte une charge du même libellé', () => {
@@ -157,47 +164,35 @@ describe('Ce qu\'un déplacement de charge fixe fait à la reconduction', () => 
     expect(deplacerNetflix(periods)).toBeNull();
   });
 
-  it('TÉMOIN — vers le passé, la reconduction ne s\'y joue pas : rien à dire', () => {
-    expect(avertissementDeReconduction({
-      charge: NETFLIX, id: 'f2', origine: '2026-10', cible: '2026-09',
-      moisCourant: '2026-10', periods: OCTOBRE(), moi: 'vous', empreintePersonnelle: null
-    })).toBeNull();
-  });
-
-  it('TÉMOIN — la charge déplacée était la SEULE récurrente : rien ne manquera', () => {
-    // La reconduction aurait recopié… cette charge-là, qui arrive de toute
-    // façon. Le plan se calcule SANS elle à son origine.
-    expect(deplacerNetflix({ '2026-10': { fixedCharges: { f2: NETFLIX } } })).toBeNull();
-  });
-
   it('la poche de la charge décide : une charge PERSONNELLE lit l\'empreinte personnelle', () => {
     const perso = { ...NETFLIX, perimetre: 'solo' };
     const periods = {
-      '2026-10': { fixedCharges: { f1: { ...LOYER, perimetre: 'solo' }, f2: perso } },
+      '2026-10': { fixedCharges: { f2: perso } },
       // Le commun de novembre est reconduit : cela ne dit RIEN de ma poche.
-      '2026-11': { reconductedFrom: '2026-10' }
+      '2026-11': { reconductedFrom: '2026-10', fixedCharges: { r1: { ...perso } } }
     };
     expect(avertissementDeReconduction({
-      charge: perso, id: 'f2', origine: '2026-10', cible: '2026-11',
-      moisCourant: '2026-10', periods, moi: 'vous', empreintePersonnelle: null
-    })).toMatch(/ne recevra pas/);
-
-    // Et ma poche reconduite, elle, lève le blocage.
-    expect(avertissementDeReconduction({
-      charge: perso, id: 'f2', origine: '2026-10', cible: '2026-11',
-      moisCourant: '2026-10', periods, moi: 'vous', empreintePersonnelle: '2026-10'
+      charge: perso, id: 'f2', cible: '2026-11',
+      periods, moi: 'vous', empreintePersonnelle: null
     })).toBeNull();
+
+    // Et ma poche reconduite, elle, porte bien le doublon.
+    expect(avertissementDeReconduction({
+      charge: perso, id: 'f2', cible: '2026-11',
+      periods, moi: 'vous', empreintePersonnelle: '2026-10'
+    })).toMatch(/porte déjà/);
   });
 
   it('les charges COMMUNES ne regardent pas ma poche, et inversement', () => {
-    // Le loyer commun d'octobre ne bloque pas une charge personnelle, ni ne la
-    // fait passer pour un doublon.
+    // Un Netflix commun déjà reconduit ne fait pas du mien un doublon.
     const perso = { ...NETFLIX, perimetre: 'solo' };
     expect(avertissementDeReconduction({
-      charge: perso, id: 'f2', origine: '2026-10', cible: '2026-11',
-      moisCourant: '2026-10',
-      periods: { '2026-10': { fixedCharges: { f1: LOYER, f2: perso } } },
-      moi: 'vous', empreintePersonnelle: null
+      charge: perso, id: 'f2', cible: '2026-11',
+      periods: {
+        '2026-10': { fixedCharges: { f2: perso } },
+        '2026-11': { reconductedFrom: '2026-10', fixedCharges: { r1: { ...NETFLIX } } }
+      },
+      moi: 'vous', empreintePersonnelle: '2026-10'
     })).toBeNull();
   });
 });

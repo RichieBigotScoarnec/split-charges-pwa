@@ -22,18 +22,20 @@
  *
  * ## Ce que la reconduction en pense
  *
- * `planDeLaPoche` refuse un mois « déjà garni » d'une charge fixe : y déplacer
- * une charge fixe avant qu'il soit reconduit l'empêche de l'être jamais. Et un
- * mois déjà reconduit peut porter la copie de la charge qu'on y déplace. Ce
- * module ne répare ni l'un ni l'autre — le défaut existe aussi à l'ajout daté
- * dans le futur, et il se traite dans la reconduction elle-même. Il le DIT,
- * seulement quand c'est vrai.
+ * Un mois déjà reconduit peut porter la copie de la charge qu'on y déplace : la
+ * déplacer la compte alors deux fois. Ce module le DIT, seulement quand c'est
+ * vrai.
+ *
+ * Il disait aussi qu'un mois pas encore reconduit « ne recevrait pas les charges
+ * récurrentes » : le déplacement le garnissait, et la reconduction refusait un
+ * mois garni. Depuis le lot 2 (2026-11-01) elle le remplit quand même, et
+ * reconnaît la charge déplacée : la phrase était devenue fausse, elle est partie.
  *
  * Aucune base, aucun DOM, aucun réseau.
  */
 
 import { dateSaisissable, periodeDeLaDate, formatPeriod } from './date.js';
-import { planRecurrence } from './recurrence.js';
+import { libelleComparable } from './recurrence.js';
 import { proprietaireDuSolo } from './perimetre.js';
 import { formatCurrency } from './format.js';
 
@@ -71,11 +73,10 @@ export function messageDuDeplacement(periode) {
  * La question posée AVANT un déplacement qui a des conséquences
  *
  * Le déplacement seul ne se demande pas : la date saisie EST la demande. Mais
- * quand il crée un doublon, prive un mois de sa reconduction ou laisse un écart
- * sur un mois soldé, la conséquence se lit AVANT l'écriture, dans une modale
- * qu'on peut refuser. Un message paru après l'écriture, puis disparu,
- * n'apprend rien à qui l'a manqué — et l'argent a déjà bougé (vu à l'écran le
- * 2026-11-01, en bac à sable).
+ * quand il crée un doublon ou laisse un écart sur un mois soldé, la conséquence
+ * se lit AVANT l'écriture, dans une modale qu'on peut refuser. Un message paru
+ * après l'écriture, puis disparu, n'apprend rien à qui l'a manqué — et l'argent
+ * a déjà bougé (vu à l'écran le 2026-11-01, en bac à sable).
  *
  * @param {Object} params
  * @param {string} params.description
@@ -96,31 +97,20 @@ const moisEnTete = (periode) => {
   return texte.charAt(0).toLocaleUpperCase('fr') + texte.slice(1);
 };
 
-/** « de novembre », mais « d'octobre », « d'avril », « d'août » */
-const deMois = (periode) => {
-  const texte = formatPeriod(periode);
-  return /^[aàâeéèêiîoôuy]/i.test(texte) ? `d'${texte}` : `de ${texte}`;
-};
-
-/** Un libellé comparable : sans casse ni espaces de bord */
-const comparable = (texte) => (typeof texte === 'string' ? texte.trim().toLocaleLowerCase('fr') : '');
-
 /**
  * Ce que le déplacement d'une charge fixe fait à la reconduction, ou rien
  *
  * @param {Object} params
  * @param {Object} params.charge - La charge telle qu'elle sera écrite
  * @param {string} params.id - Son identifiant
- * @param {string} params.origine - Le mois qu'elle quitte
  * @param {string} params.cible - Le mois où elle arrive
- * @param {string} params.moisCourant - Le mois calendaire, AAAA-MM
  * @param {Object} params.periods - Nœud `periods` fusionné, AVANT le déplacement
  * @param {string|null} params.moi - Emplacement du compte connecté
  * @param {*} params.empreintePersonnelle - Marque de reconduction de MA poche, au mois cible
  * @returns {string|null} Une phrase, seulement quand elle est vraie
  */
 export function avertissementDeReconduction({
-  charge, id, origine, cible, moisCourant, periods, moi, empreintePersonnelle
+  charge, id, cible, periods, moi, empreintePersonnelle
 }) {
   if (!periods || typeof periods !== 'object') return null;
 
@@ -128,41 +118,21 @@ export function avertissementDeReconduction({
   // Une charge personnelle qui n'est pas la mienne ne s'édite pas d'ici.
   if (poche && poche !== moi) return null;
 
-  // BLOCAGE. Le plan se calcule SANS la charge à son origine, et sans elle à
-  // la cible : c'est ce que la reconduction aurait fait si elle n'était pas
-  // venue garnir le mois. Laisser la charge à son origine ferait annoncer
-  // qu'on perd… la charge même qui arrive.
-  const sansElle = { ...periods };
-  const mois = sansElle[origine];
-  if (mois?.fixedCharges && typeof mois.fixedCharges === 'object') {
-    const restantes = { ...mois.fixedCharges };
-    delete restantes[id];
-    sansElle[origine] = { ...mois, fixedCharges: restantes };
-  }
-
-  const plan = planRecurrence({
-    target: cible, currentMonth: moisCourant, periods: sansElle, moi, empreintePersonnelle
-  });
-  const planDeSaPoche = poche ? plan?.personnel : plan?.commun;
-  if (planDeSaPoche) {
-    return `${moisEnTete(cible)} ne recevra pas les charges récurrentes `
-      + `${deMois(planDeSaPoche.source)} : la reconduction ne remplit qu'un mois `
-      + 'sans charge fixe. Ajoutez-les à la main si besoin.';
-  }
-
   // DOUBLON. Le mois cible a déjà été reconduit dans cette poche, et il porte
-  // une charge fixe active du même libellé — vraisemblablement sa copie.
+  // une charge fixe active du même libellé — vraisemblablement sa copie. Un mois
+  // PAS encore reconduit ne se signale pas : à son ouverture, la reconduction
+  // reconnaîtra la charge déplacée.
   const arrivee = periods[cible] || {};
   const empreinte = poche ? empreintePersonnelle : arrivee.reconductedFrom;
   if (!empreinte) return null;
 
-  const libelle = comparable(charge?.description);
+  const libelle = libelleComparable(charge?.description);
   if (!libelle) return null;
 
   const jumelle = Object.entries(arrivee.fixedCharges || {}).some(([cle, autre]) =>
     cle !== id && autre && !autre.deleted
       && proprietaireDuSolo(autre) === poche
-      && comparable(autre.description) === libelle);
+      && libelleComparable(autre.description) === libelle);
 
   return jumelle
     ? `${moisEnTete(cible)} porte déjà une charge « ${charge.description.trim()} » : `

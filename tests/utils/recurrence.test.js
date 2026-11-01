@@ -110,7 +110,10 @@ describe('Ce qui doit rester intouché', () => {
     expect(plan).toBeNull();
   });
 
-  it('un mois déjà garni n\'est pas un mois neuf', () => {
+  it('un mois déjà garni reste à reconduire', () => {
+    // La garde inverse a vécu jusqu'au lot 2 : une seule charge saisie d'avance
+    // bloquait le mois pour toujours. `recurrence-mois-garni.test.js` tient le
+    // reste — la source, le dédoublonnage et la chaîne.
     const plan = planRecurrence({
       target: AOUT, currentMonth: AOUT,
       periods: {
@@ -119,7 +122,7 @@ describe('Ce qui doit rester intouché', () => {
       }
     });
 
-    expect(plan).toBeNull();
+    expect(plan.commun.charges.map(c => c.description)).toEqual(['Loyer']);
   });
 
   it('ne remonte jamais dans le passé', () => {
@@ -340,13 +343,10 @@ describe('Le périmètre sépare deux décisions', () => {
   });
 });
 
-describe('« Un mois déjà garni » se compte POCHE PAR POCHE', () => {
-  it('un abonnement personnel dans le mois cible ne bloque PAS le loyer', () => {
+describe('Ce qui est déjà là se compte POCHE PAR POCHE', () => {
+  it('un abonnement personnel dans le mois cible n\'empêche PAS le loyer', () => {
     // Compté sur le nœud fusionné, un seul abonnement personnel dans le mois
-    // cible bloquerait la reconduction du LOYER — et rien ne le dirait. C'est
-    // le défaut que ce cas ferme, et il est silencieux : un mois qui devait
-    // s'ouvrir avec le loyer s'ouvre vide, ce qui se lit comme un mois où il
-    // n'y a rien à payer.
+    // cible pèserait sur la reconduction du LOYER — et rien ne le dirait.
     const plan = planRecurrence({
       target: AOUT,
       currentMonth: AOUT,
@@ -360,10 +360,9 @@ describe('« Un mois déjà garni » se compte POCHE PAR POCHE', () => {
     expect(plan.commun.charges.map(c => c.description)).toEqual(['Loyer']);
   });
 
-  it('LE TÉMOIN — et ce même abonnement bloque bien MA poche', () => {
-    // Sans lui, le cas ci-dessus serait satisfait par un compte qui ne mesure
-    // plus rien du tout : « garni » cesserait d'arrêter quoi que ce soit, et
-    // chaque ouverture redéposerait la charge.
+  it('LE TÉMOIN — et ce même abonnement est bien écarté de MA poche', () => {
+    // Sans lui, le cas ci-dessus serait satisfait par une comparaison qui ne
+    // mesure plus rien du tout, et chaque ouverture redéposerait la charge.
     const plan = planRecurrence({
       target: AOUT,
       currentMonth: AOUT,
@@ -374,10 +373,11 @@ describe('« Un mois déjà garni » se compte POCHE PAR POCHE', () => {
       moi: 'vous'
     });
 
-    expect(plan.personnel).toBeNull();
+    expect(plan.personnel.charges).toEqual([]);
+    expect(plan.personnel.ecartees).toEqual(['Sport']);
   });
 
-  it('une charge COMMUNE dans le mois cible ne bloque pas ma poche', () => {
+  it('une charge COMMUNE dans le mois cible n\'empêche pas ma poche', () => {
     // Le sens inverse, et il compte autant : le foyer a saisi le loyer à la
     // main, mon abonnement personnel doit revenir quand même.
     const plan = planRecurrence({
@@ -390,7 +390,8 @@ describe('« Un mois déjà garni » se compte POCHE PAR POCHE', () => {
       moi: 'vous'
     });
 
-    expect(plan.commun).toBeNull();
+    expect(plan.commun.charges).toEqual([]);
+    expect(plan.commun.ecartees).toEqual(['Loyer']);
     expect(plan.personnel.charges.map(c => c.description)).toEqual(['Sport']);
   });
 });

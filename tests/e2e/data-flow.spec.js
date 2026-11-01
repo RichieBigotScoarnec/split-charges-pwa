@@ -1343,17 +1343,6 @@ test.describe('Charges récurrentes', () => {
     await expect(page.locator('#fixedChargesList').getByText('Loyer')).toHaveCount(1);
   });
 
-  test('un mois déjà garni à la main n\'est pas complété', async ({ page }) => {
-    await chargeFixe(page, 'Saisie manuelle', 100);
-
-    await versMoisPrecedent(page);
-    await chargeFixe(page, 'Loyer', 800);
-    await versMoisSuivant(page);
-
-    await expect(page.locator('#fixedChargesList').getByText('Saisie manuelle')).toBeVisible();
-    await expect(page.locator('#fixedChargesList .charge-item').filter({ hasText: 'Loyer' })).toHaveCount(0);
-  });
-
   test('ouvrir un mois ancien et vide n\'y déverse rien', async ({ page }) => {
     // Une consultation n'est pas une reprise d'activité : reconduire vers le
     // passé réécrirait l'histoire.
@@ -1365,6 +1354,85 @@ test.describe('Charges récurrentes', () => {
     await expect(page.locator('#fixedChargesList .charge-item').filter({ hasText: 'Loyer' })).toHaveCount(0);
   });
 });
+
+/**
+ * Un mois déjà garni à la main EST reconduit
+ *
+ * Ce cas a tenu l'inverse jusqu'au lot 2, sous le titre « un mois déjà garni à
+ * la main n'est pas complété » — et il ne mesurait rien. Mesuré le 2026-11-01 :
+ * son `toHaveCount(0)` était satisfait dès le PREMIER RENDU du mois, or la
+ * reconduction écrit en FIN de `loadPeriodData`. Garde retirée, il restait vert.
+ * Il passait donc avant que la propriété qu'il tenait puisse être fausse, et il
+ * ne déclarait ni horloge ni largeur.
+ *
+ * D'où les trois exigences de cette réécriture : horloge figée, deux largeurs,
+ * et un compte fait APRÈS l'empreinte, relue en base — la seule marque qu'une
+ * reconduction s'est bien jouée.
+ */
+for (const largeur of [320, 390]) {
+  test.describe(`Un mois garni à la main est reconduit — ${largeur} px`, () => {
+    test.use({ viewport: { width: largeur, height: 800 } });
+
+    const LE_29_OCTOBRE = new Date('2026-10-29T10:00:00');
+
+    /** Une charge fixe semée telle que le formulaire l'écrirait */
+    const fixe = (description, jour, extra = {}) => ({
+      description, amount: 800, category: 'Logement', paidBy: 'vous',
+      date: jour, recurring: true, deleted: false, ...extra
+    });
+
+    const ouvrir = async (page, novembre) => {
+      await page.clock.setFixedTime(LE_29_OCTOBRE);
+      await setupFirebaseMock(page);
+      await page.addInitScript(`window.__db = ${JSON.stringify({
+        'household/salaries': { vous: 2000, conjointe: 2000 },
+        'household/periods/2026-10/salaries': { vous: 2000, conjointe: 2000 },
+        'household/periods/2026-10/fixedCharges/f1': fixe('Loyer', '2026-10-05'),
+        'household/periods/2026-10/fixedCharges/f2': fixe('Internet', '2026-10-08'),
+        ...novembre
+      })};`);
+      await waitForApp(page);
+      await allerAuPanneau(page, 'panneauCharges');
+    };
+
+    /** Ouvre novembre, et attend que la reconduction se soit réellement jouée */
+    const ouvrirNovembre = async (page) => {
+      await page.locator('[data-action="navigatePeriod"][data-arg="1"]').click();
+      await expect.poll(() => page.evaluate(async () => {
+        const { dbGet } = await import('/js/db.js');
+        return dbGet('periods/2026-11/reconductedFrom');
+      }), { timeout: 5000 }).toBe('2026-10');
+    };
+
+    const lignes = (page, description) => page
+      .locator('#fixedChargesList .charge-item').filter({ hasText: description });
+
+    test('une charge posée d\'avance ne bloque plus le mois', async ({ page }) => {
+      await ouvrir(page, {
+        'household/periods/2026-11/fixedCharges/m1': fixe('Saisie manuelle', '2026-11-12')
+      });
+
+      await ouvrirNovembre(page);
+
+      await expect(lignes(page, 'Saisie manuelle')).toHaveCount(1);
+      await expect(lignes(page, 'Loyer')).toHaveCount(1);
+      await expect(lignes(page, 'Internet')).toHaveCount(1);
+    });
+
+    test('un homonyme saisi à la main n\'est pas doublé, et le message le nomme', async ({ page }) => {
+      await ouvrir(page, {
+        'household/periods/2026-11/fixedCharges/m1': fixe('loyer', '2026-11-05')
+      });
+
+      await ouvrirNovembre(page);
+
+      await expect(lignes(page, 'Internet')).toHaveCount(1);
+      await expect(lignes(page, /loyer/i)).toHaveCount(1);
+      await expect(page.locator('.toast').last())
+        .toContainText('Déjà présente, non recopiée : Loyer');
+    });
+  });
+}
 
 /**
  * La corbeille ne montrait que le mois affiché. Supprimer en juillet puis

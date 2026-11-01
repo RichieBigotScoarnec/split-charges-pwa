@@ -65,13 +65,12 @@ import { soldeDuMoisAffiche } from './summary.js';
 /**
  * Ce que la reconduction dira du déplacement d'une charge fixe, ou rien
  *
- * Lu AVANT l'écriture : c'est le mois tel que la reconduction le trouverait
- * sans cette charge. Une lecture impossible n'est PAS un « rien à signaler » :
+ * Lu AVANT l'écriture. Une lecture impossible n'est PAS un « rien à signaler » :
  * elle devient elle-même une conséquence, et la modale le dit (règle 1).
  *
  * @returns {Promise<string|null>}
  */
-async function ceQueDiraLaReconduction({ charge, id, origine, cible }) {
+async function ceQueDiraLaReconduction({ charge, id, cible }) {
   try {
     const { dbGet, cheminDuPersonnel } = await import('../db.js');
     // Sans repli, comme `reconduction.js` : une poche devinée ferait lire
@@ -83,8 +82,7 @@ async function ceQueDiraLaReconduction({ charge, id, origine, cible }) {
       : null;
 
     return avertissementDeReconduction({
-      charge, id, origine, cible,
-      moisCourant: getCurrentPeriod(),
+      charge, id, cible,
       periods: await lirePeriodes(),
       moi,
       empreintePersonnelle
@@ -101,7 +99,7 @@ async function ceQueDiraLaReconduction({ charge, id, origine, cible }) {
  *
  * Deux familles, une phrase chacune :
  *   - la reconduction du mois d'arrivée (charges fixes seulement) : doublon
- *     probable, ou mois qui ne recevra plus ses charges récurrentes ;
+ *     probable ;
  *   - l'écart laissé sur le mois QUITTÉ, passé, report désactivé.
  *
  * Le solde du mois quitté « sans la charge » vient de `soldeDuMoisAffiche`, la
@@ -115,7 +113,7 @@ async function consequencesDuDeplacement({ collection, id, chargeData, periode, 
 
   if (collection === 'fixedCharges') {
     const reconduction = await ceQueDiraLaReconduction({
-      charge: chargeData, id, origine: periode, cible: periodeCible
+      charge: chargeData, id, cible: periodeCible
     });
     if (reconduction) consequences.push(reconduction);
   }

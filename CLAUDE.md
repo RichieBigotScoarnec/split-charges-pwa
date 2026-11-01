@@ -384,6 +384,12 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > au-dessus de `modal.js` et `config.js`. Hub inchangé : 30 imports statiques,
 > 29 `runStep`.
 
+> **Relevé le 2026-11-01 pour le lot 2, la reconduction bloquée — classement
+> complet rejoué sans argument, et RIEN ne bouge.** Les quatorze lignes sont
+> identiques au tableau, hub compris (30 imports statiques, 29 `runStep`) :
+> `changement-de-mois.js` importe toujours `recurrence.js`, pour le seul
+> `libelleComparable` désormais, et aucun fichier neuf de `public/` n'entre.
+
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
 
@@ -2382,6 +2388,9 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   devant tout ce qui démarre un émulateur : `npm run emulators`,
   `npm run emulators:test`, `npm run couverture:e2e`. Et **`npm run e2e`** est
   la suite complète sous émulateurs, ports libérés d'abord.
+  **`npm run regles` n'y est PAS branchée** : le 2026-11-01, après une sonde sous
+  émulateur, elle a rendu `EXIT=1` sans exécuter un test (`port taken`). Lancer
+  `npm run ports` d'abord.
 
   Il ne tue que `java` à dessein : un port peut être occupé par autre chose, et
   tuer à l'aveugle serait pire que l'échec qu'on évite. Il ne le fait jamais en
@@ -2985,7 +2994,8 @@ information reçue.**
 >   à l'écran.** En bac à sable : un abonnement d'octobre redaté au 05/11,
 >   novembre déjà reconduit — deux exemplaires, 8 € au lieu de 4 €. Les trois
 >   avertissements du lot (doublon probable, mois qui ne recevra plus ses
->   charges récurrentes, écart sur un mois passé report désactivé) étaient des
+>   charges récurrentes — ⟲ retiré le 2026-11-01 par le lot 2, ci-dessous : ce
+>   mois-là les reçoit —, écart sur un mois passé report désactivé) étaient des
 >   TOASTS, émis APRÈS l'écriture : un message qui paraît puis disparaît, sans
 >   rien demander, l'argent déjà déplacé. Ils sont devenus des **conséquences,
 >   confirmées AVANT l'écriture** dans une seule modale
@@ -3018,8 +3028,68 @@ information reçue.**
 > - la confirmation de reconduction ne porte que sur les charges FIXES ; une
 >   variable récurrente déplacée vers un mois déjà reconduit n'est pas
 >   signalée ;
-> - le défaut de fond de la reconduction n'est pas réparé — voir les points
->   ouverts.
+> - ~~le défaut de fond de la reconduction n'est pas réparé — voir les points
+>   ouverts.~~ ✅ Réparé le 2026-11-01, bloc suivant.
+
+> **✅ UN MOIS GARNI À LA MAIN EST RECONDUIT — LOT 2, 2026-11-01, décisions de
+> Richie, chacune mesurée en phase A.** Une charge fixe posée d'avance bloquait
+> son mois pour toujours, et ce n'était que la moitié du défaut : **le mois
+> suivant prenait le mois bloqué pour source, et le loyer disparaissait de toute
+> la suite.** Retirer la garde ne suffisait donc pas : garde retirée, la cascade
+> restait.
+>
+> **Ce que la garde protégeait, mesuré** : un seul effet propre, éviter les
+> doublons dans un mois sans empreinte qui porte déjà les charges de la source.
+> Elle tenait lieu de dédoublonnage grossier — faute de reconnaître une charge
+> déjà présente, elle refusait le mois entier. L'empreinte couvrait déjà tout le
+> reste : un passage par mois, un mois vidé qui reste vide, deux ouvertures
+> simultanées.
+>
+> - **R5 — ce qui peut servir de source.** Un mois SANS EMPREINTE ne sert de
+>   source que si aucun mois antérieur ne porte de charges reconductibles
+>   ACTIVES, poche par poche. Le statut présent ou futur ne tranche rien : la
+>   règle « un mois présent ou futur non reconduit n'est pas une source » (R1)
+>   échouait sur S2 et E, le démarrage saisi d'avance, et ne coupait pas M2, le
+>   mois sauté. Ce qui sépare un mois de démarrage d'un mois bloqué, c'est qu'un
+>   mois antérieur avait de quoi remplir le second. Les supprimées ne comptent
+>   pas : le relevé du 2026-11-01 portait une récurrente de 400 € supprimée en
+>   août, qui aurait disqualifié le mois où le foyer commence vraiment.
+> - **D2 — ce qui écarte une copie.** Un homonyme de même poche, même collection,
+>   LUI-MÊME reconductible, libellé normalisé (`libelleComparable`, une seule
+>   fabrique, lue aussi par `changement-de-mois.js`), compté en multiplicité.
+>   Pas d'identifiant source : une copie n'en porte aucun, et une saisie à la
+>   main n'en a pas. Pas le montant : un loyer augmente. **Un homonyme non
+>   reconductible n'écarte rien, et c'est ce qui tient la chaîne** : un « Loyer »
+>   ponctuel écarterait la mensualité, le mois n'en porterait plus de
+>   reconductible, et elle sortirait de la reconduction pour tous les mois
+>   suivants, sans un mot. Il est signalé comme doublon possible.
+> - **Le message nomme ce qui ne part pas** (`messageDeReconduction`) : les
+>   charges écartées et les doublons possibles. Un doublon possible passe en
+>   avertissement, et un message qui nomme des charges dure 8 s plutôt que 3.
+> - **La conséquence « ne recevra pas les charges récurrentes » disparaît** du
+>   lot 1 : elle est devenue fausse. Le doublon reste confirmé avant l'écriture.
+>
+> **DEUX CHOSES QUE LA PHASE A N'AVAIT PAS VUES, et qui se sont lues en
+> écrivant :**
+>
+> - **tout écarté n'est pas « rien à faire ».** Le plan valait `null` quand il
+>   n'y avait rien à copier, donc aucune empreinte. Sous R5, ce mois aurait été
+>   disqualifié au tour suivant, et ce qu'on y avait saisi serait sorti de la
+>   chaîne. Le plan existe dès qu'il y a une source ; c'est lui qui fait poser
+>   l'empreinte ;
+> - **l'empreinte d'une poche personnelle n'est pas dans le nœud fusionné.**
+>   `lireLesPoches` la lit bien, mais `aPlat` l'écarte et `lirePeriodes` ne rend
+>   que la fusion : la phase A l'avait laissé « à mesurer ». Faire remonter un
+>   champ dans la fusion aurait touché `poches.js` (19 dépendants) et la forme
+>   lue partout. `moisDontLEmpreinteDecide` dit donc quels mois demander, du plus
+>   récent au plus ancien, sans le plus ancien, qui n'a rien à prouver ;
+>   `reconduction.js` les lit un à un et s'arrête au premier trouvé. **Une
+>   ouverture ordinaire ne coûte aucune lecture de plus** : rien tant que
+>   l'empreinte du mois affiché est posée, ni sur un mois passé.
+>
+> **Aucune reprise de données** : relevé en lecture seule sur la sauvegarde du
+> 2026-11-01 (compte `vous`, la poche `conjointe` n'y figure pas depuis P1a),
+> aucun mois bloqué, faute de charge fixe active en base. Aucune règle à changer.
 
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
@@ -3190,17 +3260,14 @@ les relevés pris avant valent toujours.
    Le correctif tient en un ordre — occuper le bouton APRÈS la relecture de la
    saisie — mais il déplace le verrou visible d'un cran et ne se prend pas dans
    le lot qui l'a trouvé.
-8. **⚠️ Une charge FIXE posée dans un mois pas encore reconduit l'empêche de
-   l'être jamais.** `planDeLaPoche` (`utils/recurrence.js`) refuse un mois
-   « déjà garni » d'une charge fixe active : le loyer n'y est alors jamais
-   recopié. **Deux portes y mènent** — l'ajout d'une charge fixe datée dans un
-   mois futur (depuis le rangement par la date de l'ajout), et depuis le
-   2026-10-29 sa modification vers un tel mois. La seconde se CONFIRME avant
-   l'écriture depuis le 2026-11-01 (`avertissementDeReconduction`, une
-   conséquence de la modale) ; la première ne dit rien. Le correctif est dans la
-   reconduction, pas dans les formulaires, et il demande de savoir ce que la
-   garde « mois déjà garni » protège en plus de l'empreinte — à mesurer avant
-   d'y toucher.
+8. **✅ REFERMÉ le 2026-11-01 par le lot 2 — une charge FIXE posée dans un mois
+   pas encore reconduit l'empêchait de l'être jamais.** `planDeLaPoche` refusait
+   un mois « déjà garni » d'une charge fixe active. **Deux portes y menaient** —
+   l'ajout d'une charge fixe datée dans un mois futur, et sa modification vers un
+   tel mois. La garde est retirée ; R5 et D2 la remplacent, et le correctif est
+   dans la reconduction, pas dans les formulaires. Voir « Un mois garni à la main
+   est reconduit », dans les *Décisions*. Le défaut ne s'était jamais produit en
+   base : aucune reprise de données.
 9. **L'import CSV range toutes ses lignes dans le mois AFFICHÉ**
    (`import.js:220-241`), quelle que soit leur date — la même règle 2 que la
    modification, sur le troisième chemin de création. Relevé le 2026-10-29, non
@@ -3253,9 +3320,10 @@ les relevés pris avant valent toujours.
     il n'est PAS commité : ses instantanés sont pris sur le compte réel du bac
     à sable. Ce constat reste ouvert jusqu'à la prochaine occurrence (règle 5,
     « un contrôle tombé une fois et non reproduit reste ouvert »).
-12. **⚠️ `data-flow.spec.js:1346` — « un mois déjà garni à la main n'est pas
-    complété » — reste VERT garde retirée. Il ne mesure pas ce que son titre
-    dit.** Mesuré en phase A du lot 2 (2026-11-01, sur `47ed7c5`) : garde
+12. **✅ REFERMÉ le 2026-11-01 par le lot 2 — `data-flow.spec.js:1346` — « un mois
+    déjà garni à la main n'est pas complété » — restait VERT garde retirée. Il ne
+    mesurait pas ce que son titre disait.** Mesuré en phase A du lot 2
+    (2026-11-01, sur `47ed7c5`) : garde
     « mois déjà garni » retirée de `utils/recurrence.js`, le cas passe. Une
     copie jetable du même scénario, comptée 4 s après le geste, sépare les
     deux :
@@ -3268,10 +3336,61 @@ les relevés pris avant valent toujours.
     **Ce qui le rendait vide** : son `toHaveCount(0)` réessaie jusqu'au premier
     rendu de novembre, qui précède l'écriture de la reconduction — la
     reconduction tourne en FIN de `loadPeriodData`. Il passe donc avant que la
-    propriété qu'il tient puisse être fausse. Il ne déclare par ailleurs ni
-    horloge ni largeur. **Il sera réécrit par le lot 2** sur la nouvelle
-    propriété, compté APRÈS la reconduction, à 320 et 390 px — et devra tomber
-    garde remise.
+    propriété qu'il tient puisse être fausse. Il ne déclarait par ailleurs ni
+    horloge ni largeur. **Réécrit par le lot 2**, sous « Un mois garni à la main
+    est reconduit » (`data-flow.spec.js`) : horloge figée, 320 et 390 px, compté
+    APRÈS l'empreinte relue en base. Il tient désormais la propriété inverse, et
+    garde remise il tombe aux deux largeurs sur `Received: null`.
+13. **⚠️ LA LIMITE DE R5, assumée en v1 : une charge posée d'avance dans un mois M
+    n'atteint pas M+1 si M+1 a été ouvert avant M.** Scénario mesuré, tenu par un
+    cas de `tests/utils/recurrence-mois-garni.test.js` : octobre porte le Loyer,
+    novembre l'Assurance posée d'avance, décembre s'ouvre en premier. Novembre,
+    sans empreinte, y est disqualifié, donc décembre part d'octobre et porte
+    { Loyer }. Novembre, ouvert ensuite, reçoit bien le Loyer et porte
+    { Assurance, Loyer }. **Décembre, déjà reconduit, n'aura jamais l'Assurance**,
+    et rien ne le dit.
+    **Sa conséquence voisine, tenue par un second cas** : un historique saisi à
+    la main sans aucune empreinte prend pour source le PLUS ANCIEN mois porteur,
+    là où le code d'avant prenait le plus récent. R5 ne sait pas distinguer deux
+    mois saisis à la main d'un mois bloqué. Aucun mois de la sauvegarde du
+    2026-11-01 n'a cette forme, et un mois présent ou futur se répare seul : sa
+    réouverture y pose l'empreinte.
+14. **⚠️ HORS LIGNE, UNE TRANSACTION DE RECONDUCTION NE REND JAMAIS LA MAIN — et à
+    l'OUVERTURE de l'application, elle la fige. NON CORRIGÉ.** Mesuré le
+    2026-11-01 sous émulateur, vraie base, sonde jetable sur `894cd3f`.
+    `transaction()` sans réseau ne rejette pas et n'expire pas : pendante après
+    6 s, valeur optimiste en local, rien en base. Or `applyRecurringCharges`
+    l'attend sans délai, contrairement à tout ce qui passe par `db.js`.
+
+    | Situation, hors ligne | Ce qui se passe |
+    |---|---|
+    | mois jamais lu sur l'appareil | pas de transaction : `dbGet` lève, le toast d'erreur « elles le seront à la prochaine ouverture » paraît. **Mais la liste de fixes garde les lignes du mois précédent** (1 ligne octobre sous « novembre ») |
+    | mois déjà lu, **changement de mois** | transaction pendante. L'écran reste utilisable, **le mois paraît vide, et rien ne le dit** |
+    | mois déjà lu, **ouverture de l'application** | **`data-app-ready` jamais posé en 40 s, et la modale de saisie ne s'ouvre pas.** Témoin sans rien à reconduire : prêt en 3,7 s, modale ouverte |
+
+    **Ce qui est sain, et mesuré** : au retour du réseau, une seule copie, même
+    avec un second geste pendant l'attente, même avec **deux appareils** coupés
+    tous les deux. Page fermée pendant l'attente : rien en base, rien de perdu, et
+    la reconduction se rejoue à la prochaine ouverture en ligne. **Aucune donnée
+    n'est en danger : c'est l'écran qui l'est.**
+
+    **Le lot 2 n'a pas créé ce défaut, il en élargit un peu la porte.** Le même
+    gel a été rejoué sur `origin/main` (`4879fa6`), à l'identique. Mais un mois
+    garni d'avance, que la garde laissait sans plan, en a un désormais — déduit du
+    retrait de la garde, non rejoué.
+
+    **Ce qui borne le cas, et ce n'est qu'une borne de fait** : il faut que les
+    chemins du mois soient dans le miroir sans qu'une reconduction y ait posé
+    d'empreinte, soit un mois ouvert en ligne quand il n'avait pas de source. Un
+    mois neuf lève plus tôt, sur la lecture de l'empreinte personnelle. ⚠️ Cette
+    protection est un accident, et lue dans le code, non exécutée :
+    `depuisMiroir` ne lève plus dès qu'une écriture attend en file. Une saisie
+    hors ligne en attente pourrait donc ouvrir la voie à la transaction sur un
+    mois neuf.
+
+    Le correctif porte sur `applyRecurringCharges` — ne pas attendre une
+    transaction sans liaison —, et il doit décider ce que l'écran dit d'un mois
+    dont la reconduction attend. Hors du lot 2 par décision de Richie.
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).

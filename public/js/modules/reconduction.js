@@ -22,12 +22,16 @@ import { EMPLACEMENTS } from '../utils/confidentialite.js';
 import { reporterDansLaPeriode } from '../utils/date.js';
 import { toast } from '../components/toast.js';
 import { getCurrentPeriod, formatPeriod } from '../utils/date.js';
-import { planRecurrence } from '../utils/recurrence.js';
+import {
+  planRecurrence, moisDontLEmpreinteDecide, messageDeReconduction
+} from '../utils/recurrence.js';
 import { log, error as logError } from '../utils/debug.js';
 import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
 
 let database = null;
 
+/** Un message qui nomme des charges se lit : plus longtemps que les 3 s par défaut */
+const DUREE_DU_DETAIL = 8000;
 
 /**
  * Initialise le module de reconduction
@@ -86,12 +90,30 @@ export async function applyRecurringCharges({ historique } = {}) {
       ? await dbGet(cheminEmpreintePersonnelle)
       : null;
 
+    // R5 a besoin de l'empreinte des mois ANTÉRIEURS de ma poche, et elles non
+    // plus ne sont pas dans le nœud fusionné. Elles sont demandées une à une, en
+    // s'arrêtant à la première : une poche reconduite le mois dernier ne coûte
+    // qu'une lecture, une fois par mois, et rien du tout tant que l'empreinte du
+    // mois affiché est posée.
+    const currentMonth = getCurrentPeriod();
+    const empreintesPersonnelles = {};
+    if (!empreintePersonnelle) {
+      for (const mois of moisDontLEmpreinteDecide({ periods, target, currentMonth, moi })) {
+        const empreinte = await dbGet(cheminDuPersonnel(moi, `periods/${mois}/reconductedFrom`));
+        if (empreinte) {
+          empreintesPersonnelles[mois] = empreinte;
+          break;
+        }
+      }
+    }
+
     const plan = planRecurrence({
       target,
-      currentMonth: getCurrentPeriod(),
+      currentMonth,
       periods,
       moi,
-      empreintePersonnelle
+      empreintePersonnelle,
+      empreintesPersonnelles
     });
     if (!plan) return 0;
 
@@ -137,6 +159,8 @@ export async function applyRecurringCharges({ historique } = {}) {
     const updates = {};
     let reconduites = 0;
     const sources = new Set();
+    const ecartees = new Set();
+    const doublonsPossibles = new Set();
 
     // ═══ TOUT CE QUI SUIT UNE RÉSERVATION VIT SOUS LE MÊME FILET ═══
     //
@@ -163,6 +187,8 @@ export async function applyRecurringCharges({ historique } = {}) {
         }
         reservees.push(poche.empreinte);
         sources.add(poche.plan.source);
+        poche.plan.ecartees.forEach(libelle => ecartees.add(libelle));
+        poche.plan.doublonsPossibles.forEach(libelle => doublonsPossibles.add(libelle));
 
         for (const charge of poche.plan.charges) {
           const key = database.ref().push().key;
@@ -263,7 +289,10 @@ export async function applyRecurringCharges({ historique } = {}) {
       // échouent aussi — la liaison est coupée, c'est le cas probable — le mois
       // reste marqué : on ne peut pas faire mieux depuis l'appareil, mais
       // l'erreur d'origine remonte au lieu d'être avalée.
-      await database.ref().update(updates);
+      //
+      // Une poche dont TOUTES les copies ont été écartées n'a rien à écrire ici,
+      // et son empreinte est déjà posée : c'est l'état qu'on voulait.
+      if (Object.keys(updates).length > 0) await database.ref().update(updates);
     } catch (echec) {
       for (const empreinte of reservees) await empreinte.set(null).catch(() => {});
       throw echec;
@@ -281,11 +310,19 @@ export async function applyRecurringCharges({ historique } = {}) {
     // phrase : le journal les porte, l'écran dit le nombre.
     const depuis = [...sources];
     const nombre = reconduites;
-    toast.info(
-      `${nombre} charge${nombre > 1 ? 's' : ''} fixe${nombre > 1 ? 's' : ''} `
-      + `reconduite${nombre > 1 ? 's' : ''}`
-      + (depuis.length === 1 ? ` depuis ${formatPeriod(depuis[0])}` : '')
-    );
+    const message = messageDeReconduction({
+      nombre,
+      depuis: depuis.length === 1 ? formatPeriod(depuis[0]) : null,
+      ecartees: [...ecartees],
+      doublonsPossibles: [...doublonsPossibles]
+    });
+    if (doublonsPossibles.size > 0) {
+      toast.warning(message, { duration: DUREE_DU_DETAIL });
+    } else if (ecartees.size > 0) {
+      toast.info(message, { duration: DUREE_DU_DETAIL });
+    } else {
+      toast.info(message);
+    }
     log(`🔁 ${nombre} charge(s) reconduite(s) de ${depuis.join(', ')} vers ${target}`);
 
     return nombre;
