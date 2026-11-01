@@ -3206,17 +3206,24 @@ les relevés pris avant valent toujours.
    modification, sur le troisième chemin de création. Relevé le 2026-10-29, non
    traité : le format a ses propres questions (un fichier qui couvre plusieurs
    mois, l'aperçu qui annonce un seul mois).
-10. **⚠️ `reconduction-empreinte.test.js` et `reconduction-deux-poches.test.js`
-    sont ROUGES depuis le 1er octobre 2026, sur `main` comme ailleurs — 13 cas,
-    et aucun défaut de code.** Ils sèment `2026-09` comme mois CIBLE sans figer
-    l'horloge ; or la reconduction ne remonte jamais dans le passé
-    (`target < currentMonth`). Mesuré le 2026-10-29 : les mêmes fichiers, horloge
-    figée au 15 septembre, rendent 16/16. Le dernier passage de la CI sur
-    `main` date du 2026-09-18 — vert, en septembre —, donc rien ne l'a encore
-    dit. C'est le cinquième contrôle de ce dépôt qui dépendait du calendrier
-    (voir « Toute spec datée doit figer l'horloge »), et le premier UNITAIRE.
-    Le remède est `vi.setSystemTime` dans les deux fichiers ; il bloque la CI de
-    toute PR tant qu'il n'est pas fait, et il se prend dans un lot à lui.
+10. **✅ REFERMÉ — `reconduction-empreinte.test.js` et
+    `reconduction-deux-poches.test.js` ont été ROUGES du 1er au 30 octobre
+    2026, sur `main` comme ailleurs — 13 cas, et aucun défaut de code.**
+    **La cause, qui servira la prochaine fois** : ils semaient `2026-09` comme
+    mois CIBLE sans figer l'horloge, or la reconduction ne remonte jamais dans
+    le passé (`target < currentMonth`). Verts tout septembre, rouges dès que le
+    calendrier a dépassé leur mois cible, sans qu'un octet du code ait bougé.
+    Le dernier passage de la CI sur `main` datait du 2026-09-18 — vert, en
+    septembre —, donc rien ne l'avait dit avant le 2026-10-29. C'est le
+    cinquième contrôle de ce dépôt qui dépendait du calendrier (voir « Toute
+    spec datée doit figer l'horloge »), et le premier UNITAIRE.
+    **Refermé par `0ea5022` (PR #251)** : `vi.useFakeTimers({ toFake: ['Date'] })`
+    et `vi.setSystemTime` au 15 septembre 2026, dans ces deux fichiers seuls —
+    seule `Date` est simulée, les minuteurs de la transaction restent réels.
+    Entré dans `main` par la fusion de #253 (`eedd73f`, 2026-10-30), qui
+    portait la branche de #251 pour sortir d'un blocage croisé : chacune des
+    deux PR était rouge sur la cause de l'autre. Ils ne sont plus rouges et ne
+    bloquent plus la CI — rejoués le 2026-11-01, 16/16.
 11. **⚠️ « Tests contre le vrai Firebase » est tombé UNE fois, le 2026-10-30, sur
     `eedd73f` — NON REPRODUIT, NON EXPLIQUÉ.** Run **41087696870**, tentative 1
     (push de la fusion de #253, échec à 16:29 UTC), 2 cas sur 17, tous deux
