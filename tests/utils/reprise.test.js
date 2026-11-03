@@ -28,17 +28,28 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const rejouerFileDAttente = vi.fn();
 const saisiesEnAttente = vi.fn(() => 0);
+const liaisonRompue = vi.fn(() => false);
 vi.mock('../../public/js/db.js', () => ({
   rejouerFileDAttente: (...a) => rejouerFileDAttente(...a),
-  saisiesEnAttente: (...a) => saisiesEnAttente(...a)
+  saisiesEnAttente: (...a) => saisiesEnAttente(...a),
+  liaisonRompue: (...a) => liaisonRompue(...a)
 }));
+
+const loadPeriodData = vi.fn(async () => {});
+vi.mock('../../public/js/modules/period.js', () => ({
+  loadPeriodData: (...a) => loadPeriodData(...a)
+}));
+
+// Le VRAI module des marques : c'est son effet sur la reprise qu'on mesure.
+// Seul le bandeau, qu'il appelle, est doublé ci-dessous.
 
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() };
 vi.mock('../../public/js/components/toast.js', () => ({ toast }));
 
 const refreshConnectionBanner = vi.fn();
 vi.mock('../../public/js/utils/connection-banner.js', () => ({
-  refreshConnectionBanner: (...a) => refreshConnectionBanner(...a)
+  refreshConnectionBanner: (...a) => refreshConnectionBanner(...a),
+  annoncerReconductionEnAttente: vi.fn()
 }));
 
 const noter = vi.fn();
@@ -52,6 +63,7 @@ vi.mock('../../public/js/utils/debug.js', () => ({
 
 const { synchroniserLesSaisies, surRepriseDeLiaison, ecoulerLesSaisiesGardees } =
   await import('../../public/js/utils/reprise.js');
+const marques = await import('../../public/js/utils/reprise-du-mois.js');
 
 /** Un bilan de rejeu, tel que `rejouerFileDAttente` le rend */
 const bilan = (parts) => ({ envoyees: 0, restantes: 0, erreur: null, refusees: [], ...parts });
@@ -62,7 +74,9 @@ const erreursAffichees = () => toast.error.mock.calls.map(([texte]) => texte).jo
 beforeEach(() => {
   vi.clearAllMocks();
   saisiesEnAttente.mockReturnValue(0);
+  liaisonRompue.mockReturnValue(false);
   rejouerFileDAttente.mockResolvedValue(bilan({}));
+  marques.prendreLeMoisARelire();
 });
 
 describe('LE MESSAGE DE REFUS ATTEINT L\'ÉCRAN', () => {
@@ -214,5 +228,57 @@ describe('Écouler au chargement : les trois différences, toutes voulues', () =
 
     expect(warn).toHaveBeenCalled();
     expect(logError).not.toHaveBeenCalled();
+  });
+});
+
+describe('AU RETOUR DU RÉSEAU, LE MOIS EN SUSPENS EST RELU — sur une lecture fraîche', () => {
+  // Point ouvert 14. Hors ligne, la reconduction n'est pas tentée : son plan
+  // viendrait du miroir. C'est ici, et seulement ici, qu'elle reprend.
+
+  it('une reconduction en attente relit le mois, une fois, après le rejeu', async () => {
+    const ordre = [];
+    rejouerFileDAttente.mockImplementation(async () => { ordre.push('rejeu'); return bilan({}); });
+    loadPeriodData.mockImplementation(async () => { ordre.push('relecture'); });
+    marques.mettreEnAttente('2026-11');
+
+    await synchroniserLesSaisies();
+    await surRepriseDeLiaison();
+
+    // Après le rejeu : ce qui a été saisi pendant la coupure compte dans le plan.
+    expect(ordre).toEqual(['rejeu', 'relecture', 'rejeu']);
+    // Sans argument : un instantané passé serait celui du miroir.
+    expect(loadPeriodData).toHaveBeenCalledWith();
+  });
+
+  it('LE TÉMOIN — rien en suspens, rien n\'est relu', async () => {
+    await synchroniserLesSaisies();
+    expect(loadPeriodData).not.toHaveBeenCalled();
+  });
+
+  it('un mois illisible est relu de la même façon', async () => {
+    marques.viderApresEchec({ mois: '2026-11', collection: 'fixedCharges', rendre: () => {} });
+    await synchroniserLesSaisies();
+    expect(loadPeriodData).toHaveBeenCalledTimes(1);
+  });
+
+  it('la liaison retombée pendant le rejeu : la marque reste pour la prochaine fois', async () => {
+    marques.mettreEnAttente('2026-11');
+    liaisonRompue.mockReturnValue(true);
+    await synchroniserLesSaisies();
+    expect(loadPeriodData).not.toHaveBeenCalled();
+
+    liaisonRompue.mockReturnValue(false);
+    await synchroniserLesSaisies();
+    expect(loadPeriodData).toHaveBeenCalledTimes(1);
+  });
+
+  it('retombée PENDANT la relecture, elle n\'a rien relu : la suivante recommence', async () => {
+    marques.mettreEnAttente('2026-11');
+    loadPeriodData.mockImplementationOnce(async () => { liaisonRompue.mockReturnValue(true); });
+    await synchroniserLesSaisies();
+
+    liaisonRompue.mockReturnValue(false);
+    await synchroniserLesSaisies();
+    expect(loadPeriodData).toHaveBeenCalledTimes(2);
   });
 });

@@ -227,6 +227,26 @@ export function annoncerLaCause(cause) {
 }
 
 /**
+ * Dit qu'une reconduction attend le réseau, ou cesse de le dire
+ *
+ * Ici et pas dans un toast : un message qui paraît puis disparaît laisse un
+ * mois sans son loyer, sans plus rien pour l'expliquer. Le mois paraît vide
+ * aussi longtemps que dure la coupure, et le bandeau dure autant qu'elle.
+ *
+ * @param {string|null} libelleDuMois - « novembre 2026 », `null` pour se taire
+ * @returns {void}
+ */
+export function annoncerReconductionEnAttente(libelleDuMois) {
+  const zone = document.getElementById('offlineBannerReconduction');
+  if (!zone) return;
+
+  zone.hidden = !libelleDuMois;
+  zone.textContent = libelleDuMois
+    ? `Les charges récurrentes de ${libelleDuMois} sont en attente du réseau : elles seront reportées à son retour.`
+    : '';
+}
+
+/**
  * Écrit ce que le bandeau dit des saisies en attente
  *
  * `textContent`, jamais `innerHTML` : le nombre vient du code, mais la règle

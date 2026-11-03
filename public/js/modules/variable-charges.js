@@ -2,6 +2,7 @@
 // Fonctionnalités : add, edit, delete, render, validation
 
 import { setState, getState } from '../state.js';
+import { viderApresEchec, estIllisible } from '../utils/reprise-du-mois.js';
 import { collectDeleted } from '../utils/soft-delete.js';
 import { refreshTrashButton } from './trash.js';
 import { refreshMapButton } from './map.js';
@@ -314,6 +315,23 @@ export function initVariableCharges() {
 }
 
 /**
+ * Rend la liste et tout ce qui se raccorde à elle
+ * @returns {void}
+ */
+function rendreLesChargesVariables() {
+  renderVariableCharges();
+  // Le nombre d'éléments supprimés vient de changer.
+  refreshTrashButton();
+  // Les charges localisées aussi, et le graphique de tendances devient
+  // périmé. Ces vues se raccordent ici plutôt qu'au bilan : celui-ci sort
+  // par anticipation quand aucun salaire n'est saisi.
+  refreshMapButton();
+  // Et ce que les enveloppes portent ce mois-ci, pour la même raison.
+  renderCarteEnveloppes();
+  invalidateTrends();
+}
+
+/**
  * Charge les charges variables depuis Firebase pour la période actuelle
  *
  * @param {Object} [instantaneDuMois] - Nœud `periods/{mois}` déjà lu dans ce
@@ -330,15 +348,26 @@ export async function loadVariableCharges(instantaneDuMois) {
     return;
   }
 
+  // DEUX filets, et pas un : seul un échec de LECTURE dit que le mois est
+  // illisible. Un rendu qui lève a déjà posé l'état du bon mois, et le vider
+  // effacerait des charges lues pour annoncer un mois « pas disponible » qui
+  // l'est. Mesuré : un seul `try` faisait exactement cela.
+  let charges;
   try {
     // Les DEUX poches, réunies : `lirePeriodes` rend ce que `dbGet` rendait
     // avant que le personnel en sorte. L'instantané, lui, est déjà fusionné par
     // celui qui l'a lu — sans quoi les deux chemins d'appel rendraient des
     // listes différentes pour le même mois.
-    const charges = instantaneDuMois === undefined
+    charges = instantaneDuMois === undefined
       ? await lirePeriodes(`${currentPeriod}/variableCharges`)
       : (instantaneDuMois?.variableCharges ?? null);
+  } catch (error) {
+    logError('❌ Lecture des charges variables impossible :', error);
+    viderApresEchec({ mois: currentPeriod, collection: 'variableCharges', rendre: rendreLesChargesVariables });
+    return;
+  }
 
+  try {
     if (charges) {
       // Filtrer les charges non supprimées et valides
       const activeCharges = Object.entries(charges)
@@ -366,16 +395,7 @@ export async function loadVariableCharges(instantaneDuMois) {
       log('📊 Aucune charge variable pour cette période');
     }
 
-    renderVariableCharges();
-    // Le nombre d'éléments supprimés vient de changer.
-    refreshTrashButton();
-    // Les charges localisées aussi, et le graphique de tendances devient
-    // périmé. Ces vues se raccordent ici plutôt qu'au bilan : celui-ci sort
-    // par anticipation quand aucun salaire n'est saisi.
-    refreshMapButton();
-    // Et ce que les enveloppes portent ce mois-ci, pour la même raison.
-    renderCarteEnveloppes();
-    invalidateTrends();
+    rendreLesChargesVariables();
   } catch (error) {
     logError('❌ Erreur chargement charges variables :', error);
     toast.error('Erreur de chargement des charges variables');
@@ -772,7 +792,10 @@ export function renderVariableCharges() {
     // rendre une chaîne — mesuré, une chaîne assignée à `innerHTML` ferait
     // passer le plafond des sites d'injection de 24 à 26 sur des phrases qui
     // n'interpolent rien.
-    afficherEtatVide(listElement, { collection: 'variableCharges', portee, renvoi });
+    afficherEtatVide(listElement, {
+      collection: 'variableCharges', portee, renvoi,
+      indisponible: estIllisible(getState('currentPeriod'))
+    });
     afficherTotalDeListe(totalElement, [], { portee, moi });
     // La barre annonce un compte que cette liste vide vient de démentir.
     rafraichirLaBarre();

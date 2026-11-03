@@ -26,6 +26,7 @@ import { apprendre } from '../utils/memoire-libelle.js';
 import { haussesDepuisLAnDernier } from '../utils/cout-annuel.js';
 import { ecartLaisseParLaCorrection } from '../utils/correction-retroactive.js';
 import { lirePeriodes } from '../poches.js';
+import { mettreEnAttente, oublierLIllisible } from '../utils/reprise-du-mois.js';
 
 /**
  * Remplit le sélecteur de mois
@@ -216,12 +217,104 @@ export function appliquerLesTermesDuMois(moisAffiche, globalSalaries) {
 }
 
 /**
+ * Combien de temps un chargement de mois attend sa reconduction
+ *
+ * Une reconduction commencée se termine, quel que soit le temps que ça prenne :
+ * ni la transaction ni la copie ne portent de délai, parce qu'une écriture qu'on
+ * abandonne à mi-chemin part quand même au retour du réseau. C'est l'ATTENTE qui
+ * est bornée, jamais le travail. Sans cette borne, une liaison tombée après les
+ * lectures gardait toute l'ouverture à la suite de la reconduction : pas de
+ * saisie, pas de `data-app-ready`, pas d'écoulement de la file.
+ *
+ * Tester `liaisonRompue()` ne suffit pas à l'éviter : cette réponse vaut pour
+ * l'instant où on la lit.
+ */
+const ATTENTE_RECONDUCTION_MS = 5000;
+
+/**
+ * Attend une promesse, sans jamais attendre plus que le délai
+ *
+ * @param {Promise<*>} promesse - Elle continue après le délai
+ * @param {number} delaiMs
+ * @returns {Promise<boolean>} `true` si elle s'est conclue à temps
+ */
+function attendreAuPlus(promesse, delaiMs) {
+  let minuteur;
+  const borne = new Promise((resolve) => {
+    minuteur = setTimeout(() => resolve(false), delaiMs);
+  });
+  return Promise.race([promesse.then(() => true), borne])
+    .finally(() => clearTimeout(minuteur));
+}
+
+/**
+ * Ce qui suit une reconduction, à quelque moment qu'elle se conclue
+ *
+ * @param {Object} suite
+ * @param {number} suite.reconduites - Nombre de charges reconduites
+ * @param {string} suite.mois - Le mois chargé
+ * @param {Object|null} suite.instantane - Le nœud `periods` du geste
+ * @param {Object|null} suite.globalSalaries - Le nœud `salaries` du geste
+ * @returns {Promise<void>}
+ */
+async function apresLaReconduction({ reconduites, mois, instantane, globalSalaries }) {
+  // Conclue après la borne, elle a pu voir partir la personne vers un autre
+  // mois : l'instantané ne vaut plus, et le chargement de ce mois-là a fait ce
+  // travail pour lui.
+  if (getState('currentPeriod') !== mois) return;
+
+  // Les cagnottes qui portent un versement mensuel, dans la foulée : c'est le
+  // même moment — l'ouverture d'un mois neuf — et les mêmes garanties, une
+  // fois par mois et jamais vers le passé. Son échec n'empêche pas le mois de
+  // s'ouvrir : `appliquerLesVersementsMensuels` rattrape tout et rend 0.
+  const { appliquerLesVersementsMensuels } = await import('./versement-mensuel.js');
+  await appliquerLesVersementsMensuels({
+    historique: instantane, salairesGlobaux: globalSalaries
+  });
+
+  // La comparaison à l'an dernier a été calculée AVANT la reconduction, sur
+  // un mois qui ne portait encore aucune charge fixe : elle rendait donc
+  // `null`, et « 2 ont augmenté depuis l'an dernier » ne paraissait jamais à
+  // la PREMIÈRE ouverture d'un mois — précisément celle où le foyer découvre
+  // ses charges reconduites.
+  //
+  // Elle est refaite ici sur le mois désormais rempli, et seulement s'il
+  // s'est passé quelque chose. Aucune lecture de plus : les charges viennent
+  // de l'état que `loadFixedCharges` vient de rafraîchir, le reste de
+  // l'instantané est celui du geste.
+  if (reconduites > 0) {
+    const parIdentifiant = Object.fromEntries(
+      (getState('fixedCharges') || [])
+        .filter(charge => charge && charge.id)
+        .map(charge => [charge.id, charge])
+    );
+
+    setState('haussesChargesFixes', haussesDepuisLAnDernier({
+      periods: {
+        ...instantane,
+        [mois]: {
+          ...(instantane[mois] || {}),
+          fixedCharges: parIdentifiant
+        }
+      },
+      moisCourant: mois
+    }));
+
+    const { renderFixedCharges } = await import('./fixed-charges.js');
+    renderFixedCharges();
+  }
+}
+
+/**
  * Load period data from Firebase
  * Loads both salaries (global) and period-specific data
  */
 export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
   // Même repli que saveSalaries : jamais lire sous `periods/undefined`
   const currentPeriod = getState('currentPeriod') || getCurrentPeriod();
+
+  // Chaque chargement rejuge le mois : c'est un chargeur qui dira s'il a échoué.
+  oublierLIllisible();
 
   try {
     // 1. Salaires : l'instantané de la période fait foi, à défaut les globaux
@@ -304,47 +397,18 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
     // qu'elle reçoit est donc le dernier à pouvoir l'être. Ce qui la suit —
     // `chargerLesPeriodesConnues` — en tient compte.
     const { applyRecurringCharges } = await import('./reconduction.js');
-    const reconduites = await applyRecurringCharges({ historique: instantane });
+    const suite = applyRecurringCharges({ historique: instantane })
+      .then(reconduites => apresLaReconduction({
+        reconduites, mois: currentPeriod, instantane, globalSalaries
+      }))
+      .catch(erreur => logError('❌ Suite de la reconduction impossible :', erreur));
 
-    // Les cagnottes qui portent un versement mensuel, dans la foulée : c'est le
-    // même moment — l'ouverture d'un mois neuf — et les mêmes garanties, une
-    // fois par mois et jamais vers le passé. Son échec n'empêche pas le mois de
-    // s'ouvrir : `appliquerLesVersementsMensuels` rattrape tout et rend 0.
-    const { appliquerLesVersementsMensuels } = await import('./versement-mensuel.js');
-    await appliquerLesVersementsMensuels({
-      historique: instantane, salairesGlobaux: globalSalaries
-    });
-
-    // La comparaison à l'an dernier a été calculée AVANT la reconduction, sur
-    // un mois qui ne portait encore aucune charge fixe : elle rendait donc
-    // `null`, et « 2 ont augmenté depuis l'an dernier » ne paraissait jamais à
-    // la PREMIÈRE ouverture d'un mois — précisément celle où le foyer découvre
-    // ses charges reconduites.
-    //
-    // Elle est refaite ici sur le mois désormais rempli, et seulement s'il
-    // s'est passé quelque chose. Aucune lecture de plus : les charges viennent
-    // de l'état que `loadFixedCharges` vient de rafraîchir, le reste de
-    // l'instantané est celui du geste.
-    if (reconduites > 0) {
-      const parIdentifiant = Object.fromEntries(
-        (getState('fixedCharges') || [])
-          .filter(charge => charge && charge.id)
-          .map(charge => [charge.id, charge])
-      );
-
-      setState('haussesChargesFixes', haussesDepuisLAnDernier({
-        periods: {
-          ...instantane,
-          [currentPeriod]: {
-            ...(instantane[currentPeriod] || {}),
-            fixedCharges: parIdentifiant
-          }
-        },
-        moisCourant: currentPeriod
-      }));
-
-      const { renderFixedCharges } = await import('./fixed-charges.js');
-      renderFixedCharges();
+    if (!await attendreAuPlus(suite, ATTENTE_RECONDUCTION_MS)) {
+      // On cesse d'attendre, on ne cesse pas de faire. La marque ne décide de
+      // rien : au retour, une reconduction déjà aboutie ne laisse aucun plan à
+      // refaire, et une transaction encore pendante arbitre la seconde.
+      warn(`⏳ Reconduction de ${currentPeriod} toujours en cours après ${ATTENTE_RECONDUCTION_MS} ms`);
+      mettreEnAttente(currentPeriod);
     }
 
     log(`📅 Période chargée : ${formatPeriod(currentPeriod)}`);
@@ -352,6 +416,13 @@ export async function loadPeriodData({ historique, salairesGlobaux } = {}) {
   } catch (error) {
     logError('❌ Erreur chargement données période:', error);
     toast.error('Erreur lors du chargement des données');
+
+    // L'instantané manque : les chargeurs n'ont pas tourné, et l'écran montre
+    // encore le mois quitté. Ils vident ce qu'ils ne savent pas lire.
+    await loadVariableCharges();
+    await loadFixedCharges();
+    await loadReimbursements();
+    calculateSummary();
   }
 }
 

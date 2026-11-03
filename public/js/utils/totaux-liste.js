@@ -228,6 +228,18 @@ const ETATS_VIDES = Object.freeze({
 });
 
 /**
+ * Ce que dit une liste qu'on n'a pas pu lire
+ *
+ * Pas « Aucune charge » : un mois sans données et un mois illisible se
+ * ressembleraient trait pour trait, et le second se lirait comme un mois où il
+ * n'y a rien à payer.
+ */
+const MOIS_INDISPONIBLE = Object.freeze([
+  'Ce mois n\'est pas disponible pour l\'instant',
+  'Il n\'a pas pu être lu sur cet appareil. Il s\'affichera dès le retour du réseau.'
+]);
+
+/**
  * Laquelle des trois phrases cette liste vide doit dire
  *
  * Sous « Moi », la liste ne montre que mon personnel : vide, c'est que je n'en
@@ -252,13 +264,17 @@ function casDeLEtatVide(portee, renvoi) {
  * @param {'variableCharges'|'fixedCharges'} lecture.collection
  * @param {*} lecture.portee
  * @param {{nature: string|null}} lecture.renvoi
+ * @param {boolean} [lecture.indisponible] - Le mois n'a pas pu être lu : la liste
+ *   n'est pas vide, elle est inconnue
  */
-export function afficherEtatVide(element, { collection, portee, renvoi }) {
+export function afficherEtatVide(element, { collection, portee, renvoi, indisponible = false }) {
   if (!element) return;
 
   const phrases = ETATS_VIDES[collection];
   if (!phrases) return;
-  const [titre, aide] = phrases[casDeLEtatVide(portee, renvoi)];
+  const [titre, aide] = indisponible
+    ? MOIS_INDISPONIBLE
+    : phrases[casDeLEtatVide(portee, renvoi)];
 
   const bloc = document.createElement('p');
   bloc.className = 'empty-state';
