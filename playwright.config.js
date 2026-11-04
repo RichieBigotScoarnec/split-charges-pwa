@@ -75,11 +75,13 @@ export default defineConfig({
   // laquelle reconduit les charges et complète les instantanés de salaires,
   // sous les mêmes chemins. Le solde relu mêle alors deux jeux de données.
   //
-  // La sérialisation du projet `reel` ne peut pas s'écrire ici : `workers` est
-  // global, il n'existe pas par projet. Elle est donc portée par la commande du
-  // job « Tests contre le vrai Firebase » dans `.github/workflows/deploy.yml`,
-  // qui passe `--workers=1`. Toute reprise de ce parallélisme doit se lire aux
-  // deux endroits.
+  // La sérialisation du projet `reel` ne s'écrit pas ici : elle est portée par
+  // la commande du job « Tests contre le vrai Firebase » dans
+  // `.github/workflows/deploy.yml`, qui passe `--workers=1`. Toute reprise de
+  // ce parallélisme doit se lire aux deux endroits.
+  //
+  // Le commentaire qui précédait affirmait que `workers` n'existe pas par
+  // projet. C'est faux depuis Playwright 1.52 : voir le projet `emulateurs`.
 
   use: {
     baseURL: 'http://localhost:3333',
@@ -110,7 +112,22 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { browserName: 'chromium' },
-      testIgnore: /(scenario-reel|bouclier-navigateur|audit-axe|releve-mise-en-page)\.spec\.js/
+      testIgnore: /(scenario-reel|bouclier-navigateur|audit-axe|releve-mise-en-page|firebase-integration|regles-donnees|reconduction-hors-ligne)\.spec\.js/
+    },
+    // Ces trois fichiers partagent UN émulateur, et chacun de leurs cas l'efface
+    // en entier avant de commencer, comptes compris. Répartis entre workers, ils
+    // s'effaçaient les uns les autres : le risque existait déjà entre les deux
+    // premiers, sur des cas si courts qu'il ne se voyait pas. Un scénario hors
+    // ligne dure une minute et survit à deux rechargements : il ne survit pas à
+    // ça. D'où `workers: 1` pour ce seul projet.
+    //
+    // ⚠️ Un projet à part, donc `--project=chromium` seul ne les joue PAS. La CI
+    // et `npm run e2e` nomment les deux.
+    {
+      name: 'emulateurs',
+      use: { browserName: 'chromium' },
+      workers: 1,
+      testMatch: /(firebase-integration|regles-donnees|reconduction-hors-ligne)\.spec\.js/
     },
     {
       name: 'reel',

@@ -17,7 +17,7 @@
 
 import { getState } from '../state.js';
 import { getFirebaseDatabase } from '../firebase-init.js';
-import { getDataPath, cheminDuPersonnel, dbGet } from '../db.js';
+import { getDataPath, cheminDuPersonnel, dbGet, liaisonRompue } from '../db.js';
 import { EMPLACEMENTS } from '../utils/confidentialite.js';
 import { reporterDansLaPeriode } from '../utils/date.js';
 import { toast } from '../components/toast.js';
@@ -27,6 +27,7 @@ import {
 } from '../utils/recurrence.js';
 import { log, error as logError } from '../utils/debug.js';
 import { lirePeriodes, cheminDeLaCharge } from '../poches.js';
+import { mettreEnAttente, leverLAttente } from '../utils/reprise-du-mois.js';
 
 let database = null;
 
@@ -68,6 +69,9 @@ export async function applyRecurringCharges({ historique } = {}) {
 
   const target = getState('currentPeriod');
   if (!target) return 0;
+
+  // La marque d'un autre passage ne dit rien de celui-ci.
+  leverLAttente();
 
   try {
     const periods = historique === undefined ? await lirePeriodes() : historique;
@@ -116,6 +120,26 @@ export async function applyRecurringCharges({ historique } = {}) {
       empreintesPersonnelles
     });
     if (!plan) return 0;
+
+    // ═══ HORS LIGNE, ON NE LANCE PAS LA TRANSACTION ═══
+    //
+    // Mesuré sous émulateur : sans réseau, elle ne rejette pas et n'expire pas,
+    // et rien ne peut l'abandonner. Un drapeau dans la fonction de mise à jour
+    // ne sert à rien, elle n'est appelée qu'une fois et le SDK envoie le
+    // résultat de cette passe-là ; `set(null)` part au retour et efface
+    // l'empreinte de l'autre appareil ; un délai la laisse aboutir plus tard,
+    // mois marqué et sans charges. Il ne reste qu'à ne pas la lancer.
+    //
+    // Et ce n'est pas seulement un gel. Ce plan vient du miroir : parti au retour
+    // du réseau, il écrirait le montant d'hier, ressusciterait une charge
+    // supprimée, et l'empreinte interdirait ensuite toute correction. Le retour
+    // du réseau refait donc le plan sur une lecture fraîche
+    // (`relireLeMoisEnSuspens`).
+    if (liaisonRompue()) {
+      mettreEnAttente(target);
+      log(`🔁 Reconduction vers ${target} reportée au retour du réseau`);
+      return 0;
+    }
 
     // ═══ RÉSERVER CHAQUE EMPREINTE AVANT DE COPIER QUOI QUE CE SOIT ═══
     //
@@ -327,6 +351,15 @@ export async function applyRecurringCharges({ historique } = {}) {
 
     return nombre;
   } catch (error) {
+    // La lecture a manqué faute de réseau, sur un mois jamais lu ici : rien ne
+    // dit qu'il n'y a rien à reconduire, et ce n'est pas une erreur à annoncer.
+    // Le bandeau en parle, et le retour du réseau tranchera.
+    if (liaisonRompue()) {
+      if (target >= getCurrentPeriod()) mettreEnAttente(target);
+      log(`🔁 Reconduction vers ${target} non évaluée, hors ligne :`, error?.message || error);
+      return 0;
+    }
+
     // Un mois sans reconduction reste utilisable : on saisit à la main. Mais
     // il faut le dire — un mois qui devait s'ouvrir avec le loyer et qui
     // s'ouvre vide se lit comme un mois où il n'y a rien à payer.

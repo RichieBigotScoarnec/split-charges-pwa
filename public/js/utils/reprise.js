@@ -20,10 +20,11 @@
  * `annoncesDuRejeu` et le bandeau.
  */
 
-import { rejouerFileDAttente, saisiesEnAttente } from '../db.js';
+import { rejouerFileDAttente, saisiesEnAttente, liaisonRompue } from '../db.js';
 import { toast } from '../components/toast.js';
 import { refreshConnectionBanner } from './connection-banner.js';
 import { annoncesDuRejeu } from './rejeu-annonce.js';
+import { prendreLeMoisARelire, relireAuRetour } from './reprise-du-mois.js';
 import { noter } from './diagnostics.js';
 import { warn, error as logError } from './debug.js';
 
@@ -67,6 +68,40 @@ export async function synchroniserLesSaisies() {
   }
 
   refreshConnectionBanner(true, restantes);
+
+  await relireLeMoisEnSuspens();
+}
+
+/**
+ * Relit le mois resté en suspens pendant la coupure
+ *
+ * Ici et pas à côté de l'une des deux portes de reprise : `app.js` écoute
+ * Firebase, `surRepriseDeLiaison` écoute la sonde de `db.js`, et cette
+ * fonction-ci est le seul point que les deux traversent.
+ *
+ * Après le rejeu, et non avant : ce qui a été saisi pendant la coupure doit être
+ * en base quand le plan de reconduction se refait, sinon il compterait sans.
+ *
+ * C'est une LECTURE FRAÎCHE, tout le propos est là. Le plan se refait sur ce que
+ * la base dit maintenant, jamais sur ce que le miroir disait pendant la coupure.
+ *
+ * @returns {Promise<void>}
+ */
+async function relireLeMoisEnSuspens() {
+  // La liaison a pu retomber pendant le rejeu : la marque reste alors posée, et
+  // c'est la prochaine reconnexion qui relira.
+  if (liaisonRompue()) return;
+
+  const mois = prendreLeMoisARelire();
+  if (!mois) return;
+
+  noter('hors-ligne', 'mois relu au retour du réseau', { mois });
+  const { loadPeriodData } = await import('../modules/period.js');
+  await loadPeriodData();
+
+  // Retombée pendant la relecture, la liaison l'a fait servir par le miroir :
+  // elle n'a rien relu, et la prochaine reconnexion doit recommencer.
+  if (liaisonRompue()) relireAuRetour(mois);
 }
 
 /**

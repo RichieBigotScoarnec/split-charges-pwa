@@ -229,7 +229,7 @@ jobs:
       # Firebase : ils tournent plus loin, APRÈS la publication des règles.
       # Cf. le job `e2e-reel` et le commentaire de `playwright.config.js`.
       - name: Run E2E tests
-        run: npx firebase emulators:exec --only auth,database --project fairsplit-foyer "npx playwright test --project=chromium --reporter=line"
+        run: npx firebase emulators:exec --only auth,database --project fairsplit-foyer "npx playwright test --project=chromium --project=emulateurs --reporter=line"
 
       - name: Upload traces on failure
         if: failure()

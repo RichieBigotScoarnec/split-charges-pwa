@@ -2,6 +2,7 @@
 // Fonctionnalités : add, edit, delete, render, validation
 
 import { setState, getState } from '../state.js';
+import { viderApresEchec, estIllisible } from '../utils/reprise-du-mois.js';
 import { collectDeleted } from '../utils/soft-delete.js';
 import { refreshTrashButton } from './trash.js';
 import { refreshMapButton } from './map.js';
@@ -347,6 +348,23 @@ export function initFixedCharges() {
 }
 
 /**
+ * Rend la liste et tout ce qui se raccorde à elle
+ * @returns {void}
+ */
+function rendreLesChargesFixes() {
+  renderFixedCharges();
+  // Le nombre d'éléments supprimés vient de changer.
+  refreshTrashButton();
+  // Les charges localisées aussi, et le graphique de tendances devient
+  // périmé. Ces vues se raccordent ici plutôt qu'au bilan : celui-ci sort
+  // par anticipation quand aucun salaire n'est saisi.
+  refreshMapButton();
+  // Et ce que les enveloppes portent ce mois-ci, pour la même raison.
+  renderCarteEnveloppes();
+  invalidateTrends();
+}
+
+/**
  * Charge les charges fixes depuis Firebase pour la période actuelle
  *
  * @param {Object} [instantaneDuMois] - Nœud `periods/{mois}` déjà lu dans ce
@@ -360,12 +378,23 @@ export async function loadFixedCharges(instantaneDuMois) {
     return;
   }
 
+  // DEUX filets, et pas un : seul un échec de LECTURE dit que le mois est
+  // illisible. Un rendu qui lève a déjà posé l'état du bon mois, et le vider
+  // effacerait des charges lues pour annoncer un mois « pas disponible » qui
+  // l'est. Mesuré : un seul `try` faisait exactement cela.
+  let charges;
   try {
     // Les DEUX poches, réunies — cf. `loadVariableCharges`.
-    const charges = instantaneDuMois === undefined
+    charges = instantaneDuMois === undefined
       ? await lirePeriodes(`${currentPeriod}/fixedCharges`)
       : (instantaneDuMois?.fixedCharges ?? null);
+  } catch (error) {
+    logError('❌ Lecture des charges fixes impossible :', error);
+    viderApresEchec({ mois: currentPeriod, collection: 'fixedCharges', rendre: rendreLesChargesFixes });
+    return;
+  }
 
+  try {
     if (charges) {
       // Filtrer les charges non supprimées
       const activeCharges = Object.entries(charges)
@@ -383,16 +412,7 @@ export async function loadFixedCharges(instantaneDuMois) {
       log('📊 Aucune charge fixe pour cette période');
     }
 
-    renderFixedCharges();
-    // Le nombre d'éléments supprimés vient de changer.
-    refreshTrashButton();
-    // Les charges localisées aussi, et le graphique de tendances devient
-    // périmé. Ces vues se raccordent ici plutôt qu'au bilan : celui-ci sort
-    // par anticipation quand aucun salaire n'est saisi.
-    refreshMapButton();
-    // Et ce que les enveloppes portent ce mois-ci, pour la même raison.
-    renderCarteEnveloppes();
-    invalidateTrends();
+    rendreLesChargesFixes();
   } catch (error) {
     logError('❌ Erreur chargement charges fixes :', error);
     toast.error('Erreur de chargement des charges fixes');
@@ -818,7 +838,10 @@ export function renderFixedCharges() {
     //
     // Les trois rédactions vivent avec celles de la liste variable, dans
     // `utils/totaux-liste.js`.
-    afficherEtatVide(listElement, { collection: 'fixedCharges', portee, renvoi });
+    afficherEtatVide(listElement, {
+      collection: 'fixedCharges', portee, renvoi,
+      indisponible: estIllisible(getState('currentPeriod'))
+    });
     afficherTotalDeListe(totalElement, [], { portee, moi });
     afficherLeCoutAnnuel([]);
     return;

@@ -64,7 +64,11 @@ FairSplit/
 │       │                       # sans y penser), resume-prive (ce que l'autre
 │       │                       # voit d'un espace privé, selon la posture
 │       │                       # accordée : rien, un total, ou le détail)
-│       └── utils/              # 73 aides pures — dont changement-de-mois (quand
+│       └── utils/              # 74 aides — dont reprise-du-mois (ce que le
+│                               # mois affiché attend du retour du réseau : une
+│                               # reconduction reportée, un mois illisible —
+│                               # porte un état, donc pas « pure »),
+│                               # changement-de-mois (quand
 │                               # une modification déplace la charge — le mois de
 │                               # sa DATE a changé, pas celui où elle vit — et ce
 │                               # que la reconduction en pensera), phrase-reglement (ce qu'un
@@ -202,12 +206,12 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 
 | Module | Dépendants | dont dynamiques | Risque |
 |---|---|---|---|
-| `utils/debug.js` | 39 | 0 | Critique — le plus importé du dépôt |
-| `state.js` | 36 | 1 | Critique — état global |
+| `utils/debug.js` | 40 | 0 | Critique — le plus importé du dépôt |
+| `state.js` | 37 | 1 | Critique — état global |
 | `utils/format.js` | 31 | 0 | Critique — affichage monétaire |
-| `components/toast.js` | 27 | 0 | Critique — feedback utilisateur partout |
+| `components/toast.js` | 28 | 0 | Critique — feedback utilisateur partout |
+| `utils/date.js` | 28 | 0 | Important — date et période d'une charge |
 | `db.js` | 27 | **22** | Critique — abstraction DB |
-| `utils/date.js` | 27 | 0 | Important — date et période d'une charge |
 | `utils/members.js` | 26 | 0 | Important — qui doit à qui |
 | `utils/perimetre.js` | 26 | 0 | Important — ce qui pèse sur le solde |
 | `poches.js` | 19 | 0 | Critique — les deux poches lues comme une seule |
@@ -389,6 +393,15 @@ la liste se refasse à l'identique plutôt que de dériver par ajouts successifs
 > identiques au tableau, hub compris (30 imports statiques, 29 `runStep`) :
 > `changement-de-mois.js` importe toujours `recurrence.js`, pour le seul
 > `libelleComparable` désormais, et aucun fichier neuf de `public/` n'entre.
+
+> **Relevé le 2026-11-03 pour le lot 3, la reconduction hors ligne — PAS une
+> dérive, vérifié dans les deux arbres.** Rejoué sans argument sur `origin/main`
+> (`c859102`) : le tableau à l'identique. Sur la branche, quatre lignes bougent,
+> toutes à cause du seul fichier neuf, `utils/reprise-du-mois.js` — debug
+> 39 → 40, state 36 → 37, toast 27 → 28, date 27 → 28 ; `utils/date.js` passe
+> au-dessus de `db.js`. Les trois chargeurs, `reconduction.js` et `reprise.js`,
+> qui l'importent, lisaient déjà tout le reste. Hub inchangé : 30 imports
+> statiques, 29 `runStep`.
 
 `auth.js` est le cas inverse des autres : presque personne ne l'importe, il
 importe presque tout. Le compter par ses dépendants ne dit rien de son risque.
@@ -1651,6 +1664,14 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   en rendant la main. Aucune dégradation ne peut donc se fonder sur une
   exception, et aucune promesse (« le solde reviendra à zéro ») ne peut se faire
   sans vérifier d'abord la liaison.
+- **Hors ligne, une `transaction()` LANCÉE ne rend jamais la main ; une
+  transaction déjà ENVOYÉE puis coupée est REJETÉE.** Mesuré le 2026-11-03 sous
+  émulateur (SDK compat 10.14.1) : lancée sans liaison, elle reste pendante,
+  sans rejet ni délai ; envoyée puis coupée, elle rejette (`disconnect`) et
+  l'application est prête en 2,2 s. Un `update` envoyé avant la coupure, lui,
+  reste pendant. **Un contrôle qui coupe le réseau doit donc couper APRÈS
+  l'envoi de la bonne écriture** — couper sur la transaction rend un vert qui
+  ne mesure rien. Le lot 3 coupe sur la trame de l'`update` (`"a":"m"`).
 - **Le total privé qui franchit le mur est déclaratif** — aucune règle ne peut
   vérifier la somme de ce qu'elle n'a pas le droit de lire. L'écran le dit en
   toutes lettres ; ne pas laisser croire à une garantie technique.
@@ -2070,6 +2091,15 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   vert par construction ; il a été corrigé dans la même passe — *« quand une
   garde tombe parce que sa prémisse était fausse, relire TOUTES les prémisses
   du fichier »*.
+- **Couper le réseau sous émulateur : `goOffline()` en cours de session,
+  `routeWebSocket` pour une OUVERTURE coupée — et purger
+  `firebase:previous_websocket_failure` avant le retour.** Sans la purge, le SDK
+  retombe sur le long polling, que la CSP bloque sur l'émulateur, et le réseau
+  ne revient jamais. Le motif de `routeWebSocket` doit viser l'hôte que
+  l'application emploie — **`localhost`** (`firebase-init.js:48`), pas
+  `127.0.0.1` : un motif faux ne coupe rien, et le contrôle passe au vert.
+  Mesuré le 2026-11-03 ; c'est `tests/e2e/reconduction-hors-ligne.spec.js`
+  (`reseauPilotable`, `retablirLeReseau`).
 - **Le double Firebase de `_harness.js` diverge de Realtime Database.** Deux
   divergences corrigées, aucune garde automatique : `set(null)` doit effacer, et
   `push().set()` doit écrire un chemin plat sous peine d'avaler les semences. En
@@ -2171,6 +2201,14 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > mesures. Le chiffre de 2026-09-06 a été relevé sur une autre machine et une
   > suite **43 % plus courte** ; ce n'est pas lui qui est faux, c'est sa portée
   > qu'on avait crue générale.
+  >
+  > **Remesuré le 2026-11-03 sur le nouveau poste, 809 contrôles : 36 échecs
+  > en 39,4 min**, dont 14 sur `body[data-app-ready]` et le reste en délais
+  > dépassés, sur des specs sans rapport entre elles. Rejoués seuls
+  > (`--last-failed --workers=1`) : **36/36 verts**. Et l'ouverture n'est pas
+  > plus lente sur la branche du lot 3 que sur `main` : `data-flow -g CRUD`,
+  > deux passes chacun, 47,8 / 55,3 s contre 60 / 50,8 s. Sur ce poste, la
+  > suite à 4 workers ne rend pas de verdict propre ; c'est la CI qui le rend.
   >
   > **Le geste : devant un échec au-delà de la base connue, le rejouer SEUL
   > avant de le diagnostiquer.** Sept secondes contre douze minutes, et ça
@@ -2388,6 +2426,16 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   devant tout ce qui démarre un émulateur : `npm run emulators`,
   `npm run emulators:test`, `npm run couverture:e2e`. Et **`npm run e2e`** est
   la suite complète sous émulateurs, ports libérés d'abord.
+  **⚠️ ET `npm run ports` PEUT DIRE « Ports libres » SUR UN PORT TENU.** Mesuré
+  le 2026-11-03 sous Windows : un `java` résiduel vieux de 61 h (enfant d'un
+  `firebase emulators:start` orphelin, lui aussi resté) tenait 9010 sans
+  socket à l'état `LISTENING` — `Get-NetTCPConnection` le montrait sans état,
+  `netstat` en `FIN_WAIT_1`. L'outil ne cherche que `LISTENING`
+  (`tools/liberer-les-ports.mjs:96`) : il a annoncé les ports libres, et
+  l'émulateur a échoué sur `port taken` trois fois de suite. **Le vrai témoin
+  est un `bind`** :
+  `node -e 'require("net").createServer().on("error",e=>console.log(e.code)).listen(9010,"127.0.0.1",function(){console.log("libre");this.close()})'`.
+  L'outil n'est pas corrigé ici.
   **`npm run regles` n'y est PAS branchée** : le 2026-11-01, après une sonde sous
   émulateur, elle a rendu `EXIT=1` sans exécuter un test (`port taken`). Lancer
   `npm run ports` d'abord.
@@ -2495,6 +2543,18 @@ Dédupliqués : `$autre: false` était raconté cinq fois, `fusionnerListe` six.
   > branche peut porter du travail réel ET être destructrice.** Les deux ne
   > s'excluent pas, c'est pour cela que seul le `--stat` tranche. Règle 5 : on a
   > affirmé sans mesurer, et le remède qu'on en tirait était le mauvais.
+
+- **Chaque push sur `main` EFFACE le bac à sable.** Le job « Tests contre le
+  vrai Firebase » (`e2e-reel`, `.github/workflows/deploy.yml:336`, `if:
+  github.event_name == 'push'` en `:339`, déclenché par `push` sur `main` en
+  `:4-6`) lance `--project=reel` (`:384`), et `scenario-reel.spec.js` vide
+  `sandbox/` entier par `firebase.database().ref('sandbox').remove()` —
+  `viderBacASable` (`:111-113`), appelé en `:165` et `:253`, plus cinq appels
+  directs (`:348`, `:408`, `:503`, `:715`, `:754`).
+  **Conséquence : un test manuel en bac à sable se fait d'une traite, sans
+  aucune fusion pendant.** Une PR fusionnée au milieu efface ce qu'on a semé,
+  et l'écran qu'on regarde ensuite ne prouve plus rien — ni dans un sens ni
+  dans l'autre.
 
 ### Ce qui reste ouvert, et ne se referme pas dans le code
 
@@ -3090,6 +3150,17 @@ information reçue.**
 > **Aucune reprise de données** : relevé en lecture seule sur la sauvegarde du
 > 2026-11-01 (compte `vous`, la poche `conjointe` n'y figure pas depuis P1a),
 > aucun mois bloqué, faute de charge fixe active en base. Aucune règle à changer.
+>
+> **✅ VU À L'ÉCRAN le 2026-11-01, sur le site déployé (`c859102`), en bac à
+> sable** — le regard différé du protocole allégé, fait :
+>
+> - décembre reconduit depuis novembre ;
+> - janvier reconduit **malgré** une charge posée d'avance, avec
+>   « Déjà présente, non recopiée : Abonnement test » et « Doublon possible, à
+>   vérifier : Assurance auto test » ;
+> - février, garni d'avance, reçoit les trois charges de janvier plus la
+>   sienne ;
+> - un déplacement vers mars sans conséquence ne pose aucune question.
 
 ### Le mur existe, il est ÉPROUVÉ, et il protège la mauvaise poche
 
@@ -3320,6 +3391,27 @@ les relevés pris avant valent toujours.
     il n'est PAS commité : ses instantanés sont pris sur le compte réel du bac
     à sable. Ce constat reste ouvert jusqu'à la prochaine occurrence (règle 5,
     « un contrôle tombé une fois et non reproduit reste ouvert »).
+
+    **Cause PROBABLE, relevée le 2026-11-03 en lisant le contrôle — et elle est
+    dans le contrôle lui-même, pas dans l'application.** Trois faiblesses de
+    `scenario-reel.spec.js`, chacune suffisante pour lire le mois d'avant :
+
+    - `allerAuMois` (`:49-59`) choisit le mois puis attend **1 500 ms fixes**
+      (`:57`) — aucune condition sur le mois réellement rendu ;
+    - `soldeAffiche` (`:61-66`) lit `#balanceBar` **une fois, sans réessai**,
+      et rend `0` quand il n'y trouve aucun montant — le « lu 0 » de `:493` ;
+    - l'étape de `:196` exige `getByText('Loyer appartement')` visible
+      (`:199`) : **septembre porte la même ligne** (semée en `:184`), donc
+      l'assertion est satisfaite par le mois précédent encore affiché, et le
+      solde lu juste après est celui de septembre — exactement l'instantané.
+
+    Le point 16 ci-dessous (transitoire en ligne sur réseau lent) donne l'ordre
+    de grandeur : 0,9 à 2,3 s de mois précédent, puis 1,1 à 3 s
+    de « Comptes équilibrés » — les deux lectures fausses observées, dans
+    l'ordre. **C'est une explication cohérente, NON exécutée contre la base
+    réelle** : le point reste OUVERT (règle 5). Le correctif du contrôle —
+    attendre que le bilan porte le mois choisi, lire le solde dans un
+    `expect.poll` — n'est pas fait.
 12. **✅ REFERMÉ le 2026-11-01 par le lot 2 — `data-flow.spec.js:1346` — « un mois
     déjà garni à la main n'est pas complété » — restait VERT garde retirée. Il ne
     mesurait pas ce que son titre disait.** Mesuré en phase A du lot 2
@@ -3355,8 +3447,11 @@ les relevés pris avant valent toujours.
     mois saisis à la main d'un mois bloqué. Aucun mois de la sauvegarde du
     2026-11-01 n'a cette forme, et un mois présent ou futur se répare seul : sa
     réouverture y pose l'empreinte.
-14. **⚠️ HORS LIGNE, UNE TRANSACTION DE RECONDUCTION NE REND JAMAIS LA MAIN — et à
-    l'OUVERTURE de l'application, elle la fige. NON CORRIGÉ.** Mesuré le
+14. **✅ CORRIGÉ le 2026-11-03 par le lot 3 (`fix/reconduction-hors-ligne`) — HORS
+    LIGNE, UNE TRANSACTION DE RECONDUCTION NE REND JAMAIS LA MAIN — et à
+    l'OUVERTURE de l'application, elle la fige.** Le correctif et ses bornes
+    sont à la fin de ce point ; le constat d'origine reste, avec sa phrase
+    fausse barrée. Mesuré le
     2026-11-01 sous émulateur, vraie base, sonde jetable sur `894cd3f`.
     `transaction()` sans réseau ne rejette pas et n'expire pas : pendante après
     6 s, valeur optimiste en local, rien en base. Or `applyRecurringCharges`
@@ -3371,8 +3466,26 @@ les relevés pris avant valent toujours.
     **Ce qui est sain, et mesuré** : au retour du réseau, une seule copie, même
     avec un second geste pendant l'attente, même avec **deux appareils** coupés
     tous les deux. Page fermée pendant l'attente : rien en base, rien de perdu, et
-    la reconduction se rejoue à la prochaine ouverture en ligne. **Aucune donnée
-    n'est en danger : c'est l'écran qui l'est.**
+    la reconduction se rejoue à la prochaine ouverture en ligne.
+    ~~**Aucune donnée n'est en danger : c'est l'écran qui l'est.**~~
+
+    > **⟲ CETTE PHRASE ÉTAIT FAUSSE — démentie le 2026-11-03, sur deux
+    > mesures.** Elle tenait « une seule copie » pour « aucune erreur » :
+    >
+    > - **c'est une ERREUR DE DONNÉES, pas seulement un gel.** Le plan est
+    >   calculé sur le MIROIR hors ligne et s'applique tel quel au retour :
+    >   montant périmé (le loyer passé à 950 € ailleurs arrive à 900 €), charge
+    >   ajoutée ailleurs absente, charge supprimée ressuscitée — et l'empreinte
+    >   posée interdit ensuite toute correction. C'est le mutant M1 du lot 3,
+    >   ci-dessous, qui le montre : `["Abonnement 30", "Loyer 900"]` au lieu de
+    >   `["Assurance 40", "Loyer 950"]` ;
+    > - **la « borne de fait » ci-dessous n'en est pas une** : une saisie en
+    >   file suffit à ouvrir le chemin sur un mois neuf (`depuisMiroir` rend
+    >   `null` dès que la file n'est pas vide). Mesuré : « 1er du mois, une
+    >   saisie de la veille en file » → jamais prête.
+    >
+    > Une seule copie n'est pas la BONNE copie. Le constat avait vérifié
+    > l'unicité et en avait conclu l'exactitude.
 
     **Le lot 2 n'a pas créé ce défaut, il en élargit un peu la porte.** Le même
     gel a été rejoué sur `origin/main` (`4879fa6`), à l'identique. Mais un mois
@@ -3391,6 +3504,107 @@ les relevés pris avant valent toujours.
     Le correctif porte sur `applyRecurringCharges` — ne pas attendre une
     transaction sans liaison —, et il doit décider ce que l'écran dit d'un mois
     dont la reconduction attend. Hors du lot 2 par décision de Richie.
+
+    **Le correctif (lot 3, 2026-11-03), cinq gestes :**
+
+    - **on ne LANCE pas la transaction hors ligne** — `applyRecurringCharges`
+      teste `liaisonRompue()` juste avant, et marque le mois « en attente » en
+      mémoire (`utils/reprise-du-mois.js`). L'abandonner une fois lancée était
+      impossible sans effet : un drapeau n'agit pas (la fonction n'est appelée
+      qu'une fois), un `set(null)` part au retour et efface l'empreinte de
+      l'autre appareil, un délai la laisse aboutir et marque un mois
+      `reconductedFrom` sans aucune charge ;
+    - **`loadPeriodData` borne SON attente à 5 s** (`ATTENTE_RECONDUCTION_MS`) ;
+      la reconduction continue, sa suite (versements, hausses) passe en
+      continuation. Le test de liaison ne suffit pas : une liaison qui tombe
+      APRÈS les lectures laisse partir une écriture qui ne rendra jamais la
+      main. **Aucun délai autour de la transaction elle-même** : on cesse
+      d'attendre, on ne cesse pas de faire ;
+    - **les trois chargeurs, sur échec de LECTURE, vident l'état** par une seule
+      aide (`viderApresEchec`) et l'écran dit « Ce mois n'est pas disponible
+      pour l'instant ». Un échec de RENDU, lui, ne vide rien : un seul `try`
+      effaçait des charges bien lues ;
+    - **au retour du réseau, `synchroniserLesSaisies` relit le mois en suspens**
+      (`loadPeriodData()` sans instantané, donc lecture fraîche), APRÈS le
+      rejeu de la file — le plan est refait sur la base. Une relecture tombée
+      dans une nouvelle coupure se reprend à la reprise suivante
+      (`relireAuRetour`) : mesuré, sur une liaison qui clignote, la relecture
+      servait le miroir et refaisait le plan périmé ;
+    - **le bandeau de connexion le dit durablement** — « Les charges récurrentes
+      de novembre 2026 sont en attente du réseau » —, pas un toast.
+
+    **Contrôles** : `tests/e2e/reconduction-hors-ligne.spec.js`, six cas, sous
+    émulateurs, horloge figée, tous rouges sur `origin/main` avant le
+    correctif (le cas « deux appareils » excepté : vert sur `main`, il ne vaut
+    que par son mutant). Il tourne dans le projet Playwright **`emulateurs`**,
+    à un seul worker, avec `firebase-integration` et `regles-donnees` — les
+    trois partagent la même base. Mutants, chacun rejoué puis défait :
+
+    | Mutant | Contrôle qui tombe |
+    |---|---|
+    | M1 test de liaison retiré | « plan refait » — `Abonnement 30, Loyer 900` |
+    | M2 attente non bornée | « liaison tombée APRÈS les lectures » |
+    | M1 + M2 | « ouverture coupée » |
+    | M3a / M3b chargeur des fixes / des variables sans vidage | « mois jamais lu », chacun seul |
+    | M4 pas de relecture au retour | « plan refait » |
+    | M5 relecture retombée non reprise | **aucun E2E** — le cas unitaire `reprise.test.js` « retombée PENDANT la relecture » |
+    | M6 réservation retirée (`set` direct) | « deux appareils » — deux « Loyer » |
+
+    **M1 seul ne fait PAS tomber « ouverture coupée »** : la borne de 5 s
+    suffit à rendre l'application prête. Les deux gardes sont redondantes sur
+    ce cas — c'est M1 + M2 qui le fait tomber —, et M1 ne se lit que sur le
+    plan refait. **M5 reste vert en E2E** : le clignotement qui l'a révélé
+    n'est pas reproduit à coup sûr par la connexion lente (2 s par sens) ; la
+    connexion lente, elle, est mesurée — elle reconduit sans recharger, à
+    950 €.
+
+    **Bornes, dites plutôt que découvertes :**
+
+    - **une coupure entre la dernière lecture et la transaction** garde un plan
+      figé — fenêtre de quelques millisecondes, non corrigée (P4) ;
+    - **une transaction dont le serveur a validé l'écriture mais dont l'accusé
+      s'est perdu** : antérieur au lot, non mesuré ;
+    - **le mois ouvert pendant une lecture qui aboutit lentement** montre encore
+      le précédent — c'est le point 16, hors du lot.
+15. **⚠️ LE SÉLECTEUR DE MOIS NE PROPOSE PAS TOUS LES MOIS, et ses trous ne se
+    voient pas.** Vérifié dans le code le 2026-11-03, NON corrigé :
+    - **ce qu'il propose** (`listePeriodes`, `utils/periodes.js:80`) : le mois
+      suivant (`:87`), douze mois glissants (`:94`), toute clé présente en base
+      (`:100-103`) et le mois consulté (`:108`). Rien d'autre ;
+    - **une saisie datée qui range une charge dans un mois neuf ne l'y fait pas
+      paraître avant RECHARGEMENT** : `periodesConnues` n'est écrit qu'en
+      `period.js:115`, dans `chargerLesPeriodesConnues`, appelé une seule fois,
+      à l'ouverture (`auth.js:539`) ;
+    - **il a des trous** : novembre affiché, mars en base — décembre (mois
+      suivant) et mars sont proposés, **janvier et février ne le sont pas**, et
+      aucun geste n'y mène ;
+    - **au bout de la liste, « Mois suivant » ne fait rien et ne dit rien** :
+      `navigatePeriod` (`period.js:174`) borne l'index (`:181`) sans `else` ;
+    - **son commentaire dit le contraire du code** : la JSDoc (`:172`) annonce
+      « 1 for previous month, -1 for next month » ; or les options sont triées
+      du plus récent au plus ancien, `newIndex = currentIndex - direction`
+      (`:179`), et le balisage envoie `-1` à ◀ « Mois précédent »
+      (`FairSplit.html:280`) et `1` à ▶ « Mois suivant » (`:285`). Le code est
+      juste, la JSDoc est inversée.
+16. **⚠️ TRANSITOIRE EN LIGNE, sur réseau lent : un mois sélectionné montre
+    encore le PRÉCÉDENT pendant 0,9 à 2,3 s, puis « Comptes équilibrés » pendant
+    1,1 à 3 s**, avant ses vrais chiffres. Relevé à l'écran, NON traité par le
+    lot 3 — qui ne touche qu'aux chargeurs EN ÉCHEC, pas à l'état pendant une
+    lecture qui aboutit. C'est la fenêtre que la propriété P3 du lot 3 exclut
+    par ses mots mêmes : « une fois le mois chargé ». Voir aussi la cause
+    probable du point 11.
+17. **⚠️ À VÉRIFIER, NON ÉTABLI — une date tapée AU CLAVIER dans « Date de la
+    dépense » n'a pas été prise en compte**, deux fois, par deux personnes
+    différentes : le champ est resté au jour même, sans avertissement. Rien
+    n'a été reproduit ni lu dans le code. Ne pas conclure avant de l'avoir
+    reproduit (navigateur, plateforme, ordre des gestes) — règle 5.
+18. **⚠️ `reconduction-deux-poches.test.js` — « le loyer commun va dans le
+    commun, mon abonnement dans MA poche » — a dépassé ses 5 s UNE fois**, le
+    2026-11-03, sur la suite unitaire entière (3600/3601), sur la branche du
+    lot 3. Rejoué seul : 18/18 en 5,07 s ; suite entière rejouée aussitôt :
+    3601/3601. NON reproduit, NON expliqué : le lot 3 touche `reconduction.js`,
+    ce cas en dépend, et rien ne permet d'écarter un lien. Reste ouvert
+    (règle 5).
 
 - **Une spec ne fige l'horloge que si son semis dépend du calendrier**
   (critère reconstitué et mesuré le 2026-09-06, il n'était écrit nulle part).

@@ -109,6 +109,7 @@ const STATIC_ASSETS = [
   './js/utils/repartition.js',
   './js/utils/retour.js',
   './js/utils/reprise.js',
+  './js/utils/reprise-du-mois.js',
   './js/utils/renommage.js',
   './js/utils/salaries.js',
   './js/utils/selection-lot.js',

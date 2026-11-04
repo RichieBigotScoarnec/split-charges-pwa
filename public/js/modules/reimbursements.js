@@ -2,6 +2,7 @@
 // Fonctionnalités : add, delete, render
 
 import { setState, getState } from '../state.js';
+import { viderApresEchec } from '../utils/reprise-du-mois.js';
 import { collectDeleted } from '../utils/soft-delete.js';
 import { refreshTrashButton } from './trash.js';
 import { REIMBURSEMENT_DIRECTIONS } from '../config.js';
@@ -124,6 +125,16 @@ export function initReimbursements() {
 }
 
 /**
+ * Rend la liste et le compte de la corbeille
+ * @returns {void}
+ */
+function rendreLesRemboursements() {
+  renderReimbursements();
+  // Le nombre d'éléments supprimés vient de changer.
+  refreshTrashButton();
+}
+
+/**
  * Charge les remboursements depuis Firebase pour la période actuelle
  *
  * @param {Object} [instantaneDuMois] - Nœud `periods/{mois}` déjà lu dans ce
@@ -136,13 +147,24 @@ export async function loadReimbursements(instantaneDuMois) {
     return;
   }
 
+  // DEUX filets, et pas un : seul un échec de LECTURE dit que le mois est
+  // illisible. Un rendu qui lève a déjà posé l'état du bon mois, et le vider
+  // effacerait des charges lues pour annoncer un mois « pas disponible » qui
+  // l'est. Mesuré : un seul `try` faisait exactement cela.
+  let reimbursements;
   try {
     // Use dbGet from db.js which handles UID-scoped paths
     const { dbGet } = await import('../db.js');
-    const reimbursements = instantaneDuMois === undefined
+    reimbursements = instantaneDuMois === undefined
       ? await dbGet(`periods/${currentPeriod}/reimbursements`)
       : (instantaneDuMois?.reimbursements ?? null);
+  } catch (error) {
+    logError('❌ Lecture des remboursements impossible :', error);
+    viderApresEchec({ mois: currentPeriod, collection: 'reimbursements', rendre: rendreLesRemboursements });
+    return;
+  }
 
+  try {
     if (reimbursements) {
       // Filtrer les remboursements non supprimés
       const activeReimbursements = Object.entries(reimbursements)
@@ -160,9 +182,7 @@ export async function loadReimbursements(instantaneDuMois) {
       log('📊 Aucun remboursement pour cette période');
     }
 
-    renderReimbursements();
-    // Le nombre d'éléments supprimés vient de changer.
-    refreshTrashButton();
+    rendreLesRemboursements();
   } catch (error) {
     logError('❌ Erreur chargement remboursements :', error);
     toast.error('Erreur de chargement des remboursements');
