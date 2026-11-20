@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '3.6'
+version: '3.7'
 updated: '2026-11-20'
 created: '2026-09-11'
 projet: Prompt-Engineer
@@ -15,10 +15,18 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 3.6 — 2026-11-20.**
+> **Version 3.7 — 2026-11-20.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v3.6 → v3.7** — définition de `partition_complete` (§23). Le contrat
+disait « aucun fichier suivi n'est laissé hors lot » ; `lots.mjs` calcule depuis le
+2026-11-20 autre chose : chaque fichier suivi hors bibliothèque est soit dans un lot,
+soit dans `exclus` avec son motif, jamais les deux, et les comptes concordent. Sous
+l'ancien texte, un fichier exclu avec motif contredisait un drapeau vrai. Le §23 décrit
+désormais le calcul de l'outil ; `audit.md` est aligné. Exclusions inchangées, SVG
+compris. Aucune autre règle changée.
 
 **Changements v3.5 → v3.6** — frontière de la bibliothèque. Le §0 nommait quatre
 chemins ; la bibliothèque en déploie huit depuis l'arrivée des deux guides à la racine de
@@ -1134,7 +1142,8 @@ deviendraient 25 — et c'est un arbitrage à poser explicitement, pas à décid
 
 ## 23. La partition déterministe
 
-**Chaque fichier est assigné à exactement un lot, avant qu'un agent ne démarre.**
+**Chaque fichier suivi hors bibliothèque est assigné à exactement un lot, ou écarté par
+une exclusion motivée — avant qu'un agent ne démarre.**
 
 C'est la correction la plus importante de ce contrat. Jusqu'ici, les agents choisissaient
 librement quels fichiers ouvrir. Conséquence mesurée sur un dépôt de 446 fichiers :
@@ -1142,17 +1151,26 @@ recouvrement massif sur les fichiers centraux, zones entières que personne n'ou
 une union qui plafonne autour de **14 %** quel que soit le nombre d'agents.
 
 **La partition est produite par un outil, pas par un agent** — un agent qui découperait
-lui-même reproduirait ses propres biais. L'outil lit les fichiers suivis par git, les
-ordonne par le classement de risque du §19, et les groupe par zone sous un double
-plafond : un budget de jetons et un nombre de fichiers.
+lui-même reproduirait ses propres biais. L'outil lit les fichiers suivis par git, en
+retire la bibliothèque (§0), écarte les exclusions de la partition — chacune avec son
+motif —, ordonne le reste par le classement de risque du §19, et le groupe par zone sous
+un double plafond : un budget de jetons et un nombre de fichiers.
 
 **Deux contrôles rendent la partition vérifiable, et ils figurent dans sa sortie :**
 
-- `partition_complete` — aucun fichier suivi n'est laissé hors lot ;
+- `partition_complete` — chaque fichier suivi hors bibliothèque (`git ls-files` moins
+  la liste du §0) est soit dans un lot, soit dans `exclus` avec son motif, jamais dans
+  les deux ; et les comptes concordent : `fichiers_assignes` + `fichiers_exclus` =
+  `fichiers_suivis` ;
 - `doublons` — aucun fichier n'appartient à deux lots.
 
 ⛔ **Si l'un des deux est faux, la couverture annoncée en fin de passe ne veut rien
 dire.** L'orchestrateur le vérifie avant de lancer quoi que ce soit.
+
+⚠️ Le périmètre se compte **avant** les exclusions. Compté après, un fichier écarté sans
+trace laissait le drapeau vrai : six SVG suivis hors lot sous `partition_complete=true`
+(`ha-config` à `69f2767`, 2026-11-20). Un exclu n'est pas couvert : la couverture se
+rapporte aux fichiers assignés, et `exclus` dit ce qui n'a pas été lu, et pourquoi.
 
 **Dimensionnement.** Le budget par lot vise **largement en dessous** de la fenêtre du
 modèle. Ce n'est pas de la prudence : la dégradation commence bien avant la limite, et
