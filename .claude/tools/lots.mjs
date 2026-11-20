@@ -36,15 +36,26 @@ const BIBLIOTHEQUE = [
   /^\.claude\/tools\//
 ];
 
-const EXCLUS = [
-  ...BIBLIOTHEQUE,
-  /^package-lock\.json$/,
-  /\.(png|jpe?g|gif|svg|webp|woff2?|ico|zip)$/i
+// Exclusions de la partition, hors bibliothèque — chacune porte son motif, et chaque
+// fichier exclu est écrit dans lots.json avec lui. Une exclusion silencieuse rendait
+// `partition_complete` aveugle : le total était compté APRÈS filtrage, et six SVG
+// suivis restaient hors lot sous un drapeau vrai (ha-config, 69f2767, 2026-11-20).
+const EXCLUSIONS = [
+  { motif: 'fichier de verrouillage npm, généré', re: /^package-lock\.json$/ },
+  { motif: 'image, police ou archive (extension exclue d\'office)',
+    re: /\.(png|jpe?g|gif|svg|webp|woff2?|ico|zip)$/i }
 ];
 
-const suivis = execSync('git ls-files', { encoding: 'utf8' })
-  .split('\n').filter(Boolean)
-  .filter((f) => !EXCLUS.some((r) => r.test(f)));
+// Le périmètre : tout ce que git suit, moins la bibliothèque. C'est contre lui que la
+// complétude se calcule, pas contre ce qui reste après les exclusions.
+const tous = execSync('git ls-files', { encoding: 'utf8' }).split('\n').filter(Boolean);
+const horsBibliotheque = tous.filter((f) => !BIBLIOTHEQUE.some((r) => r.test(f)));
+const exclus = [];
+const suivis = [];
+for (const f of horsBibliotheque) {
+  const e = EXCLUSIONS.find((x) => x.re.test(f));
+  if (e) exclus.push({ fichier: f, motif: e.motif }); else suivis.push(f);
+}
 
 // Ordre de traitement : le rang dans le classement par risque s'il existe. Un fichier
 // qu'il ne classe pas — ou tous, s'il est absent — prend le rang 99999 ; le tri étant
@@ -110,8 +121,14 @@ for (const [z, fichiers] of Object.entries(parZone)) {
 lots.sort((a, b) => a.rang_min - b.rang_min);
 lots.forEach((l, i) => { l.id = `L${String(i + 1).padStart(2, '0')}`; });
 
-const total = suivis.length;
+const total = horsBibliotheque.length;
 const assignes = lots.reduce((n, l) => n + l.fichiers.length, 0);
+const dansUnLot = new Set(lots.flatMap((l) => l.fichiers));
+const dansExclus = new Set(exclus.map((e) => e.fichier));
+// Complète = chaque fichier suivi hors bibliothèque est dans un lot OU dans la liste
+// des exclus, jamais dans les deux, et les comptes tombent juste.
+const complete = horsBibliotheque.every((f) => dansUnLot.has(f) !== dansExclus.has(f))
+  && assignes + exclus.length === total;
 
 const sortie = JSON.stringify({
   outil: '.claude/tools/lots.mjs',
@@ -120,13 +137,16 @@ const sortie = JSON.stringify({
   budget_jetons_par_lot: BUDGET,
   plafond_fichiers_par_lot: PLAFOND,
   classement_par_risque: ordre.size > 0,
-  fichiers_suivis: total,
+  fichiers_bibliotheque: tous.length - total,
+  fichiers_suivis: total,          // suivis par git, hors bibliothèque
   fichiers_assignes: assignes,
-  // Le contrôle qui rend la partition vérifiable : aucun fichier perdu,
-  // aucun fichier en double. Si ces deux lignes ne sont pas vraies,
-  // la couverture annoncée en fin de passe ne veut rien dire.
-  partition_complete: assignes === total,
-  doublons: assignes - new Set(lots.flatMap((l) => l.fichiers)).size,
+  fichiers_exclus: exclus.length,
+  // Le contrôle qui rend la partition vérifiable : aucun fichier perdu — ni lot ni
+  // exclusion motivée —, aucun fichier en double. Si ces deux lignes ne sont pas
+  // vraies, la couverture annoncée en fin de passe ne veut rien dire.
+  partition_complete: complete,
+  doublons: assignes - dansUnLot.size,
+  exclus,
   lots_total: lots.length,
   lots
 }, null, 2);
@@ -136,4 +156,4 @@ const sortie = JSON.stringify({
 // illisible par le script suivant.
 mkdirSync('.claude/audit', { recursive: true });
 writeFileSync('.claude/audit/lots.json', sortie, 'utf8');
-console.log(`lots.json écrit — ${assignes}/${total} fichiers, ${lots.length} lots, complet=${assignes === total}`);
+console.log(`lots.json écrit — ${total} suivis hors bibliothèque : ${assignes} assignés, ${exclus.length} exclus, ${lots.length} lots, complet=${complete}`);

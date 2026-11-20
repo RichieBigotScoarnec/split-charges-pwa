@@ -1,5 +1,5 @@
 ---
-description: Passe d'audit complète, partitionnée en lots — chaque fichier assigné à exactement un agent.
+description: Passe d'audit complète, partitionnée en lots — chaque fichier hors bibliothèque assigné à exactement un agent, ou exclu avec son motif.
 argument-hint: [chemin ou zone, facultatif — restreint la partition]
 ---
 
@@ -66,14 +66,17 @@ l'écraserait avec son message de console — et sous PowerShell produirait de l
 le script suivant ne saurait pas relire. Même chose pour `.claude/tools/risque.mjs`.
 
 ⛔ **Vérifie `partition_complete` et `doublons` avant d'aller plus loin.** Complète à
-faux, ou doublons non nul : arrête. Une couverture calculée sur une partition trouée ne
-veut rien dire (§23).
+faux, ou doublons non nul : arrête. Complète veut dire : chaque fichier suivi hors
+bibliothèque est dans un lot ou dans `exclus` avec son motif, jamais les deux, et
+assignés + exclus = suivis. Une couverture calculée sur une partition trouée ne veut
+rien dire (§23).
 
 Si `.claude/tools/lots.mjs` n'existe pas dans ce dépôt, dis-le et rends la main. **N'improvise
 aucun découpage** : un découpage improvisé par toi reproduit tes biais, et c'est
 exactement le défaut que la partition corrige.
 
-Inscris le nombre de lots et le total de fichiers assignés dans ton compte rendu.
+Inscris le nombre de lots, le total de fichiers assignés et le nombre d'exclus dans ton
+compte rendu.
 
 ### 3. Vagues
 
@@ -167,7 +170,7 @@ et repars.
 | | |
 |---|---|
 | Commit et branche | relevés au départ, revérifiés à chaque vague |
-| Partition | lots, fichiers assignés, `partition_complete`, `doublons` |
+| Partition | lots, fichiers assignés, fichiers exclus, `partition_complete`, `doublons` |
 | Vagues | combien, durée de chacune |
 | Lots couverts / total | le chiffre de couverture réel |
 | Lots non couverts | lesquels, et pourquoi |
