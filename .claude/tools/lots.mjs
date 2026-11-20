@@ -8,7 +8,7 @@
  * La parade : chaque fichier est assigné à EXACTEMENT UN lot, avant que le
  * moindre agent ne démarre. Un agent reçoit un lot fini et n'en sort pas.
  *
- *   node tools/lots.mjs      → écrit .claude/audit/lots.json lui-même, en UTF-8
+ *   node .claude/tools/lots.mjs   → écrit .claude/audit/lots.json lui-même, en UTF-8
  *
  * Dimensionnement : chaque lot vise un budget de jetons qui laisse à l'agent
  * de la place pour raisonner. La dégradation du contexte commence bien avant
@@ -21,14 +21,23 @@ const BUDGET = Number(process.env.LOT_BUDGET || 60000);   // jetons de lecture p
 const PLAFOND = Number(process.env.LOT_PLAFOND || 14);    // fichiers par lot
 const RISQUE = '.claude/audit/tooling/risque.json';
 
-// Seule LA BIBLIOTHÈQUE s'exclut, pas tout `.claude/` : le reste y est du contenu
-// de projet comme un autre, et une exclusion en bloc emporte plus que sa raison —
-// des commandes héritées échappaient à la partition (mesuré le 2026-09-13).
-const EXCLUS = [
+// Frontière de la bibliothèque — LA MÊME LISTE dans lots.mjs et risque.mjs, nommée
+// fichier par fichier comme au contrat (périmètre par défaut). Seule la bibliothèque
+// s'exclut, pas tout `.claude/` : le reste y est du contenu de projet comme un autre,
+// et une exclusion en bloc emporte plus que sa raison — des commandes héritées
+// échappaient à la partition (mesuré le 2026-09-13).
+const BIBLIOTHEQUE = [
   /^\.claude\/agents\//,
   /^\.claude\/commands\/audit(-diff)?\.md$/,
   /^\.claude\/contrat-agents-audit\.md$/,
+  /^\.claude\/outillage-deterministe\.md$/,
+  /^\.claude\/preuve-dynamique\.md$/,
   /^\.claude\/audit\//,
+  /^\.claude\/tools\//
+];
+
+const EXCLUS = [
+  ...BIBLIOTHEQUE,
   /^package-lock\.json$/,
   /\.(png|jpe?g|gif|svg|webp|woff2?|ico|zip)$/i
 ];
@@ -37,7 +46,9 @@ const suivis = execSync('git ls-files', { encoding: 'utf8' })
   .split('\n').filter(Boolean)
   .filter((f) => !EXCLUS.some((r) => r.test(f)));
 
-// Ordre de traitement : le classement par risque s'il existe, sinon la taille.
+// Ordre de traitement : le rang dans le classement par risque s'il existe. Un fichier
+// qu'il ne classe pas — ou tous, s'il est absent — prend le rang 99999 ; le tri étant
+// stable, ces fichiers gardent l'ordre de `git ls-files`. Aucun tri par taille.
 const ordre = new Map();
 if (existsSync(RISQUE)) {
   // ⚠️ PowerShell écrit ses redirections `>` en UTF-16 avec un BOM : `JSON.parse`
@@ -103,7 +114,7 @@ const total = suivis.length;
 const assignes = lots.reduce((n, l) => n + l.fichiers.length, 0);
 
 const sortie = JSON.stringify({
-  outil: 'tools/lots.mjs',
+  outil: '.claude/tools/lots.mjs',
   date: new Date().toISOString().slice(0, 10),
   commit: execSync('git rev-parse --short HEAD').toString().trim(),
   budget_jetons_par_lot: BUDGET,

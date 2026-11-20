@@ -10,8 +10,9 @@ résumes pas les rapports : tu partitionnes, tu assignes, tu tiens le registre.
 
 Contrat : `.claude/contrat-agents-audit.md`. Agents : `.claude/agents/`.
 Périmètre : $ARGUMENTS — à défaut, tout le dépôt sauf la bibliothèque
-(`.claude/agents/`, `.claude/commands/audit*.md`, `.claude/contrat-agents-audit.md`,
-`.claude/audit/`).
+(`.claude/agents/`, `.claude/commands/audit.md`, `.claude/commands/audit-diff.md`,
+`.claude/contrat-agents-audit.md`, `.claude/outillage-deterministe.md`,
+`.claude/preuve-dynamique.md`, `.claude/audit/` et `.claude/tools/` — contrat §0).
 
 ## La règle qui prime
 
@@ -57,18 +58,18 @@ commit précédent et sont parties en archive. Les agents ont travaillé sans in
 ### 2. Partition — l'étape qui décide de la couverture
 
 ```bash
-node tools/lots.mjs
+node .claude/tools/lots.mjs
 ```
 
 ⛔ **Sans redirection.** Le script écrit `.claude/audit/lots.json` lui-même ; un `>`
 l'écraserait avec son message de console — et sous PowerShell produirait de l'UTF-16 que
-le script suivant ne saurait pas relire. Même chose pour `tools/risque.mjs`.
+le script suivant ne saurait pas relire. Même chose pour `.claude/tools/risque.mjs`.
 
 ⛔ **Vérifie `partition_complete` et `doublons` avant d'aller plus loin.** Complète à
 faux, ou doublons non nul : arrête. Une couverture calculée sur une partition trouée ne
 veut rien dire (§23).
 
-Si `tools/lots.mjs` n'existe pas dans ce dépôt, dis-le et rends la main. **N'improvise
+Si `.claude/tools/lots.mjs` n'existe pas dans ce dépôt, dis-le et rends la main. **N'improvise
 aucun découpage** : un découpage improvisé par toi reproduit tes biais, et c'est
 exactement le défaut que la partition corrige.
 

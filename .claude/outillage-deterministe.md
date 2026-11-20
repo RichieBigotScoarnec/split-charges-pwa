@@ -1,6 +1,7 @@
 ---
 nom-canonique: outillage-deterministe
-version: '2.0'
+version: '2.1'
+updated: '2026-11-20'
 created: '2026-09-12'
 projet: Prompt-Engineer
 type: kb
@@ -78,8 +79,12 @@ Un fichier souvent modifié et peu couvert est l'endroit où les défauts vivent
 inchangé depuis deux ans est calme.
 
 ```bash
-node tools/risque.mjs > .claude/audit/tooling/risque.json
+node .claude/tools/risque.mjs
 ```
+
+⛔ **Sans redirection**, comme dans `audit.md` : le script écrit
+`.claude/audit/tooling/risque.json` lui-même. Un `>` l'écraserait avec son message de
+console — et sous PowerShell produirait de l'UTF-16 que `lots.mjs` ne saurait pas relire.
 
 Ce classement ne produit aucun constat. Il **dirige l'attention** : quand un agent ne peut
 ouvrir qu'un cinquième des fichiers, il décide lequel.
@@ -102,3 +107,10 @@ une alerte conditionnée à un échec qui ne se produit jamais. Tous les constat
 graves produits jusqu'ici sont de ce genre.
 
 **L'outillage élargit la couverture ; il ne déplace pas le centre de gravité.**
+
+## Versions
+
+- **2.1 — 2026-11-20** : appel de `risque.mjs` aligné sur `audit.md` — chemin
+  `.claude/tools/`, sans redirection. Archive v2.0 :
+  `archive/outillage-deterministe-2026-09-12-v2.0.md` (version sans `updated` : date du
+  commit `79286e1`).
