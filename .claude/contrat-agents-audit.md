@@ -1,6 +1,7 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '3.2'
+version: '3.5'
+updated: '2026-11-20'
 created: '2026-09-11'
 projet: Prompt-Engineer
 status: valide
@@ -14,13 +15,46 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 3.2 — 2026-09-14.**
+> **Version 3.5 — 2026-11-20.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
 
-**Changements v3.1 → v3.2** — première passe complète. **51 lots sur 51, 426 fichiers sur
-426, 100 % de couverture**, 161 constats, 12,8 M jetons, 1 h 51. La question posée depuis
+**Changements v3.4 → v3.5** — terminologie, aucune règle changée. Le §12 réservait
+« dépôt témoin » au dépôt à défauts semés, qui n'existe pas ; le §12 bis disait « mesuré
+les 11 et 12 septembre 2026 sur le dépôt témoin », d'un dépôt qui n'en porte aucun. Deux
+dépôts sous un seul nom : un lecteur du §12 bis pouvait croire le témoin construit, et ses
+mesures recevables au sens du §12. Le §12 définit désormais l'**expression** « dépôt
+témoin » — pas le mot « témoin », qui garde son sens de contrôle positif —, nomme l'autre
+dépôt **dépôt d'essai**, et désigne les textes antérieurs qui gardent l'ancien emploi,
+sans les réécrire. Le §12 bis est corrigé. Occurrences recensées par grep du dossier le
+2026-11-20.
+
+**Changements v3.3 → v3.4** — le §15 disait quoi exclure sans dire à quel grain, et
+ce fichier l'enfreignait deux fois. Un décompte de constats vivait dans deux de ses
+changelogs, donc voyageait jusqu'aux agents à chaque déploiement : la doctrine du gel des
+journaux datés protège une **cause** nommée dans un journal qui reste au vault, pas une
+**instance** transportée dans un fichier déployé — distinction posée ici, elle n'était
+écrite nulle part. Les deux décomptes sont retirés ; ce que les changelogs affirmaient est
+conservé sans son chiffre. Le §15 gagne une table de grain, vérifiée avant d'être écrite :
+`ROOT-001` et `QA-L37-01` sont des **coordonnées positionnelles** — le gabarit de sortie de
+`review-board` porte littéralement `ROOT-001 — <fait> — explique <IDs>` — donc un
+identifiant nu ne dit pas quoi chercher et reste admis. Ce qui fuit est la description, le
+décompte et le chemin exact du rapport.
+**Changements v3.2 → v3.3** — le §15 ne couvrait qu'un vecteur de fuite sur deux. Il
+interdisait de copier un motif d'instance dans le **dépôt audité**, où les agents
+tournent. Il ne disait rien du **projet Claude.ai** où la bibliothèque se conçoit, alors
+que `journal-passes.md` vivait dans `<Projet>/kb/` — le dossier que la sélection GitHub
+charge intégralement et récursivement. Il était donc lu à chaque session de conception.
+Concevoir les agents en connaissant les constats déjà relevés sur un dépôt, c'est
+risquer de les tailler pour ces défauts-là, après quoi « la passe en trouve N » ne
+discrimine plus rien. Le fichier sort de `kb/` ; §15 nomme les deux vecteurs et porte la
+phrase de partage instance/mode sur les deux. Mesuré le 2026-09-14 depuis le projet
+Instructions ; aucun relevé n'établit qu'une règle de la bibliothèque ait effectivement
+été écrite d'après un constat FairSplit — le risque est argumenté, pas constaté.
+
+**Changements v3.1 → v3.2** — première passe complète, **couverture intégrale du périmètre**
+(décompte au journal des passes), 12,8 M jetons, 1 h 51. La question posée depuis
 trois jours est tranchée : **le levier était le partitionnement**, pas le modèle, pas la
 fenêtre, pas l'outillage. De 14 % à 100 % sans changer un seul agent de domaine.
 
@@ -739,10 +773,22 @@ indiscernables tant qu'il n'a pas produit un positif sur un cas connu positif.
 Tant que le dépôt témoin n'existe pas, **aucun chiffre produit par cette chaîne n'est une
 mesure** — ni un décompte de findings, ni un score.
 
+**Terminologie** (v3.5). Dans ce contrat, l'expression « dépôt témoin » désigne
+**uniquement** le dépôt à défauts semés défini ci-dessus. Le dépôt sur lequel ont tourné
+les passes des 11 et 12 septembre 2026, qui n'a pas de défauts semés, est le **dépôt
+d'essai** ; `journal-passes.md` l'oppose au **dépôt réel**. La définition porte sur
+l'expression, pas sur le mot : « témoin » seul garde son emploi de cas de test servant de
+contrôle positif (« cas témoin » au §13, témoins de tests de `journal-passes.md`).
+
+⚠️ Trois textes antérieurs à la v3.5 disent « témoin » ou « dépôt témoin » pour le dépôt
+d'essai : les changelogs v1.5 à v1.7 de ce contrat, l'entrée du 2026-09-11 de
+`journal-passes.md`, et `kb/references/powershell.md` l. 24. Ce sont des récits datés :
+ils ne se réécrivent pas, ils se lisent avec cette définition.
+
 ## 12 bis. La variance, et ce qu'elle interdit de conclure
 
 **Deux passes sur le même dépôt ne rendent pas les mêmes constats.** Mesuré les 11 et 12
-septembre 2026 sur le dépôt témoin : quatre défauts trouvés à la première passe ont été
+septembre 2026 sur le dépôt d'essai (§12) : quatre défauts trouvés à la première passe ont été
 manqués à la seconde — absence d'annonce des mises à jour aux lecteurs d'écran, taille des
 cibles tactiles, abonnement temps réel non borné, absence d'état de chargement. Aucun
 n'avait été corrigé entre les deux. Dans l'autre sens, la seconde a trouvé des faits que
@@ -917,13 +963,40 @@ un jour par quelqu'un qui ignore ce qu'elle protège.
 ⚠️ **Mais un motif qui nomme un défaut d'un dépôt auditable est la réponse à un test en
 cours.** Les deux exigences se contredisent, et la seconde l'emporte.
 
+**« Déployé » a deux sens, et la règle porte sur les deux.** Les confondre a laissé le
+journal des passes lisible pendant deux jours par le projet qui écrit les agents.
+
+| Vecteur | Ce qui y tourne | Ce qu'une instance y ferait |
+|---|---|---|
+| vers un **dépôt audité** — recopie de la bibliothèque dans `.claude/` | les agents d'audit | ils auraient la réponse au test qu'ils passent |
+| vers le **projet Claude.ai Prompt-Engineer** — sélection GitHub `<Projet>/kb/`, chargée en entier et récursivement | la conception de la bibliothèque | on taillerait les agents pour les défauts connus, et le décompte de constats cesserait de discriminer |
+
 | Le motif nomme… | Où il vit |
 |---|---|
 | une défaillance de la bibliothèque | dans le fichier concerné, déployé |
-| un **défaut d'un dépôt auditable** | dans `journal-passes.md`, qui **ne se déploie jamais** |
+| un **défaut d'un dépôt auditable** | dans `journal-passes.md`, **hors de `kb/`**, donc hors des deux vecteurs |
 
+**À quel grain ?** La table ci-dessous, faute de quoi la règle se lit comme une
+interdiction de nommer quoi que ce soit, et un handoff de continuité devient inécrivable.
+
+| Élément | Statut dans un fichier déployé | Motif |
+|---|---|---|
+| Identifiant nu — `QA-L37-01`, `ROOT-001` | **admis** | coordonnée positionnelle : agent, lot, rang. Le gabarit de `review-board` est `ROOT-001 — <fait> — explique <IDs>` — l'identifiant ne porte aucune sémantique du constat |
+| Description d'un constat | **exclu** | c'est la réponse du test que la passe suivante doit repasser |
+| Décompte — « N constats », « N lots sur N » | **exclu** | permet de calibrer sur *combien* trouver, ce qui contamine la mesure aussi sûrement que *quoi* trouver |
+| Chemin exact d'un rapport de passe | **exclu** | pointeur vers les réponses. « Le rapport de la passe du JJ/MM » suffit à la continuité |
+
+⚠️ **Un changelog ne gèle rien dans un fichier déployé.** La doctrine du vault protège le
+texte périmé d'un journal daté, parce qu'il y nomme une cause. Dans un fichier qui part
+chez l'audité, un décompte reste un décompte quelle que soit la section qui le porte.
 Un fichier déployé garde la **règle** et le **mode** de défaillance ; jamais l'instance,
-jamais sa localisation, jamais son décompte.
+jamais sa localisation, jamais son décompte. **Cette phrase vaut pour les deux vecteurs.**
+
+⚠️ **Un handoff de chantier reste dans `kb/`** — la convention de nommage du vault
+(`00-MOC/MOC-Vault.md`, `<Projet>/kb/handoffs/`) l'y range pour qu'il soit vu par la
+synchro du projet. Il n'est donc **pas** un compartiment de confidentialité : il porte
+les modes, et ses instances descendent ici. Les deux conventions sont conciliables à
+cette condition, et à elle seule.
 
 Dans le doute, le motif va au journal : perdre un peu de mémoire coûte moins cher que
 perdre la capacité de mesurer.
