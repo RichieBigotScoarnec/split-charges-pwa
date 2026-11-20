@@ -151,7 +151,7 @@ FairSplit/
 │                               # jamais rien publier),
 │                               # calculations, format, validation, salaries
 ├── tests/                      # Vitest (unitaires) + Playwright (E2E)
-├── tools/                      # 14 outils, hors `public/` donc jamais publiés —
+├── tools/                      # 12 outils, hors `public/` donc jamais publiés —
 │                               # 11 annoncés ici jusqu'au 2026-09-18, et il y
 │                               # en avait 13 AVANT le lot du jour : recompté
 │                               # par `ls tools/*.mjs | wc -l` :
