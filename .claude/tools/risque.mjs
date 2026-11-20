@@ -10,7 +10,7 @@
  *
  * Un fichier souvent modifié et peu couvert est l'endroit où les défauts vivent.
  *
- *   node tools/risque.mjs    → écrit .claude/audit/tooling/risque.json en UTF-8
+ *   node .claude/tools/risque.mjs → écrit .claude/audit/tooling/risque.json en UTF-8
  *
  * ⚠️ Le script écrit son fichier lui-même : sous PowerShell, une redirection `>`
  * produit de l'UTF-16 avec BOM, que le script suivant ne sait pas relire.
@@ -18,13 +18,28 @@
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
+// Frontière de la bibliothèque — LA MÊME LISTE dans lots.mjs et risque.mjs, nommée
+// fichier par fichier comme au contrat (périmètre par défaut). Seule la bibliothèque
+// s'exclut, pas tout `.claude/` : le reste y est du contenu de projet comme un autre,
+// et une exclusion en bloc emporte plus que sa raison — des commandes héritées
+// échappaient à la partition (mesuré le 2026-09-13).
+const BIBLIOTHEQUE = [
+  /^\.claude\/agents\//,
+  /^\.claude\/commands\/audit(-diff)?\.md$/,
+  /^\.claude\/contrat-agents-audit\.md$/,
+  /^\.claude\/outillage-deterministe\.md$/,
+  /^\.claude\/preuve-dynamique\.md$/,
+  /^\.claude\/audit\//,
+  /^\.claude\/tools\//
+];
+
 const DEPUIS = process.env.RISQUE_DEPUIS || '6 months ago';
 const COUVERTURE = 'coverage/coverage-final.json';
 
 const suivis = execSync('git ls-files', { encoding: 'utf8' })
   .split('\n')
   .filter((f) => /\.(js|mjs|html|css|json|ps1|psm1|psd1)$/.test(f))
-  .filter((f) => !f.startsWith('.claude/') && f !== 'package-lock.json');
+  .filter((f) => !BIBLIOTHEQUE.some((r) => r.test(f)) && f !== 'package-lock.json');
 
 // Fréquence de modification
 const journal = execSync(
@@ -66,7 +81,7 @@ const fichiers = suivis.map((f) => {
 fichiers.sort((a, b) => b.score - a.score);
 
 const sortie = JSON.stringify({
-  outil: 'tools/risque.mjs',
+  outil: '.claude/tools/risque.mjs',
   date: new Date().toISOString().slice(0, 10),
   commit: execSync('git rev-parse --short HEAD').toString().trim(),
   fenetre: DEPUIS,

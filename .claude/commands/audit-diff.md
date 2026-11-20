@@ -27,8 +27,9 @@ chaque étape, arrête-toi si l'un des deux a changé.
 git diff --name-only <référence>...HEAD
 ```
 
-Retire les fichiers de la bibliothèque (`.claude/agents/`, `.claude/commands/audit*.md`,
-`.claude/contrat-agents-audit.md`, `.claude/audit/`).
+Retire les fichiers de la bibliothèque (`.claude/agents/`, `.claude/commands/audit.md`, `.claude/commands/audit-diff.md`,
+`.claude/contrat-agents-audit.md`, `.claude/outillage-deterministe.md`,
+`.claude/preuve-dynamique.md`, `.claude/audit/` et `.claude/tools/` — contrat §0).
 
 ⛔ **Si le diff dépasse ce qu'une passe peut porter — au-delà d'environ 2 000 lignes
 modifiées, ou s'il contient des fichiers de verrouillage, minifiés, générés ou

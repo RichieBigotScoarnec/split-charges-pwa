@@ -1,6 +1,6 @@
 ---
 nom-canonique: contrat-agents-audit
-version: '3.5'
+version: '3.6'
 updated: '2026-11-20'
 created: '2026-09-11'
 projet: Prompt-Engineer
@@ -15,10 +15,17 @@ tags:
 
 # Contrat commun — bibliothèque d'agents d'audit
 
-> **Version 3.5 — 2026-11-20.**
+> **Version 3.6 — 2026-11-20.**
 > Ce document fait autorité sur tous les agents de la bibliothèque. Aucun agent ne
 > redéclare une règle écrite ici ; il y renvoie. Une règle dupliquée dans dix-huit
 > prompts est une règle qu'on corrigera dans dix-sept.
+
+**Changements v3.5 → v3.6** — frontière de la bibliothèque. Le §0 nommait quatre
+chemins ; la bibliothèque en déploie huit depuis l'arrivée des deux guides à la racine de
+`.claude/` et des outils de partition sous `.claude/tools/`. Guides et outils étaient
+donc découpés en lots et audités comme du contenu de projet. La liste du §0 est complétée
+et reste nommée, sans exclusion en bloc ; `audit.md`, `audit-diff.md`, `lots.mjs` et
+`risque.mjs` portent la même. Aucune autre règle changée.
 
 **Changements v3.4 → v3.5** — terminologie, aucune règle changée. Le §12 réservait
 « dépôt témoin » au dépôt à défauts semés, qui n'existe pas ; le §12 bis disait « mesuré
@@ -283,8 +290,11 @@ copié dans `.claude/commands/` puis personnalisé. On l'adopte et on le spécia
 composant maintenu par l'éditeur vaut mieux qu'un équivalent local à maintenir seul.
 
 **Périmètre par défaut** — corrigé le 2026-09-12. Seule **la bibliothèque elle-même**
-s'exclut : `.claude/agents/`, `.claude/commands/audit.md`, `.claude/contrat-agents-audit.md`
-et `.claude/audit/`. **Tout le reste de `.claude/` est du contenu de projet comme un
+s'exclut, nommément :
+`.claude/agents/`, `.claude/commands/audit.md`, `.claude/commands/audit-diff.md`,
+`.claude/contrat-agents-audit.md`, `.claude/outillage-deterministe.md`,
+`.claude/preuve-dynamique.md`, `.claude/audit/` et `.claude/tools/` (v3.6).
+**Tout le reste de `.claude/` est du contenu de projet comme un
 autre** et s'audite.
 
 ⚠️ Motif : la commande excluait `.claude/` en bloc. Sur la passe du 2026-09-12, ça a mis

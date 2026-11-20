@@ -1,6 +1,6 @@
 # Chaîne d'audit — mode opératoire
 
-Contrat v2.1. Onze agents, deux commandes.
+Contrat v3.6. Onze agents, deux commandes.
 
 ## Avant toute passe : produire les indices
 
@@ -26,14 +26,14 @@ npx playwright test --project=axe   # exige `npx playwright install chromium`
 npm run regles
 
 # priorisation
-node tools/risque.mjs
-node tools/lots.mjs
+node .claude/tools/risque.mjs
+node .claude/tools/lots.mjs
 ```
 
 ⚠️ Ces deux scripts écrivent leur fichier eux-mêmes — **pas de redirection `>`**. Sous
 PowerShell, `>` produit de l'UTF-16 avec BOM, que le script suivant ne sait pas relire.
 
-⚠️ `node tools/risque.mjs` **après** `npm run couverture` : sans la couverture, le
+⚠️ `node .claude/tools/risque.mjs` **après** `npm run couverture` : sans la couverture, le
 classement ne reflète que la fréquence de modification, et il le déclare.
 
 ## Les deux commandes
